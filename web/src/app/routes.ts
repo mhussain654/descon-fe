@@ -49,6 +49,8 @@ function buildRouteTree(dir: string, basePath = ''): Tree {
 		const stat = statSync(filePath);
 
 		if (stat.isDirectory()) {
+			if (file === '__create' || file === 'errors') continue;
+
 			const childPath = basePath ? `${basePath}/${file}` : file;
 			const childNode = buildRouteTree(filePath, childPath);
 			node.children.push(childNode);
