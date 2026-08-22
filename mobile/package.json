@@ -2,8 +2,13 @@
   "name": "mobile",
   "main": "index",
   "version": "1.0.0",
+  "engines": {
+    "node": ">=20"
+  },
   "scripts": {
-    "postinstall": "patch-package"
+    "postinstall": "patch-package",
+    "test": "jest",
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "@anythingai/app": "0.1.98",
