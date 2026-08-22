@@ -35,7 +35,6 @@ import { AppRegistry, LogBox } from 'react-native';
 import { DeviceErrorBoundaryWrapper } from './__create/DeviceErrorBoundary';
 import { initTestFlightLogger } from './__create/testflight-logger';
 import App from './entrypoint';
-import AnythingMenu from './src/__create/anything-menu';
 
 initTestFlightLogger();
 
@@ -43,12 +42,7 @@ if (__DEV__ || process.env.EXPO_PUBLIC_CREATE_ENV === 'DEVELOPMENT') {
   LogBox.ignoreAllLogs();
   LogBox.uninstall();
   AppRegistry.setWrapperComponentProvider(() => ({ children }) => {
-    return (
-      <>
-        <DeviceErrorBoundaryWrapper>{children}</DeviceErrorBoundaryWrapper>
-        <AnythingMenu />
-      </>
-    );
+    return <DeviceErrorBoundaryWrapper>{children}</DeviceErrorBoundaryWrapper>;
   });
 }
 renderRootComponent(App);

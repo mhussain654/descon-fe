@@ -92,18 +92,6 @@ config.resolver.resolveRequest = (context, moduleName, platform) => {
     if (moduleName.startsWith('@expo-google-fonts/') && moduleName !== '@expo-google-fonts/dev') {
       return context.resolveRequest(context, '@expo-google-fonts/dev', platform);
     }
-    // Resolve AnythingMenu to empty component in production
-    if (moduleName === './src/__create/anything-menu') {
-      const isProduction = process.env.EXPO_PUBLIC_CREATE_ENV === 'PRODUCTION';
-      if (isProduction) {
-        // Create empty component for production
-        const emptyComponentPath = path.resolve(
-          __dirname,
-          './polyfills/shared/empty-component.tsx'
-        );
-        return context.resolveRequest(context, emptyComponentPath, platform);
-      }
-    }
     if (SHARED_ALIASES[moduleName] && !moduleName.startsWith('./polyfills/')) {
       return context.resolveRequest(context, SHARED_ALIASES[moduleName], platform);
     }
