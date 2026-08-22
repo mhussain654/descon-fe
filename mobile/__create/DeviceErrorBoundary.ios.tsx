@@ -1,4 +1,3 @@
-import { ErrorFixEvents, errorFixEmitter } from '@anythingai/app/utils';
 import { SplashScreen } from 'expo-router/build/exports';
 import * as Updates from 'expo-updates';
 import React, { type ReactNode, useCallback, useEffect } from 'react';
@@ -25,15 +24,6 @@ const DeviceErrorBoundary = ({
   useEffect(() => {
     SplashScreen.hideAsync().catch(() => {});
   }, []);
-  const handleFixClick = useCallback(() => {
-    const seraizliedError = serializeError(error);
-    const displayableError = isErrorLike(seraizliedError)
-      ? `${seraizliedError.message}\n\n${seraizliedError.stack}`
-      : JSON.stringify(seraizliedError, null, 2);
-    errorFixEmitter.emit(ErrorFixEvents.ERROR_FIX_SUBMITTED, {
-      error: displayableError,
-    });
-  }, [error]);
   const handleReload = useCallback(async () => {
     if (Platform.OS === 'web') {
       window.location.reload();
@@ -54,11 +44,6 @@ const DeviceErrorBoundary = ({
       }
     >
       <View style={{ flexDirection: 'row', gap: 8 }}>
-        {isAnythingApp && (
-          <Button color="primary" onPress={handleFixClick}>
-            Try to fix
-          </Button>
-        )}
         {!isAnythingApp && (
           <Button color="primary" onPress={handleReload}>
             Restart app
