@@ -14,8 +14,13 @@ import { restart } from './plugins/restart';
 import { restartEnvFileChange } from './plugins/restartEnvFileChange';
 
 export default defineConfig(({ isSsrBuild }) => ({
-  // Keep them available via import.meta.env.NEXT_PUBLIC_*
-  envPrefix: 'NEXT_PUBLIC_',
+  // Keep NEXT_PUBLIC_* available via import.meta.env for back-compat, and add
+  // VITE_* (Vite's own convention) for the centralized API client's
+  // VITE_API_BASE_URL. Additive, not a replacement -- nothing currently
+  // reads import.meta.env.NEXT_PUBLIC_* (the real consumers use
+  // process.env.NEXT_PUBLIC_* via plugins/nextPublicProcessEnv.ts, which is
+  // independent of this option), so this can't regress existing behavior.
+  envPrefix: ['NEXT_PUBLIC_', 'VITE_'],
   // The SSR/server bundle runs in Node (see `engines.node` in package.json)
   // and its entry (__create/index.ts) uses legitimate top-level await. Vite's
   // default `build.target` is a browser baseline shared by both the client
