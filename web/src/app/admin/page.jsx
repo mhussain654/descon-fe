@@ -76,35 +76,35 @@ export default function AdminDashboard() {
     <div className="min-h-screen bg-[#FAFAFA]">
       {/* Header */}
       <div className="bg-white border-b border-gray-300">
-        <div className="max-w-[1600px] mx-auto px-6 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
+        <div className="max-w-[1600px] mx-auto px-4 py-4 sm:px-6">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex items-center gap-3 sm:gap-4">
               <img
                 src="https://ucarecdn.com/26b1d36a-12cf-4efa-853d-08da75f95d7e/-/format/auto/"
                 alt="Descon"
-                className="h-10"
+                className="h-8 sm:h-10"
               />
-              <div className="border-l border-gray-300 h-10" />
+              <div className="border-l border-gray-300 h-8 sm:h-10" />
               <div>
-                <h1 className="text-2xl font-semibold text-gray-900">
+                <h1 className="text-lg font-semibold text-gray-900 sm:text-2xl">
                   Manpower Onboarding
                 </h1>
-                <p className="text-sm text-gray-600 mt-0.5">
+                <p className="text-xs text-gray-600 mt-0.5 sm:text-sm">
                   Descon Engineering
                 </p>
               </div>
             </div>
-            <div className="flex items-center gap-4">
-              <div className="text-right text-sm">
+            <div className="flex items-center justify-between gap-4 sm:justify-end">
+              <div className="text-sm sm:text-right">
                 <div className="text-gray-600">Total Candidates</div>
                 <div className="text-2xl font-semibold text-gray-900">
                   {stats?.totalCandidates || 0}
                 </div>
               </div>
-              <div className="h-10 w-px bg-gray-300" />
+              <div className="h-10 w-px bg-gray-300 hidden sm:block" />
               <a
                 href="/admin/candidates/new"
-                className="bg-gray-900 text-white px-4 py-2 text-sm font-medium hover:bg-gray-800"
+                className="bg-gray-900 text-white px-4 py-2 text-sm font-medium hover:bg-gray-800 whitespace-nowrap"
               >
                 + Add Candidate
               </a>
@@ -113,7 +113,7 @@ export default function AdminDashboard() {
         </div>
       </div>
 
-      <div className="max-w-[1600px] mx-auto px-6 py-6">
+      <div className="max-w-[1600px] mx-auto px-4 py-6 sm:px-6">
         {/* Workflow Pipeline */}
         <div className="bg-white border border-gray-300 mb-6">
           <div className="px-4 py-3 border-b border-gray-300 bg-gray-50">
@@ -162,7 +162,7 @@ export default function AdminDashboard() {
         </div>
 
         {/* Search and Stats */}
-        <div className="flex gap-6 mb-6">
+        <div className="flex flex-col gap-4 mb-6 md:flex-row md:gap-6">
           <div className="flex-1 bg-white border border-gray-300">
             <form onSubmit={handleSearch} className="flex">
               <div className="flex-1 relative">
@@ -177,15 +177,15 @@ export default function AdminDashboard() {
               </div>
               <button
                 type="submit"
-                className="bg-gray-900 text-white px-6 text-sm font-medium hover:bg-gray-800"
+                className="bg-gray-900 text-white px-4 sm:px-6 text-sm font-medium hover:bg-gray-800 whitespace-nowrap"
               >
                 Search
               </button>
             </form>
           </div>
 
-          <div className="flex gap-4">
-            <div className="bg-white border border-gray-300 px-6 py-2.5 min-w-[140px]">
+          <div className="grid grid-cols-2 gap-4 md:flex md:shrink-0">
+            <div className="bg-white border border-gray-300 px-4 py-2.5 sm:px-6 md:min-w-[140px]">
               <div className="text-xs text-gray-600 uppercase tracking-wide">
                 Verified
               </div>
@@ -193,7 +193,7 @@ export default function AdminDashboard() {
                 {stats?.documentStats.verified || 0}
               </div>
             </div>
-            <div className="bg-white border border-gray-300 px-6 py-2.5 min-w-[140px]">
+            <div className="bg-white border border-gray-300 px-4 py-2.5 sm:px-6 md:min-w-[140px]">
               <div className="text-xs text-gray-600 uppercase tracking-wide">
                 Payments
               </div>
