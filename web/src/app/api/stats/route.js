@@ -1,13 +1,8 @@
 import sql from "@/app/api/utils/sql";
-import { getMockStats, hasDatabase } from "@/app/api/utils/mock-data";
 
 // GET - Get dashboard statistics
 export async function GET(request) {
   try {
-    if (!hasDatabase()) {
-      return Response.json(getMockStats());
-    }
-
     const [totalCandidates] =
       await sql`SELECT COUNT(*) as count FROM candidates`;
 

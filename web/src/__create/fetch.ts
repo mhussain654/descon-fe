@@ -1,4 +1,3 @@
-// @ts-nocheck -- legacy Create.xyz fetch instrumentation.
 const originalFetch = fetch;
 const isBackend = () => typeof window === 'undefined';
 

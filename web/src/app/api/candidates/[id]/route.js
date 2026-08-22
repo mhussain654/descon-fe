@@ -1,18 +1,9 @@
 import sql from "@/app/api/utils/sql";
-import { getMockCandidateById, hasDatabase } from "@/app/api/utils/mock-data";
 
 // GET - Get single candidate with documents and timeline
 export async function GET(request, { params }) {
   try {
     const { id } = params;
-
-    if (!hasDatabase()) {
-      const data = getMockCandidateById(id);
-      if (!data) {
-        return Response.json({ error: "Candidate not found" }, { status: 404 });
-      }
-      return Response.json(data);
-    }
 
     const [candidate] = await sql`SELECT * FROM candidates WHERE id = ${id}`;
 

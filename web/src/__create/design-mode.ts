@@ -1,4 +1,3 @@
-// @ts-nocheck -- legacy Create.xyz design editor support is not used by this application.
 /**
  * Web design mode — extracts Tailwind className and computed styles
  * from DOM elements.

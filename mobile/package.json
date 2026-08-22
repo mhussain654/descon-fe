@@ -3,11 +3,6 @@
   "main": "index",
   "version": "1.0.0",
   "scripts": {
-    "android": "expo start --android",
-    "ios": "expo start --ios",
-    "start": "expo start",
-    "test": "jest",
-    "web": "expo start --web",
     "postinstall": "patch-package"
   },
   "dependencies": {

@@ -1,8 +1,4 @@
 import sql from "@/app/api/utils/sql";
-import {
-  getMockCandidates,
-  hasDatabase,
-} from "@/app/api/utils/mock-data";
 
 // GET - List all candidates with optional filters
 export async function GET(request) {
@@ -10,15 +6,6 @@ export async function GET(request) {
     const { searchParams } = new URL(request.url);
     const search = searchParams.get("search");
     const stage = searchParams.get("stage");
-
-    if (!hasDatabase()) {
-      return Response.json({
-        candidates: getMockCandidates({
-          search: search || "",
-          stage: stage || "",
-        }),
-      });
-    }
 
     let query = "SELECT * FROM candidates WHERE 1=1";
     const params = [];
