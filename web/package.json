@@ -2,21 +2,23 @@
 	"name": "web",
 	"private": true,
 	"type": "module",
+	"engines": {
+		"node": ">=20"
+	},
 	"scripts": {
 		"dev": "react-router dev",
-		"typecheck": "react-router typegen && tsc --noEmit"
+		"build": "react-router build",
+		"typecheck": "react-router typegen && tsc --noEmit",
+		"test": "vitest run"
 	},
 	"dependencies": {
-		"@auth/core": "^0.37.2",
 		"@babel/generator": "^7.27.1",
 		"@chakra-ui/react": "2.8.2",
 		"@dnd-kit/core": "^6.3.1",
 		"@dnd-kit/sortable": "^10.0.0",
 		"@emotion/react": "11.11.4",
 		"@emotion/styled": "11.11.0",
-		"@hono/auth-js": "^1.0.15",
 		"@lshay/ui": "^0.1.32",
-		"@neondatabase/serverless": "^0.10.4",
 		"@react-aria/button": "^3.13.1",
 		"@react-router/fs-routes": "^7.6.0",
 		"@react-router/node": "^7.6.0",
@@ -25,7 +27,6 @@
 		"@tanstack/react-table": "^8.21.2",
 		"@types/babel__core": "^7.20.5",
 		"@vis.gl/react-google-maps": "^0.8.3",
-		"argon2": "^0.43.0",
 		"classnames": "^2.5.1",
 		"clean-stack": "^5.2.0",
 		"cmdk": "^1.1.1",
@@ -61,7 +62,6 @@
 		"three": "^0.175.0",
 		"vanilla-colorful": "^0.7.2",
 		"vaul": "^1.1.2",
-		"ws": "^8.18.2",
 		"yup": "^1.6.1",
 		"zustand": "^5.0.3"
 	},
@@ -80,7 +80,6 @@
 		"@types/node": "^20",
 		"@types/react": "^18.3.1",
 		"@types/react-dom": "^18.3.1",
-		"@types/ws": "^8.18.1",
 		"autoprefixer": "^10.4.21",
 		"babel-plugin-react-require": "^4.0.3",
 		"fast-glob": "^3.3.3",

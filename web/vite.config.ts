@@ -13,23 +13,21 @@ import { nextPublicProcessEnv } from './plugins/nextPublicProcessEnv';
 import { restart } from './plugins/restart';
 import { restartEnvFileChange } from './plugins/restartEnvFileChange';
 
-export default defineConfig({
+export default defineConfig(({ isSsrBuild }) => ({
   // Keep them available via import.meta.env.NEXT_PUBLIC_*
   envPrefix: 'NEXT_PUBLIC_',
+  // The SSR/server bundle runs in Node (see `engines.node` in package.json)
+  // and its entry (__create/index.ts) uses legitimate top-level await. Vite's
+  // default `build.target` is a browser baseline shared by both the client
+  // and SSR builds unless overridden per-build here, which previously made
+  // esbuild reject that top-level await as unsupported. Only the SSR build
+  // gets a Node target; the client build target is left untouched.
+  build: isSsrBuild ? { target: 'node20' } : undefined,
   optimizeDeps: {
     // Explicitly include fast-glob, since it gets dynamically imported and we
     // don't want that to cause a re-bundle.
     include: ['fast-glob', 'lucide-react'],
-    exclude: [
-      '@hono/auth-js/react',
-      '@hono/auth-js',
-      '@auth/core',
-      '@hono/auth-js',
-      'hono/context-storage',
-      '@auth/core/errors',
-      'fsevents',
-      'lightningcss',
-    ],
+    exclude: ['hono/context-storage', 'fsevents', 'lightningcss'],
   },
   logLevel: 'info',
   plugins: [
@@ -71,8 +69,6 @@ export default defineConfig({
       lodash: 'lodash-es',
       'npm:stripe': 'stripe',
       stripe: path.resolve(__dirname, './src/__create/stripe'),
-      '@auth/create/react': '@hono/auth-js/react',
-      '@auth/create': path.resolve(__dirname, './src/__create/@auth/create'),
       '@': path.resolve(__dirname, 'src'),
     },
     dedupe: ['react', 'react-dom'],
@@ -92,4 +88,4 @@ export default defineConfig({
       clientFiles: ['./src/app/**/*', './src/app/root.tsx', './src/app/routes.ts'],
     },
   },
-});
+}));
