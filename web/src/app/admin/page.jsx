@@ -87,7 +87,7 @@ export default function AdminDashboard() {
               <div className="border-l border-gray-300 h-8 sm:h-10" />
               <div>
                 <h1 className="text-lg font-semibold text-gray-900 sm:text-2xl">
-                  Manpower Onboarding
+                  Descon Manpower
                 </h1>
                 <p className="text-xs text-gray-600 mt-0.5 sm:text-sm">
                   Descon Engineering

@@ -4,23 +4,14 @@ import { reactRouterHonoServer } from 'react-router-hono-server/dev';
 import { defineConfig } from 'vite';
 import babel from 'vite-plugin-babel';
 import tsconfigPaths from 'vite-tsconfig-paths';
-import { addRenderIds } from './plugins/addRenderIds';
 import { aliases } from './plugins/aliases';
-import consoleToParent from './plugins/console-to-parent';
 import { layoutWrapperPlugin } from './plugins/layouts';
 import { loadFontsFromTailwindSource } from './plugins/loadFontsFromTailwindSource';
-import { nextPublicProcessEnv } from './plugins/nextPublicProcessEnv';
 import { restart } from './plugins/restart';
 import { restartEnvFileChange } from './plugins/restartEnvFileChange';
 
 export default defineConfig(({ isSsrBuild }) => ({
-  // Keep NEXT_PUBLIC_* available via import.meta.env for back-compat, and add
-  // VITE_* (Vite's own convention) for the centralized API client's
-  // VITE_API_BASE_URL. Additive, not a replacement -- nothing currently
-  // reads import.meta.env.NEXT_PUBLIC_* (the real consumers use
-  // process.env.NEXT_PUBLIC_* via plugins/nextPublicProcessEnv.ts, which is
-  // independent of this option), so this can't regress existing behavior.
-  envPrefix: ['NEXT_PUBLIC_', 'VITE_'],
+  envPrefix: 'VITE_',
   // The SSR/server bundle runs in Node (see `engines.node` in package.json)
   // and its entry (__create/index.ts) uses legitimate top-level await. Vite's
   // default `build.target` is a browser baseline shared by both the client
@@ -36,7 +27,6 @@ export default defineConfig(({ isSsrBuild }) => ({
   },
   logLevel: 'info',
   plugins: [
-    nextPublicProcessEnv(),
     restartEnvFileChange(),
     reactRouterHonoServer({
       serverEntryPoint: './__create/index.ts',
@@ -61,9 +51,7 @@ export default defineConfig(({ isSsrBuild }) => ({
         'src/**/route.ts',
       ],
     }),
-    consoleToParent(),
     loadFontsFromTailwindSource(),
-    addRenderIds(),
     reactRouter(),
     tsconfigPaths(),
     aliases(),
@@ -72,8 +60,6 @@ export default defineConfig(({ isSsrBuild }) => ({
   resolve: {
     alias: {
       lodash: 'lodash-es',
-      'npm:stripe': 'stripe',
-      stripe: path.resolve(__dirname, './src/__create/stripe'),
       '@': path.resolve(__dirname, 'src'),
     },
     dedupe: ['react', 'react-dom'],
@@ -84,7 +70,7 @@ export default defineConfig(({ isSsrBuild }) => ({
     host: '0.0.0.0',
     port: 4000,
     fs: {
-      allow: ['..', '../../shared'],
+      allow: ['..'],
     },
     hmr: {
       overlay: false,

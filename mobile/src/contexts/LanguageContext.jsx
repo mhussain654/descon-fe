@@ -1,196 +1,63 @@
-import { createContext, useContext, useState } from "react";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { createContext, useContext, useEffect, useState, useCallback } from "react";
+import { I18nManager } from "react-native";
+import { isRTL } from "../../../shared/i18n/locale";
+import { translate } from "../../../shared/i18n/translate";
 
+const STORAGE_KEY = "descon.language";
 const LanguageContext = createContext();
 
-export const translations = {
-  en: {
-    // Welcome
-    welcomeTitle: "Welcome",
-    welcomeMessage: "Descon Engineering Manpower Onboarding Portal",
-    selectLanguage: "Select Your Preferred Language",
-    continue: "Continue",
+async function readPersistedLanguage() {
+  try {
+    const stored = await AsyncStorage.getItem(STORAGE_KEY);
+    return stored === "ur" ? "ur" : "en";
+  } catch {
+    return "en";
+  }
+}
 
-    // Login
-    login: "Sign In",
-    loginMessage: "Enter your registered mobile number and CNIC to continue",
-    cnic: "CNIC Number",
-    mobileNumber: "Registered Mobile Number",
-    password: "Password",
-    enterCNIC: "Enter your CNIC",
-    enterMobileNumber: "03XXXXXXXXX",
-    enterRegNumber: "Enter registration number",
-    enterPassword: "Enter password",
-    signIn: "Sign In",
-    sendOTP: "Send OTP",
-    verifyOTP: "Verify OTP",
-    otpSentMessage: "Enter the 6-digit code sent to",
-    enterOTP: "One-Time Password",
-    resendOTP: "Resend OTP",
-    verifyAndLogin: "Verify & Login",
-
-    // Dashboard
-    dashboard: "Dashboard",
-    welcome: "Welcome",
-    currentStatus: "Current Status",
-    nextSteps: "Next Steps",
-    uploadDocuments: "Upload Documents",
-    makePayment: "Make Payment",
-    viewStatus: "View Status",
-
-    // Documents
-    documents: "Documents",
-    uploadDocument: "Upload Document",
-    pending: "Pending",
-    verified: "Verified",
-    rejected: "Rejected",
-    uploaded: "Uploaded",
-    passport: "Passport",
-    cnicFront: "CNIC (Front)",
-    cnicBack: "CNIC (Back)",
-    nextOfKinCNIC: "Next of Kin CNIC",
-    policeCharacter: "Police Character Certificate",
-    bankDetails: "Bank Details",
-    chequeImage: "Cheque/ATM Image",
-    cv: "CV/Resume",
-    experienceLetter: "Experience Letter",
-    certificates: "Certificates",
-    polioCertificate: "Polio Certificate",
-
-    // Status
-    status: "Status",
-    mobilizationProgress: "Mobilization Progress",
-    registered: "Registered",
-    documentsPending: "Documents Pending",
-    documentsUploaded: "Documents Uploaded",
-    documentsVerified: "Verified",
-    feePending: "Fee Pending",
-    feePaid: "Fee Paid",
-    sharedWithBU: "Shared with Business Unit",
-    qvcBooked: "QVC Appointment Booked",
-    qvcOutcome: "QVC Outcome",
-    visaIssued: "Visa Issued",
-    protectionCompleted: "Protection Completed",
-    readyToFly: "Ready to Fly",
-    flightDetailsUploaded: "Flight Details Uploaded",
-    mobilized: "Mobilized",
-
-    // Profile
-    profile: "Profile",
-    personalInfo: "Personal Information",
-    contactInfo: "Contact Information",
-    language: "Language",
-    logout: "Logout",
-
-    // Payment
-    payment: "Payment",
-    paymentStatus: "Payment Status",
-    payNow: "Pay Now",
-    amount: "Amount",
-    reference: "Reference Number",
-  },
-  ur: {
-    // Welcome
-    welcomeTitle: "خوش آمدید",
-    welcomeMessage: "ڈیسکون انجینئرنگ مین پاور آن بورڈنگ پورٹل",
-    selectLanguage: "اپنی پسندیدہ زبان منتخب کریں",
-    continue: "جاری رکھیں",
-
-    // Login
-    login: "سائن ان",
-    loginMessage:
-      "جاری رکھنے کے لیے اپنا رجسٹرڈ موبائل نمبر اور شناختی کارڈ نمبر درج کریں",
-    cnic: "شناختی کارڈ نمبر",
-    mobileNumber: "رجسٹرڈ موبائل نمبر",
-    password: "پاس ورڈ",
-    enterCNIC: "اپنا شناختی کارڈ نمبر درج کریں",
-    enterMobileNumber: "03XXXXXXXXX",
-    enterRegNumber: "رجسٹریشن نمبر درج کریں",
-    enterPassword: "پاس ورڈ درج کریں",
-    signIn: "سائن ان کریں",
-    sendOTP: "او ٹی پی بھیجیں",
-    verifyOTP: "او ٹی پی کی تصدیق کریں",
-    otpSentMessage: "بھیجے گئے 6 ہندسوں کا کوڈ درج کریں",
-    enterOTP: "ایک بار کا پاس ورڈ",
-    resendOTP: "دوبارہ او ٹی پی بھیجیں",
-    verifyAndLogin: "تصدیق اور لاگ ان",
-
-    // Dashboard
-    dashboard: "ڈیش بورڈ",
-    welcome: "خوش آمدید",
-    currentStatus: "موجودہ حیثیت",
-    nextSteps: "اگلے اقدامات",
-    uploadDocuments: "دستاویزات اپ لوڈ کریں",
-    makePayment: "ادائیگی کریں",
-    viewStatus: "حیثیت دیکھیں",
-
-    // Documents
-    documents: "دستاویزات",
-    uploadDocument: "دستاویز اپ لوڈ کریں",
-    pending: "زیر التواء",
-    verified: "تصدیق شدہ",
-    rejected: "مسترد",
-    uploaded: "اپ لوڈ شدہ",
-    passport: "پاسپورٹ",
-    cnicFront: "شناختی کارڈ (سامنے)",
-    cnicBack: "شناختی کارڈ (پیچھے)",
-    nextOfKinCNIC: "قریبی رشتہ دار کا شناختی کارڈ",
-    policeCharacter: "پولیس کریکٹر سرٹیفکیٹ",
-    bankDetails: "بینک کی تفصیلات",
-    chequeImage: "چیک/اے ٹی ایم تصویر",
-    cv: "سی وی",
-    experienceLetter: "تجربہ کار خط",
-    certificates: "سرٹیفکیٹ",
-    polioCertificate: "پولیو سرٹیفکیٹ",
-
-    // Status
-    status: "حیثیت",
-    mobilizationProgress: "متحرک کاری کی پیشرفت",
-    registered: "رجسٹرڈ",
-    documentsPending: "دستاویزات زیر التواء",
-    documentsUploaded: "دستاویزات اپ لوڈ",
-    documentsVerified: "تصدیق شدہ",
-    feePending: "فیس زیر التواء",
-    feePaid: "فیس ادا شدہ",
-    sharedWithBU: "بزنس یونٹ کے ساتھ شیئر",
-    qvcBooked: "کیو وی سی ملاقات بک",
-    qvcOutcome: "کیو وی سی نتیجہ",
-    visaIssued: "ویزا جاری",
-    protectionCompleted: "تحفظ مکمل",
-    readyToFly: "پرواز کے لیے تیار",
-    flightDetailsUploaded: "پرواز کی تفصیلات اپ لوڈ",
-    mobilized: "متحرک",
-
-    // Profile
-    profile: "پروفائل",
-    personalInfo: "ذاتی معلومات",
-    contactInfo: "رابطہ کی معلومات",
-    language: "زبان",
-    logout: "لاگ آؤٹ",
-
-    // Payment
-    payment: "ادائیگی",
-    paymentStatus: "ادائیگی کی حیثیت",
-    payNow: "ابھی ادا کریں",
-    amount: "رقم",
-    reference: "حوالہ نمبر",
-  },
-};
+function applyRTL(language) {
+  const rtl = isRTL(language);
+  if (I18nManager.isRTL !== rtl) {
+    I18nManager.allowRTL(rtl);
+    I18nManager.forceRTL(rtl);
+    // Layout direction only takes effect after the next app reload/restart --
+    // a standard React Native constraint, not something this hook can avoid.
+  }
+}
 
 export function LanguageProvider({ children }) {
-  const [language, setLanguage] = useState("en");
+  const [language, setLanguageState] = useState("en");
 
-  const t = (key) => {
-    return translations[language][key] || key;
-  };
+  useEffect(() => {
+    let cancelled = false;
+    readPersistedLanguage().then((stored) => {
+      if (!cancelled) setLanguageState(stored);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
-  const toggleLanguage = () => {
-    setLanguage((prev) => (prev === "en" ? "ur" : "en"));
-  };
+  const setLanguage = useCallback((next) => {
+    setLanguageState(next);
+    AsyncStorage.setItem(STORAGE_KEY, next).catch(() => {});
+    applyRTL(next);
+  }, []);
+
+  const toggleLanguage = useCallback(() => {
+    setLanguageState((prev) => {
+      const next = prev === "en" ? "ur" : "en";
+      AsyncStorage.setItem(STORAGE_KEY, next).catch(() => {});
+      applyRTL(next);
+      return next;
+    });
+  }, []);
+
+  const t = useCallback((key) => translate(language, key), [language]);
 
   return (
-    <LanguageContext.Provider
-      value={{ language, setLanguage, t, toggleLanguage }}
-    >
+    <LanguageContext.Provider value={{ language, setLanguage, t, toggleLanguage }}>
       {children}
     </LanguageContext.Provider>
   );

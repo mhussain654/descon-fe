@@ -146,6 +146,11 @@ function InternalErrorBoundary({
   error: unknown | null;
 }) {
   const [isOpen, setIsOpen] = useState(true);
+
+  useEffect(() => {
+    console.error(errorArg);
+  }, [errorArg]);
+
   const handleCopyError = useCallback(() => {
     const serializedError = serializeError(errorArg);
     const text = isErrorLike(serializedError)
@@ -155,64 +160,13 @@ function InternalErrorBoundary({
     setIsOpen(false);
   }, [errorArg]);
 
-  const postCountRef = useRef(0);
-  const lastPostTimeRef = useRef(0);
-  const lastErrorKeyRef = useRef<string | null>(null);
-  const MAX_ERROR_POSTS_PER_ERROR = 5;
-  const THROTTLE_MS = 1000;
-
-  useEffect(() => {
-    const serialized = serializeError(errorArg);
-    const errorKey = JSON.stringify(serialized);
-
-    if (errorKey !== lastErrorKeyRef.current) {
-      lastErrorKeyRef.current = errorKey;
-      postCountRef.current = 0;
-    }
-
-    if (postCountRef.current >= MAX_ERROR_POSTS_PER_ERROR) {
-      return;
-    }
-
-    const now = Date.now();
-    const timeSinceLastPost = now - lastPostTimeRef.current;
-
-    const post = () => {
-      if (postCountRef.current >= MAX_ERROR_POSTS_PER_ERROR) {
-        return;
-      }
-      postCountRef.current += 1;
-      lastPostTimeRef.current = Date.now();
-      window.parent.postMessage(
-        { type: 'sandbox:error:detected', error: serialized },
-        '*'
-      );
-    };
-
-    if (timeSinceLastPost < THROTTLE_MS) {
-      const timer = setTimeout(post, THROTTLE_MS - timeSinceLastPost);
-      return () => clearTimeout(timer);
-    }
-
-    post();
-  }, [errorArg]);
-
-  function isInIframe() {
-    try {
-      return window.parent !== window;
-    } catch {
-      return true;
-    }
-  }
   return (
     <View style={{ flexDirection: 'row', gap: 8 }}>
-      {!isInIframe() && (
-        <SharedErrorBoundary isOpen={isOpen}>
-          <Button color="primary" onPress={handleCopyError}>
-            Copy error
-          </Button>
-        </SharedErrorBoundary>
-      )}
+      <SharedErrorBoundary isOpen={isOpen}>
+        <Button color="primary" onPress={handleCopyError}>
+          Copy error
+        </Button>
+      </SharedErrorBoundary>
     </View>
   );
 }

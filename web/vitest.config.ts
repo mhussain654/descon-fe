@@ -11,12 +11,17 @@ export default defineConfig({
     setupFiles: './test/setupTests.ts',
     include: [
       'src/**/*.{test,spec}.{js,ts,jsx,tsx}',
-      '../../shared/**/*.{test,spec}.{js,ts,jsx,tsx}',
+      '../shared/**/*.{test,spec}.{js,ts,jsx,tsx}',
     ],
   },
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),
+    },
+  },
+  server: {
+    fs: {
+      allow: ['..'],
     },
   },
   esbuild: {

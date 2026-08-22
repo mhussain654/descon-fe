@@ -1,4 +1,3 @@
-import { useAuth } from "@/utils/auth/useAuth";
 import { Stack } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import { useEffect } from "react";
@@ -28,21 +27,9 @@ const queryClient = new QueryClient({
 });
 
 export default function RootLayout() {
-  const { initiate, isReady } = useAuth();
-
   useEffect(() => {
-    initiate();
-  }, [initiate]);
-
-  useEffect(() => {
-    if (isReady) {
-      SplashScreen.hideAsync();
-    }
-  }, [isReady]);
-
-  if (!isReady) {
-    return null;
-  }
+    SplashScreen.hideAsync();
+  }, []);
 
   return (
     <LanguageProvider>
