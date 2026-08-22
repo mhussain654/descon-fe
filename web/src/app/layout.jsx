@@ -1,11 +1,21 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { LanguageProvider } from '../contexts/LanguageContext';
 
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
       staleTime: 1000 * 60 * 5, // 5 minutes
-      cacheTime: 1000 * 60 * 30, // 30 minutes
-      retry: 1,
+      gcTime: 1000 * 60 * 30, // 30 minutes
+      retry: (failureCount, error) => {
+        const apiError = error;
+        if (apiError?.code === 'NETWORK_ERROR' || apiError?.code === 'TIMEOUT') {
+          return failureCount < 2;
+        }
+        if (typeof apiError?.status === 'number' && apiError.status >= 500) {
+          return failureCount < 1;
+        }
+        return false;
+      },
       refetchOnWindowFocus: false,
     },
   },
@@ -13,8 +23,10 @@ const queryClient = new QueryClient({
 
 export default function RootLayout({children}) {
   return (
-    <QueryClientProvider client={queryClient}>
-      {children}
-    </QueryClientProvider>
+    <LanguageProvider>
+      <QueryClientProvider client={queryClient}>
+        {children}
+      </QueryClientProvider>
+    </LanguageProvider>
   );
 }

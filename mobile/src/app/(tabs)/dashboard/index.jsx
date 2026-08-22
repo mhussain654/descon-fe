@@ -44,7 +44,7 @@ export default function DashboardScreen() {
   const candidateData = {
     name: "Ahmed Khan",
     regNumber: "DES-2024-001",
-    currentStage: "Documents Uploaded",
+    currentStageKey: "documentsUploaded",
     progress: 30,
     documentsStatus: "pending_verification",
     paymentStatus: "pending",
@@ -168,7 +168,7 @@ export default function DashboardScreen() {
                 marginLeft: 10,
               }}
             >
-              {candidateData.currentStage}
+              {t(candidateData.currentStageKey)}
             </Text>
           </View>
 
@@ -199,7 +199,7 @@ export default function DashboardScreen() {
               color: isDark ? "#9CA3AF" : "#6B7280",
             }}
           >
-            {candidateData.progress}% Complete
+            {candidateData.progress}% {t("complete")}
           </Text>
         </View>
 
@@ -237,7 +237,7 @@ export default function DashboardScreen() {
                 marginLeft: 12,
               }}
             >
-              Waiting for document verification by HR team
+              {t("waitingForVerification")}
             </Text>
           </View>
         </View>
@@ -252,7 +252,7 @@ export default function DashboardScreen() {
               marginBottom: 12,
             }}
           >
-            Quick Actions
+            {t("quickActions")}
           </Text>
 
           <View

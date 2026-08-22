@@ -1,4 +1,4 @@
-import sql from "@/app/api/utils/sql";
+import { listCandidates, createCandidate } from "@/app/api/utils/mock-db";
 
 // GET - List all candidates with optional filters
 export async function GET(request) {
@@ -7,25 +7,7 @@ export async function GET(request) {
     const search = searchParams.get("search");
     const stage = searchParams.get("stage");
 
-    let query = "SELECT * FROM candidates WHERE 1=1";
-    const params = [];
-    let paramCount = 0;
-
-    if (search) {
-      paramCount++;
-      query += ` AND (LOWER(full_name) LIKE LOWER($${paramCount}) OR LOWER(registration_number) LIKE LOWER($${paramCount}) OR LOWER(cnic) LIKE LOWER($${paramCount}))`;
-      params.push(`%${search}%`);
-    }
-
-    if (stage) {
-      paramCount++;
-      query += ` AND current_stage = $${paramCount}`;
-      params.push(stage);
-    }
-
-    query += " ORDER BY created_at DESC";
-
-    const candidates = await sql(query, params);
+    const candidates = listCandidates({ search, stage });
 
     return Response.json({ candidates });
   } catch (error) {
@@ -51,19 +33,16 @@ export async function POST(request) {
       );
     }
 
-    const result = await sql`
-      INSERT INTO candidates (cnic, registration_number, full_name, email, phone, address)
-      VALUES (${cnic}, ${registration_number}, ${full_name}, ${email}, ${phone}, ${address})
-      RETURNING *
-    `;
+    const candidate = createCandidate({
+      cnic,
+      registration_number,
+      full_name,
+      email,
+      phone,
+      address,
+    });
 
-    // Create initial timeline entry
-    await sql`
-      INSERT INTO status_timeline (candidate_id, stage_name, stage_status, completed_date)
-      VALUES (${result[0].id}, 'registered', 'completed', CURRENT_TIMESTAMP)
-    `;
-
-    return Response.json({ candidate: result[0] }, { status: 201 });
+    return Response.json({ candidate }, { status: 201 });
   } catch (error) {
     console.error("Error creating candidate:", error);
     return Response.json(

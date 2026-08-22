@@ -4,36 +4,29 @@ import { reactRouterHonoServer } from 'react-router-hono-server/dev';
 import { defineConfig } from 'vite';
 import babel from 'vite-plugin-babel';
 import tsconfigPaths from 'vite-tsconfig-paths';
-import { addRenderIds } from './plugins/addRenderIds';
 import { aliases } from './plugins/aliases';
-import consoleToParent from './plugins/console-to-parent';
 import { layoutWrapperPlugin } from './plugins/layouts';
 import { loadFontsFromTailwindSource } from './plugins/loadFontsFromTailwindSource';
-import { nextPublicProcessEnv } from './plugins/nextPublicProcessEnv';
 import { restart } from './plugins/restart';
 import { restartEnvFileChange } from './plugins/restartEnvFileChange';
 
-export default defineConfig({
-  // Keep them available via import.meta.env.NEXT_PUBLIC_*
-  envPrefix: 'NEXT_PUBLIC_',
+export default defineConfig(({ isSsrBuild }) => ({
+  envPrefix: 'VITE_',
+  // The SSR/server bundle runs in Node (see `engines.node` in package.json)
+  // and its entry (__create/index.ts) uses legitimate top-level await. Vite's
+  // default `build.target` is a browser baseline shared by both the client
+  // and SSR builds unless overridden per-build here, which previously made
+  // esbuild reject that top-level await as unsupported. Only the SSR build
+  // gets a Node target; the client build target is left untouched.
+  build: isSsrBuild ? { target: 'node20' } : undefined,
   optimizeDeps: {
     // Explicitly include fast-glob, since it gets dynamically imported and we
     // don't want that to cause a re-bundle.
     include: ['fast-glob', 'lucide-react'],
-    exclude: [
-      '@hono/auth-js/react',
-      '@hono/auth-js',
-      '@auth/core',
-      '@hono/auth-js',
-      'hono/context-storage',
-      '@auth/core/errors',
-      'fsevents',
-      'lightningcss',
-    ],
+    exclude: ['hono/context-storage', 'fsevents', 'lightningcss'],
   },
   logLevel: 'info',
   plugins: [
-    nextPublicProcessEnv(),
     restartEnvFileChange(),
     reactRouterHonoServer({
       serverEntryPoint: './__create/index.ts',
@@ -58,9 +51,7 @@ export default defineConfig({
         'src/**/route.ts',
       ],
     }),
-    consoleToParent(),
     loadFontsFromTailwindSource(),
-    addRenderIds(),
     reactRouter(),
     tsconfigPaths(),
     aliases(),
@@ -69,21 +60,24 @@ export default defineConfig({
   resolve: {
     alias: {
       lodash: 'lodash-es',
-      'npm:stripe': 'stripe',
-      stripe: path.resolve(__dirname, './src/__create/stripe'),
-      '@auth/create/react': '@hono/auth-js/react',
-      '@auth/create': path.resolve(__dirname, './src/__create/@auth/create'),
       '@': path.resolve(__dirname, 'src'),
     },
     dedupe: ['react', 'react-dom'],
   },
   clearScreen: false,
   server: {
-    allowedHosts: true,
+    // Explicit allowlist instead of `true` (which disables Host-header
+    // validation entirely -- a DNS-rebinding vector). `.localhost` covers
+    // the loopback name; LAN access during mobile testing works via the
+    // printed Network URL without needing a wildcard here.
+    allowedHosts: ['localhost', '.localhost'],
     host: '0.0.0.0',
     port: 4000,
     fs: {
-      allow: ['..', '../../shared'],
+      // Only the app's own source and the cross-platform shared/ directory
+      // it imports from -- not the rest of the descon-fe monorepo (mobile/,
+      // env files, etc).
+      allow: ['.', '../shared'],
     },
     hmr: {
       overlay: false,
@@ -92,4 +86,4 @@ export default defineConfig({
       clientFiles: ['./src/app/**/*', './src/app/root.tsx', './src/app/routes.ts'],
     },
   },
-});
+}));

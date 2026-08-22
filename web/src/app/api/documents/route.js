@@ -1,4 +1,4 @@
-import sql from "@/app/api/utils/sql";
+import { createDocument } from "@/app/api/utils/mock-db";
 
 // POST - Upload document
 export async function POST(request) {
@@ -13,13 +13,9 @@ export async function POST(request) {
       );
     }
 
-    const result = await sql`
-      INSERT INTO documents (candidate_id, document_type, file_url, verification_status)
-      VALUES (${candidate_id}, ${document_type}, ${file_url}, 'uploaded')
-      RETURNING *
-    `;
+    const document = createDocument({ candidate_id, document_type, file_url });
 
-    return Response.json({ document: result[0] }, { status: 201 });
+    return Response.json({ document }, { status: 201 });
   } catch (error) {
     console.error("Error uploading document:", error);
     return Response.json(

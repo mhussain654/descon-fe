@@ -1,27 +1,4 @@
-import { useState } from "react";
-
-const translations = {
-  en: {
-    welcomeTitle: "Welcome",
-    welcomeMessage: "Descon Engineering Manpower Onboarding Portal",
-    selectLanguage: "Select Your Preferred Language",
-    continue: "Continue",
-    englishLabel: "English",
-    englishHint: "Continue in English",
-    urduLabel: "Urdu",
-    urduHint: "اردو میں جاری رکھیں",
-  },
-  ur: {
-    welcomeTitle: "خوش آمدید",
-    welcomeMessage: "ڈیسکون انجینئرنگ مین پاور آن بورڈنگ پورٹل",
-    selectLanguage: "اپنی پسندیدہ زبان منتخب کریں",
-    continue: "جاری رکھیں",
-    englishLabel: "English",
-    englishHint: "Continue in English",
-    urduLabel: "اردو",
-    urduHint: "اردو میں جاری رکھیں",
-  },
-};
+import { useLanguage } from "../contexts/LanguageContext";
 
 function LanguageCard({ active, flag, label, hint, onClick }) {
   return (
@@ -51,8 +28,7 @@ function LanguageCard({ active, flag, label, hint, onClick }) {
 }
 
 export default function Page() {
-  const [language, setLanguage] = useState("en");
-  const t = translations[language];
+  const { language, setLanguage, t } = useLanguage();
 
   return (
     <main className="min-h-screen bg-white">
@@ -67,30 +43,30 @@ export default function Page() {
 
         <section className="mb-12 text-center">
           <h1 className="mb-3 text-4xl font-semibold text-black">
-            {t.welcomeTitle}
+            {t("welcomeTitle")}
           </h1>
           <p className="text-base leading-7 text-gray-500">
-            {t.welcomeMessage}
+            {t("welcomeMessage")}
           </p>
         </section>
 
         <section className="mb-12">
           <p className="mb-4 text-center text-sm font-medium text-black">
-            {t.selectLanguage}
+            {t("selectLanguage")}
           </p>
           <div className="space-y-3">
             <LanguageCard
               active={language === "en"}
               flag="🇬🇧"
-              label={t.englishLabel}
-              hint={t.englishHint}
+              label={t("englishLabel")}
+              hint={t("englishHint")}
               onClick={() => setLanguage("en")}
             />
             <LanguageCard
               active={language === "ur"}
               flag="🇵🇰"
-              label={t.urduLabel}
-              hint={t.urduHint}
+              label={t("urduLabel")}
+              hint={t("urduHint")}
               onClick={() => setLanguage("ur")}
             />
           </div>
@@ -102,7 +78,7 @@ export default function Page() {
           href="/login"
           className="rounded-xl bg-[#0066CC] px-6 py-4 text-center text-base font-semibold text-white shadow-[0_10px_30px_rgba(0,102,204,0.18)] transition hover:bg-[#0057AD]"
         >
-          {t.continue}
+          {t("continue")}
         </a>
 
         <p className="mt-6 text-center text-xs text-gray-400">

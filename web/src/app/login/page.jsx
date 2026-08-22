@@ -1,46 +1,13 @@
 import { useState } from "react";
-
-const translations = {
-  en: {
-    login: "Sign In",
-    verifyOTP: "Verify OTP",
-    loginMessage: "Enter your registered mobile number and CNIC to continue",
-    otpSentMessage: "Enter the 6-digit code sent to",
-    mobileNumber: "Registered Mobile Number",
-    cnic: "CNIC Number",
-    enterMobileNumber: "03XXXXXXXXX",
-    enterCNIC: "Enter your CNIC",
-    enterOTP: "One-Time Password",
-    sendOTP: "Send OTP",
-    resendOTP: "Resend OTP",
-    verifyAndLogin: "Verify & Login",
-    back: "Back",
-  },
-  ur: {
-    login: "سائن ان",
-    verifyOTP: "او ٹی پی کی تصدیق کریں",
-    loginMessage: "جاری رکھنے کے لیے اپنا رجسٹرڈ موبائل نمبر اور شناختی کارڈ نمبر درج کریں",
-    otpSentMessage: "بھیجے گئے 6 ہندسوں کا کوڈ درج کریں",
-    mobileNumber: "رجسٹرڈ موبائل نمبر",
-    cnic: "شناختی کارڈ نمبر",
-    enterMobileNumber: "03XXXXXXXXX",
-    enterCNIC: "اپنا شناختی کارڈ نمبر درج کریں",
-    enterOTP: "ایک بار کا پاس ورڈ",
-    sendOTP: "او ٹی پی بھیجیں",
-    resendOTP: "دوبارہ او ٹی پی بھیجیں",
-    verifyAndLogin: "تصدیق اور لاگ ان",
-    back: "واپس",
-  },
-};
+import { useLanguage } from "../../contexts/LanguageContext";
 
 export default function LoginPage() {
-  const [language, setLanguage] = useState("en");
+  const { language, setLanguage, t } = useLanguage();
   const [step, setStep] = useState(1);
   const [mobileNumber, setMobileNumber] = useState("");
   const [cnic, setCnic] = useState("");
   const [otp, setOtp] = useState("");
   const [loading, setLoading] = useState(false);
-  const t = translations[language];
 
   const handleSendOtp = () => {
     if (!mobileNumber || !cnic) return;
@@ -64,7 +31,7 @@ export default function LoginPage() {
       <div className="mx-auto flex min-h-screen w-full max-w-xl flex-col px-6 pb-8 pt-16">
         <div className="mb-10 flex items-center justify-between">
           <a href="/" className="text-sm font-medium text-gray-500 hover:text-black">
-            {t.back}
+            {t("back")}
           </a>
           <div className="flex items-center gap-2">
             <button
@@ -93,10 +60,10 @@ export default function LoginPage() {
             🛡
           </div>
           <h1 className="mb-2 text-3xl font-semibold text-black">
-            {step === 1 ? t.login : t.verifyOTP}
+            {step === 1 ? t("login") : t("verifyOTP")}
           </h1>
           <p className="text-base leading-7 text-gray-500">
-            {step === 1 ? t.loginMessage : `${t.otpSentMessage} ${mobileNumber}`}
+            {step === 1 ? t("loginMessage") : `${t("otpSentMessage")} ${mobileNumber}`}
           </p>
         </div>
 
@@ -104,23 +71,23 @@ export default function LoginPage() {
           <div className="space-y-5">
             <div>
               <label className="mb-2 block text-sm font-medium text-black">
-                {t.mobileNumber}
+                {t("mobileNumber")}
               </label>
               <input
                 value={mobileNumber}
                 onChange={(event) => setMobileNumber(event.target.value)}
-                placeholder={t.enterMobileNumber}
+                placeholder={t("enterMobileNumber")}
                 className="w-full rounded-xl border border-gray-200 bg-[#F6F6F6] px-4 py-3 text-base text-black"
               />
             </div>
             <div>
               <label className="mb-2 block text-sm font-medium text-black">
-                {t.cnic}
+                {t("cnic")}
               </label>
               <input
                 value={cnic}
                 onChange={(event) => setCnic(event.target.value)}
-                placeholder={t.enterCNIC}
+                placeholder={t("enterCNIC")}
                 className="w-full rounded-xl border border-gray-200 bg-[#F6F6F6] px-4 py-3 text-base text-black"
               />
             </div>
@@ -130,14 +97,14 @@ export default function LoginPage() {
               disabled={loading || !mobileNumber || !cnic}
               className="w-full rounded-xl bg-[#0066CC] px-6 py-4 text-base font-semibold text-white disabled:bg-gray-400"
             >
-              {loading ? "..." : t.sendOTP}
+              {loading ? "..." : t("sendOTP")}
             </button>
           </div>
         ) : (
           <div className="space-y-5">
             <div>
               <label className="mb-2 block text-sm font-medium text-black">
-                {t.enterOTP}
+                {t("enterOTP")}
               </label>
               <input
                 value={otp}
@@ -152,14 +119,14 @@ export default function LoginPage() {
               disabled={loading || !otp}
               className="w-full rounded-xl bg-[#0066CC] px-6 py-4 text-base font-semibold text-white disabled:bg-gray-400"
             >
-              {loading ? "..." : t.verifyAndLogin}
+              {loading ? "..." : t("verifyAndLogin")}
             </button>
             <button
               type="button"
               onClick={() => setStep(1)}
               className="w-full rounded-xl border border-gray-200 px-6 py-4 text-base font-semibold text-gray-700"
             >
-              {t.resendOTP}
+              {t("resendOTP")}
             </button>
           </div>
         )}

@@ -1,29 +1,32 @@
 import UserShell from "../components/user-shell";
+import { useLanguage } from "../../contexts/LanguageContext";
 
 export default function DashboardPage() {
+  const { t } = useLanguage();
+
   const candidateData = {
     name: "Ahmed Khan",
     regNumber: "DES-2026-001",
-    currentStage: "Documents Uploaded",
+    currentStageKey: "documentsUploaded",
     progress: 30,
   };
 
   const quickActions = [
     {
-      title: "Upload Documents",
-      description: "Submit remaining onboarding documents for review.",
+      titleKey: "uploadDocuments",
+      descriptionKey: "uploadDocumentsDesc",
       color: "bg-[#E6F2FF] text-[#0066CC]",
       href: "/documents",
     },
     {
-      title: "View Status",
-      description: "Track each step of your mobilization progress.",
+      titleKey: "viewStatus",
+      descriptionKey: "viewStatusDesc",
       color: "bg-[#FFF7E6] text-[#F59E0B]",
       href: "/status",
     },
     {
-      title: "Make Payment",
-      description: "Complete any pending onboarding fee payments.",
+      titleKey: "makePayment",
+      descriptionKey: "makePaymentDesc",
       color: "bg-[#E6F9F0] text-[#10B981]",
       href: "/payment",
     },
@@ -33,7 +36,7 @@ export default function DashboardPage() {
     <UserShell activeTab="/dashboard">
       <div className="border-b border-gray-200 bg-white">
         <div className="mx-auto max-w-5xl px-6 py-8">
-          <p className="mb-1 text-sm text-gray-500">Welcome</p>
+          <p className="mb-1 text-sm text-gray-500">{t("welcome")}</p>
           <h1 className="text-3xl font-semibold text-black">
             {candidateData.name}
           </h1>
@@ -43,13 +46,13 @@ export default function DashboardPage() {
 
       <div className="mx-auto max-w-5xl px-6 py-8">
         <section className="mb-6 rounded-2xl border border-gray-200 bg-white p-6">
-          <h2 className="mb-4 text-lg font-semibold text-black">Current Status</h2>
+          <h2 className="mb-4 text-lg font-semibold text-black">{t("currentStatus")}</h2>
           <div className="mb-3 flex items-center gap-3">
             <div className="flex h-8 w-8 items-center justify-center rounded-full bg-[#E6F2FF] text-[#0066CC]">
               ✓
             </div>
             <div className="text-base font-medium text-black">
-              {candidateData.currentStage}
+              {t(candidateData.currentStageKey)}
             </div>
           </div>
           <div className="mb-2 h-2 overflow-hidden rounded-full bg-gray-200">
@@ -59,33 +62,33 @@ export default function DashboardPage() {
             />
           </div>
           <p className="text-sm text-gray-500">
-            {candidateData.progress}% complete
+            {candidateData.progress}% {t("complete")}
           </p>
         </section>
 
         <section className="mb-6 rounded-2xl border border-gray-200 bg-white p-6">
-          <h2 className="mb-4 text-lg font-semibold text-black">Next Step</h2>
+          <h2 className="mb-4 text-lg font-semibold text-black">{t("nextSteps")}</h2>
           <div className="rounded-xl bg-[#FFF7E6] px-4 py-3 text-sm text-gray-700">
-            Waiting for document verification by the HR team.
+            {t("waitingForVerification")}
           </div>
         </section>
 
         <section>
-          <h2 className="mb-4 text-lg font-semibold text-black">Quick Actions</h2>
+          <h2 className="mb-4 text-lg font-semibold text-black">{t("quickActions")}</h2>
           <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
             {quickActions.map((action) => (
               <a
-                key={action.title}
+                key={action.titleKey}
                 href={action.href}
                 className="rounded-2xl border border-gray-200 bg-white p-5 transition hover:-translate-y-0.5 hover:border-gray-300 hover:shadow-sm"
               >
                 <div
                   className={`mb-4 inline-flex rounded-xl px-3 py-2 text-sm font-semibold ${action.color}`}
                 >
-                  {action.title}
+                  {t(action.titleKey)}
                 </div>
                 <p className="text-sm leading-6 text-gray-600">
-                  {action.description}
+                  {t(action.descriptionKey)}
                 </p>
               </a>
             ))}

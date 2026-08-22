@@ -1,22 +1,25 @@
-import sql from "@/app/api/utils/sql";
+import {
+  getCandidateById,
+  getDocumentsForCandidate,
+  getTimelineForCandidate,
+  getPaymentsForCandidate,
+  updateCandidate,
+} from "@/app/api/utils/mock-db";
 
 // GET - Get single candidate with documents and timeline
 export async function GET(request, { params }) {
   try {
     const { id } = params;
 
-    const [candidate] = await sql`SELECT * FROM candidates WHERE id = ${id}`;
+    const candidate = getCandidateById(id);
 
     if (!candidate) {
       return Response.json({ error: "Candidate not found" }, { status: 404 });
     }
 
-    const documents =
-      await sql`SELECT * FROM documents WHERE candidate_id = ${id} ORDER BY upload_date DESC`;
-    const timeline =
-      await sql`SELECT * FROM status_timeline WHERE candidate_id = ${id} ORDER BY created_at ASC`;
-    const payments =
-      await sql`SELECT * FROM payments WHERE candidate_id = ${id} ORDER BY created_at DESC`;
+    const documents = getDocumentsForCandidate(id);
+    const timeline = getTimelineForCandidate(id);
+    const payments = getPaymentsForCandidate(id);
 
     return Response.json({
       candidate,
@@ -39,10 +42,6 @@ export async function PATCH(request, { params }) {
     const { id } = params;
     const body = await request.json();
 
-    const setClauses = [];
-    const values = [];
-    let paramCount = 0;
-
     const allowedFields = [
       "full_name",
       "email",
@@ -52,29 +51,24 @@ export async function PATCH(request, { params }) {
       "progress_percentage",
     ];
 
+    const fields = {};
     for (const field of allowedFields) {
       if (body[field] !== undefined) {
-        paramCount++;
-        setClauses.push(`${field} = $${paramCount}`);
-        values.push(body[field]);
+        fields[field] = body[field];
       }
     }
 
-    if (setClauses.length === 0) {
+    if (Object.keys(fields).length === 0) {
       return Response.json({ error: "No fields to update" }, { status: 400 });
     }
 
-    paramCount++;
-    values.push(id);
+    const candidate = updateCandidate(id, fields);
 
-    const query = `UPDATE candidates SET ${setClauses.join(", ")}, updated_at = CURRENT_TIMESTAMP WHERE id = $${paramCount} RETURNING *`;
-    const result = await sql(query, values);
-
-    if (result.length === 0) {
+    if (!candidate) {
       return Response.json({ error: "Candidate not found" }, { status: 404 });
     }
 
-    return Response.json({ candidate: result[0] });
+    return Response.json({ candidate });
   } catch (error) {
     console.error("Error updating candidate:", error);
     return Response.json(

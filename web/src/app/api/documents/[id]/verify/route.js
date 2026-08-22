@@ -1,4 +1,4 @@
-import sql from "@/app/api/utils/sql";
+import { verifyDocument } from "@/app/api/utils/mock-db";
 
 // POST - Verify or reject document
 export async function POST(request, { params }) {
@@ -11,21 +11,13 @@ export async function POST(request, { params }) {
       return Response.json({ error: "Invalid status" }, { status: 400 });
     }
 
-    const result = await sql`
-      UPDATE documents 
-      SET verification_status = ${status},
-          rejection_reason = ${rejection_reason || null},
-          verified_by = ${verified_by || null},
-          verified_at = CURRENT_TIMESTAMP
-      WHERE id = ${id}
-      RETURNING *
-    `;
+    const document = verifyDocument(id, { status, rejection_reason, verified_by });
 
-    if (result.length === 0) {
+    if (!document) {
       return Response.json({ error: "Document not found" }, { status: 404 });
     }
 
-    return Response.json({ document: result[0] });
+    return Response.json({ document });
   } catch (error) {
     console.error("Error verifying document:", error);
     return Response.json(

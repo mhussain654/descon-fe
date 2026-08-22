@@ -1,4 +1,3 @@
-import { useAuth } from "@/utils/auth/useAuth";
 import { Stack } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import { useEffect } from "react";
@@ -11,29 +10,26 @@ const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
       staleTime: 1000 * 60 * 5, // 5 minutes
-      cacheTime: 1000 * 60 * 30, // 30 minutes
-      retry: 1,
+      gcTime: 1000 * 60 * 30, // 30 minutes
+      retry: (failureCount, error) => {
+        const apiError = error;
+        if (apiError?.code === "NETWORK_ERROR" || apiError?.code === "TIMEOUT") {
+          return failureCount < 2;
+        }
+        if (typeof apiError?.status === "number" && apiError.status >= 500) {
+          return failureCount < 1;
+        }
+        return false;
+      },
       refetchOnWindowFocus: false,
     },
   },
 });
 
 export default function RootLayout() {
-  const { initiate, isReady } = useAuth();
-
   useEffect(() => {
-    initiate();
-  }, [initiate]);
-
-  useEffect(() => {
-    if (isReady) {
-      SplashScreen.hideAsync();
-    }
-  }, [isReady]);
-
-  if (!isReady) {
-    return null;
-  }
+    SplashScreen.hideAsync();
+  }, []);
 
   return (
     <LanguageProvider>

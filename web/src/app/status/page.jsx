@@ -1,27 +1,32 @@
+import UserShell from "../components/user-shell";
+import { useLanguage } from "../../contexts/LanguageContext";
+
 const timeline = [
-  { id: 1, label: "Registered", status: "completed", date: "2026-08-10" },
-  { id: 2, label: "Documents Pending", status: "completed", date: "2026-08-12" },
-  { id: 3, label: "Documents Uploaded", status: "current", date: "2026-08-16" },
-  { id: 4, label: "Verified", status: "pending", date: null },
-  { id: 5, label: "Fee Pending", status: "pending", date: null },
-  { id: 6, label: "Fee Paid", status: "pending", date: null },
-  { id: 7, label: "Shared with Business Unit", status: "pending", date: null },
-  { id: 8, label: "QVC Appointment Booked", status: "pending", date: null },
-  { id: 9, label: "QVC Outcome", status: "pending", date: null },
-  { id: 10, label: "Visa Issued", status: "pending", date: null },
-  { id: 11, label: "Protection Completed", status: "pending", date: null },
-  { id: 12, label: "Ready to Fly", status: "pending", date: null },
-  { id: 13, label: "Flight Details Uploaded", status: "pending", date: null },
-  { id: 14, label: "Mobilized", status: "pending", date: null },
+  { id: 1, labelKey: "registered", status: "completed", date: "2026-08-10" },
+  { id: 2, labelKey: "documentsPending", status: "completed", date: "2026-08-12" },
+  { id: 3, labelKey: "documentsUploaded", status: "current", date: "2026-08-16" },
+  { id: 4, labelKey: "documentsVerified", status: "pending", date: null },
+  { id: 5, labelKey: "feePending", status: "pending", date: null },
+  { id: 6, labelKey: "feePaid", status: "pending", date: null },
+  { id: 7, labelKey: "sharedWithBU", status: "pending", date: null },
+  { id: 8, labelKey: "qvcBooked", status: "pending", date: null },
+  { id: 9, labelKey: "qvcOutcome", status: "pending", date: null },
+  { id: 10, labelKey: "visaIssued", status: "pending", date: null },
+  { id: 11, labelKey: "protectionCompleted", status: "pending", date: null },
+  { id: 12, labelKey: "readyToFly", status: "pending", date: null },
+  { id: 13, labelKey: "flightDetailsUploaded", status: "pending", date: null },
+  { id: 14, labelKey: "mobilized", status: "pending", date: null },
 ];
 
 export default function StatusPage() {
+  const { t } = useLanguage();
+
   return (
     <UserShell activeTab="/status">
       <div className="border-b border-gray-200 bg-white">
         <div className="mx-auto max-w-4xl px-6 py-8">
-          <h1 className="text-3xl font-semibold text-black">Status</h1>
-          <p className="mt-1 text-sm text-gray-500">Mobilization Progress</p>
+          <h1 className="text-3xl font-semibold text-black">{t("status")}</h1>
+          <p className="mt-1 text-sm text-gray-500">{t("mobilizationProgress")}</p>
         </div>
       </div>
 
@@ -55,12 +60,12 @@ export default function StatusPage() {
                     item.status === "current" ? "font-semibold text-black" : "font-medium text-black"
                   }`}
                 >
-                  {item.label}
+                  {t(item.labelKey)}
                 </div>
                 {item.date ? <div className="mt-1 text-sm text-gray-500">{item.date}</div> : null}
                 {item.status === "current" ? (
                   <div className="mt-3 inline-flex rounded-lg bg-[#E6F2FF] px-3 py-2 text-xs font-medium text-[#0066CC]">
-                    In Progress
+                    {t("inProgress")}
                   </div>
                 ) : null}
               </div>
@@ -71,4 +76,3 @@ export default function StatusPage() {
     </UserShell>
   );
 }
-import UserShell from "../components/user-shell";

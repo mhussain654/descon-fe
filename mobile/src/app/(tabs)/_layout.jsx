@@ -1,10 +1,12 @@
 import { Tabs } from "expo-router";
 import { useColorScheme } from "react-native";
 import { Home, FileText, Clock, User } from "lucide-react-native";
+import { useLanguage } from "../../contexts/LanguageContext";
 
 export default function TabLayout() {
   const colorScheme = useColorScheme();
   const isDark = colorScheme === "dark";
+  const { t } = useLanguage();
 
   return (
     <Tabs
@@ -27,28 +29,28 @@ export default function TabLayout() {
       <Tabs.Screen
         name="dashboard"
         options={{
-          title: "Dashboard",
+          title: t("dashboard"),
           tabBarIcon: ({ color, size }) => <Home color={color} size={22} />,
         }}
       />
       <Tabs.Screen
         name="documents"
         options={{
-          title: "Documents",
+          title: t("documents"),
           tabBarIcon: ({ color, size }) => <FileText color={color} size={22} />,
         }}
       />
       <Tabs.Screen
         name="status"
         options={{
-          title: "Status",
+          title: t("status"),
           tabBarIcon: ({ color, size }) => <Clock color={color} size={22} />,
         }}
       />
       <Tabs.Screen
         name="profile"
         options={{
-          title: "Profile",
+          title: t("profile"),
           tabBarIcon: ({ color, size }) => <User color={color} size={22} />,
         }}
       />
