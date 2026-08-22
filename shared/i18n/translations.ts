@@ -1,8 +1,7 @@
-// Shared English/Urdu translation-key catalog for the candidate experience.
-// Both apps look up copy by the same keys so behavior, wording and coverage
-// stay in sync -- see AGENTS.md's "Use shared translation-key naming across
-// platforms." Web and mobile each keep their own admin/dev-only screens
-// (e.g. the web admin dashboard) out of this catalog by product scope.
+// Shared English/Urdu translation-key catalog for the candidate and admin
+// experience. Both apps look up copy by the same keys so behavior, wording
+// and coverage stay in sync -- see AGENTS.md's "Use shared translation-key
+// naming across platforms." Admin-only keys are prefixed `admin`.
 
 export type Language = 'en' | 'ur';
 
@@ -47,6 +46,12 @@ export const translations = {
     uploadDocuments: 'Upload Documents',
     makePayment: 'Make Payment',
     viewStatus: 'View Status',
+    uploadDocumentsDesc: 'Submit remaining onboarding documents for review.',
+    viewStatusDesc: 'Track each step of your mobilization progress.',
+    makePaymentDesc: 'Complete any pending onboarding fee payments.',
+    waitingForVerification: 'Waiting for document verification by the HR team.',
+    quickActions: 'Quick Actions',
+    complete: 'complete',
 
     // Documents
     documents: 'Documents',
@@ -66,6 +71,10 @@ export const translations = {
     experienceLetter: 'Experience Letter',
     certificates: 'Certificates',
     polioCertificate: 'Polio Certificate',
+    notUploadedYet: 'Not uploaded yet',
+    uploadedOnPrefix: 'Uploaded on',
+    reasonPrefix: 'Reason',
+    poorQualityImage: 'Poor quality image',
 
     // Status
     status: 'Status',
@@ -84,6 +93,7 @@ export const translations = {
     readyToFly: 'Ready to Fly',
     flightDetailsUploaded: 'Flight Details Uploaded',
     mobilized: 'Mobilized',
+    inProgress: 'In Progress',
 
     // Profile
     profile: 'Profile',
@@ -91,6 +101,10 @@ export const translations = {
     contactInfo: 'Contact Information',
     language: 'Language',
     logout: 'Logout',
+    cnicShort: 'CNIC',
+    phoneShort: 'Phone',
+    emailShort: 'Email',
+    addressShort: 'Address',
 
     // Payment
     payment: 'Payment',
@@ -98,11 +112,56 @@ export const translations = {
     payNow: 'Pay Now',
     amount: 'Amount',
     reference: 'Reference Number',
+    completeOnboardingPayment: 'Complete your onboarding payment',
+    amountDue: 'Amount Due',
+
+    // Common
+    loading: 'Loading…',
+    retry: 'Retry',
+    somethingWentWrong: 'Something went wrong.',
+    notAvailable: 'N/A',
+    progressLabel: 'Progress',
+
+    // Admin
+    adminAddCandidate: '+ Add Candidate',
+    adminTotalCandidates: 'Total Candidates',
+    adminWorkflowPipeline: 'Workflow Pipeline',
+    adminAll: 'All',
+    adminSearchPlaceholder: 'Search by name, CNIC, or registration number...',
+    adminSearch: 'Search',
+    adminPayments: 'Payments',
+    adminTableCandidate: 'Candidate',
+    adminTableRegNumber: 'Reg. Number',
+    adminTableStage: 'Stage',
+    adminTableProgress: 'Progress',
+    adminTableAction: 'Action',
+    adminNoCandidatesFound: 'No candidates found',
+    adminView: 'View',
+    adminBackToDashboard: 'Back to Dashboard',
+    adminNoPaymentRecords: 'No payment records',
+    adminNoDocumentsUploaded: 'No documents uploaded',
+    adminStatusTimeline: 'Status Timeline',
+    adminCandidateNotFound: 'Candidate not found',
+    adminEnterRejectionReason: 'Enter rejection reason:',
+    adminFailedToVerifyDocument: 'Failed to verify document',
+    verifyAction: 'Verify',
+    rejectAction: 'Reject',
 
     // Not found
     notFoundTitle: "This page doesn't exist",
     notFoundMessage: "We couldn't find what you were looking for.",
     goHome: 'Go to homepage',
+
+    // Crash boundary (kept dependency-free from the rest of the app so it
+    // can render even if application state itself is what crashed)
+    appErrorDetected: 'App Error Detected',
+    appErrorDescription: 'It looks like an error occurred while trying to use your app.',
+    appErrorDescriptionWithSupport:
+      'It looks like an error occurred while trying to use your app. Please contact support if the problem continues.',
+    copyErrorAction: 'Copy error',
+    copiedSuccessfully: 'Copied successfully!',
+    restartAction: 'Restart app',
+    success: 'Success',
   },
   ur: {
     // Welcome
@@ -142,6 +201,12 @@ export const translations = {
     uploadDocuments: 'دستاویزات اپ لوڈ کریں',
     makePayment: 'ادائیگی کریں',
     viewStatus: 'حیثیت دیکھیں',
+    uploadDocumentsDesc: 'جائزے کے لیے باقی آن بورڈنگ دستاویزات جمع کروائیں۔',
+    viewStatusDesc: 'اپنی متحرک کاری کی پیشرفت کے ہر مرحلے کو ٹریک کریں۔',
+    makePaymentDesc: 'کوئی بھی زیر التواء آن بورڈنگ فیس کی ادائیگی مکمل کریں۔',
+    waitingForVerification: 'ایچ آر ٹیم کی جانب سے دستاویز کی تصدیق کا انتظار ہے۔',
+    quickActions: 'فوری اقدامات',
+    complete: 'مکمل',
 
     // Documents
     documents: 'دستاویزات',
@@ -161,6 +226,10 @@ export const translations = {
     experienceLetter: 'تجربہ کار خط',
     certificates: 'سرٹیفکیٹ',
     polioCertificate: 'پولیو سرٹیفکیٹ',
+    notUploadedYet: 'ابھی تک اپ لوڈ نہیں ہوا',
+    uploadedOnPrefix: 'اپ لوڈ کی تاریخ',
+    reasonPrefix: 'وجہ',
+    poorQualityImage: 'ناقص معیار کی تصویر',
 
     // Status
     status: 'حیثیت',
@@ -179,6 +248,7 @@ export const translations = {
     readyToFly: 'پرواز کے لیے تیار',
     flightDetailsUploaded: 'پرواز کی تفصیلات اپ لوڈ',
     mobilized: 'متحرک',
+    inProgress: 'جاری ہے',
 
     // Profile
     profile: 'پروفائل',
@@ -186,6 +256,10 @@ export const translations = {
     contactInfo: 'رابطہ کی معلومات',
     language: 'زبان',
     logout: 'لاگ آؤٹ',
+    cnicShort: 'شناختی کارڈ',
+    phoneShort: 'فون',
+    emailShort: 'ای میل',
+    addressShort: 'پتہ',
 
     // Payment
     payment: 'ادائیگی',
@@ -193,11 +267,55 @@ export const translations = {
     payNow: 'ابھی ادا کریں',
     amount: 'رقم',
     reference: 'حوالہ نمبر',
+    completeOnboardingPayment: 'اپنی آن بورڈنگ ادائیگی مکمل کریں',
+    amountDue: 'واجب الادا رقم',
+
+    // Common
+    loading: 'لوڈ ہو رہا ہے…',
+    retry: 'دوبارہ کوشش کریں',
+    somethingWentWrong: 'کچھ غلط ہو گیا۔',
+    notAvailable: 'دستیاب نہیں',
+    progressLabel: 'پیش رفت',
+
+    // Admin
+    adminAddCandidate: '+ امیدوار شامل کریں',
+    adminTotalCandidates: 'کل امیدوار',
+    adminWorkflowPipeline: 'ورک فلو پائپ لائن',
+    adminAll: 'تمام',
+    adminSearchPlaceholder: 'نام، شناختی کارڈ، یا رجسٹریشن نمبر سے تلاش کریں...',
+    adminSearch: 'تلاش کریں',
+    adminPayments: 'ادائیگیاں',
+    adminTableCandidate: 'امیدوار',
+    adminTableRegNumber: 'رجسٹریشن نمبر',
+    adminTableStage: 'مرحلہ',
+    adminTableProgress: 'پیش رفت',
+    adminTableAction: 'ایکشن',
+    adminNoCandidatesFound: 'کوئی امیدوار نہیں ملا',
+    adminView: 'دیکھیں',
+    adminBackToDashboard: 'ڈیش بورڈ پر واپس جائیں',
+    adminNoPaymentRecords: 'ادائیگی کا کوئی ریکارڈ نہیں',
+    adminNoDocumentsUploaded: 'کوئی دستاویز اپ لوڈ نہیں ہوئی',
+    adminStatusTimeline: 'حیثیت کی ٹائم لائن',
+    adminCandidateNotFound: 'امیدوار نہیں ملا',
+    adminEnterRejectionReason: 'مسترد کرنے کی وجہ درج کریں:',
+    adminFailedToVerifyDocument: 'دستاویز کی تصدیق ناکام ہوئی',
+    verifyAction: 'تصدیق کریں',
+    rejectAction: 'مسترد کریں',
 
     // Not found
     notFoundTitle: 'یہ صفحہ موجود نہیں ہے',
     notFoundMessage: 'ہم وہ نہیں ڈھونڈ سکے جس کی آپ کو تلاش تھی۔',
     goHome: 'ہوم پیج پر جائیں',
+
+    // Crash boundary
+    appErrorDetected: 'ایپ میں خرابی کا پتہ چلا',
+    appErrorDescription: 'لگتا ہے آپ کی ایپ استعمال کرتے ہوئے کوئی خرابی پیش آئی ہے۔',
+    appErrorDescriptionWithSupport:
+      'لگتا ہے آپ کی ایپ استعمال کرتے ہوئے کوئی خرابی پیش آئی ہے۔ اگر مسئلہ برقرار رہے تو سپورٹ سے رابطہ کریں۔',
+    copyErrorAction: 'خرابی کاپی کریں',
+    copiedSuccessfully: 'کامیابی سے کاپی ہو گیا!',
+    restartAction: 'دوبارہ شروع کریں',
+    success: 'کامیابی',
   },
 } as const satisfies Record<Language, Record<string, string>>;
 

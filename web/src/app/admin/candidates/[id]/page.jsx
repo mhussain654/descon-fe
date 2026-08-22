@@ -2,8 +2,39 @@
 
 import { useEffect, useState } from "react";
 import { ArrowLeft, CheckCircle, XCircle, Clock, Upload } from "lucide-react";
+import { formatCurrency } from "../../../../../../shared/i18n/locale";
+import { useLanguage } from "../../../../contexts/LanguageContext";
+
+const documentTypeKeys = {
+  passport: "passport",
+  cnic_front: "cnicFront",
+  cnic_back: "cnicBack",
+  next_of_kin_cnic: "nextOfKinCNIC",
+  police_character: "policeCharacter",
+  bank_details: "bankDetails",
+  cheque_image: "chequeImage",
+  cv: "cv",
+};
+
+const stageNameKeys = {
+  registered: "registered",
+  documents_pending: "documentsPending",
+  documents_uploaded: "documentsUploaded",
+  verified: "documentsVerified",
+  fee_pending: "feePending",
+  fee_paid: "feePaid",
+  shared_with_bu: "sharedWithBU",
+  qvc_booked: "qvcBooked",
+  qvc_outcome: "qvcOutcome",
+  visa_issued: "visaIssued",
+  protection_completed: "protectionCompleted",
+  ready_to_fly: "readyToFly",
+  flight_details_uploaded: "flightDetailsUploaded",
+  mobilized: "mobilized",
+};
 
 export default function CandidateDetails({ params }) {
+  const { t, language } = useLanguage();
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
 
@@ -43,7 +74,7 @@ export default function CandidateDetails({ params }) {
       fetchCandidateData();
     } catch (error) {
       console.error("Error verifying document:", error);
-      alert("Failed to verify document");
+      alert(t("adminFailedToVerifyDocument"));
     }
   };
 
@@ -61,16 +92,27 @@ export default function CandidateDetails({ params }) {
   };
 
   const formatDocumentType = (type) => {
+    const labelKey = documentTypeKeys[type];
+    if (labelKey) return t(labelKey);
     return type
       .split("_")
       .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
       .join(" ");
   };
 
+  const formatStageName = (stageName) => {
+    const labelKey = stageNameKeys[stageName];
+    if (labelKey) return t(labelKey);
+    return stageName
+      .split("_")
+      .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+      .join(" ");
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-gray-600">Loading...</div>
+        <div className="text-gray-600">{t("loading")}</div>
       </div>
     );
   }
@@ -78,7 +120,7 @@ export default function CandidateDetails({ params }) {
   if (!data) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-gray-600">Candidate not found</div>
+        <div className="text-gray-600">{t("adminCandidateNotFound")}</div>
       </div>
     );
   }
@@ -95,7 +137,7 @@ export default function CandidateDetails({ params }) {
             className="inline-flex items-center text-blue-600 hover:text-blue-800 mb-4"
           >
             <ArrowLeft className="w-4 h-4 mr-2" />
-            Back to Dashboard
+            {t("adminBackToDashboard")}
           </a>
           <div className="flex items-center justify-between">
             <div>
@@ -107,7 +149,7 @@ export default function CandidateDetails({ params }) {
               </p>
             </div>
             <div className="text-right">
-              <div className="text-sm text-gray-600">Progress</div>
+              <div className="text-sm text-gray-600">{t("progressLabel")}</div>
               <div className="text-2xl font-bold text-blue-600">
                 {candidate.progress_percentage}%
               </div>
@@ -123,31 +165,31 @@ export default function CandidateDetails({ params }) {
             {/* Personal Information */}
             <div className="bg-white rounded-lg shadow p-6">
               <h2 className="text-lg font-semibold text-gray-900 mb-4">
-                Personal Information
+                {t("personalInfo")}
               </h2>
               <div className="space-y-3">
                 <div>
-                  <div className="text-sm text-gray-600">CNIC</div>
+                  <div className="text-sm text-gray-600">{t("cnicShort")}</div>
                   <div className="text-sm font-medium text-gray-900">
                     {candidate.cnic}
                   </div>
                 </div>
                 <div>
-                  <div className="text-sm text-gray-600">Email</div>
+                  <div className="text-sm text-gray-600">{t("emailShort")}</div>
                   <div className="text-sm font-medium text-gray-900">
-                    {candidate.email || "N/A"}
+                    {candidate.email || t("notAvailable")}
                   </div>
                 </div>
                 <div>
-                  <div className="text-sm text-gray-600">Phone</div>
+                  <div className="text-sm text-gray-600">{t("phoneShort")}</div>
                   <div className="text-sm font-medium text-gray-900">
-                    {candidate.phone || "N/A"}
+                    {candidate.phone || t("notAvailable")}
                   </div>
                 </div>
                 <div>
-                  <div className="text-sm text-gray-600">Address</div>
+                  <div className="text-sm text-gray-600">{t("addressShort")}</div>
                   <div className="text-sm font-medium text-gray-900">
-                    {candidate.address || "N/A"}
+                    {candidate.address || t("notAvailable")}
                   </div>
                 </div>
               </div>
@@ -156,7 +198,7 @@ export default function CandidateDetails({ params }) {
             {/* Payment Information */}
             <div className="bg-white rounded-lg shadow p-6">
               <h2 className="text-lg font-semibold text-gray-900 mb-4">
-                Payment Status
+                {t("paymentStatus")}
               </h2>
               {payments.length > 0 ? (
                 <div className="space-y-3">
@@ -166,13 +208,13 @@ export default function CandidateDetails({ params }) {
                       className="border-b border-gray-200 pb-3 last:border-0"
                     >
                       <div className="flex justify-between items-center">
-                        <span className="text-sm text-gray-600">Amount</span>
+                        <span className="text-sm text-gray-600">{t("amount")}</span>
                         <span className="text-sm font-medium">
-                          PKR {payment.amount?.toLocaleString()}
+                          {formatCurrency(payment.amount ?? 0, language)}
                         </span>
                       </div>
                       <div className="flex justify-between items-center mt-1">
-                        <span className="text-sm text-gray-600">Status</span>
+                        <span className="text-sm text-gray-600">{t("status")}</span>
                         <span
                           className={`text-xs px-2 py-1 rounded-full ${
                             payment.payment_status === "paid"
@@ -180,14 +222,14 @@ export default function CandidateDetails({ params }) {
                               : "bg-yellow-100 text-yellow-800"
                           }`}
                         >
-                          {payment.payment_status}
+                          {payment.payment_status === "paid" ? t("feePaid") : t("pending")}
                         </span>
                       </div>
                     </div>
                   ))}
                 </div>
               ) : (
-                <p className="text-sm text-gray-500">No payment records</p>
+                <p className="text-sm text-gray-500">{t("adminNoPaymentRecords")}</p>
               )}
             </div>
           </div>
@@ -197,7 +239,7 @@ export default function CandidateDetails({ params }) {
             {/* Documents */}
             <div className="bg-white rounded-lg shadow p-6">
               <h2 className="text-lg font-semibold text-gray-900 mb-4">
-                Documents
+                {t("documents")}
               </h2>
               <div className="space-y-3">
                 {documents.length > 0 ? (
@@ -214,12 +256,12 @@ export default function CandidateDetails({ params }) {
                               {formatDocumentType(doc.document_type)}
                             </div>
                             <div className="text-xs text-gray-500">
-                              Uploaded:{" "}
+                              {t("uploadedOnPrefix")}{" "}
                               {new Date(doc.upload_date).toLocaleDateString()}
                             </div>
                             {doc.rejection_reason && (
                               <div className="text-xs text-red-600 mt-1">
-                                Reason: {doc.rejection_reason}
+                                {t("reasonPrefix")}: {doc.rejection_reason}
                               </div>
                             )}
                           </div>
@@ -232,13 +274,11 @@ export default function CandidateDetails({ params }) {
                               }
                               className="px-3 py-1 bg-green-600 text-white text-xs rounded hover:bg-green-700"
                             >
-                              Verify
+                              {t("verifyAction")}
                             </button>
                             <button
                               onClick={() => {
-                                const reason = prompt(
-                                  "Enter rejection reason:",
-                                );
+                                const reason = prompt(t("adminEnterRejectionReason"));
                                 if (reason)
                                   handleVerifyDocument(
                                     doc.id,
@@ -248,7 +288,7 @@ export default function CandidateDetails({ params }) {
                               }}
                               className="px-3 py-1 bg-red-600 text-white text-xs rounded hover:bg-red-700"
                             >
-                              Reject
+                              {t("rejectAction")}
                             </button>
                           </div>
                         )}
@@ -256,7 +296,7 @@ export default function CandidateDetails({ params }) {
                     </div>
                   ))
                 ) : (
-                  <p className="text-sm text-gray-500">No documents uploaded</p>
+                  <p className="text-sm text-gray-500">{t("adminNoDocumentsUploaded")}</p>
                 )}
               </div>
             </div>
@@ -264,7 +304,7 @@ export default function CandidateDetails({ params }) {
             {/* Timeline */}
             <div className="bg-white rounded-lg shadow p-6">
               <h2 className="text-lg font-semibold text-gray-900 mb-4">
-                Status Timeline
+                {t("adminStatusTimeline")}
               </h2>
               <div className="space-y-4">
                 {timeline.map((item, index) => (
@@ -299,10 +339,7 @@ export default function CandidateDetails({ params }) {
                     </div>
                     <div className="flex-1 pb-8">
                       <div className="text-sm font-medium text-gray-900">
-                        {item.stage_name
-                          .split("_")
-                          .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
-                          .join(" ")}
+                        {formatStageName(item.stage_name)}
                       </div>
                       {item.completed_date && (
                         <div className="text-xs text-gray-500 mt-1">

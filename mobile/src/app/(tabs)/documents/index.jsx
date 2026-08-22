@@ -77,7 +77,7 @@ export default function DocumentsScreen() {
       name: t("cv"),
       status: "rejected",
       uploadDate: "2024-01-14",
-      reason: "Poor quality image",
+      reason: t("poorQualityImage"),
     },
     { id: 9, name: t("experienceLetter"), status: "pending", uploadDate: null },
     { id: 10, name: t("certificates"), status: "pending", uploadDate: null },

@@ -39,6 +39,7 @@ export function formatCurrency(
   return new Intl.NumberFormat(toIntlLocale(language), {
     style: 'currency',
     currency,
+    maximumFractionDigits: 0,
     ...options,
   }).format(value);
 }

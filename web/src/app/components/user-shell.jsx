@@ -1,11 +1,15 @@
+import { useLanguage } from "../../contexts/LanguageContext";
+
 const tabs = [
-  { href: "/dashboard", label: "Dashboard", icon: "⌂" },
-  { href: "/documents", label: "Documents", icon: "▣" },
-  { href: "/status", label: "Status", icon: "◷" },
-  { href: "/profile", label: "Profile", icon: "◉" },
+  { href: "/dashboard", labelKey: "dashboard", icon: "⌂" },
+  { href: "/documents", labelKey: "documents", icon: "▣" },
+  { href: "/status", labelKey: "status", icon: "◷" },
+  { href: "/profile", labelKey: "profile", icon: "◉" },
 ];
 
 export default function UserShell({ activeTab, children }) {
+  const { t } = useLanguage();
+
   return (
     <div className="min-h-screen bg-[#F8F9FA] pb-24">
       {children}
@@ -23,7 +27,7 @@ export default function UserShell({ activeTab, children }) {
                 }`}
               >
                 <span className="text-lg leading-none">{tab.icon}</span>
-                <span>{tab.label}</span>
+                <span>{t(tab.labelKey)}</span>
               </a>
             );
           })}

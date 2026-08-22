@@ -7,6 +7,15 @@ import { translate } from "../../../shared/i18n/translate";
 const STORAGE_KEY = "descon.language";
 const LanguageContext = createContext();
 
+// Mirrors the provider's language outside React, synchronously, for the
+// crash boundaries that must render above (and independently of) this
+// provider -- they can't safely depend on context that the crash itself
+// might have come from.
+let cachedLanguage = "en";
+export function getCachedLanguage() {
+  return cachedLanguage;
+}
+
 async function readPersistedLanguage() {
   try {
     const stored = await AsyncStorage.getItem(STORAGE_KEY);
@@ -32,7 +41,10 @@ export function LanguageProvider({ children }) {
   useEffect(() => {
     let cancelled = false;
     readPersistedLanguage().then((stored) => {
-      if (!cancelled) setLanguageState(stored);
+      if (cancelled) return;
+      setLanguageState(stored);
+      cachedLanguage = stored;
+      applyRTL(stored);
     });
     return () => {
       cancelled = true;
@@ -41,6 +53,7 @@ export function LanguageProvider({ children }) {
 
   const setLanguage = useCallback((next) => {
     setLanguageState(next);
+    cachedLanguage = next;
     AsyncStorage.setItem(STORAGE_KEY, next).catch(() => {});
     applyRTL(next);
   }, []);
@@ -48,6 +61,7 @@ export function LanguageProvider({ children }) {
   const toggleLanguage = useCallback(() => {
     setLanguageState((prev) => {
       const next = prev === "en" ? "ur" : "en";
+      cachedLanguage = next;
       AsyncStorage.setItem(STORAGE_KEY, next).catch(() => {});
       applyRTL(next);
       return next;

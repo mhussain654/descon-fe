@@ -1,5 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import React from 'react';
+import { I18nManager } from 'react-native';
 import { act, create } from 'react-test-renderer';
 import { LanguageProvider, useLanguage } from './LanguageContext';
 
@@ -47,6 +48,22 @@ describe('LanguageContext', () => {
     const { value } = await renderProbe();
     expect(value.language).toBe('ur');
     expect(value.t('continue')).toBe('جاری رکھیں');
+  });
+
+  it('applies RTL layout direction when a persisted Urdu language is restored', async () => {
+    I18nManager.isRTL = false;
+    const forceRTLSpy = jest.spyOn(I18nManager, 'forceRTL');
+    const allowRTLSpy = jest.spyOn(I18nManager, 'allowRTL');
+    await AsyncStorage.setItem('descon.language', 'ur');
+
+    await renderProbe();
+
+    expect(allowRTLSpy).toHaveBeenCalledWith(true);
+    expect(forceRTLSpy).toHaveBeenCalledWith(true);
+
+    forceRTLSpy.mockRestore();
+    allowRTLSpy.mockRestore();
+    I18nManager.isRTL = false;
   });
 
   it('persists the language when setLanguage is called', async () => {

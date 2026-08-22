@@ -6,7 +6,6 @@ import { cors } from 'hono/cors';
 import { bodyLimit } from 'hono/body-limit';
 import { requestId } from 'hono/request-id';
 import { createHonoServer } from 'react-router-hono-server/node';
-import { serializeError } from 'serialize-error';
 import { getHTMLForErrorPage } from './get-html-for-error-page';
 import { API_BASENAME, api } from './route-builder';
 
@@ -37,16 +36,22 @@ app.use('*', (c, next) => {
 app.use(contextStorage());
 
 app.onError((err, c) => {
+  // Full details go to the server log only, tagged with the request id for
+  // correlation -- never to the client (no stack traces, no internal
+  // messages; see AGENTS.md's "Do not expose internal exception messages").
+  console.error(err);
+  const requestId = c.get('requestId');
+
   if (c.req.method !== 'GET') {
     return c.json(
       {
-        error: 'An error occurred in your app',
-        details: serializeError(err),
+        errors: [{ code: 'internal_error', message: 'An unexpected error occurred.' }],
+        request_id: requestId,
       },
       500
     );
   }
-  return c.html(getHTMLForErrorPage(err), 200);
+  return c.html(getHTMLForErrorPage(requestId), 500);
 });
 
 if (process.env.CORS_ORIGINS) {

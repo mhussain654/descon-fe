@@ -214,10 +214,10 @@ export default function ProfileScreen() {
             {t("personalInfo")}
           </Text>
 
-          <InfoRow icon={User} label="CNIC" value={profileData.cnic} />
-          <InfoRow icon={Phone} label="Phone" value={profileData.phone} />
-          <InfoRow icon={Mail} label="Email" value={profileData.email} />
-          <InfoRow icon={MapPin} label="Address" value={profileData.address} />
+          <InfoRow icon={User} label={t("cnicShort")} value={profileData.cnic} />
+          <InfoRow icon={Phone} label={t("phoneShort")} value={profileData.phone} />
+          <InfoRow icon={Mail} label={t("emailShort")} value={profileData.email} />
+          <InfoRow icon={MapPin} label={t("addressShort")} value={profileData.address} />
         </View>
 
         {/* Settings */}
@@ -276,7 +276,7 @@ export default function ProfileScreen() {
                   marginTop: 2,
                 }}
               >
-                {language === "en" ? "English" : "اردو"}
+                {language === "en" ? t("englishLabel") : t("urduLabel")}
               </Text>
             </View>
             <ChevronRight size={20} color={isDark ? "#6B7280" : "#9CA3AF"} />

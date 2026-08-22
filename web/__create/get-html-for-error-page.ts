@@ -1,17 +1,13 @@
-import { serializeError } from 'serialize-error';
-
-export const getHTMLForErrorPage = (err: unknown): string => {
-  const error = serializeError(err);
+export const getHTMLForErrorPage = (requestId: string | undefined): string => {
   return `
 <html>
   <head>
-    <script>
-    window.onload = () => {
-      console.error(${JSON.stringify(error)});
-    }
-    </script>
+    <title>Something went wrong</title>
   </head>
-  <body></body>
+  <body>
+    <p>Something went wrong. Please try again.</p>
+    ${requestId ? `<p>Reference: ${requestId}</p>` : ''}
+  </body>
 </html>
     `;
 };

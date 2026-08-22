@@ -7,6 +7,11 @@ import React, {
 } from 'react';
 import { Animated, Text, View } from 'react-native';
 import { isErrorLike, serializeError } from 'serialize-error';
+import { getCachedLanguage } from '../src/contexts/LanguageContext';
+import { translate } from '../../shared/i18n/translate';
+import type { Language, TranslationKey } from '../../shared/i18n/translations';
+
+const t = (key: TranslationKey) => translate(getCachedLanguage() as Language, key);
 
 export function SharedErrorBoundary({
   isOpen,
@@ -91,13 +96,12 @@ export function SharedErrorBoundary({
               <Text
                 style={{ color: '#F2F2F2', fontSize: 14, fontWeight: '300' }}
               >
-                App Error Detected
+                {t('appErrorDetected')}
               </Text>
               <Text
                 style={{ color: '#959697', fontSize: 14, fontWeight: '300' }}
               >
-                {description ??
-                  'It looks like an error occurred while trying to use your app.'}
+                {description ?? t('appErrorDescription')}
               </Text>
             </View>
             {children}
@@ -164,7 +168,7 @@ function InternalErrorBoundary({
     <View style={{ flexDirection: 'row', gap: 8 }}>
       <SharedErrorBoundary isOpen={isOpen}>
         <Button color="primary" onPress={handleCopyError}>
-          Copy error
+          {t('copyErrorAction')}
         </Button>
       </SharedErrorBoundary>
     </View>

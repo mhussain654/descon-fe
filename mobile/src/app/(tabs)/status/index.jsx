@@ -231,7 +231,7 @@ export default function StatusScreen() {
                           color: "#0066CC",
                         }}
                       >
-                        In Progress
+                        {t("inProgress")}
                       </Text>
                     </View>
                   )}

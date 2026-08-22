@@ -66,11 +66,18 @@ export default defineConfig(({ isSsrBuild }) => ({
   },
   clearScreen: false,
   server: {
-    allowedHosts: true,
+    // Explicit allowlist instead of `true` (which disables Host-header
+    // validation entirely -- a DNS-rebinding vector). `.localhost` covers
+    // the loopback name; LAN access during mobile testing works via the
+    // printed Network URL without needing a wildcard here.
+    allowedHosts: ['localhost', '.localhost'],
     host: '0.0.0.0',
     port: 4000,
     fs: {
-      allow: ['..'],
+      // Only the app's own source and the cross-platform shared/ directory
+      // it imports from -- not the rest of the descon-fe monorepo (mobile/,
+      // env files, etc).
+      allow: ['.', '../shared'],
     },
     hmr: {
       overlay: false,

@@ -3,6 +3,11 @@ import * as Updates from 'expo-updates';
 import React, { type ReactNode, useCallback, useEffect } from 'react';
 import { Platform, View } from 'react-native';
 import { Button, SharedErrorBoundary } from './SharedErrorBoundary';
+import { getCachedLanguage } from '../src/contexts/LanguageContext';
+import { translate } from '../../shared/i18n/translate';
+import type { Language, TranslationKey } from '../../shared/i18n/translations';
+
+const t = (key: TranslationKey) => translate(getCachedLanguage() as Language, key);
 
 type ErrorBoundaryState = { hasError: boolean; error: unknown | null };
 
@@ -23,11 +28,11 @@ const DeviceErrorBoundary = () => {
   return (
     <SharedErrorBoundary
       isOpen
-      description="It looks like an error occurred while trying to use your app. Please contact support if the problem continues."
+      description={t('appErrorDescriptionWithSupport')}
     >
       <View style={{ flexDirection: 'row', gap: 8 }}>
         <Button color="primary" onPress={handleReload}>
-          Restart app
+          {t('restartAction')}
         </Button>
       </View>
     </SharedErrorBoundary>
