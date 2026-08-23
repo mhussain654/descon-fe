@@ -23,6 +23,8 @@ import { LoadFonts } from 'virtual:load-fonts.jsx';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Toaster, toast } from 'sonner';
 import { AuthProvider } from '../contexts/AuthContext';
+import { StaffAuthProvider } from '../contexts/StaffAuthContext';
+import { staffAuthClient } from '../lib/staff-auth-client';
 import { translate } from '../../../shared/i18n/translate';
 import type { Language } from '../../../shared/i18n/translations';
 import type { Route } from './+types/root';
@@ -264,23 +266,29 @@ export function Layout({ children }: { children: ReactNode }) {
         {LoadFontsSSR ? <LoadFontsSSR /> : null}
       </head>
       <body>
-        {/* AuthProvider (and now QueryClientProvider) live here, not in app/layout.jsx
-            (like LanguageProvider), because plugins/layouts.ts wraps *every* page.jsx
-            with its own fresh copy of layout.jsx's providers -- navigating between
-            pages fully unmounts and remounts them. That's invisible for Language (it
-            round-trips through localStorage), but silently breaks auth: the in-memory
-            session set on OTP success would vanish the instant `navigate()` swapped
-            routes. This file (root.tsx) is React Router's actual single, stable root
-            -- Layout/ClientOnly are never remounted by navigation -- so this is the
-            one place a provider survives it. QueryClientProvider moved up alongside
-            it so AuthProvider's logout can call `useQueryClient().clear()` to purge
-            candidate-sensitive cached data (AGENTS.md: "Clear sensitive state and
-            caches on logout") -- a provider can only use a hook whose provider is an
-            ancestor of it, and the reverse nesting doesn't satisfy that. */}
+        {/* AuthProvider, StaffAuthProvider (and now QueryClientProvider) live here,
+            not in app/layout.jsx (like LanguageProvider), because plugins/layouts.ts
+            wraps *every* page.jsx with its own fresh copy of layout.jsx's providers --
+            navigating between pages fully unmounts and remounts them. That's invisible
+            for Language (it round-trips through localStorage), but silently breaks
+            auth: the in-memory candidate session set on OTP success would vanish the
+            instant `navigate()` swapped routes, and the staff session (MPS-F202) would
+            lose its restored state the same way. This file (root.tsx) is React
+            Router's actual single, stable root -- Layout/ClientOnly are never
+            remounted by navigation -- so this is the one place a provider survives it.
+            QueryClientProvider moved up alongside them so both providers' logout/
+            sign-out can call `useQueryClient().clear()` to purge sensitive cached data
+            (AGENTS.md: "Clear sensitive state and caches on logout") -- a provider can
+            only use a hook whose provider is an ancestor of it, and the reverse
+            nesting doesn't satisfy that. AuthProvider and StaffAuthProvider are
+            independent siblings (candidate vs. staff identity, never the same
+            session), so their relative order doesn't matter. */}
         <ClientOnly
           loader={() => (
             <QueryClientProvider client={queryClient}>
-              <AuthProvider>{children}</AuthProvider>
+              <AuthProvider>
+                <StaffAuthProvider client={staffAuthClient}>{children}</StaffAuthProvider>
+              </AuthProvider>
             </QueryClientProvider>
           )}
         />
