@@ -4,6 +4,7 @@ import { useEffect } from "react";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { LanguageProvider } from "../contexts/LanguageContext";
+import { Toaster } from "../design-system/toast";
 SplashScreen.preventAutoHideAsync();
 
 const queryClient = new QueryClient({
@@ -42,7 +43,13 @@ export default function RootLayout() {
             <Stack.Screen name="index" />
             <Stack.Screen name="login" />
             <Stack.Screen name="(tabs)" />
+            {/* Developer-facing component reference, not a candidate screen --
+                excluded from production builds (redirects to the initial
+                route if somehow navigated to), matching the equivalent web
+                exclusion in web/src/app/routes.ts. */}
+            <Stack.Screen name="design-system" redirect={!__DEV__} />
           </Stack>
+          <Toaster />
         </GestureHandlerRootView>
       </QueryClientProvider>
     </LanguageProvider>

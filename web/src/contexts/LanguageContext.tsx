@@ -30,6 +30,11 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
     window.localStorage.setItem(STORAGE_KEY, language);
     document.documentElement.lang = language;
     document.documentElement.dir = isRTL(language) ? 'rtl' : 'ltr';
+    // Long-form Urdu reads better in a Nastaliq-capable face; English is
+    // unaffected. This literal class name (rather than a plain CSS rule) is
+    // what `loadFontsFromTailwindSource` (plugins/loadFontsFromTailwindSource.ts)
+    // scans for to fetch the font on demand -- see web/tailwind.config.js.
+    document.documentElement.classList.toggle('font-noto-nastaliq-urdu', isRTL(language));
   }, [language]);
 
   const setLanguage = useCallback((next: Language) => setLanguageState(next), []);

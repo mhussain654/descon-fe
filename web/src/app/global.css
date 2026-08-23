@@ -2,6 +2,34 @@
 @tailwind components;
 @tailwind utilities;
 
+/*
+ * shadcn/ui (@lshay/ui) CSS variable contract, themed to the approved
+ * prototype's brand palette (see shared/design-tokens.ts). HSL triplets
+ * (no hsl() wrapper) because Tailwind composes them as `hsl(var(--x))`.
+ */
+:root {
+  --background: 210 17% 98%;
+  --foreground: 220 39% 11%;
+  --card: 0 0% 100%;
+  --card-foreground: 220 39% 11%;
+  --popover: 0 0% 100%;
+  --popover-foreground: 220 39% 11%;
+  --primary: 210 100% 40%;
+  --primary-foreground: 0 0% 100%;
+  --secondary: 220 14% 96%;
+  --secondary-foreground: 220 39% 11%;
+  --muted: 220 14% 96%;
+  --muted-foreground: 220 9% 46%;
+  --accent: 210 100% 95%;
+  --accent-foreground: 210 100% 40%;
+  --destructive: 0 72% 51%;
+  --destructive-foreground: 0 0% 100%;
+  --border: 220 13% 91%;
+  --input: 220 13% 91%;
+  --ring: 210 100% 40%;
+  --radius: 0.75rem;
+}
+
 @layer base {
   input, textarea, select, button {
     @apply outline-none focus:outline-none;

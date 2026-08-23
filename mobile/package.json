@@ -90,6 +90,7 @@
   "devDependencies": {
     "@expo/cli": "54.0.1",
     "@tailwindcss/postcss": "4.1.18",
+    "@testing-library/react-native": "13.3.3",
     "@types/jest": "29.5.14",
     "@types/react": "19.1.10",
     "autoprefixer": "10.4.20",
