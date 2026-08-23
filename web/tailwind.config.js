@@ -5,6 +5,110 @@ module.exports = {
 			sans: ['Inter', 'sans-serif'],
 		},
 		extend: {
+			// Design tokens below mirror shared/design-tokens.ts (MPS-F102). Kept as
+			// literal values because Tailwind's config loader runs in plain Node and
+			// can't import that TypeScript module directly -- update both together.
+			colors: {
+				// shadcn/ui (@lshay/ui) convention, driven by CSS variables so the
+				// existing shadcn-based primitives (Dialog, Input, Card, Progress,
+				// Table, Skeleton, Separator, Tooltip, ...) pick up our brand palette
+				// instead of their gray defaults. Variables are defined in global.css.
+				border: 'hsl(var(--border))',
+				input: 'hsl(var(--input))',
+				ring: 'hsl(var(--ring))',
+				background: 'hsl(var(--background))',
+				foreground: 'hsl(var(--foreground))',
+				primary: {
+					DEFAULT: 'hsl(var(--primary))',
+					foreground: 'hsl(var(--primary-foreground))',
+				},
+				secondary: {
+					DEFAULT: 'hsl(var(--secondary))',
+					foreground: 'hsl(var(--secondary-foreground))',
+				},
+				destructive: {
+					DEFAULT: 'hsl(var(--destructive))',
+					foreground: 'hsl(var(--destructive-foreground))',
+				},
+				muted: {
+					DEFAULT: 'hsl(var(--muted))',
+					foreground: 'hsl(var(--muted-foreground))',
+				},
+				accent: {
+					DEFAULT: 'hsl(var(--accent))',
+					foreground: 'hsl(var(--accent-foreground))',
+				},
+				popover: {
+					DEFAULT: 'hsl(var(--popover))',
+					foreground: 'hsl(var(--popover-foreground))',
+				},
+				card: {
+					DEFAULT: 'hsl(var(--card))',
+					foreground: 'hsl(var(--card-foreground))',
+				},
+				// Semantic design-system tokens (shared/design-tokens.ts `colors`).
+				// Literal hex, not CSS vars -- these aren't part of the shadcn theming
+				// contract and don't need runtime overriding.
+				brand: {
+					subtle: '#E6F2FF',
+					DEFAULT: '#0066CC',
+					emphasis: '#0052A3',
+					on: '#FFFFFF',
+				},
+				success: {
+					subtle: '#E6F9F0',
+					DEFAULT: '#10B981',
+					emphasis: '#047857',
+					on: '#FFFFFF',
+				},
+				warning: {
+					subtle: '#FFF7E6',
+					DEFAULT: '#F59E0B',
+					emphasis: '#B45309',
+					on: '#1A1A1A',
+				},
+				danger: {
+					subtle: '#FEE2E2',
+					DEFAULT: '#DC2626',
+					emphasis: '#991B1B',
+					on: '#FFFFFF',
+				},
+				info: {
+					subtle: '#E0F2FE',
+					DEFAULT: '#0284C7',
+					emphasis: '#075985',
+					on: '#FFFFFF',
+				},
+				// Neutral text/surface tokens, kept distinct from the shadcn
+				// `background`/`border` keys above (which are flat CSS-var strings).
+				text: {
+					primary: '#111827',
+					secondary: '#6B7280',
+					tertiary: '#9CA3AF',
+					disabled: '#C1C5CB',
+					inverse: '#FFFFFF',
+				},
+				surface: {
+					background: '#F8F9FA',
+					raised: '#FFFFFF',
+					sunken: '#F3F4F6',
+				},
+				borderStrong: '#D1D5DB',
+			},
+			borderRadius: {
+				lg: 'var(--radius)',
+				md: 'calc(var(--radius) - 2px)',
+				sm: 'calc(var(--radius) - 4px)',
+			},
+			zIndex: {
+				dropdown: '1000',
+				sticky: '1100',
+				fixed: '1200',
+				overlay: '1300',
+				modal: '1400',
+				toast: '1600',
+				tooltip: '1700',
+			},
 			fontFamily: {
 				'a-bee-zee': 'A Bee Zee',
 				'ad-la-m-display': 'Ad La M Display',

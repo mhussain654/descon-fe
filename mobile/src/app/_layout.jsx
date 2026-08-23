@@ -4,6 +4,7 @@ import { useEffect } from "react";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { LanguageProvider } from "../contexts/LanguageContext";
+import { Toaster } from "../design-system/toast";
 SplashScreen.preventAutoHideAsync();
 
 const queryClient = new QueryClient({
@@ -42,7 +43,9 @@ export default function RootLayout() {
             <Stack.Screen name="index" />
             <Stack.Screen name="login" />
             <Stack.Screen name="(tabs)" />
+            <Stack.Screen name="design-system" />
           </Stack>
+          <Toaster />
         </GestureHandlerRootView>
       </QueryClientProvider>
     </LanguageProvider>
