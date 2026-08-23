@@ -1,8 +1,17 @@
+import { useNavigate } from "react-router";
 import UserShell from "../components/user-shell";
+import { useAuth } from "../../contexts/AuthContext";
 import { useLanguage } from "../../contexts/LanguageContext";
 
 export default function ProfilePage() {
   const { t, language, toggleLanguage } = useLanguage();
+  const { logout } = useAuth();
+  const navigate = useNavigate();
+
+  const handleLogout = () => {
+    logout();
+    navigate("/login", { replace: true });
+  };
 
   const profileData = {
     name: "Ahmed Khan",
@@ -70,12 +79,13 @@ export default function ProfilePage() {
           </button>
         </section>
 
-        <a
-          href="/login"
-          className="flex items-center justify-center rounded-xl border border-[#FEE2E2] bg-[#FEF2F2] px-6 py-4 text-base font-semibold text-[#EF4444]"
+        <button
+          type="button"
+          onClick={handleLogout}
+          className="flex w-full items-center justify-center rounded-xl border border-[#FEE2E2] bg-[#FEF2F2] px-6 py-4 text-base font-semibold text-[#EF4444]"
         >
           {t("logout")}
-        </a>
+        </button>
       </div>
     </UserShell>
   );

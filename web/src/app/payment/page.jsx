@@ -1,7 +1,17 @@
+import { Link } from "react-router";
 import { formatCurrency } from "../../../../shared/i18n/locale";
+import { RequireAuth } from "../../features/auth/RequireAuth";
 import { useLanguage } from "../../contexts/LanguageContext";
 
 export default function PaymentPage() {
+  return (
+    <RequireAuth>
+      <PaymentPageContent />
+    </RequireAuth>
+  );
+}
+
+function PaymentPageContent() {
   const { t, language } = useLanguage();
 
   const payment = {
@@ -14,9 +24,9 @@ export default function PaymentPage() {
     <main className="min-h-screen bg-[#F8F9FA]">
       <div className="border-b border-gray-200 bg-white">
         <div className="mx-auto max-w-4xl px-6 py-8">
-          <a href="/dashboard" className="mb-3 inline-block text-sm font-medium text-gray-500 hover:text-black">
+          <Link to="/dashboard" className="mb-3 inline-block text-sm font-medium text-gray-500 hover:text-black">
             {t("back")}
-          </a>
+          </Link>
           <h1 className="text-3xl font-semibold text-black">{t("payment")}</h1>
           <p className="mt-1 text-sm text-gray-500">{t("completeOnboardingPayment")}</p>
         </div>

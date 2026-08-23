@@ -17,6 +17,11 @@ export default defineConfig({
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),
+      // Node's resolution algorithm walks up from the *importing* file, so a
+      // bare `import ... from 'react'` inside ../shared (a sibling of this
+      // package, not an ancestor) can't find web's node_modules/react on its
+      // own. Only shared/auth/useCnicOtpFlow.ts needs this today.
+      react: path.resolve(__dirname, 'node_modules/react'),
     },
   },
   server: {

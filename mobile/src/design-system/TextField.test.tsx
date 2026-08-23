@@ -7,6 +7,11 @@ describe('TextField', () => {
     expect(screen.getByText('CNIC Number')).toBeOnTheScreen();
   });
 
+  it("exposes the label as the input's accessible name, not just visible text", () => {
+    render(<TextField label="CNIC Number" />);
+    expect(screen.getByLabelText('CNIC Number')).toBeOnTheScreen();
+  });
+
   it('shows helper text when there is no error', () => {
     render(<TextField label="CNIC Number" helperText="Digits only, no dashes" />);
     expect(screen.getByText('Digits only, no dashes')).toBeOnTheScreen();

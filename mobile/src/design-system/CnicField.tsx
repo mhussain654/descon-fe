@@ -51,6 +51,7 @@ export function CnicField({
         autoFocus={autoFocus}
         placeholder={placeholder}
         placeholderTextColor={colors.text.tertiary}
+        accessibilityLabel={label}
         // RN has no per-element `dir`; textAlign/writingDirection force LTR
         // digit rendering/caret behavior regardless of the app's global RTL state.
         style={[

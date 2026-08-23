@@ -1,3 +1,4 @@
+import { Link } from "react-router";
 import UserShell from "../components/user-shell";
 import { useLanguage } from "../../contexts/LanguageContext";
 
@@ -77,9 +78,9 @@ export default function DashboardPage() {
           <h2 className="mb-4 text-lg font-semibold text-black">{t("quickActions")}</h2>
           <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
             {quickActions.map((action) => (
-              <a
+              <Link
                 key={action.titleKey}
-                href={action.href}
+                to={action.href}
                 className="rounded-2xl border border-gray-200 bg-white p-5 transition hover:-translate-y-0.5 hover:border-gray-300 hover:shadow-sm"
               >
                 <div
@@ -90,7 +91,7 @@ export default function DashboardPage() {
                 <p className="text-sm leading-6 text-gray-600">
                   {t(action.descriptionKey)}
                 </p>
-              </a>
+              </Link>
             ))}
           </div>
         </section>

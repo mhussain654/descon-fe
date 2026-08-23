@@ -110,7 +110,8 @@
       "<rootDir>/../shared"
     ],
     "moduleNameMapper": {
-      "^@babel/runtime/(.*)$": "<rootDir>/node_modules/@babel/runtime/$1"
+      "^@babel/runtime/(.*)$": "<rootDir>/node_modules/@babel/runtime/$1",
+      "^react$": "<rootDir>/node_modules/react"
     }
   },
   "private": true,
