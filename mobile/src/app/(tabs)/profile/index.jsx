@@ -55,8 +55,8 @@ export default function ProfileScreen() {
     address: "Lahore, Pakistan",
   };
 
-  const handleLogout = () => {
-    logout();
+  const handleLogout = async () => {
+    await logout();
     router.replace("/login");
   };
 

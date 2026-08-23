@@ -1,5 +1,5 @@
 import { useCallback, useEffect } from "react";
-import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
 import { useRouter } from "expo-router";
@@ -17,6 +17,7 @@ import {
 import { colors, fontWeights, spacing } from "../design-system/tokens";
 import { AUTH_ERROR_KEYS, CNIC_FIELD_ERROR_KEYS } from "../../../shared/auth/errorMessages";
 import { formatCountdown } from "../../../shared/auth/cnicOtpFlow";
+import { OTP_LENGTH } from "../../../shared/auth/types";
 import { useCnicOtpFlow } from "../../../shared/auth/useCnicOtpFlow";
 import { candidateAuthClient } from "../lib/auth-client";
 
@@ -27,11 +28,16 @@ export default function LoginScreen() {
   const { login, sessionExpired, acknowledgeSessionExpired } = useAuth();
 
   const onAuthenticated = useCallback(
-    (session) => {
-      login(session);
+    async (session) => {
+      try {
+        await login(session);
+      } catch {
+        toast.error(t("authSessionPersistError"));
+        return;
+      }
       router.replace("/(tabs)/dashboard");
     },
-    [login, router]
+    [login, router, t]
   );
 
   const flow = useCnicOtpFlow({ client: candidateAuthClient, onAuthenticated });
@@ -84,8 +90,16 @@ export default function LoginScreen() {
     <KeyboardAvoidingAnimatedView style={styles.screen} behavior="padding">
       <StatusBar style="dark" />
 
-      <View
-        style={[styles.content, { paddingTop: insets.top + 32, paddingBottom: insets.bottom + spacing[6] }]}
+      {/* Small phones, landscape orientation and larger font scales can push
+          this content taller than the viewport -- a ScrollView (rather than
+          the previous fixed View) keeps the OTP field and Verify button
+          reachable instead of clipping them off-screen. */}
+      <ScrollView
+        contentContainerStyle={[
+          styles.content,
+          { paddingTop: insets.top + 32, paddingBottom: insets.bottom + spacing[6] },
+        ]}
+        keyboardShouldPersistTaps="handled"
       >
         <TouchableOpacity
           onPress={() => (step === "otp" ? backToCnic() : router.back())}
@@ -127,7 +141,7 @@ export default function LoginScreen() {
               label={t("enterOTP")}
               value={otp}
               onValueChange={setOtp}
-              onComplete={submitOtp}
+              onComplete={(code) => submitOtp(code)}
               editable={!otpFieldDisabled}
               errorMessage={genericOtpErrorMessage ?? undefined}
               autoFocus
@@ -155,8 +169,8 @@ export default function LoginScreen() {
               size="lg"
               fullWidth
               loading={isSubmittingOtp}
-              disabled={otpFieldDisabled || otp.length === 0}
-              onPress={submitOtp}
+              disabled={otpFieldDisabled || otp.length !== OTP_LENGTH}
+              onPress={() => submitOtp()}
             >
               {t("verifyAndLogin")}
             </Button>
@@ -178,14 +192,14 @@ export default function LoginScreen() {
             </Button>
           </View>
         )}
-      </View>
+      </ScrollView>
     </KeyboardAvoidingAnimatedView>
   );
 }
 
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.surface.raised },
-  content: { flex: 1, paddingHorizontal: spacing[6] },
+  content: { flexGrow: 1, paddingHorizontal: spacing[6] },
   backButton: { marginBottom: spacing[10] },
   backText: { fontSize: 14, fontWeight: fontWeights.medium, color: colors.text.secondary },
   titleBlock: { marginBottom: spacing[10] },

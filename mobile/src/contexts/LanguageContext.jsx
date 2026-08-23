@@ -1,6 +1,7 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { createContext, useContext, useEffect, useState, useCallback } from "react";
-import { I18nManager } from "react-native";
+import { DevSettings, I18nManager } from "react-native";
+import * as Updates from "expo-updates";
 import { isRTL } from "../../../shared/i18n/locale";
 import { translate } from "../../../shared/i18n/translate";
 
@@ -25,14 +26,39 @@ async function readPersistedLanguage() {
   }
 }
 
+/**
+ * `I18nManager.forceRTL()` only takes effect after the JS bundle reloads --
+ * a standard React Native constraint. Reloading here, right after the new
+ * language is persisted, means a candidate who picks Urdu on the welcome
+ * screen and continues to login sees the correct direction immediately
+ * instead of a mismatched LTR layout until their next restart.
+ */
+async function reloadApp() {
+  if (__DEV__) {
+    try {
+      DevSettings.reload();
+    } catch {
+      // No dev host attached to reload against (e.g. this test environment).
+    }
+    return;
+  }
+  try {
+    await Updates.reloadAsync();
+  } catch {
+    // No update channel configured for this runtime (e.g. a bare Expo Go
+    // session) -- direction still applies correctly on the next natural
+    // restart, which is the same behavior this fix is improving on.
+  }
+}
+
 function applyRTL(language) {
   const rtl = isRTL(language);
-  if (I18nManager.isRTL !== rtl) {
+  const changed = I18nManager.isRTL !== rtl;
+  if (changed) {
     I18nManager.allowRTL(rtl);
     I18nManager.forceRTL(rtl);
-    // Layout direction only takes effect after the next app reload/restart --
-    // a standard React Native constraint, not something this hook can avoid.
   }
+  return changed;
 }
 
 export function LanguageProvider({ children }) {
@@ -44,6 +70,9 @@ export function LanguageProvider({ children }) {
       if (cancelled) return;
       setLanguageState(stored);
       cachedLanguage = stored;
+      // A fresh app process reloading itself as its very first act would
+      // loop forever, so startup only ever applies direction, never reloads
+      // -- it's already correct by the time anything renders.
       applyRTL(stored);
     });
     return () => {
@@ -51,22 +80,30 @@ export function LanguageProvider({ children }) {
     };
   }, []);
 
-  const setLanguage = useCallback((next) => {
+  const changeLanguage = useCallback(async (next) => {
     setLanguageState(next);
     cachedLanguage = next;
-    AsyncStorage.setItem(STORAGE_KEY, next).catch(() => {});
-    applyRTL(next);
+    try {
+      await AsyncStorage.setItem(STORAGE_KEY, next);
+    } catch {
+      // Best effort -- the chosen language still applies for this session
+      // below; only a future cold start could lose the preference.
+    }
+    if (applyRTL(next)) {
+      await reloadApp();
+    }
   }, []);
 
+  const setLanguage = useCallback(
+    (next) => {
+      changeLanguage(next);
+    },
+    [changeLanguage]
+  );
+
   const toggleLanguage = useCallback(() => {
-    setLanguageState((prev) => {
-      const next = prev === "en" ? "ur" : "en";
-      cachedLanguage = next;
-      AsyncStorage.setItem(STORAGE_KEY, next).catch(() => {});
-      applyRTL(next);
-      return next;
-    });
-  }, []);
+    changeLanguage(language === "en" ? "ur" : "en");
+  }, [language, changeLanguage]);
 
   const t = useCallback((key) => translate(language, key), [language]);
 

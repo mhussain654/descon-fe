@@ -1,6 +1,13 @@
 import { act, render, screen } from '@testing-library/react';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import type { ReactElement } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { AuthProvider, useAuth } from './AuthContext';
+
+function renderWithProviders(ui: ReactElement) {
+  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  return { ...render(<QueryClientProvider client={queryClient}>{ui}</QueryClientProvider>), queryClient };
+}
 
 function Probe() {
   const { status, session, login, logout, sessionExpired } = useAuth();
@@ -50,7 +57,7 @@ describe('AuthProvider', () => {
   });
 
   it('starts unauthenticated with no session', () => {
-    render(
+    renderWithProviders(
       <AuthProvider>
         <Probe />
       </AuthProvider>
@@ -60,7 +67,7 @@ describe('AuthProvider', () => {
   });
 
   it('becomes authenticated once login() is called with a valid session', () => {
-    render(
+    renderWithProviders(
       <AuthProvider>
         <Probe />
       </AuthProvider>
@@ -71,7 +78,7 @@ describe('AuthProvider', () => {
   });
 
   it('clears the session and flags a manual logout', () => {
-    render(
+    renderWithProviders(
       <AuthProvider>
         <Probe />
       </AuthProvider>
@@ -82,8 +89,23 @@ describe('AuthProvider', () => {
     expect(screen.getByText('expired:false')).toBeInTheDocument();
   });
 
+  it('clears the TanStack Query cache on logout (AGENTS.md: clear sensitive state and caches on logout)', () => {
+    const { queryClient } = renderWithProviders(
+      <AuthProvider>
+        <Probe />
+      </AuthProvider>
+    );
+    const clearSpy = vi.spyOn(queryClient, 'clear');
+
+    act(() => screen.getByRole('button', { name: 'login' }).click());
+    act(() => screen.getByRole('button', { name: 'logout' }).click());
+
+    expect(clearSpy).toHaveBeenCalled();
+    clearSpy.mockRestore();
+  });
+
   it('detects the session going stale while the app is open and flags it as an expiry', () => {
-    render(
+    renderWithProviders(
       <AuthProvider>
         <Probe />
       </AuthProvider>

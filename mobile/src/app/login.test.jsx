@@ -1,4 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { AuthProvider } from '../contexts/AuthContext';
@@ -33,14 +34,17 @@ jest.mock('@react-native-community/netinfo', () => ({
 }));
 
 function renderLoginScreen() {
+  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return render(
     <SafeAreaProvider initialMetrics={TEST_SAFE_AREA_METRICS}>
-      <LanguageProvider>
-        <AuthProvider>
-          <LoginScreen />
-          <Toaster />
-        </AuthProvider>
-      </LanguageProvider>
+      <QueryClientProvider client={queryClient}>
+        <LanguageProvider>
+          <AuthProvider>
+            <LoginScreen />
+            <Toaster />
+          </AuthProvider>
+        </LanguageProvider>
+      </QueryClientProvider>
     </SafeAreaProvider>
   );
 }

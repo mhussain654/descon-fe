@@ -137,3 +137,21 @@ export function createMockCandidateAuthClient(options: MockCandidateAuthClientOp
     },
   };
 }
+
+/**
+ * Safe fallback for any build where the mock must not be reachable (i.e.
+ * production, until MPS-201 ships a real implementation) but no real
+ * implementation has been wired in yet. Every call fails the same way the
+ * generic, non-enumerating "couldn't send a code" failure already renders --
+ * it never accepts the mock's well-known OTP, never fabricates a session,
+ * and the auth-client.ts entry points below never construct this alongside
+ * the mock in the same bundle for the same environment.
+ */
+export function createUnavailableCandidateAuthClient(): CandidateAuthClient {
+  const fail = (): Promise<never> => Promise.reject({ code: 'SERVICE_UNAVAILABLE' } satisfies AuthError);
+  return {
+    requestOtp: fail,
+    resendOtp: fail,
+    verifyOtp: fail,
+  };
+}

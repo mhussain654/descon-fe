@@ -77,7 +77,7 @@ export default function WelcomePage() {
           {t("continue")}
         </Button>
 
-        <p className="mt-6 text-center text-xs text-text-tertiary">Descon Engineering Limited</p>
+        <p className="mt-6 text-center text-xs text-text-tertiary">{t("companyFooter")}</p>
       </div>
     </main>
   );

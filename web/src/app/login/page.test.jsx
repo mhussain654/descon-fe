@@ -1,4 +1,5 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MemoryRouter } from 'react-router';
 import { afterEach, describe, expect, it } from 'vitest';
 import { AuthProvider } from '../../contexts/AuthContext';
@@ -12,13 +13,16 @@ afterEach(() => {
 });
 
 function renderLoginPage() {
+  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return render(
     <MemoryRouter initialEntries={['/login']}>
-      <LanguageProvider>
-        <AuthProvider>
-          <LoginPage />
-        </AuthProvider>
-      </LanguageProvider>
+      <QueryClientProvider client={queryClient}>
+        <LanguageProvider>
+          <AuthProvider>
+            <LoginPage />
+          </AuthProvider>
+        </LanguageProvider>
+      </QueryClientProvider>
     </MemoryRouter>
   );
 }

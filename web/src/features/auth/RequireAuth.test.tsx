@@ -1,8 +1,15 @@
 import { fireEvent, render, screen } from '@testing-library/react';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import type { ReactElement } from 'react';
 import { Link, MemoryRouter, Route, Routes } from 'react-router';
 import { describe, expect, it } from 'vitest';
 import { AuthProvider, useAuth } from '../../contexts/AuthContext';
 import { RequireAuth } from './RequireAuth';
+
+function withQueryClient(ui: ReactElement) {
+  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  return <QueryClientProvider client={queryClient}>{ui}</QueryClientProvider>;
+}
 
 function LoginStub() {
   const { login } = useAuth();
@@ -32,29 +39,9 @@ function ProtectedStub() {
 
 function renderGuarded() {
   return render(
-    <AuthProvider>
-      <MemoryRouter initialEntries={['/login']}>
-        <Routes>
-          <Route path="/login" element={<LoginStub />} />
-          <Route
-            path="/dashboard"
-            element={
-              <RequireAuth>
-                <ProtectedStub />
-              </RequireAuth>
-            }
-          />
-        </Routes>
-      </MemoryRouter>
-    </AuthProvider>
-  );
-}
-
-describe('RequireAuth', () => {
-  it('redirects to /login instead of rendering protected content when unauthenticated', () => {
-    render(
+    withQueryClient(
       <AuthProvider>
-        <MemoryRouter initialEntries={['/dashboard']}>
+        <MemoryRouter initialEntries={['/login']}>
           <Routes>
             <Route path="/login" element={<LoginStub />} />
             <Route
@@ -68,6 +55,30 @@ describe('RequireAuth', () => {
           </Routes>
         </MemoryRouter>
       </AuthProvider>
+    )
+  );
+}
+
+describe('RequireAuth', () => {
+  it('redirects to /login instead of rendering protected content when unauthenticated', () => {
+    render(
+      withQueryClient(
+        <AuthProvider>
+          <MemoryRouter initialEntries={['/dashboard']}>
+            <Routes>
+              <Route path="/login" element={<LoginStub />} />
+              <Route
+                path="/dashboard"
+                element={
+                  <RequireAuth>
+                    <ProtectedStub />
+                  </RequireAuth>
+                }
+              />
+            </Routes>
+          </MemoryRouter>
+        </AuthProvider>
+      )
     );
     expect(screen.getByText('Login screen')).toBeInTheDocument();
     expect(screen.queryByText('Protected content')).not.toBeInTheDocument();

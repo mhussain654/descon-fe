@@ -21,6 +21,7 @@ export const AUTH_ERROR_KEYS: Record<AuthErrorCode, string> = {
   CHALLENGE_NOT_FOUND: 'dsSessionExpiredTitle',
   SESSION_EXPIRED: 'dsSessionExpiredTitle',
   OFFLINE: 'dsOfflineTitle',
+  SERVICE_UNAVAILABLE: 'authServiceUnavailableError',
   NETWORK_ERROR: 'somethingWentWrong',
   UNKNOWN: 'somethingWentWrong',
 };

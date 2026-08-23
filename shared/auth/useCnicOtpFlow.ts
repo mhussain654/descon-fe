@@ -11,7 +11,7 @@ import {
   secondsUntilExpiry,
   secondsUntilResendAvailable,
 } from './cnicOtpFlow';
-import type { AuthError, AuthSession, CandidateAuthClient } from './types';
+import { OTP_LENGTH, type AuthError, type AuthSession, type CandidateAuthClient } from './types';
 
 function toAuthError(error: unknown): AuthError {
   if (
@@ -37,7 +37,8 @@ export interface UseCnicOtpFlowResult extends CnicOtpState {
   setCnic: (raw: string) => void;
   submitCnic: () => Promise<void>;
   setOtp: (raw: string) => void;
-  submitOtp: () => Promise<void>;
+  /** Verifies `codeOverride` when given, else the current `otp` state. Always pass the just-completed code explicitly from an `onComplete` callback -- `state.otp` may not have re-rendered yet (React state updates aren't synchronous), so relying on it there can submit a stale, incomplete code. */
+  submitOtp: (codeOverride?: string) => Promise<void>;
   resendOtp: () => Promise<void>;
   backToCnic: () => void;
 }
@@ -81,17 +82,21 @@ export function useCnicOtpFlow({ client, onAuthenticated }: UseCnicOtpFlowOption
     dispatch({ type: 'OTP_CHANGED', otp: raw.replace(/\D/g, '') });
   }, []);
 
-  const submitOtp = useCallback(async () => {
-    if (state.isSubmittingOtp || !state.challenge) return;
+  const submitOtp = useCallback(
+    async (codeOverride?: string) => {
+      const code = codeOverride ?? state.otp;
+      if (state.isSubmittingOtp || !state.challenge || code.length !== OTP_LENGTH) return;
 
-    dispatch({ type: 'OTP_SUBMIT_STARTED' });
-    try {
-      const session = await client.verifyOtp(state.challenge.challengeId, state.otp);
-      await onAuthenticated(session);
-    } catch (error) {
-      dispatch({ type: 'OTP_SUBMIT_FAILED', error: toAuthError(error) });
-    }
-  }, [client, onAuthenticated, state.challenge, state.isSubmittingOtp, state.otp]);
+      dispatch({ type: 'OTP_SUBMIT_STARTED' });
+      try {
+        const session = await client.verifyOtp(state.challenge.challengeId, code);
+        await onAuthenticated(session);
+      } catch (error) {
+        dispatch({ type: 'OTP_SUBMIT_FAILED', error: toAuthError(error) });
+      }
+    },
+    [client, onAuthenticated, state.challenge, state.isSubmittingOtp, state.otp]
+  );
 
   const resendOtp = useCallback(async () => {
     if (state.isResending || !state.challenge) return;

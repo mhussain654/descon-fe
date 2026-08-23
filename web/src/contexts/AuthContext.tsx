@@ -1,4 +1,5 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { isSessionValid } from '../../../shared/auth/session';
 import type { AuthSession } from '../../../shared/auth/types';
 
@@ -32,16 +33,24 @@ const EXPIRY_CHECK_INTERVAL_MS = 5000;
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<AuthSession | null>(null);
   const [sessionExpired, setSessionExpired] = useState(false);
+  const queryClient = useQueryClient();
 
   const login = useCallback((next: AuthSession) => {
     setSession(next);
     setSessionExpired(false);
   }, []);
 
-  const logout = useCallback((reason: LogoutReason = 'manual') => {
-    setSession(null);
-    setSessionExpired(reason === 'expired');
-  }, []);
+  const logout = useCallback(
+    (reason: LogoutReason = 'manual') => {
+      setSession(null);
+      setSessionExpired(reason === 'expired');
+      // Candidate-sensitive query data must not survive into whatever the
+      // next session on this device is (AGENTS.md: "Clear sensitive state
+      // and caches on logout").
+      queryClient.clear();
+    },
+    [queryClient]
+  );
 
   const acknowledgeSessionExpired = useCallback(() => setSessionExpired(false), []);
 

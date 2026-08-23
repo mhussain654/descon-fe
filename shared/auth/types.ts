@@ -26,7 +26,11 @@ export type AuthErrorCode =
   | 'SESSION_EXPIRED'
   | 'NETWORK_ERROR'
   | 'OFFLINE'
+  | 'SERVICE_UNAVAILABLE' // no real backend configured for this build (see candidateAuthClient.ts's production guard)
   | 'UNKNOWN';
+
+/** The OTP is always this many digits. Shared so the "is this code complete?" check (screens, the flow hook) can't drift from what the fields themselves render. */
+export const OTP_LENGTH = 6;
 
 export interface AuthError {
   code: AuthErrorCode;

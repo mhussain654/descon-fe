@@ -53,6 +53,47 @@ describe('useCnicOtpFlow', () => {
     expect(onAuthenticated.mock.calls[0][0].candidateId).toEqual(expect.any(String));
   });
 
+  it('verifies the code passed explicitly to submitOtp, not stale otp state (regression: onComplete fires before React re-renders the typed digit)', async () => {
+    const client = createMockCandidateAuthClient({ delayMs: 0 });
+    const verifyOtpSpy = jest.spyOn(client, 'verifyOtp');
+    const onAuthenticated = jest.fn();
+    const { result } = renderHook(() => useCnicOtpFlow({ client, onAuthenticated }));
+
+    act(() => result.current.setCnic(CNIC));
+    await act(async () => {
+      await result.current.submitCnic();
+    });
+
+    // `otp` state is still '' here -- submitOtp must use the override, not it.
+    await act(async () => {
+      await result.current.submitOtp(MOCK_VALID_OTP);
+    });
+
+    expect(verifyOtpSpy).toHaveBeenCalledWith(expect.any(String), MOCK_VALID_OTP);
+    expect(onAuthenticated).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not submit an incomplete code, whether from state or an override', async () => {
+    const client = createMockCandidateAuthClient({ delayMs: 0 });
+    const verifyOtpSpy = jest.spyOn(client, 'verifyOtp');
+    const { result } = renderHook(() => useCnicOtpFlow({ client, onAuthenticated: jest.fn() }));
+
+    act(() => result.current.setCnic(CNIC));
+    await act(async () => {
+      await result.current.submitCnic();
+    });
+
+    act(() => result.current.setOtp('123'));
+    await act(async () => {
+      await result.current.submitOtp();
+    });
+    await act(async () => {
+      await result.current.submitOtp('12345');
+    });
+
+    expect(verifyOtpSpy).not.toHaveBeenCalled();
+  });
+
   it('surfaces an invalid-code error and clears the OTP field', async () => {
     const { result } = setUp();
     act(() => result.current.setCnic(CNIC));

@@ -1,4 +1,5 @@
 import { Redirect } from "expo-router";
+import type { ReactNode } from "react";
 import { View } from "react-native";
 import { useAuth } from "../../contexts/AuthContext";
 import { useLanguage } from "../../contexts/LanguageContext";
@@ -12,7 +13,7 @@ import { colors } from "../../design-system/tokens";
  * loading state instead of flashing the login screen or (worse) stale
  * protected content before authorization is confirmed.
  */
-export function RequireAuth({ children }) {
+export function RequireAuth({ children }: { children: ReactNode }) {
   const { status } = useAuth();
   const { t } = useLanguage();
 

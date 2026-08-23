@@ -1,6 +1,6 @@
 import { Check } from "lucide-react-native";
 import { Image } from "expo-image";
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
 import { useRouter } from "expo-router";
@@ -47,11 +47,16 @@ export default function WelcomeScreen() {
     <View style={styles.screen}>
       <StatusBar style="dark" />
 
-      <View
-        style={[
+      {/* Small phones, landscape orientation and larger font scales can push
+          this content taller than the viewport -- a ScrollView (rather than
+          the previous fixed View) keeps the language options and Continue
+          button reachable instead of clipping them off-screen. */}
+      <ScrollView
+        contentContainerStyle={[
           styles.content,
           { paddingTop: insets.top + 60, paddingBottom: insets.bottom + spacing[6] },
         ]}
+        keyboardShouldPersistTaps="handled"
       >
         <View style={styles.logoWrap}>
           <Image
@@ -92,15 +97,15 @@ export default function WelcomeScreen() {
           {t("continue")}
         </Button>
 
-        <Text style={styles.footer}>Descon Engineering Limited</Text>
-      </View>
+        <Text style={styles.footer}>{t("companyFooter")}</Text>
+      </ScrollView>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.surface.raised },
-  content: { flex: 1, paddingHorizontal: spacing[6] },
+  content: { flexGrow: 1, paddingHorizontal: spacing[6] },
   logoWrap: { alignItems: "center", marginBottom: spacing[12] },
   logo: { width: 160, height: 60 },
   titleBlock: { marginBottom: spacing[12] },

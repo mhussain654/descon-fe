@@ -5,6 +5,7 @@ import { useLanguage } from "../../contexts/LanguageContext";
 import { Button, CnicField, OtpField, RetryBanner, ValidationMessage, toast } from "../../design-system";
 import { AUTH_ERROR_KEYS, CNIC_FIELD_ERROR_KEYS } from "../../../../shared/auth/errorMessages";
 import { formatCountdown } from "../../../../shared/auth/cnicOtpFlow";
+import { OTP_LENGTH } from "../../../../shared/auth/types";
 import { useCnicOtpFlow } from "../../../../shared/auth/useCnicOtpFlow";
 import { candidateAuthClient } from "../../lib/auth-client";
 
@@ -120,7 +121,7 @@ export default function LoginPage() {
               label={t("enterOTP")}
               value={otp}
               onValueChange={setOtp}
-              onComplete={submitOtp}
+              onComplete={(code) => submitOtp(code)}
               disabled={otpFieldDisabled}
               errorMessage={genericOtpErrorMessage ?? undefined}
               autoFocus
@@ -152,8 +153,8 @@ export default function LoginPage() {
               size="lg"
               fullWidth
               loading={isSubmittingOtp}
-              disabled={otpFieldDisabled || otp.length === 0}
-              onClick={submitOtp}
+              disabled={otpFieldDisabled || otp.length !== OTP_LENGTH}
+              onClick={() => submitOtp()}
             >
               {t("verifyAndLogin")}
             </Button>
