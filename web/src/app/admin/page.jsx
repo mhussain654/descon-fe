@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { Search } from "lucide-react";
 import { useLanguage } from "../../contexts/LanguageContext";
+import { StaffShell } from "../components/staff-shell";
 
 const workflowStages = [
   { id: "registered", labelKey: "registered", color: "#3B82F6" },
@@ -12,7 +13,20 @@ const workflowStages = [
   { id: "mobilized", labelKey: "mobilized", color: "#059669" },
 ];
 
-export default function AdminDashboard() {
+// This candidate-management console had no auth guard at all before
+// MPS-F202/MPS-F203 introduced staff authentication -- StaffShell (which
+// wraps every staff screen in RequireStaffAuth) closes that gap here too,
+// since a staff-auth system that protects nothing else in the portal isn't
+// meaningful. No internal restructuring beyond the guard itself.
+export default function AdminDashboardPage() {
+  return (
+    <StaffShell>
+      <AdminDashboard />
+    </StaffShell>
+  );
+}
+
+function AdminDashboard() {
   const { t } = useLanguage();
   const [stats, setStats] = useState(null);
   const [candidates, setCandidates] = useState([]);

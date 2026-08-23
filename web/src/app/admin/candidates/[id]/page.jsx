@@ -4,6 +4,8 @@ import { useEffect, useState } from "react";
 import { ArrowLeft, CheckCircle, XCircle, Clock, Upload } from "lucide-react";
 import { formatCurrency } from "../../../../../../shared/i18n/locale";
 import { useLanguage } from "../../../../contexts/LanguageContext";
+import { useStaffAuth } from "../../../../contexts/StaffAuthContext";
+import { StaffShell } from "../../../components/staff-shell";
 
 const documentTypeKeys = {
   passport: "passport",
@@ -33,8 +35,21 @@ const stageNameKeys = {
   mobilized: "mobilized",
 };
 
-export default function CandidateDetails({ params }) {
+// No auth guard existed here before MPS-F202/MPS-F203 -- see the identical
+// note in ../../page.jsx. Document verification is additionally gated on
+// `canVerifyDocuments` below, so a viewer-role staff member can see this
+// page (read-only) but never gets the Verify/Reject controls at all.
+export default function CandidateDetailsPage({ params }) {
+  return (
+    <StaffShell>
+      <CandidateDetails params={params} />
+    </StaffShell>
+  );
+}
+
+function CandidateDetails({ params }) {
   const { t, language } = useLanguage();
+  const { hasPermission } = useStaffAuth();
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
 
@@ -266,7 +281,7 @@ export default function CandidateDetails({ params }) {
                             )}
                           </div>
                         </div>
-                        {doc.verification_status === "uploaded" && (
+                        {doc.verification_status === "uploaded" && hasPermission("canVerifyDocuments") && (
                           <div className="flex space-x-2">
                             <button
                               onClick={() =>

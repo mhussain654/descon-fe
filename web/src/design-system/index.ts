@@ -22,6 +22,7 @@ export * from './Pagination';
 export * from './ProgressBar';
 export * from './RetryBanner';
 export * from './SearchField';
+export * from './Select';
 export * from './SessionExpiredState';
 export * from './Skeleton';
 export * from './Spinner';

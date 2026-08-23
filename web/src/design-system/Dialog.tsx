@@ -63,6 +63,8 @@ export interface ConfirmDialogProps {
   onConfirm: () => void;
   confirmVariant?: ButtonVariant;
   isConfirming?: boolean;
+  /** Extra content between the description and the footer -- e.g. a ValidationMessage surfacing why a prior confirm attempt failed (the dialog stays open on failure, so that error must render somewhere inside it, not off in the page behind the overlay). */
+  children?: ReactNode;
 }
 
 /** Composed confirmation dialog for destructive/consequential actions. */
@@ -77,10 +79,12 @@ export function ConfirmDialog({
   onConfirm,
   confirmVariant = 'primary',
   isConfirming = false,
+  children,
 }: ConfirmDialogProps) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent title={title} description={description} closeLabel={closeLabel}>
+        {children}
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={isConfirming}>
             {cancelLabel}
