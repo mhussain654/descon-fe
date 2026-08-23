@@ -88,7 +88,7 @@ export default function DesignSystemShowcasePage() {
       <section className="mb-10">
         <h2 className="mb-4 text-lg font-semibold text-text-primary">{t("dsSectionInputs")}</h2>
         <div className="grid gap-6 sm:grid-cols-2">
-          <Input label={t("cnicShort")} placeholder={t("enterMobileNumber")} helperText={t("dsOptionalField")} />
+          <Input label={t("addressShort")} helperText={t("dsOptionalField")} />
           <Input
             label={t("emailShort")}
             requirementText={t("dsRequiredField")}

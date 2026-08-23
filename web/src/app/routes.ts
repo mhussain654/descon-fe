@@ -114,6 +114,16 @@ if (import.meta.env.DEV) {
 }
 const tree = buildRouteTree(__dirname);
 const notFound = route('*?', './not-found/page.jsx', { id: 'catch-all-not-found' });
-const routes = [...generateRoutes(tree), notFound];
+
+// The design system showcase (web/src/app/design-system/page.jsx) is a
+// developer-facing reference, not a candidate/admin screen -- it must not be
+// reachable in production builds. Excluded here rather than guarded inside
+// the page itself so the route genuinely doesn't exist in prod (unknown
+// route -> the catch-all not-found below), not just "renders something else".
+const DEV_ONLY_ROUTE_FILES = ['./design-system/page.jsx'];
+const allRoutes = generateRoutes(tree).filter(
+	(entry) => import.meta.env.DEV || !DEV_ONLY_ROUTE_FILES.includes(entry.file)
+);
+const routes = [...allRoutes, notFound];
 
 export default routes;

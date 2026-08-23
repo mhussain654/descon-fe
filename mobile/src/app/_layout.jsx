@@ -43,7 +43,11 @@ export default function RootLayout() {
             <Stack.Screen name="index" />
             <Stack.Screen name="login" />
             <Stack.Screen name="(tabs)" />
-            <Stack.Screen name="design-system" />
+            {/* Developer-facing component reference, not a candidate screen --
+                excluded from production builds (redirects to the initial
+                route if somehow navigated to), matching the equivalent web
+                exclusion in web/src/app/routes.ts. */}
+            <Stack.Screen name="design-system" redirect={!__DEV__} />
           </Stack>
           <Toaster />
         </GestureHandlerRootView>

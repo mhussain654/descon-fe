@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { ScrollView, Text, View } from "react-native";
+import { ScrollView, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useLanguage } from "../contexts/LanguageContext";
 import {
@@ -34,11 +34,7 @@ const CANDIDATES = [
 ];
 
 function SectionHeading({ children }) {
-  return (
-    <Text style={{ fontSize: 18, fontWeight: fontWeights.semibold, color: colors.text.primary, marginBottom: spacing[4] }}>
-      {children}
-    </Text>
-  );
+  return <Text style={styles.sectionHeading}>{children}</Text>;
 }
 
 export default function DesignSystemShowcaseScreen() {
@@ -58,15 +54,16 @@ export default function DesignSystemShowcaseScreen() {
 
   return (
     <ScrollView
-      style={{ flex: 1, backgroundColor: colors.surface.background }}
-      contentContainerStyle={{ paddingTop: insets.top + spacing[6], paddingBottom: insets.bottom + spacing[12], paddingHorizontal: spacing[6], gap: spacing[10] }}
+      style={styles.scroll}
+      contentContainerStyle={[
+        styles.content,
+        { paddingTop: insets.top + spacing[6], paddingBottom: insets.bottom + spacing[12] },
+      ]}
     >
       <View>
-        <Text style={{ fontSize: 24, fontWeight: fontWeights.semibold, color: colors.text.primary }}>
-          {t("dsShowcaseTitle")}
-        </Text>
-        <Text style={{ marginTop: spacing[1], fontSize: 14, color: colors.text.secondary }}>{t("dsShowcaseSubtitle")}</Text>
-        <View style={{ flexDirection: "row", gap: spacing[2], marginTop: spacing[4] }}>
+        <Text style={styles.title}>{t("dsShowcaseTitle")}</Text>
+        <Text style={styles.subtitle}>{t("dsShowcaseSubtitle")}</Text>
+        <View style={styles.languageRow}>
           <FilterChip selected={language === "en"} onPress={() => setLanguage("en")}>
             {t("englishLabel")}
           </FilterChip>
@@ -78,7 +75,7 @@ export default function DesignSystemShowcaseScreen() {
 
       <View>
         <SectionHeading>{t("dsSectionButtons")}</SectionHeading>
-        <View style={{ flexDirection: "row", flexWrap: "wrap", gap: spacing[3] }}>
+        <View style={styles.buttonRow}>
           <Button variant="primary" onPress={() => {}}>
             {t("continue")}
           </Button>
@@ -102,7 +99,7 @@ export default function DesignSystemShowcaseScreen() {
 
       <View>
         <SectionHeading>{t("dsSectionInputs")}</SectionHeading>
-        <View style={{ gap: spacing[4] }}>
+        <View style={styles.inputsColumn}>
           <TextField label={t("emailShort")} requirementText={t("dsRequiredField")} errorMessage={t("dsFieldRequiredError")} />
           <CnicField label={t("cnic")} placeholder={t("enterCNIC")} value={cnic} onValueChange={setCnic} />
           <OtpField label={t("enterOTP")} value={otp} onValueChange={setOtp} />
@@ -116,7 +113,7 @@ export default function DesignSystemShowcaseScreen() {
             <CardTitle>{t("currentStatus")}</CardTitle>
             <CardDescription>{t("waitingForVerification")}</CardDescription>
           </CardHeader>
-          <View style={{ flexDirection: "row", flexWrap: "wrap", gap: spacing[2] }}>
+          <View style={styles.badgeRow}>
             <Badge tone="success">{t("verified")}</Badge>
             <Badge tone="warning">{t("pending")}</Badge>
             <Badge tone="danger">{t("rejected")}</Badge>
@@ -129,7 +126,7 @@ export default function DesignSystemShowcaseScreen() {
         <SectionHeading>{t("dsSectionProgress")}</SectionHeading>
         <Card>
           <ProgressBar value={65} label={t("mobilizationProgress")} displayText={`65% ${t("complete")}`} />
-          <View style={{ marginTop: spacing[6] }}>
+          <View style={styles.timelineWrapper}>
             <Timeline items={timeline} />
           </View>
         </Card>
@@ -137,7 +134,7 @@ export default function DesignSystemShowcaseScreen() {
 
       <View>
         <SectionHeading>{t("dsSectionStates")}</SectionHeading>
-        <View style={{ gap: spacing[3] }}>
+        <View style={styles.statesColumn}>
           <Card noPadding>
             <LoadingState message={t("loading")} />
           </Card>
@@ -166,7 +163,7 @@ export default function DesignSystemShowcaseScreen() {
 
       <View>
         <SectionHeading>{t("dsSectionDialog")}</SectionHeading>
-        <View style={{ flexDirection: "row", gap: spacing[3] }}>
+        <View style={styles.dialogRow}>
           <Button variant="outline" onPress={() => setDialogOpen(true)}>
             {t("dsOpenDialog")}
           </Button>
@@ -188,9 +185,9 @@ export default function DesignSystemShowcaseScreen() {
 
       <View>
         <SectionHeading>{t("dsSectionSearch")}</SectionHeading>
-        <View style={{ gap: spacing[3] }}>
+        <View style={styles.searchColumn}>
           <SearchField value={search} onValueChange={setSearch} label={t("dsSearchLabel")} clearLabel={t("dsClearFilters")} placeholder={t("adminSearchPlaceholder")} />
-          <View style={{ flexDirection: "row", gap: spacing[2] }}>
+          <View style={styles.filterRow}>
             <FilterChip selected={activeFilter === "all"} onPress={() => setActiveFilter("all")}>
               {t("adminAll")}
             </FilterChip>
@@ -204,8 +201,8 @@ export default function DesignSystemShowcaseScreen() {
             keyExtractor={(item) => item.id}
             renderItem={(item) => (
               <Card>
-                <Text style={{ fontSize: 16, fontWeight: fontWeights.medium, color: colors.text.primary }}>{item.name}</Text>
-                <Text style={{ marginTop: spacing[1], fontSize: 14, color: colors.text.secondary }}>{t(item.stageKey)}</Text>
+                <Text style={styles.listItemName}>{item.name}</Text>
+                <Text style={styles.listItemStage}>{t(item.stageKey)}</Text>
               </Card>
             )}
             emptyState={{ title: t("dsEmptyTitle"), description: t("dsEmptyDescription") }}
@@ -215,3 +212,22 @@ export default function DesignSystemShowcaseScreen() {
     </ScrollView>
   );
 }
+
+const styles = StyleSheet.create({
+  scroll: { flex: 1, backgroundColor: colors.surface.background },
+  content: { paddingHorizontal: spacing[6], gap: spacing[10] },
+  title: { fontSize: 24, fontWeight: fontWeights.semibold, color: colors.text.primary },
+  subtitle: { marginTop: spacing[1], fontSize: 14, color: colors.text.secondary },
+  languageRow: { flexDirection: "row", gap: spacing[2], marginTop: spacing[4] },
+  sectionHeading: { fontSize: 18, fontWeight: fontWeights.semibold, color: colors.text.primary, marginBottom: spacing[4] },
+  buttonRow: { flexDirection: "row", flexWrap: "wrap", gap: spacing[3] },
+  inputsColumn: { gap: spacing[4] },
+  badgeRow: { flexDirection: "row", flexWrap: "wrap", gap: spacing[2] },
+  timelineWrapper: { marginTop: spacing[6] },
+  statesColumn: { gap: spacing[3] },
+  dialogRow: { flexDirection: "row", gap: spacing[3] },
+  searchColumn: { gap: spacing[3] },
+  filterRow: { flexDirection: "row", gap: spacing[2] },
+  listItemName: { fontSize: 16, fontWeight: fontWeights.medium, color: colors.text.primary },
+  listItemStage: { marginTop: spacing[1], fontSize: 14, color: colors.text.secondary },
+});
