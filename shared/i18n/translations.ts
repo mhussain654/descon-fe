@@ -21,15 +21,9 @@ export const translations = {
 
     // Login
     login: 'Sign In',
-    loginMessage: 'Enter your registered mobile number and CNIC to continue',
+    loginMessage: 'Enter your CNIC to receive a one-time code.',
     cnic: 'CNIC Number',
-    mobileNumber: 'Registered Mobile Number',
-    password: 'Password',
     enterCNIC: 'Enter your CNIC',
-    enterMobileNumber: '03XXXXXXXXX',
-    enterRegNumber: 'Enter registration number',
-    enterPassword: 'Enter password',
-    signIn: 'Sign In',
     sendOTP: 'Send OTP',
     verifyOTP: 'Verify OTP',
     otpSentMessage: 'Enter the 6-digit code sent to',
@@ -37,6 +31,25 @@ export const translations = {
     resendOTP: 'Resend OTP',
     verifyAndLogin: 'Verify & Login',
     back: 'Back',
+
+    // Candidate authentication (MPS-F201)
+    authCnicRequiredError: 'Enter your CNIC to continue.',
+    authCnicFormatError: 'Enter a valid 13-digit CNIC.',
+    authOtpRequestFailedError: "We couldn't send a code right now. Please try again.",
+    authOtpInvalidError: 'Incorrect code. Please try again.',
+    authOtpExpiredError: 'This code has expired.',
+    authOtpExpiredTitle: 'Code expired',
+    authOtpExpiredDescription: 'This code is no longer valid. Request a new one to continue.',
+    authOtpMaxAttemptsTitle: 'Too many attempts',
+    authOtpMaxAttemptsDescription:
+      "You've used all attempts for this code. Request a new one to continue.",
+    authCodeExpiresInPrefix: 'Code expires in',
+    authResendAvailableInPrefix: 'You can resend in',
+    authChangeCnic: 'Change CNIC',
+    authOtpSentToastMessage: 'Code sent',
+    authServiceUnavailableError: 'Sign-in is not available right now. Please try again later.',
+    authSessionPersistError: "We couldn't securely save your session. Please try again.",
+    companyFooter: 'Descon Engineering Limited',
 
     // Dashboard
     dashboard: 'Dashboard',
@@ -218,15 +231,9 @@ export const translations = {
 
     // Login
     login: 'سائن ان',
-    loginMessage: 'جاری رکھنے کے لیے اپنا رجسٹرڈ موبائل نمبر اور شناختی کارڈ نمبر درج کریں',
+    loginMessage: 'ایک بار کا کوڈ حاصل کرنے کے لیے اپنا شناختی کارڈ نمبر درج کریں۔',
     cnic: 'شناختی کارڈ نمبر',
-    mobileNumber: 'رجسٹرڈ موبائل نمبر',
-    password: 'پاس ورڈ',
     enterCNIC: 'اپنا شناختی کارڈ نمبر درج کریں',
-    enterMobileNumber: '03XXXXXXXXX',
-    enterRegNumber: 'رجسٹریشن نمبر درج کریں',
-    enterPassword: 'پاس ورڈ درج کریں',
-    signIn: 'سائن ان کریں',
     sendOTP: 'او ٹی پی بھیجیں',
     verifyOTP: 'او ٹی پی کی تصدیق کریں',
     otpSentMessage: 'بھیجے گئے 6 ہندسوں کا کوڈ درج کریں',
@@ -234,6 +241,25 @@ export const translations = {
     resendOTP: 'دوبارہ او ٹی پی بھیجیں',
     verifyAndLogin: 'تصدیق اور لاگ ان',
     back: 'واپس',
+
+    // Candidate authentication (MPS-F201)
+    authCnicRequiredError: 'جاری رکھنے کے لیے اپنا شناختی کارڈ نمبر درج کریں۔',
+    authCnicFormatError: '13 ہندسوں کا درست شناختی کارڈ نمبر درج کریں۔',
+    authOtpRequestFailedError: 'ابھی کوڈ نہیں بھیجا جا سکا۔ براہ کرم دوبارہ کوشش کریں۔',
+    authOtpInvalidError: 'غلط کوڈ۔ براہ کرم دوبارہ کوشش کریں۔',
+    authOtpExpiredError: 'اس کوڈ کی میعاد ختم ہو چکی ہے۔',
+    authOtpExpiredTitle: 'کوڈ کی میعاد ختم',
+    authOtpExpiredDescription: 'یہ کوڈ اب درست نہیں ہے۔ جاری رکھنے کے لیے نیا کوڈ حاصل کریں۔',
+    authOtpMaxAttemptsTitle: 'بہت زیادہ کوششیں',
+    authOtpMaxAttemptsDescription:
+      'آپ اس کوڈ کے لیے اپنی تمام کوششیں استعمال کر چکے ہیں۔ جاری رکھنے کے لیے نیا کوڈ حاصل کریں۔',
+    authCodeExpiresInPrefix: 'کوڈ کی میعاد ختم ہونے میں',
+    authResendAvailableInPrefix: 'آپ دوبارہ بھیج سکیں گے',
+    authChangeCnic: 'شناختی کارڈ تبدیل کریں',
+    authOtpSentToastMessage: 'کوڈ بھیج دیا گیا',
+    authServiceUnavailableError: 'ابھی سائن ان دستیاب نہیں ہے۔ براہ کرم بعد میں دوبارہ کوشش کریں۔',
+    authSessionPersistError: 'ہم آپ کا سیشن محفوظ طریقے سے محفوظ نہیں کر سکے۔ براہ کرم دوبارہ کوشش کریں۔',
+    companyFooter: 'ڈیسکون انجینئرنگ لمیٹڈ',
 
     // Dashboard
     dashboard: 'ڈیش بورڈ',

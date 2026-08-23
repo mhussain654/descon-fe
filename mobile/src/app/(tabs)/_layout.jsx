@@ -1,9 +1,22 @@
 import { Tabs } from "expo-router";
 import { useColorScheme } from "react-native";
 import { Home, FileText, Clock, User } from "lucide-react-native";
+import { RequireAuth } from "../../features/auth/RequireAuth";
 import { useLanguage } from "../../contexts/LanguageContext";
 
+// Every candidate tab renders through this layout, so guarding here protects
+// dashboard/documents/status/profile in one place (AGENTS.md / MPS-F201:
+// "Protected routes/tabs must never render before authorization is
+// confirmed").
 export default function TabLayout() {
+  return (
+    <RequireAuth>
+      <TabNavigator />
+    </RequireAuth>
+  );
+}
+
+function TabNavigator() {
   const colorScheme = useColorScheme();
   const isDark = colorScheme === "dark";
   const { t } = useLanguage();

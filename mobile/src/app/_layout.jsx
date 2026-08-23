@@ -3,6 +3,7 @@ import * as SplashScreen from "expo-splash-screen";
 import { useEffect } from "react";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { AuthProvider } from "../contexts/AuthContext";
 import { LanguageProvider } from "../contexts/LanguageContext";
 import { Toaster } from "../design-system/toast";
 SplashScreen.preventAutoHideAsync();
@@ -35,22 +36,24 @@ export default function RootLayout() {
   return (
     <LanguageProvider>
       <QueryClientProvider client={queryClient}>
-        <GestureHandlerRootView style={{ flex: 1 }}>
-          <Stack
-            screenOptions={{ headerShown: false }}
-            initialRouteName="index"
-          >
-            <Stack.Screen name="index" />
-            <Stack.Screen name="login" />
-            <Stack.Screen name="(tabs)" />
-            {/* Developer-facing component reference, not a candidate screen --
-                excluded from production builds (redirects to the initial
-                route if somehow navigated to), matching the equivalent web
-                exclusion in web/src/app/routes.ts. */}
-            <Stack.Screen name="design-system" redirect={!__DEV__} />
-          </Stack>
-          <Toaster />
-        </GestureHandlerRootView>
+        <AuthProvider>
+          <GestureHandlerRootView style={{ flex: 1 }}>
+            <Stack
+              screenOptions={{ headerShown: false }}
+              initialRouteName="index"
+            >
+              <Stack.Screen name="index" />
+              <Stack.Screen name="login" />
+              <Stack.Screen name="(tabs)" />
+              {/* Developer-facing component reference, not a candidate screen --
+                  excluded from production builds (redirects to the initial
+                  route if somehow navigated to), matching the equivalent web
+                  exclusion in web/src/app/routes.ts. */}
+              <Stack.Screen name="design-system" redirect={!__DEV__} />
+            </Stack>
+            <Toaster />
+          </GestureHandlerRootView>
+        </AuthProvider>
       </QueryClientProvider>
     </LanguageProvider>
   );

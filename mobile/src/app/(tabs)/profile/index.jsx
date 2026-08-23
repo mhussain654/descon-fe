@@ -24,6 +24,7 @@ import {
   Inter_500Medium,
   Inter_600SemiBold,
 } from "@expo-google-fonts/inter";
+import { useAuth } from "../../../contexts/AuthContext";
 import { useLanguage } from "../../../contexts/LanguageContext";
 
 export default function ProfileScreen() {
@@ -32,6 +33,7 @@ export default function ProfileScreen() {
   const colorScheme = useColorScheme();
   const isDark = colorScheme === "dark";
   const { t, toggleLanguage, language } = useLanguage();
+  const { logout } = useAuth();
 
   const [fontsLoaded] = useFonts({
     Inter_400Regular,
@@ -53,7 +55,8 @@ export default function ProfileScreen() {
     address: "Lahore, Pakistan",
   };
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    await logout();
     router.replace("/login");
   };
 

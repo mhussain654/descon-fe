@@ -1,37 +1,42 @@
+import { Check } from "lucide-react";
+import { useNavigate } from "react-router";
 import { useLanguage } from "../contexts/LanguageContext";
+import { Button } from "../design-system";
 
-function LanguageCard({ active, flag, label, hint, onClick }) {
+function LanguageOptionCard({ active, flag, label, hint, onClick }) {
   return (
     <button
       type="button"
       onClick={onClick}
-      className={`flex w-full items-center justify-between rounded-xl border-2 px-5 py-4 text-left transition ${
-        active
-          ? "border-[#0066CC] bg-[#F0F9FF]"
-          : "border-gray-200 bg-[#F6F6F6] hover:border-gray-300"
+      aria-pressed={active}
+      className={`flex w-full items-center justify-between rounded-xl border-2 px-5 py-4 text-start transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ${
+        active ? "border-brand bg-brand-subtle" : "border-border bg-surface-sunken hover:border-borderStrong"
       }`}
     >
       <div className="flex items-center gap-3">
-        <div className="text-2xl">{flag}</div>
+        <div className="text-2xl" aria-hidden="true">
+          {flag}
+        </div>
         <div>
-          <div className="text-base font-semibold text-black">{label}</div>
-          <div className="text-sm text-gray-500">{hint}</div>
+          <div className="text-base font-semibold text-text-primary">{label}</div>
+          <div className="text-sm text-text-secondary">{hint}</div>
         </div>
       </div>
       {active ? (
-        <div className="flex h-6 w-6 items-center justify-center rounded-full bg-[#0066CC] text-sm font-bold text-white">
-          ✓
+        <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-brand text-brand-on">
+          <Check className="h-4 w-4" aria-hidden="true" />
         </div>
       ) : null}
     </button>
   );
 }
 
-export default function Page() {
+export default function WelcomePage() {
   const { language, setLanguage, t } = useLanguage();
+  const navigate = useNavigate();
 
   return (
-    <main className="min-h-screen bg-white">
+    <main className="min-h-screen bg-background">
       <div className="mx-auto flex min-h-screen w-full max-w-xl flex-col px-6 pb-8 pt-16">
         <div className="mb-12 flex justify-center">
           <img
@@ -42,27 +47,21 @@ export default function Page() {
         </div>
 
         <section className="mb-12 text-center">
-          <h1 className="mb-3 text-4xl font-semibold text-black">
-            {t("welcomeTitle")}
-          </h1>
-          <p className="text-base leading-7 text-gray-500">
-            {t("welcomeMessage")}
-          </p>
+          <h1 className="mb-3 text-4xl font-semibold text-text-primary">{t("welcomeTitle")}</h1>
+          <p className="text-base leading-7 text-text-secondary">{t("welcomeMessage")}</p>
         </section>
 
         <section className="mb-12">
-          <p className="mb-4 text-center text-sm font-medium text-black">
-            {t("selectLanguage")}
-          </p>
+          <p className="mb-4 text-center text-sm font-medium text-text-primary">{t("selectLanguage")}</p>
           <div className="space-y-3">
-            <LanguageCard
+            <LanguageOptionCard
               active={language === "en"}
               flag="🇬🇧"
               label={t("englishLabel")}
               hint={t("englishHint")}
               onClick={() => setLanguage("en")}
             />
-            <LanguageCard
+            <LanguageOptionCard
               active={language === "ur"}
               flag="🇵🇰"
               label={t("urduLabel")}
@@ -74,16 +73,11 @@ export default function Page() {
 
         <div className="flex-1" />
 
-        <a
-          href="/login"
-          className="rounded-xl bg-[#0066CC] px-6 py-4 text-center text-base font-semibold text-white shadow-[0_10px_30px_rgba(0,102,204,0.18)] transition hover:bg-[#0057AD]"
-        >
+        <Button variant="primary" size="lg" fullWidth onClick={() => navigate("/login")}>
           {t("continue")}
-        </a>
+        </Button>
 
-        <p className="mt-6 text-center text-xs text-gray-400">
-          Descon Engineering Limited
-        </p>
+        <p className="mt-6 text-center text-xs text-text-tertiary">{t("companyFooter")}</p>
       </div>
     </main>
   );

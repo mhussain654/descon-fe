@@ -31,6 +31,7 @@ export const TextField = forwardRef<TextInput, TextFieldProps>(function TextFiel
         ref={ref}
         editable={editable}
         placeholderTextColor={colors.text.tertiary}
+        accessibilityLabel={props.accessibilityLabel ?? label}
         accessibilityState={{ disabled: editable === false }}
         style={[
           styles.input,

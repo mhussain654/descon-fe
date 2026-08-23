@@ -1,266 +1,153 @@
-import { View, Text, TouchableOpacity } from "react-native";
+import { Check } from "lucide-react-native";
 import { Image } from "expo-image";
+import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
 import { useRouter } from "expo-router";
-import { Check } from "lucide-react-native";
-import {
-  useFonts,
-  Inter_400Regular,
-  Inter_500Medium,
-  Inter_600SemiBold,
-} from "@expo-google-fonts/inter";
 import { useLanguage } from "../contexts/LanguageContext";
+import { Button } from "../design-system";
+import { colors, fontWeights, radii, spacing } from "../design-system/tokens";
+
+function LanguageOptionCard({ active, flag, label, hint, onPress }) {
+  return (
+    <Pressable
+      onPress={onPress}
+      accessibilityRole="button"
+      accessibilityState={{ selected: active }}
+      style={[styles.languageCard, active ? styles.languageCardActive : styles.languageCardInactive]}
+    >
+      <View style={styles.languageCardLeft}>
+        <Text style={styles.languageFlag} accessibilityElementsHidden importantForAccessibility="no">
+          {flag}
+        </Text>
+        <View>
+          <Text style={styles.languageLabel}>{label}</Text>
+          <Text style={styles.languageHint}>{hint}</Text>
+        </View>
+      </View>
+      {active ? (
+        <View style={styles.languageCheck}>
+          <Check size={16} color={colors.brand.on} strokeWidth={3} />
+        </View>
+      ) : null}
+    </Pressable>
+  );
+}
 
 export default function WelcomeScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const { t, language, setLanguage } = useLanguage();
 
-  const [fontsLoaded, error] = useFonts({
-    Inter_400Regular,
-    Inter_500Medium,
-    Inter_600SemiBold,
-  });
-
-  if (!fontsLoaded && !error) {
-    return null;
-  }
-
   const handleContinue = () => {
     router.replace("/login");
   };
 
   return (
-    <View style={{ flex: 1, backgroundColor: "#FFFFFF" }}>
+    <View style={styles.screen}>
       <StatusBar style="dark" />
 
-      <View
-        style={{
-          flex: 1,
-          paddingTop: insets.top + 60,
-          paddingHorizontal: 24,
-          paddingBottom: insets.bottom + 24,
-        }}
+      {/* Small phones, landscape orientation and larger font scales can push
+          this content taller than the viewport -- a ScrollView (rather than
+          the previous fixed View) keeps the language options and Continue
+          button reachable instead of clipping them off-screen. */}
+      <ScrollView
+        contentContainerStyle={[
+          styles.content,
+          { paddingTop: insets.top + 60, paddingBottom: insets.bottom + spacing[6] },
+        ]}
+        keyboardShouldPersistTaps="handled"
       >
-        {/* Logo */}
-        <View style={{ alignItems: "center", marginBottom: 48 }}>
+        <View style={styles.logoWrap}>
           <Image
-            source={{
-              uri: "https://ucarecdn.com/26b1d36a-12cf-4efa-853d-08da75f95d7e/-/format/auto/",
-            }}
-            style={{ width: 160, height: 60 }}
+            source={{ uri: "https://ucarecdn.com/26b1d36a-12cf-4efa-853d-08da75f95d7e/-/format/auto/" }}
+            style={styles.logo}
             contentFit="contain"
           />
         </View>
 
-        {/* Welcome Message */}
-        <View style={{ marginBottom: 48 }}>
-          <Text
-            style={{
-              fontSize: 32,
-              fontFamily: "Inter_600SemiBold",
-              color: "#000000",
-              marginBottom: 12,
-              textAlign: "center",
-            }}
-          >
-            {t("welcomeTitle")}
-          </Text>
-          <Text
-            style={{
-              fontSize: 16,
-              fontFamily: "Inter_400Regular",
-              color: "#6B7280",
-              textAlign: "center",
-              lineHeight: 24,
-            }}
-          >
-            {t("welcomeMessage")}
-          </Text>
+        <View style={styles.titleBlock}>
+          <Text style={styles.title}>{t("welcomeTitle")}</Text>
+          <Text style={styles.message}>{t("welcomeMessage")}</Text>
         </View>
 
-        {/* Language Selection */}
-        <View style={{ marginBottom: 48 }}>
-          <Text
-            style={{
-              fontSize: 14,
-              fontFamily: "Inter_500Medium",
-              color: "#000000",
-              marginBottom: 16,
-              textAlign: "center",
-            }}
-          >
-            {t("selectLanguage")}
-          </Text>
-
-          <View style={{ gap: 12 }}>
-            {/* English */}
-            <TouchableOpacity
+        <View style={styles.languageBlock}>
+          <Text style={styles.selectLabel}>{t("selectLanguage")}</Text>
+          <View style={styles.languageList}>
+            <LanguageOptionCard
+              active={language === "en"}
+              flag="🇬🇧"
+              label={t("englishLabel")}
+              hint={t("englishHint")}
               onPress={() => setLanguage("en")}
-              style={{
-                flexDirection: "row",
-                alignItems: "center",
-                justifyContent: "space-between",
-                backgroundColor: language === "en" ? "#F0F9FF" : "#F6F6F6",
-                borderRadius: 12,
-                paddingHorizontal: 20,
-                paddingVertical: 18,
-                borderWidth: 2,
-                borderColor: language === "en" ? "#0066CC" : "#E5E7EB",
-              }}
-            >
-              <View style={{ flexDirection: "row", alignItems: "center" }}>
-                <Text
-                  style={{
-                    fontSize: 24,
-                    marginRight: 12,
-                  }}
-                >
-                  🇬🇧
-                </Text>
-                <View>
-                  <Text
-                    style={{
-                      fontSize: 16,
-                      fontFamily: "Inter_600SemiBold",
-                      color: "#000000",
-                    }}
-                  >
-                    English
-                  </Text>
-                  <Text
-                    style={{
-                      fontSize: 13,
-                      fontFamily: "Inter_400Regular",
-                      color: "#6B7280",
-                    }}
-                  >
-                    Continue in English
-                  </Text>
-                </View>
-              </View>
-              {language === "en" && (
-                <View
-                  style={{
-                    width: 24,
-                    height: 24,
-                    borderRadius: 12,
-                    backgroundColor: "#0066CC",
-                    justifyContent: "center",
-                    alignItems: "center",
-                  }}
-                >
-                  <Check size={16} color="#FFFFFF" strokeWidth={3} />
-                </View>
-              )}
-            </TouchableOpacity>
-
-            {/* Urdu */}
-            <TouchableOpacity
+            />
+            <LanguageOptionCard
+              active={language === "ur"}
+              flag="🇵🇰"
+              label={t("urduLabel")}
+              hint={t("urduHint")}
               onPress={() => setLanguage("ur")}
-              style={{
-                flexDirection: "row",
-                alignItems: "center",
-                justifyContent: "space-between",
-                backgroundColor: language === "ur" ? "#F0F9FF" : "#F6F6F6",
-                borderRadius: 12,
-                paddingHorizontal: 20,
-                paddingVertical: 18,
-                borderWidth: 2,
-                borderColor: language === "ur" ? "#0066CC" : "#E5E7EB",
-              }}
-            >
-              <View style={{ flexDirection: "row", alignItems: "center" }}>
-                <Text
-                  style={{
-                    fontSize: 24,
-                    marginRight: 12,
-                  }}
-                >
-                  🇵🇰
-                </Text>
-                <View>
-                  <Text
-                    style={{
-                      fontSize: 16,
-                      fontFamily: "Inter_600SemiBold",
-                      color: "#000000",
-                    }}
-                  >
-                    اردو
-                  </Text>
-                  <Text
-                    style={{
-                      fontSize: 13,
-                      fontFamily: "Inter_400Regular",
-                      color: "#6B7280",
-                    }}
-                  >
-                    اردو میں جاری رکھیں
-                  </Text>
-                </View>
-              </View>
-              {language === "ur" && (
-                <View
-                  style={{
-                    width: 24,
-                    height: 24,
-                    borderRadius: 12,
-                    backgroundColor: "#0066CC",
-                    justifyContent: "center",
-                    alignItems: "center",
-                  }}
-                >
-                  <Check size={16} color="#FFFFFF" strokeWidth={3} />
-                </View>
-              )}
-            </TouchableOpacity>
+            />
           </View>
         </View>
 
-        {/* Spacer */}
         <View style={{ flex: 1 }} />
 
-        {/* Continue Button */}
-        <TouchableOpacity
-          onPress={handleContinue}
-          style={{
-            backgroundColor: "#0066CC",
-            borderRadius: 12,
-            paddingVertical: 16,
-            alignItems: "center",
-            shadowColor: "#0066CC",
-            shadowOffset: { width: 0, height: 4 },
-            shadowOpacity: 0.2,
-            shadowRadius: 8,
-            elevation: 4,
-          }}
-        >
-          <Text
-            style={{
-              fontSize: 16,
-              fontFamily: "Inter_600SemiBold",
-              color: "#FFFFFF",
-            }}
-          >
-            {t("continue")}
-          </Text>
-        </TouchableOpacity>
+        <Button variant="primary" size="lg" fullWidth onPress={handleContinue}>
+          {t("continue")}
+        </Button>
 
-        {/* Footer */}
-        <Text
-          style={{
-            fontSize: 12,
-            fontFamily: "Inter_400Regular",
-            color: "#9CA3AF",
-            textAlign: "center",
-            marginTop: 24,
-          }}
-        >
-          Descon Engineering Limited
-        </Text>
-      </View>
+        <Text style={styles.footer}>{t("companyFooter")}</Text>
+      </ScrollView>
     </View>
   );
 }
+
+const styles = StyleSheet.create({
+  screen: { flex: 1, backgroundColor: colors.surface.raised },
+  content: { flexGrow: 1, paddingHorizontal: spacing[6] },
+  logoWrap: { alignItems: "center", marginBottom: spacing[12] },
+  logo: { width: 160, height: 60 },
+  titleBlock: { marginBottom: spacing[12] },
+  title: {
+    fontSize: 32,
+    fontWeight: fontWeights.semibold,
+    color: colors.text.primary,
+    marginBottom: spacing[3],
+    textAlign: "center",
+  },
+  message: { fontSize: 16, color: colors.text.secondary, textAlign: "center", lineHeight: 24 },
+  languageBlock: { marginBottom: spacing[12] },
+  selectLabel: {
+    fontSize: 14,
+    fontWeight: fontWeights.medium,
+    color: colors.text.primary,
+    marginBottom: spacing[4],
+    textAlign: "center",
+  },
+  languageList: { gap: spacing[3] },
+  languageCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    borderRadius: radii.lg,
+    borderWidth: 2,
+    paddingHorizontal: spacing[5],
+    paddingVertical: spacing[4],
+  },
+  languageCardActive: { backgroundColor: colors.brand.subtle, borderColor: colors.brand.default },
+  languageCardInactive: { backgroundColor: colors.surface.sunken, borderColor: colors.border.default },
+  languageCardLeft: { flexDirection: "row", alignItems: "center", gap: spacing[3] },
+  languageFlag: { fontSize: 24 },
+  languageLabel: { fontSize: 16, fontWeight: fontWeights.semibold, color: colors.text.primary },
+  languageHint: { fontSize: 13, color: colors.text.secondary, marginTop: 2 },
+  languageCheck: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: colors.brand.default,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  footer: { fontSize: 12, color: colors.text.tertiary, textAlign: "center", marginTop: spacing[6] },
+});

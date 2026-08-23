@@ -9,6 +9,11 @@ describe('CnicField', () => {
     expect(screen.getByDisplayValue('12345-1234567-1')).toBeOnTheScreen();
   });
 
+  it("exposes the label as the input's accessible name, not just visible text", () => {
+    render(<CnicField label="CNIC Number" value="" onValueChange={() => {}} />);
+    expect(screen.getByLabelText('CNIC Number')).toBeOnTheScreen();
+  });
+
   it('reports only digits back through onValueChange, stripping non-numeric input', () => {
     const onValueChange = jest.fn();
     render(<CnicField label="CNIC Number" value="" onValueChange={onValueChange} />);

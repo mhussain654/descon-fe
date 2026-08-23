@@ -1,3 +1,5 @@
+import { Link } from "react-router";
+import { RequireAuth } from "../../features/auth/RequireAuth";
 import { useLanguage } from "../../contexts/LanguageContext";
 
 const tabs = [
@@ -7,7 +9,19 @@ const tabs = [
   { href: "/profile", labelKey: "profile", icon: "◉" },
 ];
 
+// Every candidate screen renders through UserShell, so guarding here
+// protects dashboard/documents/status/profile in one place (AGENTS.md /
+// MPS-F201: "Protected routes/tabs must never render before authorization
+// is confirmed").
 export default function UserShell({ activeTab, children }) {
+  return (
+    <RequireAuth>
+      <UserShellContent activeTab={activeTab}>{children}</UserShellContent>
+    </RequireAuth>
+  );
+}
+
+function UserShellContent({ activeTab, children }) {
   const { t } = useLanguage();
 
   return (
@@ -19,16 +33,16 @@ export default function UserShell({ activeTab, children }) {
           {tabs.map((tab) => {
             const isActive = tab.href === activeTab;
             return (
-              <a
+              <Link
                 key={tab.href}
-                href={tab.href}
+                to={tab.href}
                 className={`flex flex-col items-center justify-center gap-1 py-3 text-xs font-medium transition ${
                   isActive ? "text-[#0066CC]" : "text-[#9B9B9B]"
                 }`}
               >
                 <span className="text-lg leading-none">{tab.icon}</span>
                 <span>{t(tab.labelKey)}</span>
-              </a>
+              </Link>
             );
           })}
         </div>
