@@ -29,12 +29,15 @@ export default function LoginPage() {
     cnicError,
     isSubmittingCnic,
     challenge,
+    issuedAt,
     otp,
     otpError,
     isSubmittingOtp,
     isResending,
     secondsUntilExpiry,
     secondsUntilResendAvailable,
+    rateLimitedAction,
+    secondsUntilRateLimitCleared,
     setCnic,
     submitCnic,
     setOtp,
@@ -56,17 +59,24 @@ export default function LoginPage() {
     }
     // Only re-fire when a *new* challenge is issued (initial send or resend), not on every render.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [challenge?.challengeId]);
+  }, [issuedAt]);
 
   const isExpired = otpError?.code === "OTP_EXPIRED" || secondsUntilExpiry === 0;
   const isLockedOut = otpError?.code === "OTP_MAX_ATTEMPTS";
-  const otpFieldDisabled = isSubmittingOtp || isExpired || isLockedOut;
+  const isCnicRateLimited = rateLimitedAction === "cnic" && (secondsUntilRateLimitCleared ?? 0) > 0;
+  const isOtpRateLimited = rateLimitedAction === "otp" && (secondsUntilRateLimitCleared ?? 0) > 0;
+  const isResendRateLimited = rateLimitedAction === "resend" && (secondsUntilRateLimitCleared ?? 0) > 0;
+  const otpFieldDisabled = isSubmittingOtp || isExpired || isLockedOut || isOtpRateLimited;
 
   const genericOtpErrorMessage =
     otpError && !isExpired && !isLockedOut
       ? otpError.code === "RESEND_COOLDOWN" && typeof otpError.retryAfterSeconds === "number"
         ? `${t("authResendAvailableInPrefix")} ${formatCountdown(otpError.retryAfterSeconds)}`
-        : t(AUTH_ERROR_KEYS[otpError.code])
+        : otpError.code === "RATE_LIMITED" && isResendRateLimited
+          ? `${t("authResendAvailableInPrefix")} ${formatCountdown(secondsUntilRateLimitCleared ?? 0)}`
+          : otpError.code === "RATE_LIMITED" && isOtpRateLimited
+            ? `${t("authRetryAvailableInPrefix")} ${formatCountdown(secondsUntilRateLimitCleared ?? 0)}`
+            : t(AUTH_ERROR_KEYS[otpError.code])
       : null;
 
   return (
@@ -110,8 +120,21 @@ export default function LoginPage() {
               disabled={isSubmittingCnic}
               autoFocus
             />
-            {!cnicError && otpError ? <ValidationMessage tone="error">{t(AUTH_ERROR_KEYS[otpError.code])}</ValidationMessage> : null}
-            <Button type="submit" variant="primary" size="lg" fullWidth loading={isSubmittingCnic}>
+            {!cnicError && otpError ? (
+              <ValidationMessage tone="error">
+                {isCnicRateLimited
+                  ? `${t("authRetryAvailableInPrefix")} ${formatCountdown(secondsUntilRateLimitCleared ?? 0)}`
+                  : t(AUTH_ERROR_KEYS[otpError.code])}
+              </ValidationMessage>
+            ) : null}
+            <Button
+              type="submit"
+              variant="primary"
+              size="lg"
+              fullWidth
+              loading={isSubmittingCnic}
+              disabled={isCnicRateLimited}
+            >
               {t("sendOTP")}
             </Button>
           </form>
@@ -160,7 +183,11 @@ export default function LoginPage() {
             </Button>
 
             {!isExpired && !isLockedOut ? (
-              secondsUntilResendAvailable > 0 ? (
+              isResendRateLimited ? (
+                <p className="text-center text-sm text-text-secondary">
+                  {t("authResendAvailableInPrefix")} {formatCountdown(secondsUntilRateLimitCleared ?? 0)}
+                </p>
+              ) : secondsUntilResendAvailable > 0 ? (
                 <p className="text-center text-sm text-text-secondary">
                   {t("authResendAvailableInPrefix")} {formatCountdown(secondsUntilResendAvailable)}
                 </p>

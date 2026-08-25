@@ -4,7 +4,10 @@ import type { AuthSession } from './types';
 
 const session: AuthSession = {
   accessToken: 'token',
+  refreshToken: 'refresh',
   candidateId: 'candidate_1',
+  candidateName: 'Ahmed Ali',
+  preferredLocale: 'en',
   expiresAt: new Date(10_000).toISOString(),
 };
 

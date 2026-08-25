@@ -47,12 +47,15 @@ export default function LoginScreen() {
     cnicError,
     isSubmittingCnic,
     challenge,
+    issuedAt,
     otp,
     otpError,
     isSubmittingOtp,
     isResending,
     secondsUntilExpiry,
     secondsUntilResendAvailable,
+    rateLimitedAction,
+    secondsUntilRateLimitCleared,
     setCnic,
     submitCnic,
     setOtp,
@@ -73,17 +76,24 @@ export default function LoginScreen() {
       toast.success(t("authOtpSentToastMessage"));
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [challenge?.challengeId]);
+  }, [issuedAt]);
 
   const isExpired = otpError?.code === "OTP_EXPIRED" || secondsUntilExpiry === 0;
   const isLockedOut = otpError?.code === "OTP_MAX_ATTEMPTS";
-  const otpFieldDisabled = isSubmittingOtp || isExpired || isLockedOut;
+  const isCnicRateLimited = rateLimitedAction === "cnic" && (secondsUntilRateLimitCleared ?? 0) > 0;
+  const isOtpRateLimited = rateLimitedAction === "otp" && (secondsUntilRateLimitCleared ?? 0) > 0;
+  const isResendRateLimited = rateLimitedAction === "resend" && (secondsUntilRateLimitCleared ?? 0) > 0;
+  const otpFieldDisabled = isSubmittingOtp || isExpired || isLockedOut || isOtpRateLimited;
 
   const genericOtpErrorMessage =
     otpError && !isExpired && !isLockedOut
       ? otpError.code === "RESEND_COOLDOWN" && typeof otpError.retryAfterSeconds === "number"
         ? `${t("authResendAvailableInPrefix")} ${formatCountdown(otpError.retryAfterSeconds)}`
-        : t(AUTH_ERROR_KEYS[otpError.code])
+        : otpError.code === "RATE_LIMITED" && isResendRateLimited
+          ? `${t("authResendAvailableInPrefix")} ${formatCountdown(secondsUntilRateLimitCleared ?? 0)}`
+          : otpError.code === "RATE_LIMITED" && isOtpRateLimited
+            ? `${t("authRetryAvailableInPrefix")} ${formatCountdown(secondsUntilRateLimitCleared ?? 0)}`
+            : t(AUTH_ERROR_KEYS[otpError.code])
       : null;
 
   return (
@@ -129,9 +139,20 @@ export default function LoginScreen() {
               autoFocus
             />
             {!cnicError && otpError ? (
-              <ValidationMessage tone="error">{t(AUTH_ERROR_KEYS[otpError.code])}</ValidationMessage>
+              <ValidationMessage tone="error">
+                {isCnicRateLimited
+                  ? `${t("authRetryAvailableInPrefix")} ${formatCountdown(secondsUntilRateLimitCleared ?? 0)}`
+                  : t(AUTH_ERROR_KEYS[otpError.code])}
+              </ValidationMessage>
             ) : null}
-            <Button variant="primary" size="lg" fullWidth loading={isSubmittingCnic} onPress={submitCnic}>
+            <Button
+              variant="primary"
+              size="lg"
+              fullWidth
+              loading={isSubmittingCnic}
+              disabled={isCnicRateLimited}
+              onPress={submitCnic}
+            >
               {t("sendOTP")}
             </Button>
           </View>
@@ -176,7 +197,11 @@ export default function LoginScreen() {
             </Button>
 
             {!isExpired && !isLockedOut ? (
-              secondsUntilResendAvailable > 0 ? (
+              isResendRateLimited ? (
+                <Text style={styles.resendCountdown}>
+                  {t("authResendAvailableInPrefix")} {formatCountdown(secondsUntilRateLimitCleared ?? 0)}
+                </Text>
+              ) : secondsUntilResendAvailable > 0 ? (
                 <Text style={styles.resendCountdown}>
                   {t("authResendAvailableInPrefix")} {formatCountdown(secondsUntilResendAvailable)}
                 </Text>

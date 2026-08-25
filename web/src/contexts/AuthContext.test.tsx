@@ -21,7 +21,10 @@ function Probe() {
         onClick={() =>
           login({
             accessToken: 'token',
+            refreshToken: 'refresh',
             candidateId: 'candidate_1',
+            candidateName: 'Ahmed Ali',
+            preferredLocale: 'en',
             expiresAt: new Date(Date.now() + 60_000).toISOString(),
           })
         }
@@ -33,7 +36,10 @@ function Probe() {
         onClick={() =>
           login({
             accessToken: 'token',
+            refreshToken: 'refresh',
             candidateId: 'candidate_short',
+            candidateName: 'Ahmed Ali',
+            preferredLocale: 'en',
             expiresAt: new Date(Date.now() + 1000).toISOString(),
           })
         }

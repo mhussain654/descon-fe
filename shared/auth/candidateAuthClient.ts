@@ -1,9 +1,8 @@
-// In-memory mock implementation of CandidateAuthClient (MPS-F201). Stands in
-// for the not-yet-built MPS-201 API during UI development. Swapping to the
-// real backend later means writing one new class implementing
-// `CandidateAuthClient` (calling shared/api-client.ts like every other
-// feature) and changing the single call site that constructs the client --
-// no screen, hook or reducer changes.
+// In-memory mock implementation of CandidateAuthClient (MPS-F201). Used only
+// in local dev/tests now that the real MPS-201/MPS-206 backend exists (see
+// realCandidateAuthClient.ts) -- kept because it lets a screen be exercised
+// without a running Rails server, and every existing test still targets it
+// directly.
 import type { AuthError, AuthSession, CandidateAuthClient, OtpChallenge } from './types';
 
 /** The only code that verifies successfully in the mock. Real verification never works this way -- this is a documented dev/test convenience. */
@@ -15,7 +14,6 @@ export const MOCK_EXPIRES_IN_SECONDS = 120;
 export const MOCK_RESEND_AFTER_SECONDS = 30;
 
 interface MockChallenge {
-  cnic: string;
   code: string;
   createdAt: number;
   expiresAt: number;
@@ -41,6 +39,8 @@ function mockMaskedDestination(cnic: string): string {
 
 export function createMockCandidateAuthClient(options: MockCandidateAuthClientOptions = {}): CandidateAuthClient {
   const { isOnline = () => true, delayMs = 500 } = options;
+  // Keyed by CNIC, matching the real backend (request/verify both re-key off
+  // the CNIC itself -- there is no server-issued challenge id).
   const challenges = new Map<string, MockChallenge>();
 
   const wait = () => (delayMs > 0 ? new Promise((resolve) => setTimeout(resolve, delayMs)) : Promise.resolve());
@@ -58,9 +58,7 @@ export function createMockCandidateAuthClient(options: MockCandidateAuthClientOp
       }
 
       const now = Date.now();
-      const challengeId = randomId();
-      challenges.set(challengeId, {
-        cnic,
+      challenges.set(cnic, {
         code: MOCK_VALID_OTP,
         createdAt: now,
         expiresAt: now + MOCK_EXPIRES_IN_SECONDS * 1000,
@@ -69,18 +67,17 @@ export function createMockCandidateAuthClient(options: MockCandidateAuthClientOp
       });
 
       return {
-        challengeId,
         expiresInSeconds: MOCK_EXPIRES_IN_SECONDS,
         resendAfterSeconds: MOCK_RESEND_AFTER_SECONDS,
         maskedDestination: mockMaskedDestination(cnic),
       } satisfies OtpChallenge;
     },
 
-    async resendOtp(challengeId) {
+    async resendOtp(cnic) {
       await wait();
       requireOnline();
 
-      const challenge = challenges.get(challengeId);
+      const challenge = challenges.get(cnic);
       if (!challenge) throw { code: 'CHALLENGE_NOT_FOUND' } satisfies AuthError;
 
       const now = Date.now();
@@ -99,18 +96,17 @@ export function createMockCandidateAuthClient(options: MockCandidateAuthClientOp
       challenge.attempts = 0;
 
       return {
-        challengeId,
         expiresInSeconds: MOCK_EXPIRES_IN_SECONDS,
         resendAfterSeconds: MOCK_RESEND_AFTER_SECONDS,
-        maskedDestination: mockMaskedDestination(challenge.cnic),
+        maskedDestination: mockMaskedDestination(cnic),
       } satisfies OtpChallenge;
     },
 
-    async verifyOtp(challengeId, code) {
+    async verifyOtp(cnic, code) {
       await wait();
       requireOnline();
 
-      const challenge = challenges.get(challengeId);
+      const challenge = challenges.get(cnic);
       if (!challenge) throw { code: 'CHALLENGE_NOT_FOUND' } satisfies AuthError;
 
       if (Date.now() >= challenge.expiresAt) {
@@ -128,10 +124,13 @@ export function createMockCandidateAuthClient(options: MockCandidateAuthClientOp
         throw { code: 'OTP_INVALID' } satisfies AuthError;
       }
 
-      challenges.delete(challengeId);
+      challenges.delete(cnic);
       return {
         accessToken: `mock_${randomId()}`,
-        candidateId: `candidate_${challenge.cnic}`,
+        refreshToken: `mock_refresh_${randomId()}`,
+        candidateId: `candidate_${cnic}`,
+        candidateName: 'Mock Candidate',
+        preferredLocale: 'en',
         expiresAt: new Date(Date.now() + 60 * 60 * 1000).toISOString(),
       } satisfies AuthSession;
     },
@@ -140,12 +139,10 @@ export function createMockCandidateAuthClient(options: MockCandidateAuthClientOp
 
 /**
  * Safe fallback for any build where the mock must not be reachable (i.e.
- * production, until MPS-201 ships a real implementation) but no real
- * implementation has been wired in yet. Every call fails the same way the
+ * production, until a real implementation is wired in for that platform)
+ * but no real implementation is active. Every call fails the same way the
  * generic, non-enumerating "couldn't send a code" failure already renders --
- * it never accepts the mock's well-known OTP, never fabricates a session,
- * and the auth-client.ts entry points below never construct this alongside
- * the mock in the same bundle for the same environment.
+ * it never accepts the mock's well-known OTP and never fabricates a session.
  */
 export function createUnavailableCandidateAuthClient(): CandidateAuthClient {
   const fail = (): Promise<never> => Promise.reject({ code: 'SERVICE_UNAVAILABLE' } satisfies AuthError);

@@ -4,12 +4,12 @@ import {
   createInitialCnicOtpState,
   formatCountdown,
   secondsUntilExpiry,
+  secondsUntilRateLimitCleared,
   secondsUntilResendAvailable,
 } from './cnicOtpFlow';
 import type { OtpChallenge } from './types';
 
 const challenge: OtpChallenge = {
-  challengeId: 'challenge-1',
   expiresInSeconds: 120,
   resendAfterSeconds: 30,
   maskedDestination: '••• ••• ••34',
@@ -25,7 +25,7 @@ describe('cnicOtpReducer', () => {
 
   it('tracks CNIC field edits and clears any prior error', () => {
     let state = createInitialCnicOtpState(0);
-    state = cnicOtpReducer(state, { type: 'CNIC_SUBMIT_FAILED', error: 'REQUIRED' });
+    state = cnicOtpReducer(state, { type: 'CNIC_SUBMIT_FAILED', error: 'REQUIRED', now: 0 });
     expect(state.cnicError).toBe('REQUIRED');
 
     state = cnicOtpReducer(state, { type: 'CNIC_CHANGED', cnic: '123' });
@@ -50,6 +50,7 @@ describe('cnicOtpReducer', () => {
     state = cnicOtpReducer(state, {
       type: 'CNIC_SUBMIT_FAILED',
       error: { code: 'OTP_REQUEST_FAILED' },
+      now: 0,
     });
     expect(state.cnicError).toBeNull();
     expect(state.otpError).toEqual({ code: 'OTP_REQUEST_FAILED' });
@@ -66,32 +67,32 @@ describe('cnicOtpReducer', () => {
 
     it('clears the OTP value after an invalid-code failure', () => {
       let state = otpStepState();
-      state = cnicOtpReducer(state, { type: 'OTP_SUBMIT_FAILED', error: { code: 'OTP_INVALID' } });
+      state = cnicOtpReducer(state, { type: 'OTP_SUBMIT_FAILED', error: { code: 'OTP_INVALID' }, now: 0 });
       expect(state.otp).toBe('');
       expect(state.otpError).toEqual({ code: 'OTP_INVALID' });
     });
 
     it('clears the OTP value after an expiry failure', () => {
       let state = otpStepState();
-      state = cnicOtpReducer(state, { type: 'OTP_SUBMIT_FAILED', error: { code: 'OTP_EXPIRED' } });
+      state = cnicOtpReducer(state, { type: 'OTP_SUBMIT_FAILED', error: { code: 'OTP_EXPIRED' }, now: 0 });
       expect(state.otp).toBe('');
     });
 
     it('clears the OTP value after a too-many-attempts failure', () => {
       let state = otpStepState();
-      state = cnicOtpReducer(state, { type: 'OTP_SUBMIT_FAILED', error: { code: 'OTP_MAX_ATTEMPTS' } });
+      state = cnicOtpReducer(state, { type: 'OTP_SUBMIT_FAILED', error: { code: 'OTP_MAX_ATTEMPTS' }, now: 0 });
       expect(state.otp).toBe('');
     });
 
     it('does not clear the OTP value for an offline/network failure -- the candidate should just be able to retry', () => {
       let state = otpStepState();
-      state = cnicOtpReducer(state, { type: 'OTP_SUBMIT_FAILED', error: { code: 'OFFLINE' } });
+      state = cnicOtpReducer(state, { type: 'OTP_SUBMIT_FAILED', error: { code: 'OFFLINE' }, now: 0 });
       expect(state.otp).toBe('111111');
     });
 
     it('resets all the way back to CNIC entry when the challenge itself is gone (session expired)', () => {
       let state = otpStepState();
-      state = cnicOtpReducer(state, { type: 'OTP_SUBMIT_FAILED', error: { code: 'CHALLENGE_NOT_FOUND' } });
+      state = cnicOtpReducer(state, { type: 'OTP_SUBMIT_FAILED', error: { code: 'CHALLENGE_NOT_FOUND' }, now: 0 });
       expect(state.step).toBe('cnic');
       expect(state.challenge).toBeNull();
       expect(state.otpError).toEqual({ code: 'CHALLENGE_NOT_FOUND' });
@@ -99,7 +100,7 @@ describe('cnicOtpReducer', () => {
 
     it('replaces the challenge and resets the OTP value on a successful resend', () => {
       let state = otpStepState();
-      const nextChallenge: OtpChallenge = { ...challenge, challengeId: 'challenge-2' };
+      const nextChallenge: OtpChallenge = { ...challenge, expiresInSeconds: 90 };
       state = cnicOtpReducer(state, { type: 'RESEND_SUCCEEDED', challenge: nextChallenge, now: 5000 });
       expect(state.challenge).toEqual(nextChallenge);
       expect(state.issuedAt).toBe(5000);
@@ -111,6 +112,7 @@ describe('cnicOtpReducer', () => {
       state = cnicOtpReducer(state, {
         type: 'RESEND_FAILED',
         error: { code: 'RESEND_COOLDOWN', retryAfterSeconds: 17 },
+        now: 0,
       });
       expect(state.otpError).toEqual({ code: 'RESEND_COOLDOWN', retryAfterSeconds: 17 });
     });
@@ -157,6 +159,69 @@ describe('secondsUntilExpiry / secondsUntilResendAvailable', () => {
     state = cnicOtpReducer(state, { type: 'TICK', now: 999_000 });
     expect(secondsUntilExpiry(state)).toBe(0);
     expect(secondsUntilResendAvailable(state)).toBe(0);
+  });
+});
+
+describe('server-enforced rate limiting (RATE_LIMITED / Retry-After)', () => {
+  it('records which action was rate-limited and until when, from the CNIC step', () => {
+    let state = createInitialCnicOtpState(0);
+    state = cnicOtpReducer(state, {
+      type: 'CNIC_SUBMIT_FAILED',
+      error: { code: 'RATE_LIMITED', retryAfterSeconds: 30 },
+      now: 1000,
+    });
+    expect(state.rateLimitedAction).toBe('cnic');
+    expect(state.rateLimitedUntil).toBe(31_000);
+    expect(secondsUntilRateLimitCleared(state)).toBe(30);
+  });
+
+  it('records a rate limit hit while verifying the OTP, distinct from the CNIC/resend cases', () => {
+    let state = createInitialCnicOtpState(0);
+    state = cnicOtpReducer(state, { type: 'CNIC_SUBMIT_SUCCEEDED', challenge, now: 0 });
+    state = cnicOtpReducer(state, {
+      type: 'OTP_SUBMIT_FAILED',
+      error: { code: 'RATE_LIMITED', retryAfterSeconds: 45 },
+      now: 2000,
+    });
+    expect(state.rateLimitedAction).toBe('otp');
+    expect(state.rateLimitedUntil).toBe(47_000);
+  });
+
+  it('records a rate limit hit while resending, distinct from the CNIC/verify cases', () => {
+    let state = createInitialCnicOtpState(0);
+    state = cnicOtpReducer(state, { type: 'CNIC_SUBMIT_SUCCEEDED', challenge, now: 0 });
+    state = cnicOtpReducer(state, {
+      type: 'RESEND_FAILED',
+      error: { code: 'RATE_LIMITED', retryAfterSeconds: 15 },
+      now: 3000,
+    });
+    expect(state.rateLimitedAction).toBe('resend');
+    expect(state.rateLimitedUntil).toBe(18_000);
+  });
+
+  it('counts the rate limit down to 0 as TICK advances, then clears it entirely once past', () => {
+    let state = createInitialCnicOtpState(0);
+    state = cnicOtpReducer(state, {
+      type: 'CNIC_SUBMIT_FAILED',
+      error: { code: 'RATE_LIMITED', retryAfterSeconds: 10 },
+      now: 0,
+    });
+    expect(secondsUntilRateLimitCleared(state)).toBe(10);
+
+    state = cnicOtpReducer(state, { type: 'TICK', now: 6000 });
+    expect(secondsUntilRateLimitCleared(state)).toBe(4);
+
+    state = cnicOtpReducer(state, { type: 'TICK', now: 10_000 });
+    expect(state.rateLimitedAction).toBeNull();
+    expect(state.rateLimitedUntil).toBeNull();
+    expect(secondsUntilRateLimitCleared(state)).toBeNull();
+  });
+
+  it('leaves any other failure (not RATE_LIMITED) without touching rate-limit state', () => {
+    let state = createInitialCnicOtpState(0);
+    state = cnicOtpReducer(state, { type: 'CNIC_SUBMIT_FAILED', error: { code: 'OTP_REQUEST_FAILED' }, now: 0 });
+    expect(state.rateLimitedAction).toBeNull();
+    expect(secondsUntilRateLimitCleared(state)).toBeNull();
   });
 });
 

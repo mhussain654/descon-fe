@@ -4,8 +4,9 @@ import { selectCandidateAuthClient } from './auth-client';
 describe('selectCandidateAuthClient', () => {
   it('selects the mock client in development, which accepts the documented mock OTP', async () => {
     const client = selectCandidateAuthClient(true);
-    const challenge = await client.requestOtp('1234512345671');
-    await expect(client.verifyOtp(challenge.challengeId, '123456')).resolves.toMatchObject({
+    const cnic = '1234512345671';
+    await client.requestOtp(cnic);
+    await expect(client.verifyOtp(cnic, '123456')).resolves.toMatchObject({
       accessToken: expect.any(String),
     });
   });

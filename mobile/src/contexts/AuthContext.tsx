@@ -34,7 +34,10 @@ const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 /** Structural shape of a persisted session -- guards against corrupted or foreign-shaped SecureStore content (a partial write, a stale format from a previous app version) surviving into a restore. */
 const authSessionSchema = z.object({
   accessToken: z.string().min(1),
+  refreshToken: z.string().min(1),
   candidateId: z.string().min(1),
+  candidateName: z.string().min(1),
+  preferredLocale: z.enum(['en', 'ur']),
   expiresAt: z.string(),
 });
 
@@ -133,7 +136,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         try {
           const expiredMarker: AuthSession = {
             accessToken: "",
+            refreshToken: "",
             candidateId: "",
+            candidateName: "",
+            preferredLocale: "en",
             expiresAt: new Date(0).toISOString(),
           };
           await SecureStore.setItemAsync(SESSION_STORE_KEY, JSON.stringify(expiredMarker));

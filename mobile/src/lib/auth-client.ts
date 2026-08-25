@@ -1,13 +1,12 @@
-// Mobile configuration for the candidate authentication client (MPS-F201).
-// See web/src/lib/auth-client.ts for the shared rationale -- this is the
-// single place that decides which CandidateAuthClient implementation is
-// active, so swapping in the real MPS-201 backend later touches only here.
-import NetInfo from '@react-native-community/netinfo';
-import {
-  createMockCandidateAuthClient,
-  createUnavailableCandidateAuthClient,
-} from '../../../shared/auth/candidateAuthClient';
+// Mobile configuration for the candidate authentication client (MPS-206).
+// Wires the real MPS-201 backend (shared/auth/realCandidateAuthClient.ts,
+// calling shared/api-client.ts's apiClient) -- the mock
+// (shared/auth/candidateAuthClient.ts) now exists purely for local
+// dev-without-a-backend convenience and tests, never wired into the app.
+import { createCandidateAuthClient } from '../../../shared/auth/realCandidateAuthClient';
 import type { CandidateAuthClient } from '../../../shared/auth/types';
+import { getCachedLanguage } from '../contexts/LanguageContext';
+import { apiClient } from './api-client';
 
 export type {
   AuthError,
@@ -17,27 +16,11 @@ export type {
   OtpChallenge,
 } from '../../../shared/auth/types';
 
-let isOnline = true;
-NetInfo.addEventListener((state) => {
-  isOnline = state.isConnected !== false && state.isInternetReachable !== false;
+export const candidateAuthClient: CandidateAuthClient = createCandidateAuthClient({
+  apiClient,
+  // getCachedLanguage is exported from a plain .jsx file, so TS widens its
+  // return type to `string` -- it's only ever set to 'en' or 'ur' (see
+  // LanguageContext.jsx's readPersistedLanguage), which the app's own
+  // language switching enforces.
+  getLocale: () => getCachedLanguage() as 'en' | 'ur',
 });
-
-/**
- * `isDev` is threaded in (rather than reading `__DEV__` inline here) so this
- * selection itself is unit-testable without depending on Metro's global.
- * The real export below uses `__DEV__` directly -- Metro strips
- * `if (__DEV__)`-guarded code from release bundles, so in a production
- * build the mock branch is dropped from the bundle, not just unreachable at
- * runtime (AGENTS.md / MPS-F201 review: "Production must never silently use
- * mocks").
- */
-export function selectCandidateAuthClient(isDev: boolean): CandidateAuthClient {
-  if (isDev) {
-    return createMockCandidateAuthClient({ isOnline: () => isOnline });
-  }
-  // No real MPS-201 backend is wired up yet -- every call fails safely
-  // instead of silently accepting the mock's well-known OTP.
-  return createUnavailableCandidateAuthClient();
-}
-
-export const candidateAuthClient = selectCandidateAuthClient(__DEV__);
