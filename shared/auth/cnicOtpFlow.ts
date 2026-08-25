@@ -22,6 +22,10 @@ export interface CnicOtpState {
   isSubmittingOtp: boolean;
   isResending: boolean;
 
+  /** Which action most recently hit the backend's 429 Retry-After (see rack_attack.rb: candidate_otp/ip and candidate_otp/cnic cover both otp/request and otp/verify), and until when (wall-clock ms) that action stays blocked. Null once cleared. Distinct from RESEND_COOLDOWN, which is a client-computed wait derived from the challenge's own resendAfterSeconds, not a server rejection. */
+  rateLimitedAction: 'cnic' | 'otp' | 'resend' | null;
+  rateLimitedUntil: number | null;
+
   /** Ticked forward by dispatching TICK; drives countdown display without storing derived state. */
   now: number;
 }
@@ -29,13 +33,13 @@ export interface CnicOtpState {
 export type CnicOtpAction =
   | { type: 'CNIC_CHANGED'; cnic: string }
   | { type: 'CNIC_SUBMIT_STARTED' }
-  | { type: 'CNIC_SUBMIT_FAILED'; error: CnicFieldError | AuthError }
+  | { type: 'CNIC_SUBMIT_FAILED'; error: CnicFieldError | AuthError; now: number }
   | { type: 'CNIC_SUBMIT_SUCCEEDED'; challenge: OtpChallenge; now: number }
   | { type: 'OTP_CHANGED'; otp: string }
   | { type: 'OTP_SUBMIT_STARTED' }
-  | { type: 'OTP_SUBMIT_FAILED'; error: AuthError }
+  | { type: 'OTP_SUBMIT_FAILED'; error: AuthError; now: number }
   | { type: 'RESEND_STARTED' }
-  | { type: 'RESEND_FAILED'; error: AuthError }
+  | { type: 'RESEND_FAILED'; error: AuthError; now: number }
   | { type: 'RESEND_SUCCEEDED'; challenge: OtpChallenge; now: number }
   | { type: 'BACK_TO_CNIC' }
   | { type: 'TICK'; now: number };
@@ -52,8 +56,20 @@ export function createInitialCnicOtpState(now: number = Date.now()): CnicOtpStat
     otpError: null,
     isSubmittingOtp: false,
     isResending: false,
+    rateLimitedAction: null,
+    rateLimitedUntil: null,
     now,
   };
+}
+
+/** `{ rateLimitedAction, rateLimitedUntil }` patch for a failure action, or an empty patch (leaving any existing rate-limit state untouched) when this particular failure wasn't a 429. */
+function rateLimitPatch(
+  error: AuthError,
+  action: 'cnic' | 'otp' | 'resend',
+  now: number
+): Partial<Pick<CnicOtpState, 'rateLimitedAction' | 'rateLimitedUntil'>> {
+  if (error.code !== 'RATE_LIMITED' || typeof error.retryAfterSeconds !== 'number') return {};
+  return { rateLimitedAction: action, rateLimitedUntil: now + error.retryAfterSeconds * 1000 };
 }
 
 /** OTP-side errors that mean the code the candidate is holding is no longer usable -- clear it rather than leave a stale/wrong value sitting in the field (AGENTS.md: "Clear OTP after relevant failures"). */
@@ -75,6 +91,8 @@ export function cnicOtpReducer(state: CnicOtpState, action: CnicOtpAction): Cnic
         // A non-format failure (the generic, non-enumerating OTP_REQUEST_FAILED)
         // isn't a *field* error -- surface it the same way OTP-step errors are.
         otpError: typeof action.error === 'string' ? null : action.error,
+        now: action.now,
+        ...(typeof action.error === 'string' ? {} : rateLimitPatch(action.error, 'cnic', action.now)),
       };
 
     case 'CNIC_SUBMIT_SUCCEEDED':
@@ -101,7 +119,7 @@ export function cnicOtpReducer(state: CnicOtpState, action: CnicOtpAction): Cnic
       // send the candidate back to re-enter their CNIC and start over.
       if (action.error.code === 'CHALLENGE_NOT_FOUND') {
         return {
-          ...createInitialCnicOtpState(state.now),
+          ...createInitialCnicOtpState(action.now),
           cnic: state.cnic,
           otpError: action.error,
         };
@@ -111,6 +129,8 @@ export function cnicOtpReducer(state: CnicOtpState, action: CnicOtpAction): Cnic
         isSubmittingOtp: false,
         otpError: action.error,
         otp: OTP_CLEARING_ERRORS.has(action.error.code) ? '' : state.otp,
+        now: action.now,
+        ...rateLimitPatch(action.error, 'otp', action.now),
       };
     }
 
@@ -118,7 +138,13 @@ export function cnicOtpReducer(state: CnicOtpState, action: CnicOtpAction): Cnic
       return { ...state, isResending: true, otpError: null };
 
     case 'RESEND_FAILED':
-      return { ...state, isResending: false, otpError: action.error };
+      return {
+        ...state,
+        isResending: false,
+        otpError: action.error,
+        now: action.now,
+        ...rateLimitPatch(action.error, 'resend', action.now),
+      };
 
     case 'RESEND_SUCCEEDED':
       return {
@@ -134,8 +160,15 @@ export function cnicOtpReducer(state: CnicOtpState, action: CnicOtpAction): Cnic
     case 'BACK_TO_CNIC':
       return { ...createInitialCnicOtpState(state.now), cnic: state.cnic };
 
-    case 'TICK':
-      return { ...state, now: action.now };
+    case 'TICK': {
+      const rateLimitExpired = state.rateLimitedUntil !== null && action.now >= state.rateLimitedUntil;
+      return {
+        ...state,
+        now: action.now,
+        rateLimitedAction: rateLimitExpired ? null : state.rateLimitedAction,
+        rateLimitedUntil: rateLimitExpired ? null : state.rateLimitedUntil,
+      };
+    }
 
     default:
       return state;
@@ -154,6 +187,12 @@ export function secondsUntilResendAvailable(state: CnicOtpState): number | null 
   if (!state.challenge || state.issuedAt === null) return null;
   const elapsedSeconds = (state.now - state.issuedAt) / 1000;
   return Math.max(0, Math.ceil(state.challenge.resendAfterSeconds - elapsedSeconds));
+}
+
+/** Seconds remaining until a server-enforced rate limit clears, floored at 0. Null when nothing is currently rate-limited. */
+export function secondsUntilRateLimitCleared(state: CnicOtpState): number | null {
+  if (state.rateLimitedUntil === null) return null;
+  return Math.max(0, Math.ceil((state.rateLimitedUntil - state.now) / 1000));
 }
 
 /** Formats a countdown as `M:SS`. Digits read the same in English and Urdu layouts, so this needs no locale-specific wording. */

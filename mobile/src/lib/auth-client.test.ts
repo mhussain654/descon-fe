@@ -20,10 +20,17 @@ describe('candidateAuthClient (mobile)', () => {
     const calls: Array<[string, RequestInit]> = [];
     globalThis.fetch = jest.fn(async (url: string, init: RequestInit) => {
       calls.push([url, init]);
-      return new Response(JSON.stringify({ expires_in_seconds: 300, resend_after_seconds: 60 }), {
-        status: 200,
-        headers: { 'Content-Type': 'application/json' },
-      });
+      return new Response(
+        JSON.stringify({
+          data: { expires_in_seconds: 300, resend_after_seconds: 60 },
+          meta: {},
+          errors: [],
+        }),
+        {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        }
+      );
     }) as typeof fetch;
 
     await candidateAuthClient.requestOtp('4210112345671');
@@ -39,10 +46,17 @@ describe('candidateAuthClient (mobile)', () => {
     const calls: RequestInit[] = [];
     globalThis.fetch = jest.fn(async (_url: string, init: RequestInit) => {
       calls.push(init);
-      return new Response(JSON.stringify({ expires_in_seconds: 300, resend_after_seconds: 60 }), {
-        status: 200,
-        headers: { 'Content-Type': 'application/json' },
-      });
+      return new Response(
+        JSON.stringify({
+          data: { expires_in_seconds: 300, resend_after_seconds: 60 },
+          meta: {},
+          errors: [],
+        }),
+        {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        }
+      );
     }) as typeof fetch;
 
     await candidateAuthClient.requestOtp('4210112345671');

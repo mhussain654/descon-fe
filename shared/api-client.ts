@@ -98,6 +98,23 @@ function isErrorEnvelope(value: unknown): value is ErrorEnvelope {
   );
 }
 
+/** Every 2xx response in descon-be's OpenAPI contract wraps its payload as `{ data, meta, errors: [] }` (see openapi.yaml's SuccessEnvelope schema) -- callers get the unwrapped `data` back, never the envelope itself. */
+interface SuccessEnvelope {
+  data: unknown;
+  meta: unknown;
+  errors: unknown[];
+}
+
+function isSuccessEnvelope(value: unknown): value is SuccessEnvelope {
+  return (
+    !!value &&
+    typeof value === 'object' &&
+    'data' in value &&
+    'meta' in value &&
+    Array.isArray((value as { errors?: unknown }).errors)
+  );
+}
+
 async function toResponseError(response: Response): Promise<ApiError> {
   const code: ApiErrorCode = response.status >= 500 ? 'HTTP_5XX' : 'HTTP_4XX';
   let body: unknown;
@@ -133,12 +150,14 @@ async function parseJsonBody<T>(response: Response): Promise<T | undefined> {
   if (response.status === 204) return undefined;
   const text = await response.text();
   if (!text) return undefined;
+  let parsed: unknown;
   try {
-    return JSON.parse(text) as T;
+    parsed = JSON.parse(text);
   } catch (error) {
     const parseError: ApiError = { status: response.status, code: 'PARSE_ERROR', details: error };
     throw parseError;
   }
+  return (isSuccessEnvelope(parsed) ? parsed.data : parsed) as T;
 }
 
 export function createApiClient(config: ApiClientConfig) {

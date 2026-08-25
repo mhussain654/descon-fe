@@ -182,4 +182,132 @@ describe('useCnicOtpFlow', () => {
     expect(onAuthenticated).not.toHaveBeenCalled();
     expect(result.current.step).toBe('cnic');
   });
+
+  describe('duplicate-submission protection (same tick, before either call resolves)', () => {
+    // `state.isSubmittingCnic` etc. only update on the next render -- calling
+    // an action twice back-to-back without awaiting in between simulates a
+    // double-tap that lands inside the same tick, before React has re-rendered
+    // to reflect the first call's "submitting" state.
+    it('requests the OTP only once when submitCnic is invoked twice before either call resolves', async () => {
+      const client = createMockCandidateAuthClient({ delayMs: 0 });
+      const requestOtpSpy = vi.spyOn(client, 'requestOtp');
+      const { result } = renderHook(() => useCnicOtpFlow({ client, onAuthenticated: vi.fn() }));
+
+      act(() => result.current.setCnic(CNIC));
+      await act(async () => {
+        await Promise.all([result.current.submitCnic(), result.current.submitCnic()]);
+      });
+
+      expect(requestOtpSpy).toHaveBeenCalledTimes(1);
+    });
+
+    it('verifies the OTP only once when submitOtp is invoked twice before either call resolves', async () => {
+      const client = createMockCandidateAuthClient({ delayMs: 0 });
+      const verifyOtpSpy = vi.spyOn(client, 'verifyOtp');
+      const { result } = renderHook(() => useCnicOtpFlow({ client, onAuthenticated: vi.fn() }));
+
+      act(() => result.current.setCnic(CNIC));
+      await act(async () => {
+        await result.current.submitCnic();
+      });
+      act(() => result.current.setOtp(MOCK_VALID_OTP));
+
+      await act(async () => {
+        await Promise.all([result.current.submitOtp(), result.current.submitOtp()]);
+      });
+
+      expect(verifyOtpSpy).toHaveBeenCalledTimes(1);
+    });
+
+    it('resends only once when resendOtp is invoked twice before either call resolves', async () => {
+      const client = createMockCandidateAuthClient({ delayMs: 0 });
+      const resendOtpSpy = vi.spyOn(client, 'resendOtp');
+      const { result } = renderHook(() => useCnicOtpFlow({ client, onAuthenticated: vi.fn() }));
+
+      act(() => result.current.setCnic(CNIC));
+      await act(async () => {
+        await result.current.submitCnic();
+      });
+
+      await act(async () => {
+        await Promise.all([result.current.resendOtp(), result.current.resendOtp()]);
+      });
+
+      expect(resendOtpSpy).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe('server-enforced rate limiting (Retry-After)', () => {
+    it('shows a live countdown and blocks resubmission after the CNIC step is rate-limited', async () => {
+      const client = createMockCandidateAuthClient({ delayMs: 0 });
+      const requestOtpSpy = vi
+        .spyOn(client, 'requestOtp')
+        .mockRejectedValueOnce({ code: 'RATE_LIMITED', retryAfterSeconds: 30 });
+      const { result } = renderHook(() => useCnicOtpFlow({ client, onAuthenticated: vi.fn() }));
+
+      act(() => result.current.setCnic(CNIC));
+      await act(async () => {
+        await result.current.submitCnic();
+      });
+
+      expect(result.current.otpError).toEqual({ code: 'RATE_LIMITED', retryAfterSeconds: 30 });
+      expect(result.current.rateLimitedAction).toBe('cnic');
+      expect(result.current.secondsUntilRateLimitCleared).toBe(30);
+
+      // Still rate-limited -- a further attempt must not reach the client again.
+      await act(async () => {
+        await result.current.submitCnic();
+      });
+      expect(requestOtpSpy).toHaveBeenCalledTimes(1);
+    });
+
+    it('shows a live countdown and blocks resubmission after OTP verification is rate-limited', async () => {
+      const client = createMockCandidateAuthClient({ delayMs: 0 });
+      const verifyOtpSpy = vi
+        .spyOn(client, 'verifyOtp')
+        .mockRejectedValueOnce({ code: 'RATE_LIMITED', retryAfterSeconds: 20 });
+      const { result } = renderHook(() => useCnicOtpFlow({ client, onAuthenticated: vi.fn() }));
+
+      act(() => result.current.setCnic(CNIC));
+      await act(async () => {
+        await result.current.submitCnic();
+      });
+      act(() => result.current.setOtp(MOCK_VALID_OTP));
+      await act(async () => {
+        await result.current.submitOtp();
+      });
+
+      expect(result.current.rateLimitedAction).toBe('otp');
+      expect(result.current.secondsUntilRateLimitCleared).toBe(20);
+
+      await act(async () => {
+        await result.current.submitOtp();
+      });
+      expect(verifyOtpSpy).toHaveBeenCalledTimes(1);
+    });
+
+    it('shows a live countdown and blocks resubmission after a resend is rate-limited, independent of verify', async () => {
+      const client = createMockCandidateAuthClient({ delayMs: 0 });
+      const resendOtpSpy = vi
+        .spyOn(client, 'resendOtp')
+        .mockRejectedValueOnce({ code: 'RATE_LIMITED', retryAfterSeconds: 12 });
+      const { result } = renderHook(() => useCnicOtpFlow({ client, onAuthenticated: vi.fn() }));
+
+      act(() => result.current.setCnic(CNIC));
+      await act(async () => {
+        await result.current.submitCnic();
+      });
+      await act(async () => {
+        await result.current.resendOtp();
+      });
+
+      expect(result.current.rateLimitedAction).toBe('resend');
+      expect(result.current.secondsUntilRateLimitCleared).toBe(12);
+
+      await act(async () => {
+        await result.current.resendOtp();
+      });
+      expect(resendOtpSpy).toHaveBeenCalledTimes(1);
+    });
+  });
 });

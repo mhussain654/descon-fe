@@ -24,6 +24,11 @@ function errorEnvelope(errors: Array<{ code: string; message: string; field?: st
   return { errors, request_id: 'req-1' };
 }
 
+/** Every 2xx descon-be response is wrapped as `{ data, meta, errors: [] }` (openapi.yaml's SuccessEnvelope) -- mocks must match that shape, or they'd pass without ever exercising shared/api-client.ts's real unwrap logic. */
+function successEnvelope(data: unknown) {
+  return { data, meta: { request_id: 'req-1', timestamp: '2026-08-23T09:00:08Z' }, errors: [] };
+}
+
 const CNIC = '4210112345671';
 
 function buildClient(getLocale: () => 'en' | 'ur' = () => 'en') {
@@ -36,7 +41,7 @@ describe('createCandidateAuthClient (real)', () => {
     const fetchCalls: Array<[string, RequestInit]> = [];
     stubFetch(async (url, init) => {
       fetchCalls.push([String(url), init as RequestInit]);
-      return jsonResponse({ expires_in_seconds: 300, resend_after_seconds: 60 });
+      return jsonResponse(successEnvelope({ expires_in_seconds: 300, resend_after_seconds: 60 }));
     });
 
     const client = buildClient();
@@ -52,7 +57,7 @@ describe('createCandidateAuthClient (real)', () => {
     const fetchCalls: Array<RequestInit> = [];
     stubFetch(async (_url, init) => {
       fetchCalls.push(init as RequestInit);
-      return jsonResponse({ expires_in_seconds: 300, resend_after_seconds: 60 });
+      return jsonResponse(successEnvelope({ expires_in_seconds: 300, resend_after_seconds: 60 }));
     });
 
     const client = buildClient(() => 'ur');
@@ -66,7 +71,7 @@ describe('createCandidateAuthClient (real)', () => {
     const fetchCalls: string[] = [];
     stubFetch(async (url) => {
       fetchCalls.push(String(url));
-      return jsonResponse({ expires_in_seconds: 300, resend_after_seconds: 60 });
+      return jsonResponse(successEnvelope({ expires_in_seconds: 300, resend_after_seconds: 60 }));
     });
 
     const client = buildClient();
@@ -78,14 +83,14 @@ describe('createCandidateAuthClient (real)', () => {
   it('verifyOtp posts the CNIC and code, returning a full session', async () => {
     stubFetch(async () =>
       jsonResponse(
-        {
+        successEnvelope({
           access_token: 'access-1',
           refresh_token: 'refresh-1',
           token_type: 'Bearer',
           expires_in: 900,
           session: { id: 'session-1' },
           candidate: { id: 'candidate-1', full_name: 'Ahmed Ali', preferred_locale: 'en' },
-        },
+        }),
         { status: 201 }
       )
     );

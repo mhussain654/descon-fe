@@ -31,10 +31,25 @@ function errorEnvelope(
 }
 
 describe('api-client', () => {
-  it('resolves with parsed JSON on success', async () => {
+  it('resolves with parsed JSON on success when the body is not wrapped in an envelope', async () => {
     stubFetch(async () => jsonResponse({ hello: 'world' }));
     const client = createApiClient({ baseUrl: 'http://example.test' });
     await expect(client.get('/ping')).resolves.toEqual({ hello: 'world' });
+  });
+
+  it('unwraps the Rails SuccessEnvelope, returning only `data` (see openapi.yaml: every 2xx response is `{ data, meta, errors: [] }`)', async () => {
+    stubFetch(async () =>
+      jsonResponse({
+        data: { expires_in_seconds: 300, resend_after_seconds: 60 },
+        meta: { request_id: 'a9fe75dc-5233-4ca2-bf76-45745af67d6d', timestamp: '2026-08-23T09:00:08Z' },
+        errors: [],
+      })
+    );
+    const client = createApiClient({ baseUrl: 'http://example.test' });
+    await expect(client.post('/candidate/auth/otp/request')).resolves.toEqual({
+      expires_in_seconds: 300,
+      resend_after_seconds: 60,
+    });
   });
 
   it('resolves with undefined for a 204 response', async () => {
