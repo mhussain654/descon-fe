@@ -16,7 +16,7 @@ function ProtectedStub() {
   return <p>Protected content</p>;
 }
 
-function renderGuarded(initialPath: string, permission?: 'canManageStaff' | 'canVerifyDocuments') {
+function renderGuarded(initialPath: string, roles?: Array<'admin' | 'hr' | 'mps' | 'finance' | 'management'>) {
   return render(
     <MemoryRouter initialEntries={[initialPath]}>
       <Routes>
@@ -25,7 +25,7 @@ function renderGuarded(initialPath: string, permission?: 'canManageStaff' | 'can
         <Route
           path="/admin/users"
           element={
-            <RequireStaffAuth permission={permission}>
+            <RequireStaffAuth roles={roles}>
               <ProtectedStub />
             </RequireStaffAuth>
           }
@@ -37,35 +37,35 @@ function renderGuarded(initialPath: string, permission?: 'canManageStaff' | 'can
 
 describe('RequireStaffAuth', () => {
   it('shows a loading state instead of protected content while the session is restoring', () => {
-    vi.mocked(useStaffAuth).mockReturnValue({ status: 'restoring', hasPermission: vi.fn() } as never);
+    vi.mocked(useStaffAuth).mockReturnValue({ status: 'restoring', session: null } as never);
     renderGuarded('/admin/users');
     expect(screen.queryByText('Protected content')).not.toBeInTheDocument();
     expect(screen.getByRole('status')).toBeInTheDocument();
   });
 
   it('redirects to /admin/login instead of rendering protected content when unauthenticated', () => {
-    vi.mocked(useStaffAuth).mockReturnValue({ status: 'unauthenticated', hasPermission: vi.fn() } as never);
+    vi.mocked(useStaffAuth).mockReturnValue({ status: 'unauthenticated', session: null } as never);
     renderGuarded('/admin/users');
     expect(screen.getByText('Sign-in screen')).toBeInTheDocument();
     expect(screen.queryByText('Protected content')).not.toBeInTheDocument();
   });
 
-  it('renders protected content once authenticated, when no permission is required', () => {
-    vi.mocked(useStaffAuth).mockReturnValue({ status: 'authenticated', hasPermission: vi.fn(() => false) } as never);
+  it('renders protected content once authenticated, when no role restriction is required', () => {
+    vi.mocked(useStaffAuth).mockReturnValue({ status: 'authenticated', session: { role: 'hr' } } as never);
     renderGuarded('/admin/users');
     expect(screen.getByText('Protected content')).toBeInTheDocument();
   });
 
-  it('redirects to /admin/forbidden -- not just hides the content -- when authenticated but lacking the required permission', () => {
-    vi.mocked(useStaffAuth).mockReturnValue({ status: 'authenticated', hasPermission: vi.fn(() => false) } as never);
-    renderGuarded('/admin/users', 'canManageStaff');
+  it('redirects to /admin/forbidden -- not just hides the content -- when authenticated but the role is not allowed', () => {
+    vi.mocked(useStaffAuth).mockReturnValue({ status: 'authenticated', session: { role: 'hr' } } as never);
+    renderGuarded('/admin/users', ['admin']);
     expect(screen.getByText('Forbidden screen')).toBeInTheDocument();
     expect(screen.queryByText('Protected content')).not.toBeInTheDocument();
   });
 
-  it('renders protected content when authenticated and holding the required permission', () => {
-    vi.mocked(useStaffAuth).mockReturnValue({ status: 'authenticated', hasPermission: vi.fn(() => true) } as never);
-    renderGuarded('/admin/users', 'canManageStaff');
+  it('renders protected content when authenticated and holding an allowed role', () => {
+    vi.mocked(useStaffAuth).mockReturnValue({ status: 'authenticated', session: { role: 'admin' } } as never);
+    renderGuarded('/admin/users', ['admin']);
     expect(screen.getByText('Protected content')).toBeInTheDocument();
   });
 });

@@ -26,10 +26,10 @@ interface MockStaffAccount {
 
 export const MOCK_STAFF_ACCOUNTS: MockStaffAccount[] = [
   { staffId: 'staff_admin_1', name: 'Ayesha Admin', email: 'admin@descon.com', role: 'admin' },
-  { staffId: 'staff_manager_1', name: 'Bilal Manager', email: 'manager@descon.com', role: 'manager' },
-  { staffId: 'staff_viewer_1', name: 'Sana Viewer', email: 'viewer@descon.com', role: 'viewer' },
-  { staffId: 'staff_locked_1', name: 'Locked Account', email: 'locked@descon.com', role: 'viewer', locked: true },
-  { staffId: 'staff_suspended_1', name: 'Suspended Account', email: 'suspended@descon.com', role: 'viewer', suspended: true },
+  { staffId: 'staff_hr_1', name: 'Bilal HR', email: 'hr@descon.com', role: 'hr' },
+  { staffId: 'staff_finance_1', name: 'Sana Finance', email: 'finance@descon.com', role: 'finance' },
+  { staffId: 'staff_locked_1', name: 'Locked Account', email: 'locked@descon.com', role: 'hr', locked: true },
+  { staffId: 'staff_suspended_1', name: 'Suspended Account', email: 'suspended@descon.com', role: 'hr', suspended: true },
 ];
 
 function randomToken(): string {
@@ -64,8 +64,8 @@ function isValidStaffSessionShape(value: unknown): value is StaffSession {
   const v = value as Record<string, unknown>;
   return (
     typeof v.accessToken === 'string' &&
+    typeof v.refreshToken === 'string' &&
     typeof v.staffId === 'string' &&
-    typeof v.name === 'string' &&
     typeof v.email === 'string' &&
     typeof v.role === 'string' &&
     typeof v.expiresAt === 'string'
@@ -81,11 +81,12 @@ export interface MockStaffAuthClientOptions {
  * `sessionStorage` here is mock-only scaffolding to simulate "the browser
  * already knows who's signed in" (MPS-F202: session recovery on reload)
  * without a real backend. It is cleared when the tab closes and never
- * contains anything beyond what this mock itself invented. The real MPS-202
- * implementation replaces this entirely: `restoreSession()` becomes a plain
- * `GET` that succeeds or 401s based on an httpOnly cookie the browser
- * attaches automatically -- no client-side storage of any kind
- * (AGENTS.md: "Prefer secure, httpOnly cookie sessions for web").
+ * contains anything beyond what this mock itself invented. This mock is
+ * never wired into the app now that the real MPS-202 client
+ * (`realStaffAuthClient.ts`) exists -- it stays only as dev/test scaffolding.
+ * The real backend issues bearer tokens (not an httpOnly cookie session), so
+ * `realStaffAuthClient.ts`'s storage plan is deliberately different from
+ * this mock's -- see the doc comment there.
  */
 export function createMockStaffAuthClient(options: MockStaffAuthClientOptions = {}): StaffAuthClient {
   const { delayMs = 400 } = options;
@@ -116,8 +117,8 @@ export function createMockStaffAuthClient(options: MockStaffAuthClientOptions = 
       failedAttemptsByEmail.delete(normalizedEmail);
       const session: StaffSession = {
         accessToken: `mock_staff_${randomToken()}`,
+        refreshToken: `mock_staff_refresh_${randomToken()}`,
         staffId: account.staffId,
-        name: account.name,
         email: account.email,
         role: account.role,
         expiresAt: new Date(Date.now() + SESSION_DURATION_MS).toISOString(),

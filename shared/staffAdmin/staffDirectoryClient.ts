@@ -10,7 +10,7 @@ import { STAFF_ROLE_RANK } from '../auth/staffTypes';
 import type { StaffRole, StaffStatus } from '../auth/staffTypes';
 import type { StaffDirectoryClient, StaffDirectoryListParams, StaffInviteInput, StaffMember } from './types';
 
-/** Seed data. IDs/emails intentionally match shared/auth/staffAuthClient.ts's MOCK_STAFF_ACCOUNTS for the admin/manager/viewer identities, so signing in as one of them and viewing the staff list shows a consistent, recognizable "this is you" row. */
+/** Seed data. IDs/emails intentionally match shared/auth/staffAuthClient.ts's MOCK_STAFF_ACCOUNTS for the admin/hr/finance identities, so signing in as one of them and viewing the staff list shows a consistent, recognizable "this is you" row. */
 const INITIAL_STAFF: StaffMember[] = [
   {
     id: 'staff_admin_1',
@@ -21,18 +21,18 @@ const INITIAL_STAFF: StaffMember[] = [
     lastActiveAt: new Date().toISOString(),
   },
   {
-    id: 'staff_manager_1',
-    name: 'Bilal Manager',
-    email: 'manager@descon.com',
-    role: 'manager',
+    id: 'staff_hr_1',
+    name: 'Bilal HR',
+    email: 'hr@descon.com',
+    role: 'hr',
     status: 'active',
     lastActiveAt: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
   },
   {
-    id: 'staff_viewer_1',
-    name: 'Sana Viewer',
-    email: 'viewer@descon.com',
-    role: 'viewer',
+    id: 'staff_finance_1',
+    name: 'Sana Finance',
+    email: 'finance@descon.com',
+    role: 'finance',
     status: 'active',
     lastActiveAt: new Date(Date.now() - 26 * 60 * 60 * 1000).toISOString(),
   },
@@ -40,7 +40,7 @@ const INITIAL_STAFF: StaffMember[] = [
     id: 'staff_invited_1',
     name: 'Hamza Haroon',
     email: 'hamza.haroon@descon.com',
-    role: 'manager',
+    role: 'hr',
     status: 'invited',
     invitedAt: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(),
   },
@@ -48,7 +48,7 @@ const INITIAL_STAFF: StaffMember[] = [
     id: 'staff_suspended_1',
     name: 'Zara Zaidi',
     email: 'zara.zaidi@descon.com',
-    role: 'viewer',
+    role: 'finance',
     status: 'suspended',
     lastActiveAt: new Date(Date.now() - 40 * 24 * 60 * 60 * 1000).toISOString(),
   },

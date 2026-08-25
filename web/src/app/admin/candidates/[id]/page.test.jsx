@@ -8,7 +8,7 @@ import { StaffAuthProvider } from "../../../../contexts/StaffAuthContext";
 import CandidateDetailsPage from "./page";
 
 const ADMIN = MOCK_STAFF_ACCOUNTS.find((account) => account.role === "admin");
-const VIEWER = MOCK_STAFF_ACCOUNTS.find((account) => account.role === "viewer" && !account.locked && !account.suspended);
+const FINANCE = MOCK_STAFF_ACCOUNTS.find((account) => account.role === "finance" && !account.locked && !account.suspended);
 
 const CANDIDATE_RESPONSE = {
   candidate: {
@@ -61,14 +61,14 @@ describe("CandidateDetailsPage document verification (role-gated)", () => {
     sessionStorage.clear();
   });
 
-  it("renders Verify/Reject actions for a staff member with canVerifyDocuments", async () => {
+  it("renders Verify/Reject actions for a staff member whose role can verify documents", async () => {
     await renderAs(ADMIN);
     expect(screen.getByText("Verify")).toBeInTheDocument();
     expect(screen.getByText("Reject")).toBeInTheDocument();
   });
 
-  it("never renders Verify/Reject actions for a viewer -- not just disables them", async () => {
-    await renderAs(VIEWER);
+  it("never renders Verify/Reject actions for a role outside the verifier set -- not just disables them", async () => {
+    await renderAs(FINANCE);
     await waitFor(() => expect(screen.getByText("Test Candidate")).toBeInTheDocument());
     expect(screen.queryByText("Verify")).not.toBeInTheDocument();
     expect(screen.queryByText("Reject")).not.toBeInTheDocument();

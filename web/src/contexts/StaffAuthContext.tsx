@@ -1,8 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { isSessionValid } from '../../../shared/auth/session';
-import { STAFF_ROLE_PERMISSIONS } from '../../../shared/auth/staffTypes';
-import type { StaffAuthClient, StaffPermission, StaffSession } from '../../../shared/auth/staffTypes';
+import type { StaffAuthClient, StaffSession } from '../../../shared/auth/staffTypes';
 
 export type StaffAuthStatus = 'restoring' | 'unauthenticated' | 'authenticated';
 export type StaffLogoutReason = 'manual' | 'expired';
@@ -13,7 +12,6 @@ interface StaffAuthContextValue {
   /** Set once by the sign-in screen's useStaffSignIn hook (which owns the actual client.signIn() call), mirroring the candidate AuthContext's `login(session)`. */
   login: (session: StaffSession) => void;
   signOut: (reason?: StaffLogoutReason) => Promise<void>;
-  hasPermission: (permission: StaffPermission) => boolean;
   /** True immediately after an expiry-triggered sign-out; a screen that reads it should also clear it (see `acknowledgeSessionExpired`). */
   sessionExpired: boolean;
   acknowledgeSessionExpired: () => void;
@@ -87,14 +85,6 @@ export function StaffAuthProvider({ client, children }: { client: StaffAuthClien
 
   const acknowledgeSessionExpired = useCallback(() => setSessionExpired(false), []);
 
-  const hasPermission = useCallback(
-    (permission: StaffPermission) => {
-      if (!session) return false;
-      return STAFF_ROLE_PERMISSIONS[session.role][permission];
-    },
-    [session]
-  );
-
   useEffect(() => {
     if (status !== 'authenticated' || !session) return undefined;
     const interval = setInterval(() => {
@@ -106,8 +96,8 @@ export function StaffAuthProvider({ client, children }: { client: StaffAuthClien
   }, [status, session, signOut]);
 
   const value = useMemo(
-    () => ({ status, session, login, signOut, hasPermission, sessionExpired, acknowledgeSessionExpired }),
-    [status, session, login, signOut, hasPermission, sessionExpired, acknowledgeSessionExpired]
+    () => ({ status, session, login, signOut, sessionExpired, acknowledgeSessionExpired }),
+    [status, session, login, signOut, sessionExpired, acknowledgeSessionExpired]
   );
 
   return <StaffAuthContext.Provider value={value}>{children}</StaffAuthContext.Provider>;

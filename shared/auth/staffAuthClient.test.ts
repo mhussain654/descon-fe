@@ -10,7 +10,7 @@ import {
 } from './staffAuthClient';
 
 const ADMIN = MOCK_STAFF_ACCOUNTS.find((account) => account.role === 'admin')!;
-const VIEWER = MOCK_STAFF_ACCOUNTS.find((account) => account.role === 'viewer' && !account.locked && !account.suspended)!;
+const HR = MOCK_STAFF_ACCOUNTS.find((account) => account.role === 'hr' && !account.locked && !account.suspended)!;
 const LOCKED = MOCK_STAFF_ACCOUNTS.find((account) => account.locked)!;
 const SUSPENDED = MOCK_STAFF_ACCOUNTS.find((account) => account.suspended)!;
 
@@ -59,24 +59,24 @@ describe('createMockStaffAuthClient', () => {
   it('locks out after MOCK_STAFF_MAX_ATTEMPTS failed attempts for the same email', async () => {
     const client = createMockStaffAuthClient({ delayMs: 0 });
     for (let attempt = 0; attempt < MOCK_STAFF_MAX_ATTEMPTS; attempt += 1) {
-      await expect(client.signIn({ email: VIEWER.email, password: 'wrong' })).rejects.toEqual({
+      await expect(client.signIn({ email: HR.email, password: 'wrong' })).rejects.toEqual({
         code: 'INVALID_CREDENTIALS',
       });
     }
     // Even the correct password no longer works once locked out.
-    await expect(client.signIn({ email: VIEWER.email, password: MOCK_STAFF_PASSWORD })).rejects.toEqual({
+    await expect(client.signIn({ email: HR.email, password: MOCK_STAFF_PASSWORD })).rejects.toEqual({
       code: 'TOO_MANY_ATTEMPTS',
     });
   });
 
   it('resets the attempt counter on a successful sign-in', async () => {
     const client = createMockStaffAuthClient({ delayMs: 0 });
-    await expect(client.signIn({ email: VIEWER.email, password: 'wrong' })).rejects.toEqual({
+    await expect(client.signIn({ email: HR.email, password: 'wrong' })).rejects.toEqual({
       code: 'INVALID_CREDENTIALS',
     });
-    await client.signIn({ email: VIEWER.email, password: MOCK_STAFF_PASSWORD });
+    await client.signIn({ email: HR.email, password: MOCK_STAFF_PASSWORD });
     // Should have fresh attempts again, not be partway to lockout.
-    await expect(client.signIn({ email: VIEWER.email, password: 'wrong' })).rejects.toEqual({
+    await expect(client.signIn({ email: HR.email, password: 'wrong' })).rejects.toEqual({
       code: 'INVALID_CREDENTIALS',
     });
   });

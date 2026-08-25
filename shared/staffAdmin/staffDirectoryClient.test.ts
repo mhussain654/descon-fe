@@ -16,8 +16,8 @@ describe('createMockStaffDirectoryClient', () => {
     expect(byQuery).toHaveLength(1);
     expect(byQuery[0].name).toBe('Ayesha Admin');
 
-    const byRole = await client.listStaff({ role: 'manager' });
-    expect(byRole.every((member) => member.role === 'manager')).toBe(true);
+    const byRole = await client.listStaff({ role: 'hr' });
+    expect(byRole.every((member) => member.role === 'hr')).toBe(true);
 
     const byStatus = await client.listStaff({ status: 'invited' });
     expect(byStatus.every((member) => member.status === 'invited')).toBe(true);
@@ -25,7 +25,7 @@ describe('createMockStaffDirectoryClient', () => {
 
   it('invites a new staff member with status "invited"', async () => {
     const client = createMockStaffDirectoryClient({ delayMs: 0 });
-    const invited = await client.inviteStaff({ name: 'New Person', email: 'new.person@descon.com', role: 'viewer' });
+    const invited = await client.inviteStaff({ name: 'New Person', email: 'new.person@descon.com', role: 'finance' });
 
     expect(invited.status).toBe('invited');
     expect(invited.invitedAt).toEqual(expect.any(String));
@@ -37,7 +37,7 @@ describe('createMockStaffDirectoryClient', () => {
   it('rejects inviting a duplicate email with a field-addressable validation error', async () => {
     const client = createMockStaffDirectoryClient({ delayMs: 0 });
     const error = await client
-      .inviteStaff({ name: 'Duplicate', email: 'admin@descon.com', role: 'viewer' })
+      .inviteStaff({ name: 'Duplicate', email: 'admin@descon.com', role: 'finance' })
       .catch((e) => e);
 
     expect(error.status).toBe(422);
@@ -46,8 +46,8 @@ describe('createMockStaffDirectoryClient', () => {
 
   it('updates a staff member role', async () => {
     const client = createMockStaffDirectoryClient({ delayMs: 0 });
-    const [manager] = await client.listStaff({ role: 'manager', status: 'active' });
-    const updated = await client.updateStaffRole(manager.id, 'admin');
+    const [hr] = await client.listStaff({ role: 'hr', status: 'active' });
+    const updated = await client.updateStaffRole(hr.id, 'admin');
     expect(updated.role).toBe('admin');
   });
 
@@ -55,7 +55,7 @@ describe('createMockStaffDirectoryClient', () => {
     const client = createMockStaffDirectoryClient({ delayMs: 0 });
     const [admin] = await client.listStaff({ role: 'admin' });
 
-    const error = await client.updateStaffRole(admin.id, 'manager').catch((e) => e);
+    const error = await client.updateStaffRole(admin.id, 'hr').catch((e) => e);
     expect(error.status).toBe(409);
     expect(error.errors[0].code).toBe('last_admin');
 
@@ -67,20 +67,20 @@ describe('createMockStaffDirectoryClient', () => {
   it('allows demoting an admin once a second admin exists', async () => {
     const client = createMockStaffDirectoryClient({ delayMs: 0 });
     const [originalAdmin] = await client.listStaff({ role: 'admin' });
-    const [manager] = await client.listStaff({ role: 'manager', status: 'active' });
+    const [hr] = await client.listStaff({ role: 'hr', status: 'active' });
 
-    await client.updateStaffRole(manager.id, 'admin');
-    const demoted = await client.updateStaffRole(originalAdmin.id, 'manager');
-    expect(demoted.role).toBe('manager');
+    await client.updateStaffRole(hr.id, 'admin');
+    const demoted = await client.updateStaffRole(originalAdmin.id, 'hr');
+    expect(demoted.role).toBe('hr');
   });
 
   it('updates a staff member status (activate/suspend)', async () => {
     const client = createMockStaffDirectoryClient({ delayMs: 0 });
-    const [viewer] = await client.listStaff({ role: 'viewer', status: 'active' });
-    const suspended = await client.updateStaffStatus(viewer.id, 'suspended');
+    const [finance] = await client.listStaff({ role: 'finance', status: 'active' });
+    const suspended = await client.updateStaffStatus(finance.id, 'suspended');
     expect(suspended.status).toBe('suspended');
 
-    const reactivated = await client.updateStaffStatus(viewer.id, 'active');
+    const reactivated = await client.updateStaffStatus(finance.id, 'active');
     expect(reactivated.status).toBe('active');
   });
 
@@ -103,7 +103,7 @@ describe('createMockStaffDirectoryClient', () => {
     const clientA = createMockStaffDirectoryClient({ delayMs: 0 });
     const clientB = createMockStaffDirectoryClient({ delayMs: 0 });
 
-    await clientA.inviteStaff({ name: 'Only In A', email: 'only-in-a@descon.com', role: 'viewer' });
+    await clientA.inviteStaff({ name: 'Only In A', email: 'only-in-a@descon.com', role: 'finance' });
 
     const staffB = await clientB.listStaff();
     expect(staffB.some((member) => member.email === 'only-in-a@descon.com')).toBe(false);
@@ -114,7 +114,7 @@ describe('createUnavailableStaffDirectoryClient', () => {
   it('every method fails safely instead of returning or accepting mock data', async () => {
     const client = createUnavailableStaffDirectoryClient();
     await expect(client.listStaff()).rejects.toMatchObject({ status: 503 });
-    await expect(client.inviteStaff({ name: 'X', email: 'x@descon.com', role: 'viewer' })).rejects.toMatchObject({
+    await expect(client.inviteStaff({ name: 'X', email: 'x@descon.com', role: 'finance' })).rejects.toMatchObject({
       status: 503,
     });
     await expect(client.updateStaffRole('any', 'admin')).rejects.toMatchObject({ status: 503 });

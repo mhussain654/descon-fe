@@ -8,7 +8,7 @@ import { StaffAuthProvider } from "../../../contexts/StaffAuthContext";
 import StaffUsersPage from "./page";
 
 const ADMIN = MOCK_STAFF_ACCOUNTS.find((account) => account.role === "admin");
-const VIEWER = MOCK_STAFF_ACCOUNTS.find((account) => account.role === "viewer" && !account.locked && !account.suspended);
+const HR = MOCK_STAFF_ACCOUNTS.find((account) => account.role === "hr" && !account.locked && !account.suspended);
 
 async function signInAs(account) {
   const client = createMockStaffAuthClient({ delayMs: 0 });
@@ -49,12 +49,12 @@ describe("StaffUsersPage", () => {
 
     const table = screen.getByRole("table");
     expect(within(table).getByText("Ayesha Admin")).toBeInTheDocument();
-    expect(within(table).getByText("Bilal Manager")).toBeInTheDocument();
+    expect(within(table).getByText("Bilal HR")).toBeInTheDocument();
     expect(within(table).getByText("Zara Zaidi")).toBeInTheDocument();
   });
 
-  it("redirects a viewer (lacking canManageStaff) to the forbidden route, never rendering the table", async () => {
-    const client = await signInAs(VIEWER);
+  it("redirects a non-admin (lacking the admin-only role) to the forbidden route, never rendering the table", async () => {
+    const client = await signInAs(HR);
     const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
     render(
       <MemoryRouter initialEntries={["/admin/users"]}>
@@ -73,7 +73,7 @@ describe("StaffUsersPage", () => {
 
     await waitFor(() => expect(screen.getByText("Forbidden stub")).toBeInTheDocument());
     expect(screen.queryByRole("table")).not.toBeInTheDocument();
-    expect(screen.queryByText("Bilal Manager")).not.toBeInTheDocument();
+    expect(screen.queryByText("Bilal HR")).not.toBeInTheDocument();
   });
 
   it("filters the list by search query", async () => {
@@ -83,7 +83,7 @@ describe("StaffUsersPage", () => {
     fireEvent.change(screen.getByRole("searchbox"), { target: { value: "bilal" } });
 
     await waitFor(() => expect(within(screen.getByRole("table")).queryByText("Ayesha Admin")).not.toBeInTheDocument());
-    expect(within(screen.getByRole("table")).getByText("Bilal Manager")).toBeInTheDocument();
+    expect(within(screen.getByRole("table")).getByText("Bilal HR")).toBeInTheDocument();
   });
 
   it("invites a new staff member and refreshes the list without a page reload", async () => {
@@ -140,16 +140,20 @@ describe("StaffUsersPage", () => {
     const client = await signInAs(ADMIN);
     await renderUsersPage(client);
 
-    // Manager -> viewer is a downgrade. (Demoting the signed-in admin's own
-    // row is impossible through this UI at all -- actions are hidden there,
-    // see "does not render role/status actions on the current staff
-    // member's own row" -- and the "last remaining admin" business rule
-    // itself is covered directly against the client in
-    // shared/staffAdmin/staffDirectoryClient.test.ts.)
-    const managerRow = tableRowFor("Bilal Manager");
-    fireEvent.click(within(managerRow).getByRole("button", { name: "Change role" }));
+    // Only `admin` outranks the other four (peer) roles, so demonstrating a
+    // downgrade needs a second admin first -- promote Bilal HR to admin (an
+    // upgrade, no confirmation needed), then demote them back, which *is* a
+    // genuine downgrade. (Demoting the signed-in admin's own row is
+    // impossible through this UI at all -- actions are hidden there -- and
+    // the "last remaining admin" business rule itself is covered directly
+    // against the client in shared/staffAdmin/staffDirectoryClient.test.ts.)
+    fireEvent.click(within(tableRowFor("Bilal HR")).getByRole("button", { name: "Change role" }));
+    fireEvent.change(screen.getByLabelText("Role"), { target: { value: "admin" } });
+    fireEvent.click(screen.getByRole("button", { name: "Save" }));
+    await waitFor(() => expect(within(tableRowFor("Bilal HR")).getByText("Admin")).toBeInTheDocument());
 
-    fireEvent.change(screen.getByLabelText("Role"), { target: { value: "viewer" } });
+    fireEvent.click(within(tableRowFor("Bilal HR")).getByRole("button", { name: "Change role" }));
+    fireEvent.change(screen.getByLabelText("Role"), { target: { value: "hr" } });
     fireEvent.click(screen.getByRole("button", { name: "Save" }));
 
     // A downgrade requires an explicit confirmation step, not an immediate
@@ -160,7 +164,7 @@ describe("StaffUsersPage", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Confirm" }));
 
-    await waitFor(() => expect(within(tableRowFor("Bilal Manager")).getByText("Viewer")).toBeInTheDocument());
+    await waitFor(() => expect(within(tableRowFor("Bilal HR")).getByText("HR")).toBeInTheDocument());
     expect(screen.queryByText("Confirm role downgrade")).not.toBeInTheDocument();
   });
 
@@ -168,15 +172,15 @@ describe("StaffUsersPage", () => {
     const client = await signInAs(ADMIN);
     await renderUsersPage(client);
 
-    const viewerRow = screen.getByText("Sana Viewer").closest("tr");
-    fireEvent.click(within(viewerRow).getByRole("button", { name: "Change role" }));
-    fireEvent.change(screen.getByLabelText("Role"), { target: { value: "manager" } });
+    const financeRow = screen.getByText("Sana Finance").closest("tr");
+    fireEvent.click(within(financeRow).getByRole("button", { name: "Change role" }));
+    fireEvent.change(screen.getByLabelText("Role"), { target: { value: "admin" } });
     fireEvent.click(screen.getByRole("button", { name: "Save" }));
 
     expect(screen.queryByText("Confirm role downgrade")).not.toBeInTheDocument();
     await waitFor(() => {
-      const row = screen.getByText("Sana Viewer").closest("tr");
-      expect(within(row).getByText("Manager")).toBeInTheDocument();
+      const row = screen.getByText("Sana Finance").closest("tr");
+      expect(within(row).getByText("Admin")).toBeInTheDocument();
     });
   });
 

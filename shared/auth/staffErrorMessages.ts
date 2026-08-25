@@ -6,6 +6,7 @@ import type { StaffAuthErrorCode } from './staffTypes';
 
 export const STAFF_AUTH_ERROR_KEYS: Record<StaffAuthErrorCode, string> = {
   INVALID_CREDENTIALS: 'staffAuthInvalidCredentialsError',
+  INACTIVE_ACCOUNT: 'staffAuthInactiveAccountError',
   TOO_MANY_ATTEMPTS: 'staffAuthTooManyAttemptsError',
   SESSION_EXPIRED: 'dsSessionExpiredTitle',
   FORBIDDEN: 'staffAuthForbiddenError',

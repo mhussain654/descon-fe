@@ -8,16 +8,18 @@ import type { StaffRole } from '../../../../shared/auth/staffTypes';
 
 const ROLE_LABEL_KEYS: Record<StaffRole, string> = {
   admin: 'staffAdminRoleAdmin',
-  manager: 'staffAdminRoleManager',
-  viewer: 'staffAdminRoleViewer',
+  hr: 'staffAdminRoleHr',
+  mps: 'staffAdminRoleMps',
+  finance: 'staffAdminRoleFinance',
+  management: 'staffAdminRoleManagement',
 };
 
 /**
  * Every staff screen renders through StaffShell, so guarding here protects
  * the whole staff portal in one place -- and, critically, the "Users" nav
- * link below is simply never rendered for a staff member without
- * `canManageStaff` (MPS-F202: "unauthorized nav items/actions are not
- * rendered, not just disabled"), not merely disabled/hidden by CSS.
+ * link below is simply never rendered for a staff member whose role isn't
+ * `admin` (MPS-F202: "unauthorized nav items/actions are not rendered, not
+ * just disabled"), not merely disabled/hidden by CSS.
  */
 export function StaffShell({ children }: { children: ReactNode }) {
   return (
@@ -29,14 +31,14 @@ export function StaffShell({ children }: { children: ReactNode }) {
 
 function StaffShellContent({ children }: { children: ReactNode }) {
   const { t } = useLanguage();
-  const { session, signOut, hasPermission } = useStaffAuth();
+  const { session, signOut } = useStaffAuth();
   const location = useLocation();
 
   if (!session) return null;
 
   const navItems = [
     { href: '/admin', labelKey: 'staffNavCandidates', visible: true },
-    { href: '/admin/users', labelKey: 'staffNavUsers', visible: hasPermission('canManageStaff') },
+    { href: '/admin/users', labelKey: 'staffNavUsers', visible: session.role === 'admin' },
   ].filter((item) => item.visible);
 
   return (
@@ -63,7 +65,7 @@ function StaffShellContent({ children }: { children: ReactNode }) {
 
           <div className="flex items-center gap-3">
             <div className="text-end text-sm">
-              <div className="font-medium text-gray-900">{session.name}</div>
+              <div className="font-medium text-gray-900">{session.email}</div>
               <Badge tone="neutral">{t(ROLE_LABEL_KEYS[session.role])}</Badge>
             </div>
             <Button variant="outline" size="sm" onClick={() => signOut()}>

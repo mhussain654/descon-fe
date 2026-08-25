@@ -6,13 +6,12 @@ import type { StaffSession } from '../../../shared/auth/staffTypes';
 import { StaffAuthProvider, useStaffAuth } from './StaffAuthContext';
 
 const ADMIN = MOCK_STAFF_ACCOUNTS.find((account) => account.role === 'admin')!;
-const VIEWER = MOCK_STAFF_ACCOUNTS.find((account) => account.role === 'viewer' && !account.locked && !account.suspended)!;
 
 function buildSession(overrides: Partial<StaffSession> = {}): StaffSession {
   return {
     accessToken: 'token',
+    refreshToken: 'refresh',
     staffId: 'staff_1',
-    name: 'Test Staff',
     email: 'test@descon.com',
     role: 'admin',
     expiresAt: new Date(Date.now() + 60_000).toISOString(),
@@ -21,21 +20,21 @@ function buildSession(overrides: Partial<StaffSession> = {}): StaffSession {
 }
 
 function Probe() {
-  const { status, session, login, signOut, hasPermission, sessionExpired } = useStaffAuth();
+  const { status, session, login, signOut, sessionExpired } = useStaffAuth();
   return (
     <div>
       <span>status:{status}</span>
       <span>expired:{String(sessionExpired)}</span>
       <span>staff:{session?.staffId ?? 'none'}</span>
-      <span>canManageStaff:{String(hasPermission('canManageStaff'))}</span>
+      <span>role:{session?.role ?? 'none'}</span>
       <button type="button" onClick={() => login(buildSession({ staffId: 'staff_manual', role: 'admin' }))}>
         login
       </button>
       <button type="button" onClick={() => login(buildSession({ staffId: 'staff_short', expiresAt: new Date(Date.now() + 1000).toISOString() }))}>
         login-short
       </button>
-      <button type="button" onClick={() => login(buildSession({ staffId: 'staff_viewer', role: 'viewer' }))}>
-        login-viewer
+      <button type="button" onClick={() => login(buildSession({ staffId: 'staff_hr', role: 'hr' }))}>
+        login-hr
       </button>
       <button type="button" onClick={() => signOut()}>
         signOut
@@ -108,24 +107,23 @@ describe('StaffAuthProvider', () => {
     expect(screen.getByText('staff:staff_manual')).toBeInTheDocument();
   });
 
-  it('derives hasPermission from the session role', async () => {
+  it('exposes the authenticated role from the session, for consumers to gate nav/actions on', async () => {
     renderWithProviders();
     await flushRestore();
     expect(screen.getByText('status:unauthenticated')).toBeInTheDocument();
-
-    expect(screen.getByText('canManageStaff:false')).toBeInTheDocument();
+    expect(screen.getByText('role:none')).toBeInTheDocument();
 
     act(() => screen.getByRole('button', { name: 'login' }).click());
-    expect(screen.getByText('canManageStaff:true')).toBeInTheDocument();
+    expect(screen.getByText('role:admin')).toBeInTheDocument();
   });
 
-  it('a viewer role never has canManageStaff', async () => {
+  it('reflects a non-admin role just as faithfully', async () => {
     renderWithProviders();
     await flushRestore();
     expect(screen.getByText('status:unauthenticated')).toBeInTheDocument();
 
-    act(() => screen.getByRole('button', { name: 'login-viewer' }).click());
-    expect(screen.getByText('canManageStaff:false')).toBeInTheDocument();
+    act(() => screen.getByRole('button', { name: 'login-hr' }).click());
+    expect(screen.getByText('role:hr')).toBeInTheDocument();
   });
 
   it('clears the session, secure storage, and the query cache on manual sign-out (async, awaited, not fire-and-forget)', async () => {

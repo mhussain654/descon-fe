@@ -94,4 +94,40 @@ describe('useStaffSignIn', () => {
     await waitFor(() => expect(result.current.isSubmitting).toBe(false));
     expect(signInSpy).toHaveBeenCalledTimes(1);
   });
+
+  it('ignores a signIn response that resolves after the screen has already unmounted (navigated away)', async () => {
+    let resolveSignIn: (value: unknown) => void;
+    const client = createMockStaffAuthClient({ delayMs: 0 });
+    client.signIn = vi.fn(
+      () =>
+        new Promise((resolve) => {
+          resolveSignIn = resolve;
+        })
+    ) as typeof client.signIn;
+    const onAuthenticated = vi.fn();
+    const { result, unmount } = renderHook(() => useStaffSignIn({ client, onAuthenticated }));
+
+    act(() => {
+      result.current.setEmail(ADMIN.email);
+      result.current.setPassword(MOCK_STAFF_PASSWORD);
+    });
+
+    let submitPromise: Promise<void>;
+    act(() => {
+      submitPromise = result.current.submit();
+    });
+
+    unmount();
+    resolveSignIn!({
+      accessToken: 'token',
+      refreshToken: 'refresh',
+      staffId: ADMIN.staffId,
+      email: ADMIN.email,
+      role: ADMIN.role,
+      expiresAt: new Date(Date.now() + 60_000).toISOString(),
+    });
+    await submitPromise!;
+
+    expect(onAuthenticated).not.toHaveBeenCalled();
+  });
 });
