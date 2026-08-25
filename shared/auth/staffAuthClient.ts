@@ -1,9 +1,9 @@
 // In-memory + sessionStorage-backed mock implementation of StaffAuthClient
 // (MPS-F202). Stands in for the not-yet-built MPS-202 staff-auth API during
-// UI development. Swapping to the real backend later means writing one new
-// class implementing `StaffAuthClient` (calling shared/api-client.ts like
-// every other feature) and changing the single call site that constructs
-// the client -- no screen, hook or context change.
+// UI development. This mock is never wired into the app now that the real
+// MPS-202 client (`realStaffAuthClient.ts`) exists -- it stays only as
+// dev/test scaffolding.
+import { derivePermissionsPendingBackendSupport } from './staffPermissions';
 import type { StaffAuthClient, StaffAuthError, StaffRole, StaffSession, StaffSignInCredentials } from './staffTypes';
 
 const SESSION_STORE_KEY = 'descon.staffSession.mock';
@@ -32,6 +32,14 @@ export const MOCK_STAFF_ACCOUNTS: MockStaffAccount[] = [
   { staffId: 'staff_suspended_1', name: 'Suspended Account', email: 'suspended@descon.com', role: 'hr', suspended: true },
 ];
 
+/** What actually gets persisted for mock "session recovery on reload" -- no tokens, matching the real client's contract that tokens never leave the client's own memory (see staffTypes.ts's StaffSession doc comment). */
+interface StoredMockSession {
+  staffId: string;
+  email: string;
+  role: StaffRole;
+  expiresAt: string;
+}
+
 function randomToken(): string {
   return Math.random().toString(36).slice(2) + Date.now().toString(36);
 }
@@ -45,7 +53,7 @@ function readSessionStorage(): string | null {
   }
 }
 
-function writeSessionStorage(session: StaffSession | null): void {
+function writeSessionStorage(session: StoredMockSession | null): void {
   if (typeof sessionStorage === 'undefined') return;
   try {
     if (session) {
@@ -59,17 +67,19 @@ function writeSessionStorage(session: StaffSession | null): void {
   }
 }
 
-function isValidStaffSessionShape(value: unknown): value is StaffSession {
+function isValidStoredMockSession(value: unknown): value is StoredMockSession {
   if (!value || typeof value !== 'object') return false;
   const v = value as Record<string, unknown>;
   return (
-    typeof v.accessToken === 'string' &&
-    typeof v.refreshToken === 'string' &&
     typeof v.staffId === 'string' &&
     typeof v.email === 'string' &&
     typeof v.role === 'string' &&
     typeof v.expiresAt === 'string'
   );
+}
+
+function toStaffSession(stored: StoredMockSession): StaffSession {
+  return { ...stored, permissions: derivePermissionsPendingBackendSupport(stored.role) };
 }
 
 export interface MockStaffAuthClientOptions {
@@ -81,16 +91,17 @@ export interface MockStaffAuthClientOptions {
  * `sessionStorage` here is mock-only scaffolding to simulate "the browser
  * already knows who's signed in" (MPS-F202: session recovery on reload)
  * without a real backend. It is cleared when the tab closes and never
- * contains anything beyond what this mock itself invented. This mock is
- * never wired into the app now that the real MPS-202 client
- * (`realStaffAuthClient.ts`) exists -- it stays only as dev/test scaffolding.
- * The real backend issues bearer tokens (not an httpOnly cookie session), so
+ * contains anything beyond what this mock itself invented. The real backend
+ * issues bearer tokens (not an httpOnly cookie session), so
  * `realStaffAuthClient.ts`'s storage plan is deliberately different from
  * this mock's -- see the doc comment there.
  */
 export function createMockStaffAuthClient(options: MockStaffAuthClientOptions = {}): StaffAuthClient {
   const { delayMs = 400 } = options;
   const failedAttemptsByEmail = new Map<string, number>();
+  // Private to this client instance, like the real client's -- never
+  // returned from signIn/restoreSession (see StaffSession's doc comment).
+  let accessToken: string | null = null;
 
   const wait = () => (delayMs > 0 ? new Promise((resolve) => setTimeout(resolve, delayMs)) : Promise.resolve());
 
@@ -115,16 +126,15 @@ export function createMockStaffAuthClient(options: MockStaffAuthClientOptions = 
       }
 
       failedAttemptsByEmail.delete(normalizedEmail);
-      const session: StaffSession = {
-        accessToken: `mock_staff_${randomToken()}`,
-        refreshToken: `mock_staff_refresh_${randomToken()}`,
+      accessToken = `mock_staff_${randomToken()}`;
+      const stored: StoredMockSession = {
         staffId: account.staffId,
         email: account.email,
         role: account.role,
         expiresAt: new Date(Date.now() + SESSION_DURATION_MS).toISOString(),
       };
-      writeSessionStorage(session);
-      return session;
+      writeSessionStorage(stored);
+      return toStaffSession(stored);
     },
 
     async restoreSession() {
@@ -140,17 +150,26 @@ export function createMockStaffAuthClient(options: MockStaffAuthClientOptions = 
         return null;
       }
 
-      if (!isValidStaffSessionShape(parsed) || new Date(parsed.expiresAt).getTime() <= Date.now()) {
+      if (!isValidStoredMockSession(parsed) || new Date(parsed.expiresAt).getTime() <= Date.now()) {
         writeSessionStorage(null);
         return null;
       }
 
-      return parsed;
+      accessToken = `mock_staff_${randomToken()}`;
+      return toStaffSession(parsed);
     },
 
     async signOut() {
       await wait();
+      accessToken = null;
       writeSessionStorage(null);
+    },
+
+    async authenticatedRequest(makeRequest) {
+      if (!accessToken) {
+        throw { code: 'SESSION_EXPIRED' } satisfies StaffAuthError;
+      }
+      return makeRequest(accessToken);
     },
   };
 }
@@ -169,5 +188,6 @@ export function createUnavailableStaffAuthClient(): StaffAuthClient {
     signIn: () => Promise.reject({ code: 'SERVICE_UNAVAILABLE' } satisfies StaffAuthError),
     restoreSession: () => Promise.resolve(null),
     signOut: () => Promise.resolve(),
+    authenticatedRequest: () => Promise.reject({ code: 'SERVICE_UNAVAILABLE' } satisfies StaffAuthError),
   };
 }

@@ -119,11 +119,10 @@ describe('useStaffSignIn', () => {
 
     unmount();
     resolveSignIn!({
-      accessToken: 'token',
-      refreshToken: 'refresh',
       staffId: ADMIN.staffId,
       email: ADMIN.email,
       role: ADMIN.role,
+      permissions: [],
       expiresAt: new Date(Date.now() + 60_000).toISOString(),
     });
     await submitPromise!;

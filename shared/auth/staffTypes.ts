@@ -27,12 +27,21 @@ export const STAFF_ROLE_RANK: Record<StaffRole, number> = {
   management: 0,
 };
 
+/**
+ * Safe identity/session information for UI consumption. Deliberately
+ * contains no tokens -- the access and refresh tokens stay private inside
+ * the auth client's closure (see realStaffAuthClient.ts) and are never
+ * returned to callers, so they can't end up in React state, DevTools,
+ * error-reporting breadcrumbs or anywhere else outside the client itself.
+ * Anything that needs to make an authenticated request goes through the
+ * client's `authenticatedRequest`, not a token pulled out of this object.
+ */
 export interface StaffSession {
-  accessToken: string;
-  refreshToken: string;
   staffId: string;
   email: string;
   role: StaffRole;
+  /** Effective permission codes for this session (see staffPermissions.ts for how these are currently derived, pending real backend support). */
+  permissions: string[];
   /** ISO 8601 timestamp. */
   expiresAt: string;
 }
@@ -64,12 +73,31 @@ export interface StaffAuthError {
 export interface StaffAuthClient {
   signIn(credentials: StaffSignInCredentials): Promise<StaffSession>;
   /**
-   * Recovers the current session on app load (MPS-F202: "Session recovery
-   * on reload"). Resolves `null` for "no session" -- including an expired,
-   * invalid, revoked, or simply absent one -- since that's the normal/expected
-   * outcome, not a failure; only rejects for a genuine service failure
-   * (network/offline/service-unavailable).
+   * Recovers the current session on app load, and doubles as the
+   * proactive pre-expiry refresh (StaffAuthContext calls this again before
+   * the access token expires). Resolves `null` only for a *confirmed*
+   * absence of a valid session -- no refresh token, or one the server
+   * reports as invalid/expired/revoked. Rejects for anything that couldn't
+   * confirm either way (network/offline/service failure) so a caller can
+   * tell "definitely logged out" apart from "couldn't check right now" and
+   * preserve an existing session across a transient failure instead of
+   * discarding it.
    */
   restoreSession(): Promise<StaffSession | null>;
   signOut(): Promise<void>;
+  /**
+   * Runs a bearer-authenticated call through this client's managed session:
+   * attaches the current access token, and on a 401 performs one shared
+   * (deduped) refresh and retries the request exactly once -- never more,
+   * so a persistently-401ing endpoint can't loop. A 403 is surfaced
+   * immediately as FORBIDDEN without attempting a refresh (a refreshed
+   * token doesn't fix a permission/account problem). If the refresh itself
+   * fails, the thrown StaffAuthError distinguishes SESSION_EXPIRED (the
+   * refresh token really is invalid/expired/revoked -- the caller should
+   * treat this as a forced logout) from NETWORK_ERROR/OFFLINE (session
+   * preserved; the caller can retry later). Every other feature's
+   * staff-authenticated calls should go through this rather than reading a
+   * token directly -- there isn't one to read.
+   */
+  authenticatedRequest<T>(makeRequest: (accessToken: string) => Promise<T | undefined>): Promise<T | undefined>;
 }

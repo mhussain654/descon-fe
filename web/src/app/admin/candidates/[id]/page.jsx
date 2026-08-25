@@ -36,13 +36,12 @@ const stageNameKeys = {
 };
 
 // No auth guard existed here before MPS-F202/MPS-F203 -- see the identical
-// note in ../../page.jsx. Document verification is additionally role-gated
-// below (admin, hr and mps only), so a staff member outside those roles can
-// see this page (read-only) but never gets the Verify/Reject controls at
-// all -- the backend still enforces the real boundary independently
-// (AGENTS.md: "Frontend role checks are for UX only").
-const DOCUMENT_VERIFIER_ROLES = ["admin", "hr", "mps"];
-
+// note in ../../page.jsx. Document verification is additionally gated on
+// the `manage_candidate_documents` permission below, so a staff member
+// without it can see this page (read-only) but never gets the
+// Verify/Reject controls at all -- the backend still enforces the real
+// boundary independently (AGENTS.md: "Frontend role checks are for UX
+// only").
 export default function CandidateDetailsPage({ params }) {
   return (
     <StaffShell>
@@ -53,8 +52,8 @@ export default function CandidateDetailsPage({ params }) {
 
 function CandidateDetails({ params }) {
   const { t, language } = useLanguage();
-  const { session } = useStaffAuth();
-  const canVerifyDocuments = DOCUMENT_VERIFIER_ROLES.includes(session?.role);
+  const { hasPermission } = useStaffAuth();
+  const canVerifyDocuments = hasPermission("manage_candidate_documents");
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
 

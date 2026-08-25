@@ -17,9 +17,9 @@ const ROLE_LABEL_KEYS: Record<StaffRole, string> = {
 /**
  * Every staff screen renders through StaffShell, so guarding here protects
  * the whole staff portal in one place -- and, critically, the "Users" nav
- * link below is simply never rendered for a staff member whose role isn't
- * `admin` (MPS-F202: "unauthorized nav items/actions are not rendered, not
- * just disabled"), not merely disabled/hidden by CSS.
+ * link below is simply never rendered for a staff member lacking
+ * `manage_staff_users` (MPS-F202: "unauthorized nav items/actions are not
+ * rendered, not just disabled"), not merely disabled/hidden by CSS.
  */
 export function StaffShell({ children }: { children: ReactNode }) {
   return (
@@ -31,14 +31,14 @@ export function StaffShell({ children }: { children: ReactNode }) {
 
 function StaffShellContent({ children }: { children: ReactNode }) {
   const { t } = useLanguage();
-  const { session, signOut } = useStaffAuth();
+  const { session, signOut, hasPermission } = useStaffAuth();
   const location = useLocation();
 
   if (!session) return null;
 
   const navItems = [
     { href: '/admin', labelKey: 'staffNavCandidates', visible: true },
-    { href: '/admin/users', labelKey: 'staffNavUsers', visible: session.role === 'admin' },
+    { href: '/admin/users', labelKey: 'staffNavUsers', visible: hasPermission('manage_staff_users') },
   ].filter((item) => item.visible);
 
   return (

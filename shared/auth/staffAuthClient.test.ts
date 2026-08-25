@@ -32,7 +32,8 @@ describe('createMockStaffAuthClient', () => {
     const session = await client.signIn({ email: ADMIN.email, password: MOCK_STAFF_PASSWORD });
     expect(session.staffId).toBe(ADMIN.staffId);
     expect(session.role).toBe('admin');
-    expect(session.accessToken).toEqual(expect.any(String));
+    expect(session).not.toHaveProperty('accessToken');
+    expect(session).not.toHaveProperty('refreshToken');
     expect(new Date(session.expiresAt).getTime()).toBeGreaterThan(Date.now());
   });
 
@@ -128,6 +129,23 @@ describe('createMockStaffAuthClient', () => {
     await client.signOut();
     await expect(client.restoreSession()).resolves.toBeNull();
   });
+
+  it('authenticatedRequest passes the access token to the caller once signed in', async () => {
+    const client = createMockStaffAuthClient({ delayMs: 0 });
+    await client.signIn({ email: ADMIN.email, password: MOCK_STAFF_PASSWORD });
+    const seenTokens: string[] = [];
+    await client.authenticatedRequest(async (token) => {
+      seenTokens.push(token);
+      return 'ok';
+    });
+    expect(seenTokens).toHaveLength(1);
+    expect(seenTokens[0]).toEqual(expect.any(String));
+  });
+
+  it('authenticatedRequest rejects with SESSION_EXPIRED before any sign-in has happened', async () => {
+    const client = createMockStaffAuthClient({ delayMs: 0 });
+    await expect(client.authenticatedRequest(async () => 'ok')).rejects.toEqual({ code: 'SESSION_EXPIRED' });
+  });
 });
 
 describe('createUnavailableStaffAuthClient', () => {
@@ -146,5 +164,10 @@ describe('createUnavailableStaffAuthClient', () => {
   it('signOut resolves without error', async () => {
     const client = createUnavailableStaffAuthClient();
     await expect(client.signOut()).resolves.toBeUndefined();
+  });
+
+  it('authenticatedRequest fails safely with SERVICE_UNAVAILABLE', async () => {
+    const client = createUnavailableStaffAuthClient();
+    await expect(client.authenticatedRequest(async () => 'ok')).rejects.toEqual({ code: 'SERVICE_UNAVAILABLE' });
   });
 });

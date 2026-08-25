@@ -1,15 +1,14 @@
-// Web configuration for the candidate authentication client (MPS-F201).
-// Mirrors api-client.ts's shape: this file is the single place that decides
-// which CandidateAuthClient implementation is active. The real MPS-201
-// implementation (once it exists) is a second file next to
-// ../../../shared/auth/candidateAuthClient.ts calling shared/api-client.ts,
-// swapped in here -- no screen or hook change required, since everything
-// else is written against the `CandidateAuthClient` interface.
-import {
-  createMockCandidateAuthClient,
-  createUnavailableCandidateAuthClient,
-} from '../../../shared/auth/candidateAuthClient';
+// Web configuration for the candidate authentication client (MPS-F201,
+// wired to the real MPS-201 backend). Mirrors mobile/src/lib/auth-client.ts
+// exactly: the real MPS-201 implementation
+// (../../../shared/auth/realCandidateAuthClient.ts, calling
+// shared/api-client.ts) -- the mock
+// (../../../shared/auth/candidateAuthClient.ts) now exists purely for
+// dev-without-a-backend convenience and tests, never wired into the app
+// (AGENTS.md: "Never silently fall back to mock data in production").
+import { createCandidateAuthClient } from '../../../shared/auth/realCandidateAuthClient';
 import type { CandidateAuthClient } from '../../../shared/auth/types';
+import { apiClient } from './api-client';
 
 export type {
   AuthError,
@@ -19,30 +18,12 @@ export type {
   OtpChallenge,
 } from '../../../shared/auth/types';
 
-function isOnline(): boolean {
-  return typeof navigator === 'undefined' || navigator.onLine !== false;
+const LANGUAGE_STORAGE_KEY = 'descon.language';
+
+/** Reads the same persisted key LanguageContext.tsx itself reads/writes -- a direct, synchronous read (not `document.documentElement.lang`, which only reflects the current language after that provider's own effect has run). */
+function getLocale(): 'en' | 'ur' {
+  if (typeof window === 'undefined') return 'en';
+  return window.localStorage.getItem(LANGUAGE_STORAGE_KEY) === 'ur' ? 'ur' : 'en';
 }
 
-/**
- * `isDev` is threaded in (rather than reading `import.meta.env.DEV` inline
- * here) so this selection itself is unit-testable without needing to stub
- * Vite's build-time env replacement -- see auth-client.test.ts. The real
- * export below still uses `import.meta.env.DEV` directly, which Vite
- * replaces with a literal at build time; in a production build that makes
- * the mock branch statically unreachable, so Rollup's tree-shaking drops
- * candidateAuthClient.ts's mock implementation (its OTP, CNIC and delay
- * constants included) out of the bundle entirely -- not just unreachable at
- * runtime. See auth-client.build.test.ts, which asserts this against the
- * actual built output.
- */
-export function selectCandidateAuthClient(isDev: boolean): CandidateAuthClient {
-  if (isDev) {
-    return createMockCandidateAuthClient({ isOnline });
-  }
-  // No real MPS-201 backend is wired up yet. Production must never fall
-  // back to the mock (AGENTS.md / MPS-F201 review: "Production must never
-  // silently use mocks") -- every call fails safely instead.
-  return createUnavailableCandidateAuthClient();
-}
-
-export const candidateAuthClient = selectCandidateAuthClient(import.meta.env.DEV);
+export const candidateAuthClient: CandidateAuthClient = createCandidateAuthClient({ apiClient, getLocale });

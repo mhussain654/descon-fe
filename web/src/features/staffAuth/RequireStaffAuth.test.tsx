@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router';
 import { describe, expect, it, vi } from 'vitest';
 import { useStaffAuth } from '../../contexts/StaffAuthContext';
@@ -16,7 +16,7 @@ function ProtectedStub() {
   return <p>Protected content</p>;
 }
 
-function renderGuarded(initialPath: string, roles?: Array<'admin' | 'hr' | 'mps' | 'finance' | 'management'>) {
+function renderGuarded(initialPath: string, permission?: string) {
   return render(
     <MemoryRouter initialEntries={[initialPath]}>
       <Routes>
@@ -25,7 +25,7 @@ function renderGuarded(initialPath: string, roles?: Array<'admin' | 'hr' | 'mps'
         <Route
           path="/admin/users"
           element={
-            <RequireStaffAuth roles={roles}>
+            <RequireStaffAuth permission={permission}>
               <ProtectedStub />
             </RequireStaffAuth>
           }
@@ -37,35 +37,51 @@ function renderGuarded(initialPath: string, roles?: Array<'admin' | 'hr' | 'mps'
 
 describe('RequireStaffAuth', () => {
   it('shows a loading state instead of protected content while the session is restoring', () => {
-    vi.mocked(useStaffAuth).mockReturnValue({ status: 'restoring', session: null } as never);
+    vi.mocked(useStaffAuth).mockReturnValue({ status: 'restoring', hasPermission: vi.fn() } as never);
     renderGuarded('/admin/users');
     expect(screen.queryByText('Protected content')).not.toBeInTheDocument();
     expect(screen.getByRole('status')).toBeInTheDocument();
   });
 
   it('redirects to /admin/login instead of rendering protected content when unauthenticated', () => {
-    vi.mocked(useStaffAuth).mockReturnValue({ status: 'unauthenticated', session: null } as never);
+    vi.mocked(useStaffAuth).mockReturnValue({ status: 'unauthenticated', hasPermission: vi.fn() } as never);
     renderGuarded('/admin/users');
     expect(screen.getByText('Sign-in screen')).toBeInTheDocument();
     expect(screen.queryByText('Protected content')).not.toBeInTheDocument();
   });
 
-  it('renders protected content once authenticated, when no role restriction is required', () => {
-    vi.mocked(useStaffAuth).mockReturnValue({ status: 'authenticated', session: { role: 'hr' } } as never);
+  it('renders protected content once authenticated, when no permission is required', () => {
+    vi.mocked(useStaffAuth).mockReturnValue({ status: 'authenticated', hasPermission: vi.fn(() => false) } as never);
     renderGuarded('/admin/users');
     expect(screen.getByText('Protected content')).toBeInTheDocument();
   });
 
-  it('redirects to /admin/forbidden -- not just hides the content -- when authenticated but the role is not allowed', () => {
-    vi.mocked(useStaffAuth).mockReturnValue({ status: 'authenticated', session: { role: 'hr' } } as never);
-    renderGuarded('/admin/users', ['admin']);
+  it('redirects to /admin/forbidden -- not just hides the content -- when authenticated but lacking the required permission', () => {
+    vi.mocked(useStaffAuth).mockReturnValue({ status: 'authenticated', hasPermission: vi.fn(() => false) } as never);
+    renderGuarded('/admin/users', 'manage_staff_users');
     expect(screen.getByText('Forbidden screen')).toBeInTheDocument();
     expect(screen.queryByText('Protected content')).not.toBeInTheDocument();
   });
 
-  it('renders protected content when authenticated and holding an allowed role', () => {
-    vi.mocked(useStaffAuth).mockReturnValue({ status: 'authenticated', session: { role: 'admin' } } as never);
-    renderGuarded('/admin/users', ['admin']);
+  it('renders protected content when authenticated and holding the required permission', () => {
+    vi.mocked(useStaffAuth).mockReturnValue({ status: 'authenticated', hasPermission: vi.fn(() => true) } as never);
+    renderGuarded('/admin/users', 'manage_staff_users');
     expect(screen.getByText('Protected content')).toBeInTheDocument();
+  });
+
+  it('shows a retry affordance instead of redirecting to sign-in when restoration could not confirm a session either way (offline)', () => {
+    const retryRestore = vi.fn();
+    vi.mocked(useStaffAuth).mockReturnValue({
+      status: 'restore-error',
+      hasPermission: vi.fn(),
+      retryRestore,
+    } as never);
+    renderGuarded('/admin/users');
+
+    expect(screen.queryByText('Sign-in screen')).not.toBeInTheDocument();
+    expect(screen.queryByText('Protected content')).not.toBeInTheDocument();
+    const retryButton = screen.getByRole('button', { name: 'retry' });
+    fireEvent.click(retryButton);
+    expect(retryRestore).toHaveBeenCalledTimes(1);
   });
 });

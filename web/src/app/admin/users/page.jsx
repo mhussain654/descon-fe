@@ -55,7 +55,7 @@ function describeStaffAdminError(error, t) {
 export default function StaffUsersPage() {
   return (
     <StaffShell>
-      <RequireStaffAuth roles={["admin"]}>
+      <RequireStaffAuth permission="manage_staff_users">
         <StaffUsersContent />
       </RequireStaffAuth>
     </StaffShell>
