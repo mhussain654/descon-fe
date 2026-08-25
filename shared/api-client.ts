@@ -50,6 +50,8 @@ export interface ApiError {
   errors?: ApiErrorItem[];
   /** Rails request id, for support/debugging correlation. */
   requestId?: string;
+  /** Seconds to wait before retrying, parsed from a `Retry-After` response header (seconds form) when present -- set on rate-limited (429) responses. */
+  retryAfterSeconds?: number;
   /** Raw server payload or original error, for logging only -- never render directly. */
   details?: unknown;
 }
@@ -105,6 +107,10 @@ async function toResponseError(response: Response): Promise<ApiError> {
     // Body wasn't JSON (or was empty) -- fall through with no envelope data.
   }
 
+  const retryAfterHeader = response.headers.get('Retry-After');
+  const retryAfterSeconds =
+    retryAfterHeader && !Number.isNaN(Number(retryAfterHeader)) ? Number(retryAfterHeader) : undefined;
+
   if (isErrorEnvelope(body)) {
     const [first] = body.errors;
     return {
@@ -115,11 +121,12 @@ async function toResponseError(response: Response): Promise<ApiError> {
       field: first?.field,
       errors: body.errors,
       requestId: body.request_id,
+      retryAfterSeconds,
       details: body,
     };
   }
 
-  return { status: response.status, code, details: body };
+  return { status: response.status, code, retryAfterSeconds, details: body };
 }
 
 async function parseJsonBody<T>(response: Response): Promise<T | undefined> {

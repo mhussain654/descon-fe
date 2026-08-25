@@ -18,6 +18,7 @@ export const AUTH_ERROR_KEYS: Record<AuthErrorCode, string> = {
   // Handled as a dedicated state (see authOtpMaxAttemptsTitle/Description) rather than an inline field error, but a translation key still exists for consistency/fallback use.
   OTP_MAX_ATTEMPTS: 'authOtpMaxAttemptsTitle',
   RESEND_COOLDOWN: 'authResendAvailableInPrefix',
+  RATE_LIMITED: 'authRateLimitedError',
   CHALLENGE_NOT_FOUND: 'dsSessionExpiredTitle',
   SESSION_EXPIRED: 'dsSessionExpiredTitle',
   OFFLINE: 'dsOfflineTitle',

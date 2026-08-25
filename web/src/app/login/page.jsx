@@ -29,6 +29,7 @@ export default function LoginPage() {
     cnicError,
     isSubmittingCnic,
     challenge,
+    issuedAt,
     otp,
     otpError,
     isSubmittingOtp,
@@ -56,7 +57,7 @@ export default function LoginPage() {
     }
     // Only re-fire when a *new* challenge is issued (initial send or resend), not on every render.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [challenge?.challengeId]);
+  }, [issuedAt]);
 
   const isExpired = otpError?.code === "OTP_EXPIRED" || secondsUntilExpiry === 0;
   const isLockedOut = otpError?.code === "OTP_MAX_ATTEMPTS";

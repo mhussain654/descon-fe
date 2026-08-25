@@ -48,6 +48,7 @@ export const translations = {
     authChangeCnic: 'Change CNIC',
     authOtpSentToastMessage: 'Code sent',
     authServiceUnavailableError: 'Sign-in is not available right now. Please try again later.',
+    authRateLimitedError: 'Too many attempts. Please wait a moment before trying again.',
     authSessionPersistError: "We couldn't securely save your session. Please try again.",
     companyFooter: 'Descon Engineering Limited',
 
@@ -323,6 +324,7 @@ export const translations = {
     authChangeCnic: 'شناختی کارڈ تبدیل کریں',
     authOtpSentToastMessage: 'کوڈ بھیج دیا گیا',
     authServiceUnavailableError: 'ابھی سائن ان دستیاب نہیں ہے۔ براہ کرم بعد میں دوبارہ کوشش کریں۔',
+    authRateLimitedError: 'بہت زیادہ کوششیں۔ براہ کرم دوبارہ کوشش کرنے سے پہلے تھوڑا انتظار کریں۔',
     authSessionPersistError: 'ہم آپ کا سیشن محفوظ طریقے سے محفوظ نہیں کر سکے۔ براہ کرم دوبارہ کوشش کریں۔',
     companyFooter: 'ڈیسکون انجینئرنگ لمیٹڈ',
 

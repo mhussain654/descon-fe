@@ -9,7 +9,6 @@ import {
 import type { OtpChallenge } from './types';
 
 const challenge: OtpChallenge = {
-  challengeId: 'challenge-1',
   expiresInSeconds: 120,
   resendAfterSeconds: 30,
   maskedDestination: '••• ••• ••34',
@@ -99,7 +98,7 @@ describe('cnicOtpReducer', () => {
 
     it('replaces the challenge and resets the OTP value on a successful resend', () => {
       let state = otpStepState();
-      const nextChallenge: OtpChallenge = { ...challenge, challengeId: 'challenge-2' };
+      const nextChallenge: OtpChallenge = { ...challenge, expiresInSeconds: 90 };
       state = cnicOtpReducer(state, { type: 'RESEND_SUCCEEDED', challenge: nextChallenge, now: 5000 });
       expect(state.challenge).toEqual(nextChallenge);
       expect(state.issuedAt).toBe(5000);

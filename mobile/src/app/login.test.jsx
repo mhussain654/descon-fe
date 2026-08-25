@@ -33,6 +33,30 @@ jest.mock('@react-native-community/netinfo', () => ({
   addEventListener: jest.fn(() => () => {}),
 }));
 
+// auth-client.ts now calls the real MPS-201 backend (MPS-206) -- these
+// screen tests exercise the UI flow, not networking, so fetch is mocked at
+// the boundary rather than left to hit a real (absent, in Jest) server.
+// Per AGENTS.md: "Mock the centralized API boundary ... Do not call live
+// backend or provider services from unit/component tests."
+const originalFetch = globalThis.fetch;
+beforeEach(() => {
+  globalThis.fetch = jest.fn((url) => {
+    if (typeof url === 'string' && url.includes('/candidate/auth/otp/request')) {
+      return Promise.resolve(
+        new Response(JSON.stringify({ expires_in_seconds: 300, resend_after_seconds: 60 }), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        })
+      );
+    }
+    return Promise.reject(new Error(`login.test.jsx: unexpected fetch to ${url}`));
+  });
+});
+
+afterEach(() => {
+  globalThis.fetch = originalFetch;
+});
+
 function renderLoginScreen() {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return render(

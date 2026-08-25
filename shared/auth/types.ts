@@ -1,14 +1,14 @@
-// Candidate authentication contract (MPS-F201), shared by web and mobile.
+// Candidate authentication contract (MPS-F201, wired to the real MPS-201/
+// MPS-206 backend), shared by web and mobile.
 //
-// The real candidate authentication API (MPS-201) does not exist yet, and
-// this ticket explicitly says not to permanently invent endpoint names or
-// response shapes. So this file defines only the *behavioral* contract --
-// what a candidate auth client can do and what it returns -- not any HTTP
-// path or wire format. `candidateAuthClient.ts`'s mock implementation is a
-// pure in-memory simulator behind that same contract; a future real
-// implementation (calling whatever MPS-201 actually defines, via
-// shared/api-client.ts like every other feature) can replace it without any
-// screen or hook changing.
+// The real API (see descon-be openapi.yaml's /api/v1/candidate/auth/otp/*)
+// has no separate "resend" endpoint and no server-issued challenge id --
+// request and verify both re-key off the CNIC itself, with the OTP challenge
+// state tracked entirely server-side. `resendOtp`/`verifyOtp` therefore take
+// `cnic`, not an opaque challenge handle. This file defines the *behavioral*
+// contract a candidate auth client implements; `candidateAuthClient.ts` is
+// the in-memory mock (dev/test only) and `realCandidateAuthClient.ts` is the
+// real implementation calling shared/api-client.ts.
 
 /**
  * Stable, non-enumerating failure buckets for the candidate auth flow. UI
@@ -22,7 +22,8 @@ export type AuthErrorCode =
   | 'OTP_EXPIRED'
   | 'OTP_MAX_ATTEMPTS'
   | 'RESEND_COOLDOWN'
-  | 'CHALLENGE_NOT_FOUND'
+  | 'CHALLENGE_NOT_FOUND' // mock-only: verify/resend called for a CNIC that never requested a challenge -- the real backend folds this into OTP_INVALID (see VerifyService's missing_challenge? path), so this code is unreachable through the real client
+  | 'RATE_LIMITED' // server-enforced 429 (per-IP or per-CNIC throttle), distinct from the client-computed RESEND_COOLDOWN
   | 'SESSION_EXPIRED'
   | 'NETWORK_ERROR'
   | 'OFFLINE'
@@ -34,7 +35,7 @@ export const OTP_LENGTH = 6;
 
 export interface AuthError {
   code: AuthErrorCode;
-  /** Only set for RESEND_COOLDOWN, so the UI can show an accurate countdown instead of a fixed guess. */
+  /** Set for RESEND_COOLDOWN and RATE_LIMITED, so the UI can show an accurate countdown instead of a fixed guess. */
   retryAfterSeconds?: number;
 }
 
@@ -45,16 +46,18 @@ export interface AuthError {
  * timing rules the source of truth").
  */
 export interface OtpChallenge {
-  challengeId: string;
   expiresInSeconds: number;
   resendAfterSeconds: number;
-  /** Server-masked destination text (e.g. "•••-•••••••-4"), when the backend chooses to send one. Never computed client-side from a real number. */
+  /** Server-masked destination text (e.g. "•••-•••••••-4"), when the backend chooses to send one. Never computed client-side from a real number. The real backend does not currently send one -- this stays optional so the UI's existing rendering (already `challenge?.maskedDestination`-guarded) needs no change if that's added later. */
   maskedDestination?: string;
 }
 
 export interface AuthSession {
   accessToken: string;
+  refreshToken: string;
   candidateId: string;
+  candidateName: string;
+  preferredLocale: 'en' | 'ur';
   /** ISO 8601 timestamp. */
   expiresAt: string;
 }
@@ -68,6 +71,7 @@ export interface AuthSession {
 export interface CandidateAuthClient {
   /** Always succeeds with a challenge for any well-formed CNIC -- existence is never disclosed by branching here. */
   requestOtp(cnic: string): Promise<OtpChallenge>;
-  resendOtp(challengeId: string): Promise<OtpChallenge>;
-  verifyOtp(challengeId: string, code: string): Promise<AuthSession>;
+  /** Identical to requestOtp on the real backend -- there is no separate resend endpoint, a repeat request just re-delivers within the same cooldown window. Kept as a distinct method so the UI's intent ("the candidate asked to resend") stays explicit and independently testable. */
+  resendOtp(cnic: string): Promise<OtpChallenge>;
+  verifyOtp(cnic: string, code: string): Promise<AuthSession>;
 }

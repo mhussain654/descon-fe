@@ -47,6 +47,7 @@ export default function LoginScreen() {
     cnicError,
     isSubmittingCnic,
     challenge,
+    issuedAt,
     otp,
     otpError,
     isSubmittingOtp,
@@ -73,7 +74,7 @@ export default function LoginScreen() {
       toast.success(t("authOtpSentToastMessage"));
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [challenge?.challengeId]);
+  }, [issuedAt]);
 
   const isExpired = otpError?.code === "OTP_EXPIRED" || secondsUntilExpiry === 0;
   const isLockedOut = otpError?.code === "OTP_MAX_ATTEMPTS";

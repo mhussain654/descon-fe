@@ -48,7 +48,10 @@ function Probe() {
         onPress={() =>
           login({
             accessToken: 'token',
+            refreshToken: 'refresh',
             candidateId: 'candidate_1',
+            candidateName: 'Ahmed Ali',
+            preferredLocale: 'en',
             expiresAt: new Date(Date.now() + 60_000).toISOString(),
           }).catch(() => {})
         }
@@ -60,7 +63,10 @@ function Probe() {
         onPress={() =>
           login({
             accessToken: 'token',
+            refreshToken: 'refresh',
             candidateId: 'candidate_short',
+            candidateName: 'Ahmed Ali',
+            preferredLocale: 'en',
             expiresAt: new Date(Date.now() + 1000).toISOString(),
           }).catch(() => {})
         }
@@ -202,7 +208,14 @@ describe('AuthProvider', () => {
   it('deletes and ignores a persisted session that has already expired instead of restoring it', async () => {
     jest.requireMock('expo-secure-store').__setRaw(
       'descon.candidateSession',
-      JSON.stringify({ accessToken: 'x', candidateId: 'y', expiresAt: new Date(Date.now() - 1000).toISOString() })
+      JSON.stringify({
+        accessToken: 'x',
+        refreshToken: 'y',
+        candidateId: 'y',
+        candidateName: 'Ahmed Ali',
+        preferredLocale: 'en',
+        expiresAt: new Date(Date.now() - 1000).toISOString(),
+      })
     );
     renderWithProviders(<Probe />);
     await screen.findByText('unauthenticated');

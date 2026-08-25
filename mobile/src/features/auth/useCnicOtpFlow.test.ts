@@ -4,6 +4,7 @@
 // lives once in shared/, only the render harness differs per platform.
 import { act, renderHook, waitFor } from '@testing-library/react-native';
 import { createMockCandidateAuthClient, MOCK_VALID_OTP } from '../../../../shared/auth/candidateAuthClient';
+import type { AuthSession } from '../../../../shared/auth/types';
 import { useCnicOtpFlow } from '../../../../shared/auth/useCnicOtpFlow';
 
 const CNIC = '1234512345671';
@@ -138,5 +139,47 @@ describe('useCnicOtpFlow', () => {
     expect(result.current.step).toBe('cnic');
     expect(result.current.cnic).toBe(CNIC);
     expect(result.current.challenge).toBeNull();
+  });
+
+  it('ignores a stale verifyOtp response that resolves after the candidate has already gone back to CNIC entry', async () => {
+    let resolveVerify: (value: AuthSession) => void;
+    const client = createMockCandidateAuthClient({ delayMs: 0 });
+    const realVerify = client.verifyOtp.bind(client);
+    client.verifyOtp = jest.fn(
+      () =>
+        new Promise((resolve) => {
+          resolveVerify = resolve;
+        })
+    ) as typeof client.verifyOtp;
+    const onAuthenticated = jest.fn();
+    const { result } = renderHook(() => useCnicOtpFlow({ client, onAuthenticated }));
+
+    act(() => result.current.setCnic(CNIC));
+    await act(async () => {
+      await result.current.submitCnic();
+    });
+    act(() => result.current.setOtp(MOCK_VALID_OTP));
+
+    let submitPromise: Promise<void>;
+    act(() => {
+      submitPromise = result.current.submitOtp();
+    });
+    expect(result.current.isSubmittingOtp).toBe(true);
+
+    // The candidate navigates back before the (still in-flight) verify
+    // resolves -- this must invalidate that in-flight request.
+    act(() => result.current.backToCnic());
+    expect(result.current.step).toBe('cnic');
+
+    const staleSession = await realVerify(CNIC, MOCK_VALID_OTP);
+    await act(async () => {
+      resolveVerify(staleSession);
+      await submitPromise;
+    });
+
+    // The stale response must not have re-authenticated or moved the
+    // screen back to the OTP step.
+    expect(onAuthenticated).not.toHaveBeenCalled();
+    expect(result.current.step).toBe('cnic');
   });
 });

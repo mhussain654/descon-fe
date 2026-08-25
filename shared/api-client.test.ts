@@ -91,6 +91,31 @@ describe('api-client', () => {
     });
   });
 
+  it('parses retryAfterSeconds from a Retry-After header on a 429 response', async () => {
+    stubFetch(async () =>
+      jsonResponse(errorEnvelope([{ code: 'rate_limited', message: 'Too many requests' }]), {
+        status: 429,
+        headers: { 'Content-Type': 'application/json', 'Retry-After': '30' },
+      })
+    );
+    const client = createApiClient({ baseUrl: 'http://example.test' });
+    await expect(client.post('/candidate/auth/otp/request', {})).rejects.toMatchObject({
+      status: 429,
+      serverCode: 'rate_limited',
+      retryAfterSeconds: 30,
+    });
+  });
+
+  it('leaves retryAfterSeconds undefined when no Retry-After header is present', async () => {
+    stubFetch(async () =>
+      jsonResponse(errorEnvelope([{ code: 'candidate_not_found', message: 'Candidate not found' }]), {
+        status: 404,
+      })
+    );
+    const client = createApiClient({ baseUrl: 'http://example.test' });
+    await expect(client.get('/candidates/999')).rejects.toMatchObject({ retryAfterSeconds: undefined });
+  });
+
   it('classifies 5xx responses as HTTP_5XX without inventing an English message', async () => {
     stubFetch(
       async () => new Response('Internal Server Error', { status: 500, statusText: 'Internal Server Error' })

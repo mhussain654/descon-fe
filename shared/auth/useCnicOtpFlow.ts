@@ -2,7 +2,7 @@
 // React + `setInterval`/`clearInterval` only -- no DOM, no React Native API
 // -- so both web and mobile screens import this exact file directly rather
 // than each re-implementing the same orchestration.
-import { useCallback, useEffect, useReducer } from 'react';
+import { useCallback, useEffect, useReducer, useRef } from 'react';
 import { isValidCnic, toCnicDigits } from '../cnic';
 import {
   type CnicOtpState,
@@ -46,6 +46,19 @@ export interface UseCnicOtpFlowResult extends CnicOtpState {
 export function useCnicOtpFlow({ client, onAuthenticated }: UseCnicOtpFlowOptions): UseCnicOtpFlowResult {
   const [state, dispatch] = useReducer(cnicOtpReducer, undefined, () => createInitialCnicOtpState());
 
+  // Guards against a stale in-flight request (e.g. a slow resend still
+  // pending when the candidate has already gone back to CNIC entry, or a
+  // rapid double-submit) from applying its result to a screen it no longer
+  // corresponds to. Every mutating action captures the *current* generation
+  // before awaiting the network call and checks it's still current before
+  // dispatching -- `backToCnic` (and unmount) bump it, invalidating anything
+  // still in flight (AGENTS.md: "Cancel or ignore stale requests where
+  // navigation ... can cause races").
+  const generationRef = useRef(0);
+  useEffect(() => () => {
+    generationRef.current += 1;
+  }, []);
+
   // Keeps the expiry/resend countdowns live while an OTP challenge is outstanding.
   useEffect(() => {
     if (state.step !== 'otp') return undefined;
@@ -69,11 +82,14 @@ export function useCnicOtpFlow({ client, onAuthenticated }: UseCnicOtpFlowOption
       return;
     }
 
+    const generation = generationRef.current;
     dispatch({ type: 'CNIC_SUBMIT_STARTED' });
     try {
       const challenge = await client.requestOtp(state.cnic);
+      if (generationRef.current !== generation) return;
       dispatch({ type: 'CNIC_SUBMIT_SUCCEEDED', challenge, now: Date.now() });
     } catch (error) {
+      if (generationRef.current !== generation) return;
       dispatch({ type: 'CNIC_SUBMIT_FAILED', error: toAuthError(error) });
     }
   }, [client, state.cnic, state.isSubmittingCnic]);
@@ -87,30 +103,37 @@ export function useCnicOtpFlow({ client, onAuthenticated }: UseCnicOtpFlowOption
       const code = codeOverride ?? state.otp;
       if (state.isSubmittingOtp || !state.challenge || code.length !== OTP_LENGTH) return;
 
+      const generation = generationRef.current;
       dispatch({ type: 'OTP_SUBMIT_STARTED' });
       try {
-        const session = await client.verifyOtp(state.challenge.challengeId, code);
+        const session = await client.verifyOtp(state.cnic, code);
+        if (generationRef.current !== generation) return;
         await onAuthenticated(session);
       } catch (error) {
+        if (generationRef.current !== generation) return;
         dispatch({ type: 'OTP_SUBMIT_FAILED', error: toAuthError(error) });
       }
     },
-    [client, onAuthenticated, state.challenge, state.isSubmittingOtp, state.otp]
+    [client, onAuthenticated, state.challenge, state.cnic, state.isSubmittingOtp, state.otp]
   );
 
   const resendOtp = useCallback(async () => {
     if (state.isResending || !state.challenge) return;
 
+    const generation = generationRef.current;
     dispatch({ type: 'RESEND_STARTED' });
     try {
-      const challenge = await client.resendOtp(state.challenge.challengeId);
+      const challenge = await client.resendOtp(state.cnic);
+      if (generationRef.current !== generation) return;
       dispatch({ type: 'RESEND_SUCCEEDED', challenge, now: Date.now() });
     } catch (error) {
+      if (generationRef.current !== generation) return;
       dispatch({ type: 'RESEND_FAILED', error: toAuthError(error) });
     }
-  }, [client, state.challenge, state.isResending]);
+  }, [client, state.challenge, state.cnic, state.isResending]);
 
   const backToCnic = useCallback(() => {
+    generationRef.current += 1;
     dispatch({ type: 'BACK_TO_CNIC' });
   }, []);
 
