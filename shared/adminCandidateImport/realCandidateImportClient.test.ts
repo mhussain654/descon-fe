@@ -151,7 +151,7 @@ describe('createCandidateImportClient (real)', () => {
     });
   });
 
-  (hasFile ? it : it.skip)('maps a 403 to FORBIDDEN', async () => {
+  (hasFile ? it : it.skip)('maps an ordinary permission-denied 403 to FORBIDDEN', async () => {
     stubFetch(async () =>
       jsonResponse(errorEnvelope([{ code: 'forbidden', message: 'Not permitted.' }]), { status: 403 })
     );
@@ -159,6 +159,19 @@ describe('createCandidateImportClient (real)', () => {
     const { client } = buildClient();
     await expect(client.importCandidates(new File(['x'], 'candidates.csv'))).rejects.toMatchObject({
       code: 'FORBIDDEN',
+    });
+  });
+
+  (hasFile ? it : it.skip)('maps a 403 with serverCode inactive_account to INACTIVE_ACCOUNT, distinct from an ordinary FORBIDDEN', async () => {
+    stubFetch(async () =>
+      jsonResponse(errorEnvelope([{ code: 'inactive_account', message: 'This account is inactive.' }]), {
+        status: 403,
+      })
+    );
+
+    const { client } = buildClient();
+    await expect(client.importCandidates(new File(['x'], 'candidates.csv'))).rejects.toMatchObject({
+      code: 'INACTIVE_ACCOUNT',
     });
   });
 

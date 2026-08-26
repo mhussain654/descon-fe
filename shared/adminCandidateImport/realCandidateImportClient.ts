@@ -76,8 +76,17 @@ function toImportError(error: unknown): CandidateImportError {
   if (apiError.code === 'NETWORK_ERROR' || apiError.code === 'TIMEOUT') return { code: 'NETWORK_ERROR' };
   if (apiError.code === 'CANCELLED') return { code: 'UNKNOWN' };
 
+  // A 403 needs its serverCode to distinguish "lacks the permission"
+  // (FORBIDDEN) from "the account itself was deactivated" (INACTIVE_ACCOUNT)
+  // -- the two demand different UI responses (a permission message vs.
+  // ending the session), so this can't fold into the generic status map
+  // below.
+  if (apiError.status === 403) {
+    const code: CandidateImportErrorCode = apiError.serverCode === 'inactive_account' ? 'INACTIVE_ACCOUNT' : 'FORBIDDEN';
+    return { code, message: apiError.message };
+  }
+
   const codeByStatus: Partial<Record<number, CandidateImportErrorCode>> = {
-    403: 'FORBIDDEN',
     409: 'CONFLICT',
     422: 'INVALID_FILE',
     429: 'RATE_LIMITED',

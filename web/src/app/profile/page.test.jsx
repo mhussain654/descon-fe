@@ -104,7 +104,21 @@ describe("ProfilePage", () => {
     candidateProfileClient.getProfile.mockResolvedValue(profilePayload({ currentWorkflowStage: null }));
     await signInAndNavigateToProfile();
 
-    expect(await screen.findByText("Not yet assigned")).toBeInTheDocument();
+    expect(await screen.findByText("Not assigned yet")).toBeInTheDocument();
+  });
+
+  it("shows the empty-assignment label for both reference number and workflow stage when the candidate has no assignment yet", async () => {
+    candidateProfileClient.getProfile.mockResolvedValue(
+      profilePayload({ referenceNumber: null, currentWorkflowStage: null })
+    );
+    await signInAndNavigateToProfile();
+
+    await screen.findByText("Ahmed Ali");
+    const notAssignedYet = screen.getAllByText("Not assigned yet");
+    // One for the reference-number row, one for the workflow-stage row, plus
+    // the header line under the candidate's name -- three in total.
+    expect(notAssignedYet).toHaveLength(3);
+    expect(screen.queryByText("DES-001001")).not.toBeInTheDocument();
   });
 
   it("shows a session-expired state and returns to sign-in on the confirming action, ending the session", async () => {

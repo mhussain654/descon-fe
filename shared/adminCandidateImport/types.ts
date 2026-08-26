@@ -27,8 +27,10 @@ export interface CandidateImportResult {
 export type CandidateImportErrorCode =
   /** 422 -- request/file-level rejection only (missing file, wrong type/size, unreadable CSV, missing required headers). Never covers row content -- see CandidateImportResult. */
   | 'INVALID_FILE'
-  /** 403 -- authenticated staff lacks `manage_candidates` or the account is inactive. */
+  /** 403 -- authenticated staff lacks `manage_candidates`. Does not cover an inactive account -- see `INACTIVE_ACCOUNT`. */
   | 'FORBIDDEN'
+  /** 403 with `serverCode === 'inactive_account'` -- the signed-in staff member's own account was deactivated after the session was issued. Distinct from `FORBIDDEN` because the correct response is ending the local session, not just showing a permission error (a deactivated account's session/refresh token must not keep working). */
+  | 'INACTIVE_ACCOUNT'
   | 'SESSION_EXPIRED'
   /** 409 -- an identical idempotent request is already processing, or the same Idempotency-Key was reused with a different file. */
   | 'CONFLICT'

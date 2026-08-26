@@ -79,10 +79,15 @@ export function CandidateProfileView({
 
   // `isIdentifier` rows render with a forced LTR writing direction -- see
   // web/src/features/candidate/profile/components/CandidateProfileView.tsx's
-  // identical comment (same underlying bidi behavior applies on RN).
+  // identical comment (same underlying bidi behavior applies on RN). Only
+  // applied when there's a real value -- the "not assigned yet" fallback is
+  // ordinary prose and must follow the page's normal writing direction.
+  const notAssignedYet = t('candidateProfileNotAssignedYet');
   const infoRows: Array<{ labelKey: TranslationKey; value: string; isIdentifier?: boolean }> = [
     { labelKey: 'candidateProfileMaskedCnicLabel', value: profile.maskedCnic, isIdentifier: true },
-    { labelKey: 'candidateProfileReferenceNumberLabel', value: profile.referenceNumber, isIdentifier: true },
+    profile.referenceNumber
+      ? { labelKey: 'candidateProfileReferenceNumberLabel', value: profile.referenceNumber, isIdentifier: true }
+      : { labelKey: 'candidateProfileReferenceNumberLabel', value: notAssignedYet },
     {
       labelKey: 'candidateProfilePreferredLocaleLabel',
       value: profile.preferredLocale === 'ur' ? t('urduLabel') : t('englishLabel'),
@@ -90,7 +95,7 @@ export function CandidateProfileView({
     { labelKey: 'candidateProfileStatusLabel', value: humanizeStatusCode(profile.candidateStatus) },
     {
       labelKey: 'candidateProfileWorkflowStageLabel',
-      value: profile.currentWorkflowStage?.name ?? t('candidateProfileNoWorkflowStage'),
+      value: profile.currentWorkflowStage?.name ?? notAssignedYet,
     },
   ];
 
@@ -101,7 +106,7 @@ export function CandidateProfileView({
           <Text style={styles.avatarInitial}>{profile.fullName.charAt(0)}</Text>
         </View>
         <Text style={styles.name}>{profile.fullName}</Text>
-        <Text style={styles.referenceNumber}>{profile.referenceNumber}</Text>
+        <Text style={styles.referenceNumber}>{profile.referenceNumber ?? notAssignedYet}</Text>
       </Card>
 
       <Card style={styles.infoCard}>

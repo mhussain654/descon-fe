@@ -85,10 +85,15 @@ export function CandidateProfileView({
   // bidi algorithm reverses its visual digit order under Urdu's RTL layout
   // -- same reason CnicField.tsx forces `dir: 'ltr'` on the *input* version
   // of a CNIC. The reference number is defensively marked the same way even
-  // though its leading letters already anchor it as LTR today.
+  // though its leading letters already anchor it as LTR today -- but only
+  // when it has a real value; the "not assigned yet" fallback is ordinary
+  // prose and must follow the page's normal direction, not force-LTR.
+  const notAssignedYet = t('candidateProfileNotAssignedYet');
   const infoRows: Array<{ labelKey: TranslationKey; value: string; isIdentifier?: boolean }> = [
     { labelKey: 'candidateProfileMaskedCnicLabel', value: profile.maskedCnic, isIdentifier: true },
-    { labelKey: 'candidateProfileReferenceNumberLabel', value: profile.referenceNumber, isIdentifier: true },
+    profile.referenceNumber
+      ? { labelKey: 'candidateProfileReferenceNumberLabel', value: profile.referenceNumber, isIdentifier: true }
+      : { labelKey: 'candidateProfileReferenceNumberLabel', value: notAssignedYet },
     {
       labelKey: 'candidateProfilePreferredLocaleLabel',
       value: profile.preferredLocale === 'ur' ? t('urduLabel') : t('englishLabel'),
@@ -96,7 +101,7 @@ export function CandidateProfileView({
     { labelKey: 'candidateProfileStatusLabel', value: humanizeStatusCode(profile.candidateStatus) },
     {
       labelKey: 'candidateProfileWorkflowStageLabel',
-      value: profile.currentWorkflowStage?.name ?? t('candidateProfileNoWorkflowStage'),
+      value: profile.currentWorkflowStage?.name ?? notAssignedYet,
     },
   ];
 
@@ -107,7 +112,7 @@ export function CandidateProfileView({
           {profile.fullName.charAt(0)}
         </div>
         <div className="text-xl font-semibold text-text-primary">{profile.fullName}</div>
-        <div className="mt-1 text-sm text-text-secondary">{profile.referenceNumber}</div>
+        <div className="mt-1 text-sm text-text-secondary">{profile.referenceNumber ?? notAssignedYet}</div>
       </Card>
 
       <Card className="mb-5">

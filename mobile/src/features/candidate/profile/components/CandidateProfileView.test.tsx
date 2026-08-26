@@ -83,7 +83,25 @@ describe('CandidateProfileView', () => {
       />
     );
 
-    expect(screen.getByText('Not yet assigned')).toBeTruthy();
+    expect(screen.getByText('Not assigned yet')).toBeTruthy();
+  });
+
+  it('shows the empty-assignment label for both reference number and workflow stage when the candidate has no assignment yet', () => {
+    render(
+      <CandidateProfileView
+        isLoading={false}
+        error={null}
+        profile={profile({ referenceNumber: null, currentWorkflowStage: null })}
+        t={tFor('en')}
+        onRetry={() => {}}
+        onReturnToSignIn={() => {}}
+      />
+    );
+
+    // One for the header line under the candidate's name, one for the
+    // reference-number row, one for the workflow-stage row.
+    expect(screen.getAllByText('Not assigned yet')).toHaveLength(3);
+    expect(screen.queryByText('DES-001001')).toBeNull();
   });
 
   it('shows a session-expired state and calls onReturnToSignIn from its action', () => {

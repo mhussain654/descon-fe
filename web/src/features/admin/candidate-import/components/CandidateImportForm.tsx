@@ -45,10 +45,19 @@ export function CandidateImportForm() {
   // (refresh already failed) -- end it locally so RequireStaffAuth's
   // existing redirect-to-login takes over, rather than leaving the staff
   // member stuck on a screen whose every retry will keep failing the same
-  // way.
+  // way. An INACTIVE_ACCOUNT 403 gets the same treatment: the backend
+  // deactivated this staff member's account, so their local session and
+  // refresh token must not keep working even though the token itself is
+  // still technically valid -- ending the session here is what actually
+  // revokes access, not merely showing a permission message. `signOut`
+  // reuses 'manual' rather than 'expired' since the account was
+  // deactivated, not merely timed out -- the login page's "session
+  // expired" toast would otherwise misdescribe why they were signed out.
   useEffect(() => {
     if (mutation.error?.code === 'SESSION_EXPIRED') {
       signOut('expired');
+    } else if (mutation.error?.code === 'INACTIVE_ACCOUNT') {
+      signOut('manual');
     }
   }, [mutation.error, signOut]);
 
@@ -120,7 +129,7 @@ function CandidateImportErrorPanel({
   t: (key: TranslationKey) => string;
   onRetry: () => void;
 }) {
-  if (error.code === 'SESSION_EXPIRED') {
+  if (error.code === 'SESSION_EXPIRED' || error.code === 'INACTIVE_ACCOUNT') {
     // signOut() (triggered above) hands off to RequireStaffAuth's own
     // redirect on the next render -- nothing to render here in the meantime.
     return null;

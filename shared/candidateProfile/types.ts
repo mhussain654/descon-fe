@@ -17,7 +17,8 @@ export interface CandidateProfile {
   fullName: string;
   /** Already masked server-side (e.g. "42101-*******-1") -- never the full CNIC. */
   maskedCnic: string;
-  referenceNumber: string;
+  /** Null when the candidate has no assignment yet (same condition as `currentWorkflowStage` being null -- both come from the same, not-yet-created CandidateAssignment). */
+  referenceNumber: string | null;
   preferredLocale: 'en' | 'ur';
   /** A backend status code (e.g. "registered") -- map to a localized label at render time, never render the raw code (AGENTS.md: "Do not translate identifiers ... directly"). */
   candidateStatus: string;

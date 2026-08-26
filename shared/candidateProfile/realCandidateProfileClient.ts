@@ -13,7 +13,7 @@ interface CandidateProfileResponse {
   id: string;
   full_name: string;
   masked_cnic: string;
-  reference_number: string;
+  reference_number: string | null;
   preferred_locale: 'en' | 'ur';
   candidate_status: string;
   current_workflow_stage: { code: string; name: string } | null;

@@ -38,6 +38,22 @@ async function renderForm() {
   );
 }
 
+/** Like renderForm, but also returns the signed-in client so a test can spy on/assert its signOut(). */
+async function renderFormWithClient() {
+  const client = await signedInClient();
+  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  const result = render(
+    <QueryClientProvider client={queryClient}>
+      <LanguageProvider>
+        <StaffAuthProvider client={client}>
+          <CandidateImportForm />
+        </StaffAuthProvider>
+      </LanguageProvider>
+    </QueryClientProvider>
+  );
+  return { ...result, client };
+}
+
 function csvFile(name = 'candidates.csv', sizeBytes = 100, type = 'text/csv') {
   return new File([new Uint8Array(sizeBytes)], name, { type });
 }
@@ -166,6 +182,40 @@ describe('CandidateImportForm', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Choose a different file' }));
     expect(screen.queryByText('Import complete')).not.toBeInTheDocument();
     expect(screen.getByText('No file chosen')).toBeInTheDocument();
+  });
+
+  it('handles an ordinary permission-denied 403 by showing a forbidden message, without signing the user out', async () => {
+    candidateImportClient.importCandidates.mockRejectedValue({ code: 'FORBIDDEN' });
+    const { client } = await renderFormWithClient();
+    const signOutSpy = vi.spyOn(client, 'signOut');
+    chooseFile(csvFile());
+    fireEvent.click(screen.getByRole('button', { name: 'Import candidates' }));
+
+    expect(await screen.findByText('You do not have permission to view this page.')).toBeInTheDocument();
+    expect(signOutSpy).not.toHaveBeenCalled();
+  });
+
+  it('signs the staff member out when the import fails because their session is confirmed expired', async () => {
+    candidateImportClient.importCandidates.mockRejectedValue({ code: 'SESSION_EXPIRED' });
+    const { client } = await renderFormWithClient();
+    const signOutSpy = vi.spyOn(client, 'signOut');
+    chooseFile(csvFile());
+    fireEvent.click(screen.getByRole('button', { name: 'Import candidates' }));
+
+    await waitFor(() => expect(signOutSpy).toHaveBeenCalled());
+  });
+
+  it('signs the staff member out when their own account was deactivated (403 inactive_account), distinct from an ordinary FORBIDDEN', async () => {
+    candidateImportClient.importCandidates.mockRejectedValue({ code: 'INACTIVE_ACCOUNT' });
+    const { client } = await renderFormWithClient();
+    const signOutSpy = vi.spyOn(client, 'signOut');
+    chooseFile(csvFile());
+    fireEvent.click(screen.getByRole('button', { name: 'Import candidates' }));
+
+    await waitFor(() => expect(signOutSpy).toHaveBeenCalled());
+    // Never shows the generic "you don't have permission" copy for this
+    // case -- the account is deactivated, not merely under-permissioned.
+    expect(screen.queryByText('You do not have permission to view this page.')).not.toBeInTheDocument();
   });
 
   it('handles a 409 conflict with a safe, translated message and a retry action', async () => {

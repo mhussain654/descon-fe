@@ -95,6 +95,18 @@ describe('createCandidateProfileClient (real)', () => {
     expect(profile.currentWorkflowStage).toBeNull();
   });
 
+  it('maps a null reference_number alongside a null current_workflow_stage through unchanged (candidate has no assignment yet)', async () => {
+    stubFetch(async () =>
+      jsonResponse(successEnvelope(profilePayload({ reference_number: null, current_workflow_stage: null })))
+    );
+
+    const client = buildClient();
+    const profile = await client.getProfile('token');
+
+    expect(profile.referenceNumber).toBeNull();
+    expect(profile.currentWorkflowStage).toBeNull();
+  });
+
   it('maps a 401 to SESSION_EXPIRED', async () => {
     stubFetch(async () =>
       jsonResponse(errorEnvelope([{ code: 'unauthorized', message: 'Session expired.' }]), { status: 401 })
