@@ -100,4 +100,18 @@ export interface StaffAuthClient {
    * token directly -- there isn't one to read.
    */
   authenticatedRequest<T>(makeRequest: (accessToken: string) => Promise<T | undefined>): Promise<T | undefined>;
+  /**
+   * Like `authenticatedRequest`, but for a call whose own success/error
+   * shape the caller must inspect directly -- a mutation returning
+   * row-level results, or a domain-specific 400/409/422/429 body.
+   * `authenticatedRequest` maps every non-401/403 failure into the generic
+   * `StaffAuthError` taxonomy, discarding the response entirely (right for
+   * an auth-shaped call like sign-in/profile, wrong here). This still
+   * attaches the current access token and performs the same 401
+   * refresh-and-retry-once semantics -- a still-401 result throws
+   * `SESSION_EXPIRED` (forced logout) -- but every other failure
+   * (400/403/409/422/429/5xx/network/offline) rethrows the original error
+   * from `makeRequest` unchanged.
+   */
+  authenticatedDataRequest<T>(makeRequest: (accessToken: string) => Promise<T | undefined>): Promise<T | undefined>;
 }

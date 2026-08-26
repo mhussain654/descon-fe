@@ -186,16 +186,22 @@ export function createApiClient(config: ApiClientConfig) {
     const onCallerAbort = () => controller.abort();
     callerSignal?.addEventListener('abort', onCallerAbort, { once: true });
 
+    // FormData (e.g. a CSV upload) must never be JSON-stringified, and must
+    // never carry an explicit Content-Type -- the platform fetch
+    // implementation sets its own multipart boundary, which a manually-set
+    // header would silently break.
+    const isFormData = typeof FormData !== 'undefined' && body instanceof FormData;
+
     let response: Response;
     try {
       response = await fetch(`${baseUrl}${path}`, {
         method,
         headers: {
-          ...(body !== undefined ? { 'Content-Type': 'application/json' } : {}),
+          ...(body !== undefined && !isFormData ? { 'Content-Type': 'application/json' } : {}),
           ...defaultHeaders,
           ...opts.headers,
         },
-        body: body !== undefined ? JSON.stringify(body) : undefined,
+        body: body !== undefined ? (isFormData ? (body as FormData) : JSON.stringify(body)) : undefined,
         signal: controller.signal,
       });
     } catch (error) {

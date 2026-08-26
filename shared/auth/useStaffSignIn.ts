@@ -59,9 +59,22 @@ export function useStaffSignIn({ client, onAuthenticated }: UseStaffSignInOption
   // navigates away, or the app is torn down) must not call onAuthenticated
   // or setError once it resolves (AGENTS.md: "Prevent stale requests from
   // changing state after ... navigation").
+  //
+  // The effect body itself must re-arm `mountedRef.current = true`, not just
+  // rely on the initial `useRef(true)` -- React 18 StrictMode double-invokes
+  // every effect in development (mount -> cleanup -> mount again) as a
+  // deliberate check. Without the explicit re-arm here, that first
+  // simulated cleanup permanently flips this to `false` before the
+  // candidate/staff member ever interacts with the form, silently
+  // short-circuiting both the success and error branches of `submit()`
+  // below (isSubmitting never clears, onAuthenticated never runs) -- a real
+  // stuck-forever bug in dev mode only, invisible in a production build.
   const mountedRef = useRef(true);
-  useEffect(() => () => {
-    mountedRef.current = false;
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+    };
   }, []);
 
   const setEmail = useCallback((value: string) => {

@@ -1,23 +1,9 @@
-import {
-  View,
-  Text,
-  ScrollView,
-  TouchableOpacity,
-  Pressable,
-  useColorScheme,
-} from "react-native";
+import { View, ScrollView, TouchableOpacity, Pressable, useColorScheme } from "react-native";
+import { Text } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
 import { useRouter } from "expo-router";
-import {
-  User,
-  Phone,
-  Mail,
-  MapPin,
-  Globe,
-  LogOut,
-  ChevronRight,
-} from "lucide-react-native";
+import { LogOut, Globe, ChevronRight } from "lucide-react-native";
 import {
   useFonts,
   Inter_400Regular,
@@ -26,6 +12,8 @@ import {
 } from "@expo-google-fonts/inter";
 import { useAuth } from "../../../contexts/AuthContext";
 import { useLanguage } from "../../../contexts/LanguageContext";
+import { useCandidateProfile } from "../../../features/candidate/profile/hooks/useCandidateProfile";
+import { CandidateProfileView } from "../../../features/candidate/profile/components/CandidateProfileView";
 
 export default function ProfileScreen() {
   const insets = useSafeAreaInsets();
@@ -34,6 +22,7 @@ export default function ProfileScreen() {
   const isDark = colorScheme === "dark";
   const { t, toggleLanguage, language } = useLanguage();
   const { logout } = useAuth();
+  const profileQuery = useCandidateProfile();
 
   const [fontsLoaded] = useFonts({
     Inter_400Regular,
@@ -45,72 +34,20 @@ export default function ProfileScreen() {
     return null;
   }
 
-  // Stub profile data
-  const profileData = {
-    name: "Ahmed Khan",
-    cnic: "12345-1234567-1",
-    regNumber: "DES-2024-001",
-    phone: "+92 300 1234567",
-    email: "ahmed.khan@example.com",
-    address: "Lahore, Pakistan",
-  };
-
   const handleLogout = async () => {
     await logout();
     router.replace("/login");
   };
 
-  const InfoRow = ({ icon: Icon, label, value }) => (
-    <View
-      style={{
-        flexDirection: "row",
-        paddingVertical: 16,
-        borderBottomWidth: 1,
-        borderBottomColor: isDark ? "#333333" : "#F0F0F0",
-      }}
-    >
-      <View
-        style={{
-          width: 40,
-          height: 40,
-          borderRadius: 20,
-          backgroundColor: isDark ? "#1E1E1E" : "#F6F6F6",
-          justifyContent: "center",
-          alignItems: "center",
-          marginRight: 12,
-        }}
-      >
-        <Icon size={20} color={isDark ? "#9CA3AF" : "#6B7280"} />
-      </View>
-      <View style={{ flex: 1 }}>
-        <Text
-          style={{
-            fontSize: 13,
-            fontFamily: "Inter_400Regular",
-            color: isDark ? "#9CA3AF" : "#6B7280",
-            marginBottom: 2,
-          }}
-        >
-          {label}
-        </Text>
-        <Text
-          style={{
-            fontSize: 15,
-            fontFamily: "Inter_500Medium",
-            color: isDark ? "#FFFFFF" : "#000000",
-          }}
-        >
-          {value}
-        </Text>
-      </View>
-    </View>
-  );
+  const returnToSignIn = async () => {
+    await logout("expired");
+    router.replace("/login");
+  };
 
   return (
     <View style={{ flex: 1, backgroundColor: isDark ? "#121212" : "#F8F9FA" }}>
       <StatusBar style={isDark ? "light" : "dark"} />
 
-      {/* Header */}
       <View
         style={{
           paddingTop: insets.top + 16,
@@ -141,89 +78,15 @@ export default function ProfileScreen() {
         }}
         showsVerticalScrollIndicator={false}
       >
-        {/* Profile Header */}
-        <View
-          style={{
-            backgroundColor: isDark ? "#1E1E1E" : "#FFFFFF",
-            borderRadius: 16,
-            padding: 20,
-            marginBottom: 20,
-            alignItems: "center",
-            borderWidth: 1,
-            borderColor: isDark ? "#333333" : "#E5E7EB",
-          }}
-        >
-          <View
-            style={{
-              width: 80,
-              height: 80,
-              borderRadius: 40,
-              backgroundColor: "#0066CC",
-              justifyContent: "center",
-              alignItems: "center",
-              marginBottom: 16,
-            }}
-          >
-            <Text
-              style={{
-                fontSize: 32,
-                fontFamily: "Inter_600SemiBold",
-                color: "#FFFFFF",
-              }}
-            >
-              {profileData.name.charAt(0)}
-            </Text>
-          </View>
-          <Text
-            style={{
-              fontSize: 20,
-              fontFamily: "Inter_600SemiBold",
-              color: isDark ? "#FFFFFF" : "#000000",
-              marginBottom: 4,
-            }}
-          >
-            {profileData.name}
-          </Text>
-          <Text
-            style={{
-              fontSize: 14,
-              fontFamily: "Inter_400Regular",
-              color: isDark ? "#9CA3AF" : "#6B7280",
-            }}
-          >
-            {profileData.regNumber}
-          </Text>
-        </View>
+        <CandidateProfileView
+          isLoading={profileQuery.isLoading}
+          error={profileQuery.error ?? null}
+          profile={profileQuery.data}
+          t={t}
+          onRetry={() => profileQuery.refetch()}
+          onReturnToSignIn={returnToSignIn}
+        />
 
-        {/* Personal Information */}
-        <View
-          style={{
-            backgroundColor: isDark ? "#1E1E1E" : "#FFFFFF",
-            borderRadius: 16,
-            padding: 20,
-            marginBottom: 20,
-            borderWidth: 1,
-            borderColor: isDark ? "#333333" : "#E5E7EB",
-          }}
-        >
-          <Text
-            style={{
-              fontSize: 16,
-              fontFamily: "Inter_600SemiBold",
-              color: isDark ? "#FFFFFF" : "#000000",
-              marginBottom: 16,
-            }}
-          >
-            {t("personalInfo")}
-          </Text>
-
-          <InfoRow icon={User} label={t("cnicShort")} value={profileData.cnic} />
-          <InfoRow icon={Phone} label={t("phoneShort")} value={profileData.phone} />
-          <InfoRow icon={Mail} label={t("emailShort")} value={profileData.email} />
-          <InfoRow icon={MapPin} label={t("addressShort")} value={profileData.address} />
-        </View>
-
-        {/* Settings */}
         <View
           style={{
             backgroundColor: isDark ? "#1E1E1E" : "#FFFFFF",
@@ -236,15 +99,13 @@ export default function ProfileScreen() {
         >
           <Pressable
             onPress={toggleLanguage}
+            accessibilityRole="button"
+            accessibilityLabel={t("language")}
             style={({ pressed }) => ({
               flexDirection: "row",
               alignItems: "center",
               padding: 16,
-              backgroundColor: pressed
-                ? isDark
-                  ? "#333333"
-                  : "#F6F6F6"
-                : "transparent",
+              backgroundColor: pressed ? (isDark ? "#333333" : "#F6F6F6") : "transparent",
               borderRadius: 12,
             })}
           >
@@ -286,9 +147,10 @@ export default function ProfileScreen() {
           </Pressable>
         </View>
 
-        {/* Logout */}
         <TouchableOpacity
           onPress={handleLogout}
+          accessibilityRole="button"
+          accessibilityLabel={t("logout")}
           style={{
             backgroundColor: isDark ? "#2D1B1B" : "#FEF2F2",
             borderRadius: 12,
