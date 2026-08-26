@@ -52,20 +52,45 @@ function sessionPayload(overrides: Record<string, unknown> = {}) {
   };
 }
 
+/** GET /users/profile's data payload -- the sole, authoritative source of role/permissions (never derived from a token or `role` client-side). */
+function profilePayload(overrides: Record<string, unknown> = {}) {
+  return {
+    id: 'staff-1',
+    email: 'admin@descon.com',
+    role: 'admin',
+    permissions: ['manage_staff_users', 'manage_candidate_documents'],
+    ...overrides,
+  };
+}
+
+function profileResponse(overrides: Record<string, unknown> = {}, init: ResponseInit = {}) {
+  return jsonResponse(successEnvelope(profilePayload(overrides)), init);
+}
+
 function buildClient() {
   const apiClient = createApiClient({ baseUrl: 'http://example.test/api/v1' });
   return createStaffAuthClient({ apiClient });
 }
 
+/** Routes the four real endpoints to sensible default success responses; override branches per-test as needed. */
+function stubHappyPathFetch(overrides: Partial<Record<'login' | 'refresh' | 'logout' | 'profile', () => Response | Promise<Response>>> = {}) {
+  const calls: Array<[string, RequestInit]> = [];
+  stubFetch(async (url, init) => {
+    const u = String(url);
+    calls.push([u, init as RequestInit]);
+    if (u.includes('/auth/login')) return overrides.login ? overrides.login() : jsonResponse(successEnvelope(sessionPayload()), { status: 201 });
+    if (u.includes('/auth/refresh')) return overrides.refresh ? overrides.refresh() : jsonResponse(successEnvelope(sessionPayload()));
+    if (u.includes('/auth/logout')) return overrides.logout ? overrides.logout() : jsonResponse(successEnvelope({ revoked: true, message: 'Session revoked.' }));
+    if (u.includes('/users/profile')) return overrides.profile ? overrides.profile() : profileResponse();
+    throw new Error(`stubHappyPathFetch: unexpected fetch to ${u}`);
+  });
+  return calls;
+}
+
 describe('createStaffAuthClient (real)', () => {
   describe('signIn', () => {
-    it('posts credentials and returns an identity session with no tokens', async () => {
-      const fetchCalls: Array<[string, RequestInit]> = [];
-      stubFetch(async (url, init) => {
-        fetchCalls.push([String(url), init as RequestInit]);
-        return jsonResponse(successEnvelope(sessionPayload()), { status: 201 });
-      });
-
+    it('posts credentials, fetches the profile, and returns an identity session built from it (no tokens)', async () => {
+      const calls = stubHappyPathFetch();
       const client = buildClient();
       const session = await client.signIn({ email: 'admin@descon.com', password: 'Passw0rd!' });
 
@@ -73,14 +98,31 @@ describe('createStaffAuthClient (real)', () => {
         staffId: 'staff-1',
         email: 'admin@descon.com',
         role: 'admin',
-        permissions: expect.any(Array),
+        permissions: ['manage_staff_users', 'manage_candidate_documents'],
         expiresAt: expect.any(String),
       });
       expect(session).not.toHaveProperty('accessToken');
       expect(session).not.toHaveProperty('refreshToken');
-      const [url, init] = fetchCalls[0];
-      expect(url).toBe('http://example.test/api/v1/auth/login');
-      expect(JSON.parse(init.body as string)).toEqual({ auth: { email: 'admin@descon.com', password: 'Passw0rd!' } });
+
+      const [loginUrl, loginInit] = calls[0];
+      expect(loginUrl).toBe('http://example.test/api/v1/auth/login');
+      expect(JSON.parse(loginInit.body as string)).toEqual({ auth: { email: 'admin@descon.com', password: 'Passw0rd!' } });
+
+      const profileCall = calls.find(([url]) => url.includes('/users/profile'));
+      expect(profileCall).toBeDefined();
+      const [profileUrl, profileInit] = profileCall!;
+      expect(profileUrl).toBe('http://example.test/api/v1/users/profile');
+      expect((profileInit.headers as Record<string, string>).Authorization).toBe('Bearer access-1');
+    });
+
+    it('uses the backend permissions exactly as returned -- including ones no local list would predict', async () => {
+      stubHappyPathFetch({
+        profile: () => profileResponse({ permissions: ['manage_candidate_documents', 'some_future_permission', 'view_audit_events'] }),
+      });
+      const client = buildClient();
+      const session = await client.signIn({ email: 'admin@descon.com', password: 'Passw0rd!' });
+
+      expect(session.permissions).toEqual(['manage_candidate_documents', 'some_future_permission', 'view_audit_events']);
     });
 
     it('never logs the password -- only the documented request body is sent', async () => {
@@ -91,7 +133,7 @@ describe('createStaffAuthClient (real)', () => {
         loggedCalls.push(args);
       };
       try {
-        stubFetch(async () => jsonResponse(successEnvelope(sessionPayload()), { status: 201 }));
+        stubHappyPathFetch();
         const client = buildClient();
         await client.signIn({ email: 'admin@descon.com', password: 'super-secret' });
         expect(loggedCalls.flat().join(' ')).not.toContain('super-secret');
@@ -101,7 +143,7 @@ describe('createStaffAuthClient (real)', () => {
       }
     });
 
-    it('maps 401 unauthorized to INVALID_CREDENTIALS', async () => {
+    it('maps 401 unauthorized on login to INVALID_CREDENTIALS', async () => {
       stubFetch(async () =>
         jsonResponse(errorEnvelope([{ code: 'unauthorized', message: 'Invalid credentials.' }]), { status: 401 })
       );
@@ -111,7 +153,7 @@ describe('createStaffAuthClient (real)', () => {
       });
     });
 
-    it('maps 403 inactive_account to INACTIVE_ACCOUNT', async () => {
+    it('maps 403 inactive_account on login to INACTIVE_ACCOUNT', async () => {
       stubFetch(async () =>
         jsonResponse(errorEnvelope([{ code: 'inactive_account', message: 'This account is inactive.' }]), {
           status: 403,
@@ -123,7 +165,7 @@ describe('createStaffAuthClient (real)', () => {
       });
     });
 
-    it('maps 429 rate_limited to TOO_MANY_ATTEMPTS', async () => {
+    it('maps 429 rate_limited on login to TOO_MANY_ATTEMPTS', async () => {
       stubFetch(async () =>
         jsonResponse(errorEnvelope([{ code: 'rate_limited', message: 'Too many attempts.' }]), { status: 429 })
       );
@@ -133,7 +175,7 @@ describe('createStaffAuthClient (real)', () => {
       });
     });
 
-    it('maps a network failure to NETWORK_ERROR', async () => {
+    it('maps a network failure on login to NETWORK_ERROR', async () => {
       stubFetch(async () => {
         throw new TypeError('Failed to fetch');
       });
@@ -141,7 +183,7 @@ describe('createStaffAuthClient (real)', () => {
       await expect(client.signIn({ email: 'a@b.com', password: 'x' })).rejects.toEqual({ code: 'NETWORK_ERROR' });
     });
 
-    it('maps an offline failure to OFFLINE', async () => {
+    it('maps an offline failure on login to OFFLINE', async () => {
       stubFetch(async () => {
         throw new TypeError('Failed to fetch');
       });
@@ -151,16 +193,53 @@ describe('createStaffAuthClient (real)', () => {
     });
 
     (hasSessionStorage ? it : it.skip)('persists only the refresh token, keeping the access token out of storage entirely', async () => {
-      stubFetch(async () => jsonResponse(successEnvelope(sessionPayload()), { status: 201 }));
+      stubHappyPathFetch();
       const client = buildClient();
       await client.signIn({ email: 'admin@descon.com', password: 'Passw0rd!' });
 
       expect(sessionStorage.getItem('descon.staffRefreshToken')).toBe('refresh-1');
-      // Nothing under any key contains the access token.
       const allStoredValues = Array.from({ length: sessionStorage.length }, (_, i) =>
         sessionStorage.getItem(sessionStorage.key(i) as string)
       );
       expect(allStoredValues.some((value) => value?.includes('access-1'))).toBe(false);
+    });
+
+    it('rejects safely (does not crash or fabricate a session) when the profile response is malformed', async () => {
+      stubHappyPathFetch({ profile: () => profileResponse({ role: 'not-a-real-role' }) });
+      const client = buildClient();
+      await expect(client.signIn({ email: 'admin@descon.com', password: 'Passw0rd!' })).rejects.toEqual({
+        code: 'UNKNOWN',
+      });
+    });
+
+    it('rejects safely when the profile response is missing permissions entirely', async () => {
+      stubFetch(async (url) => {
+        if (String(url).includes('/auth/login')) return jsonResponse(successEnvelope(sessionPayload()), { status: 201 });
+        if (String(url).includes('/users/profile')) {
+          return jsonResponse(successEnvelope({ id: 'staff-1', email: 'admin@descon.com', role: 'admin' }));
+        }
+        throw new Error(`unexpected fetch to ${url}`);
+      });
+      const client = buildClient();
+      await expect(client.signIn({ email: 'admin@descon.com', password: 'Passw0rd!' })).rejects.toEqual({
+        code: 'UNKNOWN',
+      });
+    });
+
+    it('maps a 401 on the profile fetch to SESSION_EXPIRED, not INVALID_CREDENTIALS', async () => {
+      stubFetch(async (url) => {
+        if (String(url).includes('/auth/login')) return jsonResponse(successEnvelope(sessionPayload()), { status: 201 });
+        if (String(url).includes('/users/profile')) {
+          return jsonResponse(errorEnvelope([{ code: 'unauthorized', message: 'Invalid or expired access token.' }]), {
+            status: 401,
+          });
+        }
+        throw new Error(`unexpected fetch to ${url}`);
+      });
+      const client = buildClient();
+      await expect(client.signIn({ email: 'admin@descon.com', password: 'Passw0rd!' })).rejects.toEqual({
+        code: 'SESSION_EXPIRED',
+      });
     });
   });
 
@@ -170,12 +249,10 @@ describe('createStaffAuthClient (real)', () => {
       await expect(client.restoreSession()).resolves.toBeNull();
     });
 
-    (hasSessionStorage ? it : it.skip)('refreshes and returns an identity session (no tokens) when a refresh token is persisted', async () => {
+    (hasSessionStorage ? it : it.skip)('refreshes, fetches the profile, and returns an identity session (no tokens) when a refresh token is persisted', async () => {
       sessionStorage.setItem('descon.staffRefreshToken', 'stored-refresh');
-      const fetchCalls: Array<[string, RequestInit]> = [];
-      stubFetch(async (url, init) => {
-        fetchCalls.push([String(url), init as RequestInit]);
-        return jsonResponse(successEnvelope(sessionPayload({ refresh_token: 'rotated-refresh' })));
+      const calls = stubHappyPathFetch({
+        refresh: () => jsonResponse(successEnvelope(sessionPayload({ refresh_token: 'rotated-refresh' }))),
       });
 
       const client = buildClient();
@@ -184,10 +261,9 @@ describe('createStaffAuthClient (real)', () => {
       expect(session?.staffId).toBe('staff-1');
       expect(session).not.toHaveProperty('accessToken');
       expect(session).not.toHaveProperty('refreshToken');
-      const [url, init] = fetchCalls[0];
-      expect(url).toBe('http://example.test/api/v1/auth/refresh');
-      expect(JSON.parse(init.body as string)).toEqual({ auth: { refresh_token: 'stored-refresh' } });
-      // The rotated refresh token replaces the old one.
+      const [refreshUrl, refreshInit] = calls.find(([url]) => url.includes('/auth/refresh'))!;
+      expect(refreshUrl).toBe('http://example.test/api/v1/auth/refresh');
+      expect(JSON.parse(refreshInit.body as string)).toEqual({ auth: { refresh_token: 'stored-refresh' } });
       expect(sessionStorage.getItem('descon.staffRefreshToken')).toBe('rotated-refresh');
     });
 
@@ -212,15 +288,13 @@ describe('createStaffAuthClient (real)', () => {
       await expect(client.restoreSession()).resolves.toBeNull();
     });
 
-    (hasSessionStorage ? it : it.skip)('rejects (does not silently claim "no session") on a genuine network failure, and preserves the refresh token', async () => {
+    (hasSessionStorage ? it : it.skip)('rejects (does not silently claim "no session") on a genuine network failure during the refresh call, and preserves the refresh token', async () => {
       sessionStorage.setItem('descon.staffRefreshToken', 'stored-refresh');
       stubFetch(async () => {
         throw new TypeError('Failed to fetch');
       });
       const client = buildClient();
       await expect(client.restoreSession()).rejects.toEqual({ code: 'NETWORK_ERROR' });
-      // A temporary connection failure must not destroy a valid, storable
-      // session -- the refresh token is exactly what a later retry needs.
       expect(sessionStorage.getItem('descon.staffRefreshToken')).toBe('stored-refresh');
     });
 
@@ -234,16 +308,58 @@ describe('createStaffAuthClient (real)', () => {
       await expect(client.restoreSession()).rejects.toEqual({ code: 'OFFLINE' });
       expect(sessionStorage.getItem('descon.staffRefreshToken')).toBe('stored-refresh');
     });
+
+    (hasSessionStorage ? it : it.skip)(
+      'a transient profile failure after a successful refresh does not lose the newly rotated refresh token, and does not resolve with stale/partial permissions',
+      async () => {
+        sessionStorage.setItem('descon.staffRefreshToken', 'old-refresh');
+        stubFetch(async (url) => {
+          if (String(url).includes('/auth/refresh')) {
+            return jsonResponse(successEnvelope(sessionPayload({ refresh_token: 'rotated-refresh' })));
+          }
+          if (String(url).includes('/users/profile')) {
+            throw new TypeError('Failed to fetch');
+          }
+          throw new Error(`unexpected fetch to ${url}`);
+        });
+
+        const client = buildClient();
+        await expect(client.restoreSession()).rejects.toEqual({ code: 'NETWORK_ERROR' });
+
+        // The rotation from the (successful) refresh call must be kept --
+        // the old refresh token is already dead server-side regardless of
+        // the profile call's outcome.
+        expect(sessionStorage.getItem('descon.staffRefreshToken')).toBe('rotated-refresh');
+      }
+    );
+
+    (hasSessionStorage ? it : it.skip)('rejects safely when the refresh succeeds but the profile response is malformed', async () => {
+      sessionStorage.setItem('descon.staffRefreshToken', 'stored-refresh');
+      stubFetch(async (url) => {
+        if (String(url).includes('/auth/refresh')) return jsonResponse(successEnvelope(sessionPayload()));
+        if (String(url).includes('/users/profile')) {
+          return jsonResponse(successEnvelope({ id: 'staff-1', email: 'admin@descon.com', role: 'not-a-real-role', permissions: [] }));
+        }
+        throw new Error(`unexpected fetch to ${url}`);
+      });
+      const client = buildClient();
+      await expect(client.restoreSession()).rejects.toEqual({ code: 'UNKNOWN' });
+    });
   });
 
   describe('concurrent refresh coordination', () => {
-    (hasSessionStorage ? it : it.skip)('shares one refresh operation across concurrent restoreSession calls', async () => {
+    (hasSessionStorage ? it : it.skip)('shares one refresh operation (and one profile fetch) across concurrent restoreSession calls', async () => {
       sessionStorage.setItem('descon.staffRefreshToken', 'stored-refresh');
       let refreshCallCount = 0;
+      let profileCallCount = 0;
       stubFetch(async (url) => {
         if (String(url).includes('/auth/refresh')) {
           refreshCallCount += 1;
           return jsonResponse(successEnvelope(sessionPayload()));
+        }
+        if (String(url).includes('/users/profile')) {
+          profileCallCount += 1;
+          return profileResponse();
         }
         throw new Error(`unexpected fetch to ${url}`);
       });
@@ -256,6 +372,7 @@ describe('createStaffAuthClient (real)', () => {
       ]);
 
       expect(refreshCallCount).toBe(1);
+      expect(profileCallCount).toBe(1);
       expect(first).toEqual(second);
       expect(second).toEqual(third);
     });
@@ -263,9 +380,13 @@ describe('createStaffAuthClient (real)', () => {
     (hasSessionStorage ? it : it.skip)('a later, non-concurrent refresh runs fresh rather than reusing a settled promise', async () => {
       sessionStorage.setItem('descon.staffRefreshToken', 'stored-refresh');
       let refreshCallCount = 0;
-      stubFetch(async () => {
-        refreshCallCount += 1;
-        return jsonResponse(successEnvelope(sessionPayload({ refresh_token: `refresh-${refreshCallCount}` })));
+      stubFetch(async (url) => {
+        if (String(url).includes('/auth/refresh')) {
+          refreshCallCount += 1;
+          return jsonResponse(successEnvelope(sessionPayload({ refresh_token: `refresh-${refreshCallCount}` })));
+        }
+        if (String(url).includes('/users/profile')) return profileResponse();
+        throw new Error(`unexpected fetch to ${url}`);
       });
 
       const client = buildClient();
@@ -278,18 +399,12 @@ describe('createStaffAuthClient (real)', () => {
 
   describe('signOut', () => {
     it('calls DELETE /auth/logout with the current access token as a Bearer header', async () => {
-      const fetchCalls: Array<[string, RequestInit]> = [];
-      stubFetch(async (url, init) => {
-        fetchCalls.push([String(url), init as RequestInit]);
-        if (String(url).includes('/auth/login')) return jsonResponse(successEnvelope(sessionPayload()), { status: 201 });
-        return jsonResponse(successEnvelope({ revoked: true, message: 'Session revoked.' }));
-      });
-
+      const calls = stubHappyPathFetch();
       const client = buildClient();
       await client.signIn({ email: 'admin@descon.com', password: 'Passw0rd!' });
       await client.signOut();
 
-      const logoutCall = fetchCalls.find(([url]) => url.includes('/auth/logout'));
+      const logoutCall = calls.find(([url]) => url.includes('/auth/logout'));
       expect(logoutCall).toBeDefined();
       const [url, init] = logoutCall!;
       expect(url).toBe('http://example.test/api/v1/auth/logout');
@@ -298,9 +413,8 @@ describe('createStaffAuthClient (real)', () => {
     });
 
     (hasSessionStorage ? it : it.skip)('clears the persisted refresh token even when the server call fails', async () => {
-      stubFetch(async (url) => {
-        if (String(url).includes('/auth/login')) return jsonResponse(successEnvelope(sessionPayload()), { status: 201 });
-        return jsonResponse(errorEnvelope([{ code: 'unauthorized', message: 'Invalid token.' }]), { status: 401 });
+      stubHappyPathFetch({
+        logout: () => jsonResponse(errorEnvelope([{ code: 'unauthorized', message: 'Invalid token.' }]), { status: 401 }),
       });
 
       const client = buildClient();
@@ -311,11 +425,13 @@ describe('createStaffAuthClient (real)', () => {
 
     it('deduplicates concurrent signOut calls into a single logout request', async () => {
       let logoutCallCount = 0;
-      stubFetch(async (url) => {
-        if (String(url).includes('/auth/login')) return jsonResponse(successEnvelope(sessionPayload()), { status: 201 });
-        logoutCallCount += 1;
-        return jsonResponse(successEnvelope({ revoked: true, message: 'Session revoked.' }));
+      const calls = stubHappyPathFetch({
+        logout: () => {
+          logoutCallCount += 1;
+          return jsonResponse(successEnvelope({ revoked: true, message: 'Session revoked.' }));
+        },
       });
+      void calls;
 
       const client = buildClient();
       await client.signIn({ email: 'admin@descon.com', password: 'Passw0rd!' });
@@ -327,10 +443,7 @@ describe('createStaffAuthClient (real)', () => {
 
   describe('authenticatedRequest', () => {
     it('attaches the current access token to the caller-supplied request', async () => {
-      stubFetch(async (url) => {
-        if (String(url).includes('/auth/login')) return jsonResponse(successEnvelope(sessionPayload()), { status: 201 });
-        throw new Error(`unexpected fetch to ${url}`);
-      });
+      stubHappyPathFetch();
       const client = buildClient();
       await client.signIn({ email: 'admin@descon.com', password: 'Passw0rd!' });
 
@@ -352,6 +465,7 @@ describe('createStaffAuthClient (real)', () => {
           refreshCallCount += 1;
           return jsonResponse(successEnvelope(sessionPayload({ access_token: 'refreshed-access' })));
         }
+        if (String(url).includes('/users/profile')) return profileResponse();
         throw new Error(`unexpected fetch to ${url}`);
       });
 
@@ -364,9 +478,6 @@ describe('createStaffAuthClient (real)', () => {
         throw unauthorized;
       };
 
-      // No access token yet -- authenticatedRequest must itself refresh
-      // first, then two concurrent calls that both need to authenticate
-      // must still share exactly one refresh.
       const [first, second] = await Promise.all([
         client.authenticatedRequest(makeRequest),
         client.authenticatedRequest(makeRequest),
@@ -382,6 +493,7 @@ describe('createStaffAuthClient (real)', () => {
       let refreshCallCount = 0;
       stubFetch(async (url) => {
         if (String(url).includes('/auth/login')) return jsonResponse(successEnvelope(sessionPayload()), { status: 201 });
+        if (String(url).includes('/users/profile')) return profileResponse();
         if (String(url).includes('/auth/refresh')) {
           refreshCallCount += 1;
           return jsonResponse(successEnvelope(sessionPayload()));
@@ -390,9 +502,6 @@ describe('createStaffAuthClient (real)', () => {
       });
 
       const client = buildClient();
-      // Sign in first so an access token already exists -- isolates this
-      // test to exactly the "401 -> refresh -> retry -> still 401" path,
-      // not also the separate "no token yet" pre-fetch.
       await client.signIn({ email: 'admin@descon.com', password: 'Passw0rd!' });
 
       let callCount = 0;
@@ -403,9 +512,6 @@ describe('createStaffAuthClient (real)', () => {
       };
 
       await expect(client.authenticatedRequest(alwaysUnauthorized)).rejects.toEqual({ code: 'SESSION_EXPIRED' });
-      // One initial attempt + one retry after the refresh = 2 calls to the
-      // request itself, and exactly 1 refresh call -- the second 401 does
-      // not trigger a second refresh (no loop).
       expect(callCount).toBe(2);
       expect(refreshCallCount).toBe(1);
     });
@@ -414,10 +520,7 @@ describe('createStaffAuthClient (real)', () => {
       // No /auth/refresh branch registered -- if authenticatedRequest
       // mistakenly tried to refresh on a 403, this stub would throw
       // "unexpected fetch", failing the test.
-      stubFetch(async (url) => {
-        if (String(url).includes('/auth/login')) return jsonResponse(successEnvelope(sessionPayload()), { status: 201 });
-        throw new Error(`unexpected fetch to ${url}`);
-      });
+      stubHappyPathFetch();
       const client = buildClient();
       await client.signIn({ email: 'admin@descon.com', password: 'Passw0rd!' });
 
@@ -430,16 +533,14 @@ describe('createStaffAuthClient (real)', () => {
     });
 
     (hasSessionStorage ? it : it.skip)('a network failure during the refresh triggered by a 401 preserves the session (does not clear the refresh token)', async () => {
-      stubFetch(async (url) => {
-        if (String(url).includes('/auth/login')) return jsonResponse(successEnvelope(sessionPayload()), { status: 201 });
-        if (String(url).includes('/auth/refresh')) throw new TypeError('Failed to fetch');
-        throw new Error(`unexpected fetch to ${url}`);
+      stubHappyPathFetch({
+        refresh: () => {
+          throw new TypeError('Failed to fetch');
+        },
       });
 
       const client = buildClient();
       await client.signIn({ email: 'admin@descon.com', password: 'Passw0rd!' });
-      // Whatever signIn() persisted (the default sessionPayload's refresh
-      // token) is what must survive the subsequent network failure below.
       const refreshTokenAfterSignIn = sessionStorage.getItem('descon.staffRefreshToken');
       expect(refreshTokenAfterSignIn).toEqual(expect.any(String));
 
@@ -468,10 +569,6 @@ describe('createStaffAuthClient (real)', () => {
 
       const client = buildClient();
       const restorePromise = client.restoreSession();
-      // No access token yet (the refresh above hasn't resolved), so
-      // signOut has nothing to revoke over the network -- it clears local
-      // state immediately, but must still bump the epoch so the stale
-      // refresh, once it does resolve, can't write itself back in.
       await client.signOut();
 
       resolveRefresh!(jsonResponse(successEnvelope(sessionPayload())));
@@ -522,6 +619,9 @@ describe('createStaffAuthClient (real)', () => {
             { status: 201 }
           );
         }
+        if (String(url).includes('/users/profile')) {
+          return profileResponse({ id: 'staff-2', email: 'hr@descon.com', role: 'hr', permissions: ['manage_candidate_documents'] });
+        }
         throw new Error(`unexpected fetch to ${url}`);
       });
 
@@ -545,8 +645,6 @@ describe('createStaffAuthClient (real)', () => {
       );
       await expect(restorePromise).rejects.toBeTruthy();
 
-      // The fresh sign-in's tokens must still be in effect -- untouched by
-      // the stale refresh resolving afterwards.
       expect(sessionStorage.getItem('descon.staffRefreshToken')).toBe('new-refresh');
     });
 
@@ -572,20 +670,14 @@ describe('createStaffAuthClient (real)', () => {
         const error: { status: number; code: string } = { status: 401, code: 'HTTP_4XX' };
         throw error;
       };
-      // No access token yet -- this triggers the "get one first" refresh,
-      // which the stub above leaves pending.
       const requestPromise = client.authenticatedRequest(unauthorized);
 
-      // A newer, authoritative action (sign-out) takes over the client
-      // while that refresh is still in flight.
       await client.signOut();
       expect(logoutCalled).toBe(false); // no access token existed yet to revoke
 
-      // The old (now-superseded) refresh finally resolves successfully.
       resolveRefresh!(jsonResponse(successEnvelope(sessionPayload({ refresh_token: 'revived-refresh' }))));
       await expect(requestPromise).rejects.toBeTruthy();
 
-      // It must not have revived the session signOut already ended.
       expect(sessionStorage.getItem('descon.staffRefreshToken')).toBeNull();
     });
   });

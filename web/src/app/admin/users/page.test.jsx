@@ -76,6 +76,45 @@ describe("StaffUsersPage", () => {
     expect(screen.queryByText("Bilal HR")).not.toBeInTheDocument();
   });
 
+  it("redirects an admin-*role* staff member who lacks the manage_staff_users *permission* -- role alone never grants access", async () => {
+    // A hand-rolled fake, not the mock (which always pairs role:'admin'
+    // with manage_staff_users) -- this is the only way to prove the guard
+    // checks the backend-issued permission, not the role string.
+    const adminWithoutPermission = {
+      signIn: async () => ({
+        staffId: "staff-odd",
+        email: "admin-without-permission@descon.com",
+        role: "admin",
+        permissions: [],
+        expiresAt: new Date(Date.now() + 60_000).toISOString(),
+      }),
+      restoreSession: async () => null,
+      signOut: async () => {},
+      authenticatedRequest: async () => undefined,
+    };
+    const session = await adminWithoutPermission.signIn();
+    const client = { ...adminWithoutPermission, restoreSession: async () => session };
+
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    render(
+      <MemoryRouter initialEntries={["/admin/users"]}>
+        <QueryClientProvider client={queryClient}>
+          <LanguageProvider>
+            <StaffAuthProvider client={client}>
+              <Routes>
+                <Route path="/admin/forbidden" element={<p>Forbidden stub</p>} />
+                <Route path="/admin/users" element={<StaffUsersPage />} />
+              </Routes>
+            </StaffAuthProvider>
+          </LanguageProvider>
+        </QueryClientProvider>
+      </MemoryRouter>
+    );
+
+    await waitFor(() => expect(screen.getByText("Forbidden stub")).toBeInTheDocument());
+    expect(screen.queryByRole("table")).not.toBeInTheDocument();
+  });
+
   it("filters the list by search query", async () => {
     const client = await signInAs(ADMIN);
     await renderUsersPage(client);

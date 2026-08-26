@@ -3,7 +3,6 @@
 // UI development. This mock is never wired into the app now that the real
 // MPS-202 client (`realStaffAuthClient.ts`) exists -- it stays only as
 // dev/test scaffolding.
-import { derivePermissionsPendingBackendSupport } from './staffPermissions';
 import type { StaffAuthClient, StaffAuthError, StaffRole, StaffSession, StaffSignInCredentials } from './staffTypes';
 
 const SESSION_STORE_KEY = 'descon.staffSession.mock';
@@ -19,17 +18,51 @@ interface MockStaffAccount {
   name: string;
   email: string;
   role: StaffRole;
+  /** Mirrors descon-be's db/seeds.rb role->permission matrix for these accounts' roles -- fixture data, not a client-side role->permission mapping function (the real client never derives permissions from role; see realStaffAuthClient.ts). */
+  permissions: string[];
   /** Both a locked and a suspended account exist so their sign-in failures can be proven identical to a wrong-password failure (MPS-F202: never reveal why). */
   locked?: boolean;
   suspended?: boolean;
 }
 
 export const MOCK_STAFF_ACCOUNTS: MockStaffAccount[] = [
-  { staffId: 'staff_admin_1', name: 'Ayesha Admin', email: 'admin@descon.com', role: 'admin' },
-  { staffId: 'staff_hr_1', name: 'Bilal HR', email: 'hr@descon.com', role: 'hr' },
-  { staffId: 'staff_finance_1', name: 'Sana Finance', email: 'finance@descon.com', role: 'finance' },
-  { staffId: 'staff_locked_1', name: 'Locked Account', email: 'locked@descon.com', role: 'hr', locked: true },
-  { staffId: 'staff_suspended_1', name: 'Suspended Account', email: 'suspended@descon.com', role: 'hr', suspended: true },
+  {
+    staffId: 'staff_admin_1',
+    name: 'Ayesha Admin',
+    email: 'admin@descon.com',
+    role: 'admin',
+    permissions: ['manage_staff_users', 'manage_candidate_documents'],
+  },
+  {
+    staffId: 'staff_hr_1',
+    name: 'Bilal HR',
+    email: 'hr@descon.com',
+    role: 'hr',
+    permissions: ['manage_candidate_documents', 'manage_candidates', 'manage_communications'],
+  },
+  {
+    staffId: 'staff_finance_1',
+    name: 'Sana Finance',
+    email: 'finance@descon.com',
+    role: 'finance',
+    permissions: ['view_candidates', 'view_candidate_documents', 'manage_payments'],
+  },
+  {
+    staffId: 'staff_locked_1',
+    name: 'Locked Account',
+    email: 'locked@descon.com',
+    role: 'hr',
+    permissions: ['manage_candidate_documents', 'manage_candidates', 'manage_communications'],
+    locked: true,
+  },
+  {
+    staffId: 'staff_suspended_1',
+    name: 'Suspended Account',
+    email: 'suspended@descon.com',
+    role: 'hr',
+    permissions: ['manage_candidate_documents', 'manage_candidates', 'manage_communications'],
+    suspended: true,
+  },
 ];
 
 /** What actually gets persisted for mock "session recovery on reload" -- no tokens, matching the real client's contract that tokens never leave the client's own memory (see staffTypes.ts's StaffSession doc comment). */
@@ -37,6 +70,7 @@ interface StoredMockSession {
   staffId: string;
   email: string;
   role: StaffRole;
+  permissions: string[];
   expiresAt: string;
 }
 
@@ -74,12 +108,10 @@ function isValidStoredMockSession(value: unknown): value is StoredMockSession {
     typeof v.staffId === 'string' &&
     typeof v.email === 'string' &&
     typeof v.role === 'string' &&
+    Array.isArray(v.permissions) &&
+    v.permissions.every((permission) => typeof permission === 'string') &&
     typeof v.expiresAt === 'string'
   );
-}
-
-function toStaffSession(stored: StoredMockSession): StaffSession {
-  return { ...stored, permissions: derivePermissionsPendingBackendSupport(stored.role) };
 }
 
 export interface MockStaffAuthClientOptions {
@@ -131,10 +163,11 @@ export function createMockStaffAuthClient(options: MockStaffAuthClientOptions = 
         staffId: account.staffId,
         email: account.email,
         role: account.role,
+        permissions: account.permissions,
         expiresAt: new Date(Date.now() + SESSION_DURATION_MS).toISOString(),
       };
       writeSessionStorage(stored);
-      return toStaffSession(stored);
+      return stored;
     },
 
     async restoreSession() {
@@ -156,7 +189,7 @@ export function createMockStaffAuthClient(options: MockStaffAuthClientOptions = 
       }
 
       accessToken = `mock_staff_${randomToken()}`;
-      return toStaffSession(parsed);
+      return parsed;
     },
 
     async signOut() {

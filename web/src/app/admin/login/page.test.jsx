@@ -50,9 +50,25 @@ function errorResponse(status, code, message) {
   });
 }
 
+function profileSuccessResponse(overrides = {}) {
+  return new Response(
+    JSON.stringify(
+      successEnvelope({
+        id: "staff-1",
+        email: ADMIN.email,
+        role: "admin",
+        permissions: ["manage_staff_users", "manage_candidate_documents"],
+        ...overrides,
+      })
+    ),
+    { status: 200, headers: { "Content-Type": "application/json" } }
+  );
+}
+
 function stubLoginFetch(responseFactory) {
   globalThis.fetch = (async (url) => {
     if (typeof url === "string" && url.includes("/auth/login")) return responseFactory();
+    if (typeof url === "string" && url.includes("/users/profile")) return profileSuccessResponse();
     throw new Error(`page.test.jsx: unexpected fetch to ${url}`);
   });
 }

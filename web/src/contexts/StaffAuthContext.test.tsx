@@ -30,13 +30,15 @@ function buildFakeClient(overrides: Partial<StaffAuthClient> = {}): StaffAuthCli
 }
 
 function Probe() {
-  const { status, session, login, signOut, retryRestore, sessionExpired } = useStaffAuth();
+  const { status, session, login, signOut, retryRestore, hasPermission, sessionExpired } = useStaffAuth();
   return (
     <div>
       <span>status:{status}</span>
       <span>expired:{String(sessionExpired)}</span>
       <span>staff:{session?.staffId ?? 'none'}</span>
       <span>role:{session?.role ?? 'none'}</span>
+      <span>canManageStaffUsers:{String(hasPermission('manage_staff_users'))}</span>
+      <span>canManageCandidateDocuments:{String(hasPermission('manage_candidate_documents'))}</span>
       <button type="button" onClick={() => login(buildSession({ staffId: 'staff_manual', role: 'admin' }))}>
         login
       </button>
@@ -188,6 +190,31 @@ describe('StaffAuthProvider', () => {
       // refresh does.
       expect(screen.getByText('status:authenticated')).toBeInTheDocument();
       expect(screen.getByText('expired:false')).toBeInTheDocument();
+    });
+
+    it('reflects a permission change after the proactive refresh -- the backend is re-consulted, not a cached/derived value', async () => {
+      const refreshedSession = buildSession({
+        staffId: 'staff_manual',
+        permissions: ['manage_candidate_documents'],
+        expiresAt: new Date(Date.now() + 120_000).toISOString(),
+      });
+      const client = buildFakeClient({ restoreSession: vi.fn().mockResolvedValue(refreshedSession) });
+      renderWithProviders(client);
+      await flushRestore();
+
+      act(() => screen.getByRole('button', { name: 'login' }).click());
+      // The Probe's `login` button always logs in with buildSession()'s
+      // default permissions -- confirm the pre-refresh baseline first.
+      expect(screen.getByText('canManageStaffUsers:true')).toBeInTheDocument();
+      expect(screen.getByText('canManageCandidateDocuments:false')).toBeInTheDocument();
+
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(5000);
+      });
+
+      expect(screen.getByText('status:authenticated')).toBeInTheDocument();
+      expect(screen.getByText('canManageStaffUsers:false')).toBeInTheDocument();
+      expect(screen.getByText('canManageCandidateDocuments:true')).toBeInTheDocument();
     });
 
     it('signs out only once restoreSession confirms the refresh token is truly invalid/expired/revoked (resolves null)', async () => {

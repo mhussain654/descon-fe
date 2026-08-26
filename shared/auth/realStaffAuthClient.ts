@@ -1,8 +1,9 @@
-// Real StaffAuthClient implementation (MPS-F204), calling the MPS-202
-// backend documented in descon-be's openapi.yaml:
+// Real StaffAuthClient implementation (MPS-F204), calling the MPS-202/
+// MPS-203/MPS-205 backend documented in descon-be's openapi.yaml:
 //   POST   /api/v1/auth/login
 //   POST   /api/v1/auth/refresh
 //   DELETE /api/v1/auth/logout
+//   GET    /api/v1/users/profile
 //
 // Token storage: the backend issues bearer tokens in the JSON response body
 // (SessionPayload), not an httpOnly cookie -- there is no cookie mechanism
@@ -21,8 +22,13 @@
 // every use (the backend detects reuse of a stale one -- AGENTS.md: "Rotate
 // refresh tokens and detect refresh-token reuse"), which bounds the value of
 // a stolen one to a single use before rotation invalidates it.
+//
+// Permissions: `/users/profile` is the authoritative source (UserProfile:
+// `{id, email, role, permissions}`) -- login and refresh only issue tokens
+// and identify *whose* session it is; every StaffSession is built from a
+// dedicated profile fetch immediately after, never derived from `role`
+// client-side (AGENTS.md/ticket: "Do not infer permissions from the role").
 import type { ApiClient, ApiError } from '../api-client';
-import { derivePermissionsPendingBackendSupport } from './staffPermissions';
 import type {
   StaffAuthClient,
   StaffAuthError,
@@ -42,7 +48,33 @@ interface SessionPayload {
   user: { id: string; email: string; role: string };
 }
 
+interface UserProfilePayload {
+  id: string;
+  email: string;
+  role: string;
+  permissions: string[];
+}
+
 const REFRESH_TOKEN_STORE_KEY = 'descon.staffRefreshToken';
+
+const STAFF_ROLES: readonly StaffRole[] = ['admin', 'hr', 'mps', 'finance', 'management'];
+
+function isStaffRole(value: unknown): value is StaffRole {
+  return typeof value === 'string' && (STAFF_ROLES as readonly string[]).includes(value);
+}
+
+/** Runtime-validates the profile response instead of trusting an unchecked cast -- a malformed body must fail safely, never produce a StaffSession with a bogus role or permissions. */
+function isValidUserProfile(value: unknown): value is UserProfilePayload {
+  if (!value || typeof value !== 'object') return false;
+  const v = value as Record<string, unknown>;
+  return (
+    typeof v.id === 'string' &&
+    typeof v.email === 'string' &&
+    isStaffRole(v.role) &&
+    Array.isArray(v.permissions) &&
+    v.permissions.every((permission) => typeof permission === 'string')
+  );
+}
 
 /** Maps the backend's ErrorItem.code (see openapi.yaml's auth/* examples) to the shared StaffAuthErrorCode taxonomy. */
 const SERVER_CODE_TO_AUTH_ERROR: Record<string, StaffAuthErrorCode> = {
@@ -80,17 +112,6 @@ function toStaffAuthError(error: unknown): StaffAuthError {
   return { code: 'UNKNOWN' };
 }
 
-function toStaffSession(payload: SessionPayload): StaffSession {
-  const role = payload.user.role as StaffRole;
-  return {
-    staffId: payload.user.id,
-    email: payload.user.email,
-    role,
-    permissions: derivePermissionsPendingBackendSupport(role),
-    expiresAt: new Date(Date.now() + payload.expires_in * 1000).toISOString(),
-  };
-}
-
 export interface RealStaffAuthClientOptions {
   apiClient: ApiClient;
 }
@@ -102,9 +123,9 @@ export function createStaffAuthClient({ apiClient }: RealStaffAuthClientOptions)
 
   // Bumped by signIn/signOut so a refresh or sign-in that was already in
   // flight, once it resolves, can tell a newer authoritative action has
-  // since superseded it and must not write stale credentials into shared
-  // state (AGENTS.md: "Prevent stale requests from changing state after
-  // logout, navigation or a newer authentication attempt").
+  // since superseded it and must not hand back a stale session (AGENTS.md:
+  // "Prevent stale requests from changing state after logout, navigation or
+  // a newer authentication attempt").
   let epoch = 0;
 
   function readRefreshToken(): string | null {
@@ -125,6 +146,30 @@ export function createStaffAuthClient({ apiClient }: RealStaffAuthClientOptions)
       // Best effort -- a failed storage write just means a reload won't
       // recover the session, not a security or data-loss concern.
     }
+  }
+
+  /** The authoritative source for role/permissions -- never derived from a token or cached client-side. A 401 here always means "this access token doesn't work", never "wrong password" (that's a login-only concept the generic serverCode map would otherwise misapply). */
+  async function fetchProfile(token: string, expiresAt: string): Promise<StaffSession> {
+    let data: unknown;
+    try {
+      data = await apiClient.get('/users/profile', { headers: { Authorization: `Bearer ${token}` } });
+    } catch (error) {
+      const apiError = error as ApiError;
+      if (apiError && typeof apiError === 'object' && apiError.status === 401) {
+        throw { code: 'SESSION_EXPIRED' } satisfies StaffAuthError;
+      }
+      throw toStaffAuthError(error);
+    }
+    if (!isValidUserProfile(data)) {
+      throw { code: 'UNKNOWN' } satisfies StaffAuthError;
+    }
+    return {
+      staffId: data.id,
+      email: data.email,
+      role: data.role,
+      permissions: data.permissions,
+      expiresAt,
+    };
   }
 
   // Dedupes concurrent refresh triggers into one request (AGENTS.md/ticket:
@@ -170,9 +215,27 @@ export function createStaffAuthClient({ apiClient }: RealStaffAuthClientOptions)
         throw { code: 'UNKNOWN' } satisfies StaffAuthError;
       }
 
+      // Commit the rotated tokens *before* fetching the profile: the old
+      // refresh token is already dead server-side the moment this response
+      // arrives, regardless of what happens next, so it must never be left
+      // stranded in storage while a slower profile call is still pending
+      // (ticket: "persist the newly rotated refresh token before making a
+      // profile request, so a temporary profile/network failure does not
+      // leave the old, already-rotated token in storage").
       accessToken = data.access_token;
       writeRefreshToken(data.refresh_token);
-      return toStaffSession(data);
+
+      const expiresAt = new Date(Date.now() + data.expires_in * 1000).toISOString();
+      const session = await fetchProfile(data.access_token, expiresAt);
+
+      if (requestEpoch !== epoch) {
+        // Superseded while the profile fetch was in flight -- the tokens
+        // above are already correctly persisted (or cleared by whatever
+        // superseded us), but this call must still not hand back a session
+        // to a caller nothing is waiting on anymore.
+        throw { code: 'UNKNOWN' } satisfies StaffAuthError;
+      }
+      return session;
     })();
 
     return refreshInFlight.finally(() => {
@@ -250,7 +313,14 @@ export function createStaffAuthClient({ apiClient }: RealStaffAuthClientOptions)
 
       accessToken = data.access_token;
       writeRefreshToken(data.refresh_token);
-      return toStaffSession(data);
+
+      const expiresAt = new Date(Date.now() + data.expires_in * 1000).toISOString();
+      const session = await fetchProfile(data.access_token, expiresAt);
+
+      if (requestEpoch !== epoch) {
+        throw { code: 'UNKNOWN' } satisfies StaffAuthError;
+      }
+      return session;
     },
 
     async restoreSession() {
