@@ -146,6 +146,23 @@ describe('createMockStaffAuthClient', () => {
     const client = createMockStaffAuthClient({ delayMs: 0 });
     await expect(client.authenticatedRequest(async () => 'ok')).rejects.toEqual({ code: 'SESSION_EXPIRED' });
   });
+
+  it('authenticatedDataRequest passes the access token to the caller once signed in', async () => {
+    const client = createMockStaffAuthClient({ delayMs: 0 });
+    await client.signIn({ email: ADMIN.email, password: MOCK_STAFF_PASSWORD });
+    const seenTokens: string[] = [];
+    await client.authenticatedDataRequest(async (token) => {
+      seenTokens.push(token);
+      return 'ok';
+    });
+    expect(seenTokens).toHaveLength(1);
+    expect(seenTokens[0]).toEqual(expect.any(String));
+  });
+
+  it('authenticatedDataRequest rejects with SESSION_EXPIRED before any sign-in has happened', async () => {
+    const client = createMockStaffAuthClient({ delayMs: 0 });
+    await expect(client.authenticatedDataRequest(async () => 'ok')).rejects.toEqual({ code: 'SESSION_EXPIRED' });
+  });
 });
 
 describe('createUnavailableStaffAuthClient', () => {
@@ -169,5 +186,10 @@ describe('createUnavailableStaffAuthClient', () => {
   it('authenticatedRequest fails safely with SERVICE_UNAVAILABLE', async () => {
     const client = createUnavailableStaffAuthClient();
     await expect(client.authenticatedRequest(async () => 'ok')).rejects.toEqual({ code: 'SERVICE_UNAVAILABLE' });
+  });
+
+  it('authenticatedDataRequest fails safely with SERVICE_UNAVAILABLE', async () => {
+    const client = createUnavailableStaffAuthClient();
+    await expect(client.authenticatedDataRequest(async () => 'ok')).rejects.toEqual({ code: 'SERVICE_UNAVAILABLE' });
   });
 });

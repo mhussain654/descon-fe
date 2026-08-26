@@ -292,6 +292,49 @@ export function createStaffAuthClient({ apiClient }: RealStaffAuthClientOptions)
     }
   }
 
+  async function authenticatedDataRequest<T>(
+    makeRequest: (token: string) => Promise<T | undefined>
+  ): Promise<T | undefined> {
+    if (!accessToken) {
+      try {
+        await refresh();
+      } catch (error) {
+        throw toStaffAuthError(error);
+      }
+    }
+
+    try {
+      return await makeRequest(accessToken as string);
+    } catch (error) {
+      const apiError = error as ApiError;
+      if (!(apiError && typeof apiError === 'object' && apiError.status === 401)) {
+        // Every non-401 outcome (403/409/422/429/5xx/network/offline) is
+        // the caller's to interpret -- rethrown exactly as makeRequest
+        // produced it, never remapped.
+        throw error;
+      }
+
+      try {
+        await refresh();
+      } catch (refreshError) {
+        throw toStaffAuthError(refreshError);
+      }
+      try {
+        return await makeRequest(accessToken as string);
+      } catch (retryError) {
+        const retryApiError = retryError as ApiError;
+        if (retryApiError && typeof retryApiError === 'object' && retryApiError.status === 401) {
+          // A fresh token was just issued and still got 401'd -- the
+          // session doesn't work here regardless of the endpoint's own
+          // error body, so this is the one case still worth collapsing to
+          // a single, actionable signal.
+          throw { code: 'SESSION_EXPIRED' } satisfies StaffAuthError;
+        }
+        throw retryError;
+      }
+    }
+  }
+
   return {
     async signIn({ email, password }: StaffSignInCredentials) {
       epoch += 1; // a fresh sign-in supersedes anything previously in flight
@@ -363,5 +406,6 @@ export function createStaffAuthClient({ apiClient }: RealStaffAuthClientOptions)
     },
 
     authenticatedRequest,
+    authenticatedDataRequest,
   };
 }

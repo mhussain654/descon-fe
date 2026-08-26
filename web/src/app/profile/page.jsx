@@ -2,32 +2,24 @@ import { useNavigate } from "react-router";
 import UserShell from "../components/user-shell";
 import { useAuth } from "../../contexts/AuthContext";
 import { useLanguage } from "../../contexts/LanguageContext";
+import { useCandidateProfile } from "../../features/candidate/profile/hooks/useCandidateProfile";
+import { CandidateProfileView } from "../../features/candidate/profile/components/CandidateProfileView";
 
 export default function ProfilePage() {
   const { t, language, toggleLanguage } = useLanguage();
   const { logout } = useAuth();
   const navigate = useNavigate();
+  const profileQuery = useCandidateProfile();
 
   const handleLogout = () => {
     logout();
     navigate("/login", { replace: true });
   };
 
-  const profileData = {
-    name: "Ahmed Khan",
-    cnic: "12345-1234567-1",
-    regNumber: "DES-2026-001",
-    phone: "+92 300 1234567",
-    email: "ahmed.khan@example.com",
-    address: "Lahore, Pakistan",
+  const returnToSignIn = () => {
+    logout("expired");
+    navigate("/login", { replace: true });
   };
-
-  const infoRows = [
-    { labelKey: "cnicShort", value: profileData.cnic },
-    { labelKey: "phoneShort", value: profileData.phone },
-    { labelKey: "emailShort", value: profileData.email },
-    { labelKey: "addressShort", value: profileData.address },
-  ];
 
   return (
     <UserShell activeTab="/profile">
@@ -38,30 +30,14 @@ export default function ProfilePage() {
       </div>
 
       <div className="mx-auto max-w-4xl px-6 py-8">
-        <section className="mb-5 rounded-2xl border border-gray-200 bg-white p-6 text-center">
-          <div className="mx-auto mb-4 flex h-20 w-20 items-center justify-center rounded-full bg-[#0066CC] text-3xl font-semibold text-white">
-            {profileData.name.charAt(0)}
-          </div>
-          <div className="text-xl font-semibold text-black">{profileData.name}</div>
-          <div className="mt-1 text-sm text-gray-500">{profileData.regNumber}</div>
-        </section>
-
-        <section className="mb-5 rounded-2xl border border-gray-200 bg-white p-6">
-          <h2 className="mb-4 text-lg font-semibold text-black">{t("personalInfo")}</h2>
-          <div>
-            {infoRows.map((row) => (
-              <div
-                key={row.labelKey}
-                className="flex items-start justify-between border-b border-gray-100 py-4 last:border-b-0"
-              >
-                <div className="text-sm text-gray-500">{t(row.labelKey)}</div>
-                <div className="max-w-[70%] text-right text-sm font-medium text-black">
-                  {row.value}
-                </div>
-              </div>
-            ))}
-          </div>
-        </section>
+        <CandidateProfileView
+          isLoading={profileQuery.isLoading}
+          error={profileQuery.error ?? null}
+          profile={profileQuery.data}
+          t={t}
+          onRetry={() => profileQuery.refetch()}
+          onReturnToSignIn={returnToSignIn}
+        />
 
         <section className="mb-5 rounded-2xl border border-gray-200 bg-white p-2">
           <button

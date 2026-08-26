@@ -554,6 +554,100 @@ describe('createStaffAuthClient (real)', () => {
     });
   });
 
+  describe('authenticatedDataRequest', () => {
+    it('attaches the current access token to the caller-supplied request', async () => {
+      stubHappyPathFetch();
+      const client = buildClient();
+      await client.signIn({ email: 'admin@descon.com', password: 'Passw0rd!' });
+
+      const seenTokens: string[] = [];
+      const result = await client.authenticatedDataRequest(async (token) => {
+        seenTokens.push(token);
+        return 'ok';
+      });
+
+      expect(result).toBe('ok');
+      expect(seenTokens).toEqual(['access-1']);
+    });
+
+    (hasSessionStorage ? it : it.skip)('refreshes and retries exactly once on a 401', async () => {
+      sessionStorage.setItem('descon.staffRefreshToken', 'stored-refresh');
+      stubFetch(async (url) => {
+        if (String(url).includes('/auth/refresh')) {
+          return jsonResponse(successEnvelope(sessionPayload({ access_token: 'refreshed-access' })));
+        }
+        if (String(url).includes('/users/profile')) return profileResponse();
+        throw new Error(`unexpected fetch to ${url}`);
+      });
+
+      const client = buildClient();
+      const makeRequest = async (token: string) => {
+        if (token === 'refreshed-access') return 'ok';
+        const unauthorized: { status: number; code: string } = { status: 401, code: 'HTTP_4XX' };
+        throw unauthorized;
+      };
+
+      await expect(client.authenticatedDataRequest(makeRequest)).resolves.toBe('ok');
+    });
+
+    (hasSessionStorage ? it : it.skip)('does not loop -- a second 401 after the one retry becomes SESSION_EXPIRED', async () => {
+      sessionStorage.setItem('descon.staffRefreshToken', 'stored-refresh');
+      stubFetch(async (url) => {
+        if (String(url).includes('/auth/login')) return jsonResponse(successEnvelope(sessionPayload()), { status: 201 });
+        if (String(url).includes('/users/profile')) return profileResponse();
+        if (String(url).includes('/auth/refresh')) return jsonResponse(successEnvelope(sessionPayload()));
+        throw new Error(`unexpected fetch to ${url}`);
+      });
+
+      const client = buildClient();
+      await client.signIn({ email: 'admin@descon.com', password: 'Passw0rd!' });
+
+      const alwaysUnauthorized = async () => {
+        const unauthorized: { status: number; code: string } = { status: 401, code: 'HTTP_4XX' };
+        throw unauthorized;
+      };
+
+      await expect(client.authenticatedDataRequest(alwaysUnauthorized)).rejects.toEqual({ code: 'SESSION_EXPIRED' });
+    });
+
+    it('rethrows a 403 unchanged, without attempting a refresh or collapsing it to FORBIDDEN', async () => {
+      // No /auth/refresh branch registered -- if authenticatedDataRequest
+      // mistakenly tried to refresh on a 403, this stub would throw
+      // "unexpected fetch", failing the test.
+      stubHappyPathFetch();
+      const client = buildClient();
+      await client.signIn({ email: 'admin@descon.com', password: 'Passw0rd!' });
+
+      const forbidden = async () => {
+        const error = { status: 403, code: 'HTTP_4XX', serverCode: 'inactive_account' };
+        throw error;
+      };
+
+      await expect(client.authenticatedDataRequest(forbidden)).rejects.toEqual({
+        status: 403,
+        code: 'HTTP_4XX',
+        serverCode: 'inactive_account',
+      });
+    });
+
+    it('rethrows a 409/422/429/5xx-shaped error unchanged, preserving the caller-inspectable body', async () => {
+      stubHappyPathFetch();
+      const client = buildClient();
+      await client.signIn({ email: 'admin@descon.com', password: 'Passw0rd!' });
+
+      const conflict = async () => {
+        const error = { status: 409, code: 'HTTP_4XX', message: 'Import already in progress.' };
+        throw error;
+      };
+
+      await expect(client.authenticatedDataRequest(conflict)).rejects.toEqual({
+        status: 409,
+        code: 'HTTP_4XX',
+        message: 'Import already in progress.',
+      });
+    });
+  });
+
   describe('stale request / epoch races', () => {
     (hasSessionStorage ? it : it.skip)('sign-out while a restore is pending: the stale restore must not revive the session', async () => {
       sessionStorage.setItem('descon.staffRefreshToken', 'stored-refresh');

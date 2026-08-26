@@ -204,6 +204,13 @@ export function createMockStaffAuthClient(options: MockStaffAuthClientOptions = 
       }
       return makeRequest(accessToken);
     },
+
+    async authenticatedDataRequest(makeRequest) {
+      if (!accessToken) {
+        throw { code: 'SESSION_EXPIRED' } satisfies StaffAuthError;
+      }
+      return makeRequest(accessToken);
+    },
   };
 }
 
@@ -222,5 +229,6 @@ export function createUnavailableStaffAuthClient(): StaffAuthClient {
     restoreSession: () => Promise.resolve(null),
     signOut: () => Promise.resolve(),
     authenticatedRequest: () => Promise.reject({ code: 'SERVICE_UNAVAILABLE' } satisfies StaffAuthError),
+    authenticatedDataRequest: () => Promise.reject({ code: 'SERVICE_UNAVAILABLE' } satisfies StaffAuthError),
   };
 }

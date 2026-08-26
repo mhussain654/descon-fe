@@ -25,6 +25,7 @@ function buildFakeClient(overrides: Partial<StaffAuthClient> = {}): StaffAuthCli
     restoreSession: vi.fn().mockResolvedValue(null),
     signOut: vi.fn().mockResolvedValue(undefined),
     authenticatedRequest: vi.fn(),
+    authenticatedDataRequest: vi.fn(),
     ...overrides,
   };
 }
