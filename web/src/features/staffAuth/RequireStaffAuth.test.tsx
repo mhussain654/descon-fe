@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router';
 import { describe, expect, it, vi } from 'vitest';
 import { useStaffAuth } from '../../contexts/StaffAuthContext';
@@ -16,7 +16,7 @@ function ProtectedStub() {
   return <p>Protected content</p>;
 }
 
-function renderGuarded(initialPath: string, permission?: 'canManageStaff' | 'canVerifyDocuments') {
+function renderGuarded(initialPath: string, permission?: string) {
   return render(
     <MemoryRouter initialEntries={[initialPath]}>
       <Routes>
@@ -58,14 +58,30 @@ describe('RequireStaffAuth', () => {
 
   it('redirects to /admin/forbidden -- not just hides the content -- when authenticated but lacking the required permission', () => {
     vi.mocked(useStaffAuth).mockReturnValue({ status: 'authenticated', hasPermission: vi.fn(() => false) } as never);
-    renderGuarded('/admin/users', 'canManageStaff');
+    renderGuarded('/admin/users', 'manage_staff_users');
     expect(screen.getByText('Forbidden screen')).toBeInTheDocument();
     expect(screen.queryByText('Protected content')).not.toBeInTheDocument();
   });
 
   it('renders protected content when authenticated and holding the required permission', () => {
     vi.mocked(useStaffAuth).mockReturnValue({ status: 'authenticated', hasPermission: vi.fn(() => true) } as never);
-    renderGuarded('/admin/users', 'canManageStaff');
+    renderGuarded('/admin/users', 'manage_staff_users');
     expect(screen.getByText('Protected content')).toBeInTheDocument();
+  });
+
+  it('shows a retry affordance instead of redirecting to sign-in when restoration could not confirm a session either way (offline)', () => {
+    const retryRestore = vi.fn();
+    vi.mocked(useStaffAuth).mockReturnValue({
+      status: 'restore-error',
+      hasPermission: vi.fn(),
+      retryRestore,
+    } as never);
+    renderGuarded('/admin/users');
+
+    expect(screen.queryByText('Sign-in screen')).not.toBeInTheDocument();
+    expect(screen.queryByText('Protected content')).not.toBeInTheDocument();
+    const retryButton = screen.getByRole('button', { name: 'retry' });
+    fireEvent.click(retryButton);
+    expect(retryRestore).toHaveBeenCalledTimes(1);
   });
 });

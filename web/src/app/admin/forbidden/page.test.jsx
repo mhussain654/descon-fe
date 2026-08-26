@@ -7,11 +7,11 @@ import { LanguageProvider } from "../../../contexts/LanguageContext";
 import { StaffAuthProvider } from "../../../contexts/StaffAuthContext";
 import StaffForbiddenPage from "./page";
 
-const VIEWER = MOCK_STAFF_ACCOUNTS.find((account) => account.role === "viewer" && !account.locked && !account.suspended);
+const HR = MOCK_STAFF_ACCOUNTS.find((account) => account.role === "hr" && !account.locked && !account.suspended);
 
 async function renderForbiddenPage() {
   const client = createMockStaffAuthClient({ delayMs: 0 });
-  await client.signIn({ email: VIEWER.email, password: MOCK_STAFF_PASSWORD });
+  await client.signIn({ email: HR.email, password: MOCK_STAFF_PASSWORD });
 
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   render(

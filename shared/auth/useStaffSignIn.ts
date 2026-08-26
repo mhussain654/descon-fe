@@ -6,7 +6,7 @@
 // web-focused"), but the hook still lives in shared/ rather than web/ so it
 // stays unit-testable in isolation and ready if a staff-facing mobile
 // surface is ever approved.
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import type { StaffAuthClient, StaffAuthError, StaffSession } from './staffTypes';
 
 export type StaffSignInFieldError = 'REQUIRED';
@@ -55,6 +55,15 @@ export function useStaffSignIn({ client, onAuthenticated }: UseStaffSignInOption
   // reliably blocks the second call even within the same tick.
   const isSubmittingRef = useRef(false);
 
+  // A submit that's still in flight when the screen unmounts (the candidate
+  // navigates away, or the app is torn down) must not call onAuthenticated
+  // or setError once it resolves (AGENTS.md: "Prevent stale requests from
+  // changing state after ... navigation").
+  const mountedRef = useRef(true);
+  useEffect(() => () => {
+    mountedRef.current = false;
+  }, []);
+
   const setEmail = useCallback((value: string) => {
     setEmailState(value);
     setFieldErrors((prev) => (prev.email ? { ...prev, email: undefined } : prev));
@@ -83,12 +92,14 @@ export function useStaffSignIn({ client, onAuthenticated }: UseStaffSignInOption
     setError(null);
     try {
       const session = await client.signIn({ email, password });
+      if (!mountedRef.current) return;
       await onAuthenticated(session);
     } catch (submitError) {
+      if (!mountedRef.current) return;
       setError(toStaffAuthError(submitError));
     } finally {
       isSubmittingRef.current = false;
-      setIsSubmitting(false);
+      if (mountedRef.current) setIsSubmitting(false);
     }
   }, [client, email, password, onAuthenticated]);
 

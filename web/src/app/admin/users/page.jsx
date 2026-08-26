@@ -27,9 +27,15 @@ import { STAFF_ADMIN_ERROR_KEYS } from "../../../../../shared/staffAdmin/errorMe
 import { STAFF_ROLE_RANK } from "../../../../../shared/auth/staffTypes";
 import { staffDirectoryClient } from "../../../lib/staff-directory-client";
 
-const ROLES = ["admin", "manager", "viewer"];
+const ROLES = ["admin", "hr", "mps", "finance", "management"];
 const STATUSES = ["active", "invited", "suspended"];
-const ROLE_LABEL_KEYS = { admin: "staffAdminRoleAdmin", manager: "staffAdminRoleManager", viewer: "staffAdminRoleViewer" };
+const ROLE_LABEL_KEYS = {
+  admin: "staffAdminRoleAdmin",
+  hr: "staffAdminRoleHr",
+  mps: "staffAdminRoleMps",
+  finance: "staffAdminRoleFinance",
+  management: "staffAdminRoleManagement",
+};
 const STATUS_LABEL_KEYS = {
   active: "staffAdminStatusActive",
   invited: "staffAdminStatusInvited",
@@ -49,7 +55,7 @@ function describeStaffAdminError(error, t) {
 export default function StaffUsersPage() {
   return (
     <StaffShell>
-      <RequireStaffAuth permission="canManageStaff">
+      <RequireStaffAuth permission="manage_staff_users">
         <StaffUsersContent />
       </RequireStaffAuth>
     </StaffShell>
@@ -67,7 +73,7 @@ function StaffUsersContent() {
 
   const [inviteOpen, setInviteOpen] = useState(false);
   const [roleDialogMember, setRoleDialogMember] = useState(null);
-  const [roleDialogValue, setRoleDialogValue] = useState("viewer");
+  const [roleDialogValue, setRoleDialogValue] = useState("hr");
   const [pendingDowngrade, setPendingDowngrade] = useState(null);
   const [suspendTarget, setSuspendTarget] = useState(null);
 
@@ -325,7 +331,7 @@ function StaffUsersContent() {
 function InviteDialog({ open, onOpenChange, onInvite, isSubmitting, error, t }) {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
-  const [role, setRole] = useState("viewer");
+  const [role, setRole] = useState("hr");
 
   return (
     <Dialog
@@ -335,7 +341,7 @@ function InviteDialog({ open, onOpenChange, onInvite, isSubmitting, error, t }) 
         if (next) {
           setName("");
           setEmail("");
-          setRole("viewer");
+          setRole("hr");
         }
       }}
     >

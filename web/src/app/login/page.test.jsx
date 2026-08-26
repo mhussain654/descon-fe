@@ -1,13 +1,55 @@
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MemoryRouter } from 'react-router';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { AuthProvider } from '../../contexts/AuthContext';
 import { LanguageProvider } from '../../contexts/LanguageContext';
 import { candidateAuthClient } from '../../lib/auth-client';
 import LoginPage from './page';
 
+// login/page.jsx submits through the real, module-level `candidateAuthClient`
+// singleton (../../lib/auth-client.ts), so the actual OTP network calls are
+// mocked at the fetch boundary here, per AGENTS.md: "Mock the centralized
+// API boundary ... Do not call live backend or provider services from
+// unit/component tests." Individual tests below still use
+// `vi.spyOn(candidateAuthClient, ...).mockRejectedValueOnce(...)` to inject
+// a specific error for one call -- that takes precedence over this default
+// success stub since it replaces the client method itself.
+const originalFetch = globalThis.fetch;
+
+function successEnvelope(data) {
+  return { data, meta: {}, errors: [] };
+}
+
+beforeEach(() => {
+  globalThis.fetch = vi.fn(async (url) => {
+    if (String(url).includes('/candidate/auth/otp/verify')) {
+      return new Response(
+        JSON.stringify(
+          successEnvelope({
+            access_token: 'access-1',
+            refresh_token: 'refresh-1',
+            token_type: 'Bearer',
+            expires_in: 900,
+            session: { id: 'session-1' },
+            candidate: { id: 'candidate-1', full_name: 'Test Candidate', preferred_locale: 'en' },
+          })
+        ),
+        { status: 201, headers: { 'Content-Type': 'application/json' } }
+      );
+    }
+    if (String(url).includes('/candidate/auth/otp/request')) {
+      return new Response(
+        JSON.stringify(successEnvelope({ expires_in_seconds: 300, resend_after_seconds: 30 })),
+        { status: 200, headers: { 'Content-Type': 'application/json' } }
+      );
+    }
+    throw new Error(`login/page.test.jsx: unexpected fetch to ${url}`);
+  });
+});
+
 afterEach(() => {
+  globalThis.fetch = originalFetch;
   window.localStorage.clear();
   document.documentElement.removeAttribute('dir');
   document.documentElement.removeAttribute('lang');

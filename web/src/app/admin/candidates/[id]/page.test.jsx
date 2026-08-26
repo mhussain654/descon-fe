@@ -8,7 +8,7 @@ import { StaffAuthProvider } from "../../../../contexts/StaffAuthContext";
 import CandidateDetailsPage from "./page";
 
 const ADMIN = MOCK_STAFF_ACCOUNTS.find((account) => account.role === "admin");
-const VIEWER = MOCK_STAFF_ACCOUNTS.find((account) => account.role === "viewer" && !account.locked && !account.suspended);
+const FINANCE = MOCK_STAFF_ACCOUNTS.find((account) => account.role === "finance" && !account.locked && !account.suspended);
 
 const CANDIDATE_RESPONSE = {
   candidate: {
@@ -51,6 +51,30 @@ async function renderAs(account) {
   await screen.findByText("Test Candidate");
 }
 
+/** A hand-rolled fake, not the mock (which pairs hr/mps roles with manage_candidate_documents by fixture) -- the only way to prove the gate checks the backend-issued permission, not the role string. */
+async function renderWithFakeSession(session) {
+  const client = {
+    signIn: async () => session,
+    restoreSession: async () => session,
+    signOut: async () => {},
+    authenticatedRequest: async () => undefined,
+  };
+
+  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  render(
+    <MemoryRouter initialEntries={["/admin/candidates/c1"]}>
+      <QueryClientProvider client={queryClient}>
+        <LanguageProvider>
+          <StaffAuthProvider client={client}>
+            <CandidateDetailsPage params={{ id: "c1" }} />
+          </StaffAuthProvider>
+        </LanguageProvider>
+      </QueryClientProvider>
+    </MemoryRouter>
+  );
+  await screen.findByText("Test Candidate");
+}
+
 describe("CandidateDetailsPage document verification (role-gated)", () => {
   beforeEach(() => {
     stubFetch();
@@ -61,15 +85,39 @@ describe("CandidateDetailsPage document verification (role-gated)", () => {
     sessionStorage.clear();
   });
 
-  it("renders Verify/Reject actions for a staff member with canVerifyDocuments", async () => {
+  it("renders Verify/Reject actions for a staff member whose role can verify documents", async () => {
     await renderAs(ADMIN);
     expect(screen.getByText("Verify")).toBeInTheDocument();
     expect(screen.getByText("Reject")).toBeInTheDocument();
   });
 
-  it("never renders Verify/Reject actions for a viewer -- not just disables them", async () => {
-    await renderAs(VIEWER);
+  it("never renders Verify/Reject actions for a role outside the verifier set -- not just disables them", async () => {
+    await renderAs(FINANCE);
     await waitFor(() => expect(screen.getByText("Test Candidate")).toBeInTheDocument());
+    expect(screen.queryByText("Verify")).not.toBeInTheDocument();
+    expect(screen.queryByText("Reject")).not.toBeInTheDocument();
+  });
+
+  it("never renders Verify/Reject for an hr-*role* staff member lacking manage_candidate_documents -- role alone never grants access", async () => {
+    await renderWithFakeSession({
+      staffId: "staff-hr-no-perm",
+      email: "hr-no-perm@descon.com",
+      role: "hr",
+      permissions: [],
+      expiresAt: new Date(Date.now() + 60_000).toISOString(),
+    });
+    expect(screen.queryByText("Verify")).not.toBeInTheDocument();
+    expect(screen.queryByText("Reject")).not.toBeInTheDocument();
+  });
+
+  it("never renders Verify/Reject for an mps-*role* staff member lacking manage_candidate_documents -- role alone never grants access", async () => {
+    await renderWithFakeSession({
+      staffId: "staff-mps-no-perm",
+      email: "mps-no-perm@descon.com",
+      role: "mps",
+      permissions: [],
+      expiresAt: new Date(Date.now() + 60_000).toISOString(),
+    });
     expect(screen.queryByText("Verify")).not.toBeInTheDocument();
     expect(screen.queryByText("Reject")).not.toBeInTheDocument();
   });

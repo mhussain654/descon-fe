@@ -8,6 +8,13 @@ const config = getDefaultConfig(__dirname);
 
 config.maxWorkers = 6;
 
+// Expo's default blockList only excludes __tests__/ folders -- this
+// project colocates tests next to their source instead (*.test.jsx), which
+// Expo Router's file-based routing otherwise picks up as real routes and
+// tries to bundle, pulling in @testing-library/react-native (a
+// Node-only-compatible test dependency) into the app bundle itself.
+config.resolver.blockList = [...config.resolver.blockList, /\.test\.(js|jsx|ts|tsx)$/];
+
 const WEB_ALIASES = {
   'expo-secure-store': path.resolve(__dirname, './polyfills/web/secureStore.web.ts'),
   'react-native-webview': path.resolve(__dirname, './polyfills/web/webview.web.tsx'),
@@ -51,8 +58,24 @@ const SHARED_ALIASES = {
 };
 config.watchFolders = [...config.watchFolders, path.resolve(__dirname, '../shared')];
 
+// tsconfig.json maps "react" -> ./node_modules/@types/react so TypeScript
+// can resolve `react`'s types from ../shared's files (they sit outside any
+// node_modules ancestor, so Node-style resolution alone can't find it).
+// Metro (via expo/metro-config) also follows tsconfig `paths` for *runtime*
+// resolution, which picks up that same mapping -- but @types/react is a
+// types-only package with no real `main` entry, so bundling a real import
+// through it fails. Force `react` back to the actual package here,
+// regardless of what tsconfig says, so both tools get what they need.
+const REACT_MODULE_PATH = path.resolve(__dirname, 'node_modules/react');
+
 // Add web-specific alias configuration through resolveRequest
 config.resolver.resolveRequest = (context, moduleName, platform) => {
+  // Applies everywhere, including polyfills below -- every importer needs
+  // the real `react`, not whatever tsconfig's `paths` would otherwise send
+  // it to.
+  if (moduleName === 'react') {
+    return context.resolveRequest(context, REACT_MODULE_PATH, platform);
+  }
   // Polyfills are not resolved by Metro
   if (
     context.originModulePath.startsWith(`${__dirname}/polyfills/native`) ||

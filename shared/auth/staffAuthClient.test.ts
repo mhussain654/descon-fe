@@ -10,7 +10,7 @@ import {
 } from './staffAuthClient';
 
 const ADMIN = MOCK_STAFF_ACCOUNTS.find((account) => account.role === 'admin')!;
-const VIEWER = MOCK_STAFF_ACCOUNTS.find((account) => account.role === 'viewer' && !account.locked && !account.suspended)!;
+const HR = MOCK_STAFF_ACCOUNTS.find((account) => account.role === 'hr' && !account.locked && !account.suspended)!;
 const LOCKED = MOCK_STAFF_ACCOUNTS.find((account) => account.locked)!;
 const SUSPENDED = MOCK_STAFF_ACCOUNTS.find((account) => account.suspended)!;
 
@@ -32,7 +32,8 @@ describe('createMockStaffAuthClient', () => {
     const session = await client.signIn({ email: ADMIN.email, password: MOCK_STAFF_PASSWORD });
     expect(session.staffId).toBe(ADMIN.staffId);
     expect(session.role).toBe('admin');
-    expect(session.accessToken).toEqual(expect.any(String));
+    expect(session).not.toHaveProperty('accessToken');
+    expect(session).not.toHaveProperty('refreshToken');
     expect(new Date(session.expiresAt).getTime()).toBeGreaterThan(Date.now());
   });
 
@@ -59,24 +60,24 @@ describe('createMockStaffAuthClient', () => {
   it('locks out after MOCK_STAFF_MAX_ATTEMPTS failed attempts for the same email', async () => {
     const client = createMockStaffAuthClient({ delayMs: 0 });
     for (let attempt = 0; attempt < MOCK_STAFF_MAX_ATTEMPTS; attempt += 1) {
-      await expect(client.signIn({ email: VIEWER.email, password: 'wrong' })).rejects.toEqual({
+      await expect(client.signIn({ email: HR.email, password: 'wrong' })).rejects.toEqual({
         code: 'INVALID_CREDENTIALS',
       });
     }
     // Even the correct password no longer works once locked out.
-    await expect(client.signIn({ email: VIEWER.email, password: MOCK_STAFF_PASSWORD })).rejects.toEqual({
+    await expect(client.signIn({ email: HR.email, password: MOCK_STAFF_PASSWORD })).rejects.toEqual({
       code: 'TOO_MANY_ATTEMPTS',
     });
   });
 
   it('resets the attempt counter on a successful sign-in', async () => {
     const client = createMockStaffAuthClient({ delayMs: 0 });
-    await expect(client.signIn({ email: VIEWER.email, password: 'wrong' })).rejects.toEqual({
+    await expect(client.signIn({ email: HR.email, password: 'wrong' })).rejects.toEqual({
       code: 'INVALID_CREDENTIALS',
     });
-    await client.signIn({ email: VIEWER.email, password: MOCK_STAFF_PASSWORD });
+    await client.signIn({ email: HR.email, password: MOCK_STAFF_PASSWORD });
     // Should have fresh attempts again, not be partway to lockout.
-    await expect(client.signIn({ email: VIEWER.email, password: 'wrong' })).rejects.toEqual({
+    await expect(client.signIn({ email: HR.email, password: 'wrong' })).rejects.toEqual({
       code: 'INVALID_CREDENTIALS',
     });
   });
@@ -128,6 +129,23 @@ describe('createMockStaffAuthClient', () => {
     await client.signOut();
     await expect(client.restoreSession()).resolves.toBeNull();
   });
+
+  it('authenticatedRequest passes the access token to the caller once signed in', async () => {
+    const client = createMockStaffAuthClient({ delayMs: 0 });
+    await client.signIn({ email: ADMIN.email, password: MOCK_STAFF_PASSWORD });
+    const seenTokens: string[] = [];
+    await client.authenticatedRequest(async (token) => {
+      seenTokens.push(token);
+      return 'ok';
+    });
+    expect(seenTokens).toHaveLength(1);
+    expect(seenTokens[0]).toEqual(expect.any(String));
+  });
+
+  it('authenticatedRequest rejects with SESSION_EXPIRED before any sign-in has happened', async () => {
+    const client = createMockStaffAuthClient({ delayMs: 0 });
+    await expect(client.authenticatedRequest(async () => 'ok')).rejects.toEqual({ code: 'SESSION_EXPIRED' });
+  });
 });
 
 describe('createUnavailableStaffAuthClient', () => {
@@ -146,5 +164,10 @@ describe('createUnavailableStaffAuthClient', () => {
   it('signOut resolves without error', async () => {
     const client = createUnavailableStaffAuthClient();
     await expect(client.signOut()).resolves.toBeUndefined();
+  });
+
+  it('authenticatedRequest fails safely with SERVICE_UNAVAILABLE', async () => {
+    const client = createUnavailableStaffAuthClient();
+    await expect(client.authenticatedRequest(async () => 'ok')).rejects.toEqual({ code: 'SERVICE_UNAVAILABLE' });
   });
 });

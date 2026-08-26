@@ -37,8 +37,11 @@ const stageNameKeys = {
 
 // No auth guard existed here before MPS-F202/MPS-F203 -- see the identical
 // note in ../../page.jsx. Document verification is additionally gated on
-// `canVerifyDocuments` below, so a viewer-role staff member can see this
-// page (read-only) but never gets the Verify/Reject controls at all.
+// the `manage_candidate_documents` permission below, so a staff member
+// without it can see this page (read-only) but never gets the
+// Verify/Reject controls at all -- the backend still enforces the real
+// boundary independently (AGENTS.md: "Frontend role checks are for UX
+// only").
 export default function CandidateDetailsPage({ params }) {
   return (
     <StaffShell>
@@ -50,6 +53,7 @@ export default function CandidateDetailsPage({ params }) {
 function CandidateDetails({ params }) {
   const { t, language } = useLanguage();
   const { hasPermission } = useStaffAuth();
+  const canVerifyDocuments = hasPermission("manage_candidate_documents");
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
 
@@ -281,7 +285,7 @@ function CandidateDetails({ params }) {
                             )}
                           </div>
                         </div>
-                        {doc.verification_status === "uploaded" && hasPermission("canVerifyDocuments") && (
+                        {doc.verification_status === "uploaded" && canVerifyDocuments && (
                           <div className="flex space-x-2">
                             <button
                               onClick={() =>

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { StyleSheet, Text, TextInput, View } from 'react-native';
 import { HelperText } from './HelperText';
 import { colors, fontWeights, radii, spacing } from './tokens';
@@ -37,12 +37,25 @@ export function OtpField({
 }: OtpFieldProps) {
   const [isFocused, setFocused] = useState(false);
   const hasError = Boolean(errorMessage);
+  const inputRef = useRef<TextInput>(null);
 
   const handleChange = (text: string) => {
     const digits = text.replace(/\D/g, '').slice(0, length);
     onValueChange(digits);
     if (digits.length === length) onComplete?.(digits);
   };
+
+  // A rejected code clears `value` back to '' (see useCnicOtpFlow's
+  // OTP_CLEARING_ERRORS), but `autoFocus` only fires once on mount -- and
+  // submitting a complete code typically dismisses the keyboard. Without
+  // this, the candidate has to notice the error and manually tap the field
+  // again before they can retry, which reads as "the field stopped
+  // working" rather than "type the code again".
+  useEffect(() => {
+    if (hasError && editable !== false) {
+      inputRef.current?.focus();
+    }
+  }, [hasError, editable]);
 
   return (
     <View>
@@ -64,6 +77,7 @@ export function OtpField({
           );
         })}
         <TextInput
+          ref={inputRef}
           value={value}
           onChangeText={handleChange}
           onFocus={() => setFocused(true)}
