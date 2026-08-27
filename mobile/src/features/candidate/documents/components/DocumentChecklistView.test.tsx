@@ -6,6 +6,11 @@ import { AuthProvider, useAuth } from '../../../../contexts/AuthContext';
 import { LanguageProvider } from '../../../../contexts/LanguageContext';
 import { Toaster } from '../../../../design-system';
 import { candidateDocumentsClient } from '../../../../lib/candidate-documents-client';
+import type {
+  CandidateDocumentChecklistItem,
+  CandidateDocumentMetadata,
+  CandidateDocumentsError,
+} from '../../../../lib/candidate-documents-client';
 import { useCandidateDocuments } from '../hooks/useCandidateDocuments';
 import { DocumentChecklistView } from './DocumentChecklistView';
 
@@ -39,7 +44,7 @@ jest.mock('expo-document-picker', () => ({
   getDocumentAsync: (...args: unknown[]) => mockGetDocumentAsync(...args),
 }));
 
-function item(overrides = {}) {
+function item(overrides: Partial<CandidateDocumentChecklistItem> = {}): CandidateDocumentChecklistItem {
   return {
     requirementCode: 'passport',
     name: 'Passport',
@@ -51,7 +56,7 @@ function item(overrides = {}) {
   };
 }
 
-function uploadedDocument(overrides = {}) {
+function uploadedDocument(overrides: Partial<CandidateDocumentMetadata> = {}): CandidateDocumentMetadata {
   return {
     id: '30fcedd6-7fe6-4d12-a5ae-f6b5ef3d91dd',
     fileName: 'passport.pdf',
@@ -121,7 +126,7 @@ function ConnectedHarness({ onReturnToSignIn = jest.fn() }: { onReturnToSignIn?:
 }
 
 function renderConnectedView({ onReturnToSignIn = jest.fn() } = {}) {
-  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: 0 }, mutations: { gcTime: 0 } } });
   return render(
     <SafeAreaProvider initialMetrics={TEST_SAFE_AREA_METRICS}>
       <QueryClientProvider client={queryClient}>
@@ -138,8 +143,22 @@ function renderConnectedView({ onReturnToSignIn = jest.fn() } = {}) {
   );
 }
 
-function renderView({ isLoading = false, error = null, checklist = undefined, onRetry = jest.fn(), onReturnToSignIn = jest.fn() } = {}) {
-  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+interface RenderViewOptions {
+  isLoading?: boolean;
+  error?: CandidateDocumentsError | null;
+  checklist?: CandidateDocumentChecklistItem[];
+  onRetry?: () => void;
+  onReturnToSignIn?: () => void;
+}
+
+function renderView({
+  isLoading = false,
+  error = null,
+  checklist = undefined,
+  onRetry = jest.fn(),
+  onReturnToSignIn = jest.fn(),
+}: RenderViewOptions = {}) {
+  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: 0 }, mutations: { gcTime: 0 } } });
   const t = (key: string) => require('../../../../../../shared/i18n/translate').translate('en', key);
 
   return render(
@@ -252,7 +271,7 @@ describe('DocumentChecklistView', () => {
     it('picks a document, uploads it, and shows the updated document after success', async () => {
       mockGetDocumentAsync.mockResolvedValue({ canceled: false, assets: [pickedDocument()] });
       jest.mocked(candidateDocumentsClient.getChecklist).mockResolvedValue([item({ status: 'missing' })]);
-      let resolveUpload: (value: unknown) => void;
+      let resolveUpload: (value: CandidateDocumentChecklistItem) => void;
       jest.mocked(candidateDocumentsClient.uploadDocument).mockReturnValue(
         new Promise((resolve) => {
           resolveUpload = resolve;
@@ -412,7 +431,7 @@ describe('DocumentChecklistView', () => {
   });
 
   it('renders in Urdu when given the Urdu translator', async () => {
-    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: 0 }, mutations: { gcTime: 0 } } });
     const { translate } = require('../../../../../../shared/i18n/translate');
     render(
       <SafeAreaProvider initialMetrics={TEST_SAFE_AREA_METRICS}>

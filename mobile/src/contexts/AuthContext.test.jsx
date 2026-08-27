@@ -25,7 +25,7 @@ jest.mock('expo-secure-store', () => {
 });
 
 function renderWithProviders(ui) {
-  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: 0 }, mutations: { gcTime: 0 } } });
   return {
     ...render(
       <QueryClientProvider client={queryClient}>
@@ -133,7 +133,7 @@ describe('AuthProvider', () => {
   });
 
   it('clears the TanStack Query cache on logout', async () => {
-    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: 0 }, mutations: { gcTime: 0 } } });
     const clearSpy = jest.spyOn(queryClient, 'clear');
     render(
       <QueryClientProvider client={queryClient}>
