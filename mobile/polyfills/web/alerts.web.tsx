@@ -432,7 +432,6 @@ export const AlertModal = () => {
 };
 
 const styling = (userInterfaceStyle: string) =>
-	// @ts-expect-error - outlineStyle is for web only
 	StyleSheet.create({
 		container: {
 			flex: 1,
@@ -441,6 +440,7 @@ const styling = (userInterfaceStyle: string) =>
 			backgroundColor: 'rgba(0,0,0,0.2)',
 		},
 		content: {
+			// @ts-expect-error - backdropFilter is for web only
 			backdropFilter: 'blur(20px)',
 			borderRadius: 12,
 			width: 244,
