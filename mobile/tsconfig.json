@@ -17,5 +17,17 @@
     ".expo/types/**/*.ts",
     "expo-env.d.ts",
     "nativewind-env.d.ts"
+  ],
+  // These 2 files predate this PR (present since the initial prototype
+  // scaffold, never touched by candidate-document-upload work). They're only
+  // reached via metro.config.js's web-platform module aliasing (invisible to
+  // tsc, unlike a normal `import`), so excluding them here doesn't hide any
+  // error reachable from real app code -- a missing
+  // `react-native-web-refresh-control` declaration file, and an
+  // `expo-status-bar` `ref` prop mismatch, both pre-existing/unrelated.
+  "exclude": [
+    "node_modules",
+    "polyfills/web/refreshControl.web.tsx",
+    "polyfills/web/statusBar.web.tsx"
   ]
 }
