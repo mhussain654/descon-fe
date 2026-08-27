@@ -296,6 +296,7 @@ export const AlertModal = () => {
 								{modalData.type === 'login-password' ? (
 									<TextInput
 										style={[
+											// @ts-expect-error - outlineStyle is for web only
 											styles.textInput,
 											styles.textInputTop,
 											modalData.userInterfaceStyle === 'dark'
@@ -323,6 +324,7 @@ export const AlertModal = () => {
 								) : null}
 								<TextInput
 									style={[
+										// @ts-expect-error - outlineStyle is for web only
 										styles.textInput,
 										modalData.type === 'login-password' &&
 											styles.textInputBottom,

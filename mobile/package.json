@@ -7,7 +7,7 @@
   },
   "scripts": {
     "postinstall": "patch-package",
-    "test": "jest",
+    "test": "jest --forceExit",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
