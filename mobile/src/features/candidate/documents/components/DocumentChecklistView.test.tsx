@@ -645,4 +645,39 @@ describe('DocumentChecklistView', () => {
     expect(await screen.findAllByText('پاسپورٹ')).not.toHaveLength(0);
     expect(screen.getByText('غیر موجود')).toBeTruthy();
   });
+
+  it('renders the PCC compliance badge and rejection reason in Urdu', async () => {
+    const { translate } = require('../../../../../../shared/i18n/translate');
+    const queryClient = createTestQueryClient();
+    trackRender(
+      render(
+        <SafeAreaProvider initialMetrics={TEST_SAFE_AREA_METRICS}>
+          <QueryClientProvider client={queryClient}>
+            <LanguageProvider>
+              <AuthProvider>
+                <DocumentChecklistView
+                  isLoading={false}
+                  error={null}
+                  checklist={[
+                    pccItem({
+                      status: 'rejected',
+                      document: pccDocument({ complianceStatus: 'near_expiry', rejectionReason: 'دستاویز ناقابل مطالعہ ہے۔' }),
+                    }),
+                  ]}
+                  language="ur"
+                  t={(key: string) => translate('ur', key)}
+                  onRetry={jest.fn()}
+                  onReturnToSignIn={jest.fn()}
+                />
+                <Toaster />
+              </AuthProvider>
+            </LanguageProvider>
+          </QueryClientProvider>
+        </SafeAreaProvider>
+      )
+    );
+
+    expect(await screen.findByText('جلد میعاد ختم ہونے والی')).toBeTruthy();
+    expect(screen.getByText(/دستاویز ناقابل مطالعہ ہے۔/)).toBeTruthy();
+  });
 });
