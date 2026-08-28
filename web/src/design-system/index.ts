@@ -27,6 +27,7 @@ export * from './SessionExpiredState';
 export * from './Skeleton';
 export * from './Spinner';
 export * from './Table';
+export * from './Textarea';
 export * from './Timeline';
 export { toast } from './toast';
 export * from './ValidationMessage';
