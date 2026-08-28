@@ -1,6 +1,7 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react-native';
 import { Pressable, Text } from 'react-native';
+import { destroyQueryClientMutations } from '../testSupport/destroyQueryClientMutations';
 import { AuthProvider, useAuth } from './AuthContext';
 
 jest.mock('expo-secure-store', () => {
@@ -24,8 +25,13 @@ jest.mock('expo-secure-store', () => {
   };
 });
 
+// See destroyQueryClientMutations.ts for why this is needed even with
+// `gcTime: 0` set below.
+let activeQueryClient;
+
 function renderWithProviders(ui) {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: 0 }, mutations: { gcTime: 0 } } });
+  activeQueryClient = queryClient;
   return {
     ...render(
       <QueryClientProvider client={queryClient}>
@@ -85,6 +91,14 @@ describe('AuthProvider', () => {
     jest.requireMock('expo-secure-store').__reset();
   });
 
+  afterEach(() => {
+    // See destroyQueryClientMutations.ts -- `.clear()` alone does not clear
+    // each mutation's pending GC timeout.
+    if (activeQueryClient) destroyQueryClientMutations(activeQueryClient);
+    activeQueryClient?.clear();
+    activeQueryClient = undefined;
+  });
+
   it('starts as "restoring" and resolves to unauthenticated once the secure-store read finishes', async () => {
     renderWithProviders(<Probe />);
     await screen.findByText('unauthenticated');
@@ -134,6 +148,7 @@ describe('AuthProvider', () => {
 
   it('clears the TanStack Query cache on logout', async () => {
     const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: 0 }, mutations: { gcTime: 0 } } });
+    activeQueryClient = queryClient;
     const clearSpy = jest.spyOn(queryClient, 'clear');
     render(
       <QueryClientProvider client={queryClient}>

@@ -8,6 +8,7 @@ import { LanguageProvider } from '../../../../contexts/LanguageContext';
 import { Toaster } from '../../../../design-system';
 import { applicationProgressClient } from '../../../../lib/application-progress-client';
 import type { ApplicationProgress, ApplicationProgressDocuments, DocumentSubmissionResult } from '../../../../lib/application-progress-client';
+import { destroyQueryClientMutations } from '../../../../testSupport/destroyQueryClientMutations';
 import { ApplicationProgressSummary } from './ApplicationProgressSummary';
 
 const TEST_SAFE_AREA_METRICS = {
@@ -93,8 +94,13 @@ function LoggedInHarness({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
+// See destroyQueryClientMutations.ts for why this is needed even with
+// `gcTime: 0` set below.
+let activeQueryClient: QueryClient | undefined;
+
 function renderSummary({ onReturnToSignIn = jest.fn() } = {}) {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: 0 }, mutations: { gcTime: 0 } } });
+  activeQueryClient = queryClient;
   return render(
     <SafeAreaProvider initialMetrics={TEST_SAFE_AREA_METRICS}>
       <QueryClientProvider client={queryClient}>
@@ -115,6 +121,11 @@ describe('ApplicationProgressSummary', () => {
   afterEach(async () => {
     getProgress.mockReset();
     submitDocuments.mockReset();
+    // See destroyQueryClientMutations.ts -- `.clear()` alone does not clear
+    // each mutation's pending GC timeout.
+    if (activeQueryClient) destroyQueryClientMutations(activeQueryClient);
+    activeQueryClient?.clear();
+    activeQueryClient = undefined;
     // Guaranteed regardless of whether the Urdu test's own assertions
     // passed -- matches LanguageContext.test.jsx's cleanup pattern.
     await AsyncStorage.clear();

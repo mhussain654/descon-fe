@@ -12,6 +12,7 @@ import type {
   CandidateDocumentsError,
 } from '../../../../lib/candidate-documents-client';
 import { useCandidateDocuments } from '../hooks/useCandidateDocuments';
+import { destroyQueryClientMutations } from '../../../../testSupport/destroyQueryClientMutations';
 import { DocumentChecklistView } from './DocumentChecklistView';
 
 // `initialWindowMetrics` is null under Jest (populated natively), which
@@ -125,8 +126,13 @@ function ConnectedHarness({ onReturnToSignIn = jest.fn() }: { onReturnToSignIn?:
   );
 }
 
+// See destroyQueryClientMutations.ts for why this is needed even with
+// `gcTime: 0` set below.
+let activeQueryClient: QueryClient | undefined;
+
 function renderConnectedView({ onReturnToSignIn = jest.fn() } = {}) {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: 0 }, mutations: { gcTime: 0 } } });
+  activeQueryClient = queryClient;
   return render(
     <SafeAreaProvider initialMetrics={TEST_SAFE_AREA_METRICS}>
       <QueryClientProvider client={queryClient}>
@@ -159,6 +165,7 @@ function renderView({
   onReturnToSignIn = jest.fn(),
 }: RenderViewOptions = {}) {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: 0 }, mutations: { gcTime: 0 } } });
+  activeQueryClient = queryClient;
   const t = (key: string) => require('../../../../../../shared/i18n/translate').translate('en', key);
 
   return render(
@@ -189,6 +196,11 @@ describe('DocumentChecklistView', () => {
   afterEach(() => {
     jest.mocked(candidateDocumentsClient.uploadDocument).mockReset();
     mockGetDocumentAsync.mockReset();
+    // See destroyQueryClientMutations.ts -- `.clear()` alone does not clear
+    // each mutation's pending GC timeout.
+    if (activeQueryClient) destroyQueryClientMutations(activeQueryClient);
+    activeQueryClient?.clear();
+    activeQueryClient = undefined;
   });
 
   it('shows a loading state', async () => {
@@ -421,6 +433,7 @@ describe('DocumentChecklistView', () => {
 
   it('renders in Urdu when given the Urdu translator', async () => {
     const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: 0 }, mutations: { gcTime: 0 } } });
+    activeQueryClient = queryClient;
     const { translate } = require('../../../../../../shared/i18n/translate');
     render(
       <SafeAreaProvider initialMetrics={TEST_SAFE_AREA_METRICS}>

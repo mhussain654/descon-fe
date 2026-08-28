@@ -7,7 +7,7 @@
   },
   "scripts": {
     "postinstall": "patch-package",
-    "test": "jest --detectOpenHandles",
+    "test": "jest",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
