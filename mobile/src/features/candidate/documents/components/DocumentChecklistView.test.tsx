@@ -80,6 +80,20 @@ function uploadedDocument(overrides: Partial<CandidateDocumentMetadata> = {}): C
   };
 }
 
+function pccItem(overrides: Partial<CandidateDocumentChecklistItem> = {}): CandidateDocumentChecklistItem {
+  return item({ requirementCode: 'police_character', name: 'Police Character Certificate', ...overrides });
+}
+
+function pccDocument(overrides: Partial<CandidateDocumentMetadata> = {}): CandidateDocumentMetadata {
+  return uploadedDocument({
+    fileName: 'pcc.pdf',
+    issuedOn: '2026-02-01',
+    expiresOn: '2026-08-01',
+    complianceStatus: 'current',
+    ...overrides,
+  });
+}
+
 function pickedDocument(overrides = {}) {
   return {
     uri: 'file:///cache/passport.pdf',
@@ -234,6 +248,48 @@ describe('DocumentChecklistView', () => {
   it('falls back an unrecognized status to a neutral, non-crashing display', async () => {
     renderView({ checklist: [item({ status: 'unknown' })] });
     expect(await screen.findByText('Status unavailable')).toBeTruthy();
+  });
+
+  it('shows the rejection reason when the backend supplies one', async () => {
+    renderView({
+      checklist: [pccItem({ status: 'rejected', document: pccDocument({ rejectionReason: 'Document is unreadable.', complianceStatus: undefined }) })],
+    });
+    expect(await screen.findByText(/Document is unreadable\./)).toBeTruthy();
+  });
+
+  it('does not render a rejection reason when the backend did not supply one', async () => {
+    renderView({ checklist: [item({ status: 'uploaded', document: uploadedDocument() })] });
+    await screen.findByText('Passport');
+    expect(screen.queryByText(/Rejection reason/)).toBeNull();
+  });
+
+  it.each([
+    ['current', 'Compliant'],
+    ['near_expiry', 'Expiring soon'],
+    ['expired', 'Expired'],
+    ['not_applicable', 'Not applicable'],
+  ])('shows the %s PCC compliance badge distinctly from the document status', async (complianceStatus, label) => {
+    renderView({ checklist: [pccItem({ status: 'verified', document: pccDocument({ complianceStatus: complianceStatus as never }) })] });
+    expect(await screen.findByText('Verified')).toBeTruthy();
+    expect(screen.getByText(label)).toBeTruthy();
+  });
+
+  it('falls back an unrecognized compliance status to a safe, non-crashing display', async () => {
+    renderView({ checklist: [pccItem({ status: 'verified', document: pccDocument({ complianceStatus: 'unknown' }) })] });
+    expect(await screen.findByText('Status unavailable')).toBeTruthy();
+  });
+
+  it('shows the PCC issue and expiry dates when present', async () => {
+    renderView({ checklist: [pccItem({ status: 'verified', document: pccDocument() })] });
+    await screen.findByText('Police Character Certificate');
+    expect(screen.getByText(/Issue date/)).toBeTruthy();
+    expect(screen.getByText(/Expiry date/)).toBeTruthy();
+  });
+
+  it('does not show PCC dates for a non-PCC document', async () => {
+    renderView({ checklist: [item({ status: 'uploaded', document: uploadedDocument() })] });
+    await screen.findByText('Passport');
+    expect(screen.queryByText(/Issue date/)).toBeNull();
   });
 
   it('shows an offline state with retry', async () => {
@@ -409,6 +465,149 @@ describe('DocumentChecklistView', () => {
 
       expect(await screen.findByText('The idempotency key does not match the original request.')).toBeTruthy();
       expect(screen.queryByText('Uploaded')).toBeNull();
+    });
+  });
+
+  describe('PCC issue date', () => {
+    it('does not show an issue-date field for a non-PCC requirement', async () => {
+      renderView({ checklist: [item({ status: 'missing' })] });
+
+      fireEvent.press(await screen.findByText('Upload'));
+      expect(screen.queryByLabelText('Police Character Certificate issue date')).toBeNull();
+    });
+
+    it('shows an issue-date field for the police_character requirement', async () => {
+      renderView({ checklist: [pccItem({ status: 'missing', document: null })] });
+
+      fireEvent.press(await screen.findByText('Upload'));
+      expect(screen.getByLabelText('Police Character Certificate issue date')).toBeTruthy();
+    });
+
+    it('requires an issue date before submitting a PCC upload', async () => {
+      mockGetDocumentAsync.mockResolvedValue({ canceled: false, assets: [pickedDocument({ name: 'pcc.pdf' })] });
+      renderView({ checklist: [pccItem({ status: 'missing', document: null })] });
+
+      fireEvent.press(await screen.findByText('Upload'));
+      fireEvent.press(screen.getByText('Choose file'));
+      await waitFor(() => expect(mockGetDocumentAsync).toHaveBeenCalled());
+      fireEvent.press(await screen.findByText('Submit'));
+
+      expect(await screen.findByText('Enter the Police Character Certificate issue date.')).toBeTruthy();
+      expect(candidateDocumentsClient.uploadDocument).not.toHaveBeenCalled();
+    });
+
+    it('rejects a malformed issue date client-side', async () => {
+      mockGetDocumentAsync.mockResolvedValue({ canceled: false, assets: [pickedDocument({ name: 'pcc.pdf' })] });
+      renderView({ checklist: [pccItem({ status: 'missing', document: null })] });
+
+      fireEvent.press(await screen.findByText('Upload'));
+      fireEvent.changeText(await screen.findByLabelText('Police Character Certificate issue date'), '01-02-2026');
+      fireEvent.press(screen.getByText('Choose file'));
+      await waitFor(() => expect(mockGetDocumentAsync).toHaveBeenCalled());
+      fireEvent.press(await screen.findByText('Submit'));
+
+      expect(await screen.findByText('Enter a valid Police Character Certificate issue date in YYYY-MM-DD format.')).toBeTruthy();
+      expect(candidateDocumentsClient.uploadDocument).not.toHaveBeenCalled();
+    });
+
+    it('rejects a future issue date client-side', async () => {
+      mockGetDocumentAsync.mockResolvedValue({ canceled: false, assets: [pickedDocument({ name: 'pcc.pdf' })] });
+      renderView({ checklist: [pccItem({ status: 'missing', document: null })] });
+
+      const futureDate = new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+      fireEvent.press(await screen.findByText('Upload'));
+      fireEvent.changeText(await screen.findByLabelText('Police Character Certificate issue date'), futureDate);
+      fireEvent.press(screen.getByText('Choose file'));
+      await waitFor(() => expect(mockGetDocumentAsync).toHaveBeenCalled());
+      fireEvent.press(await screen.findByText('Submit'));
+
+      expect(await screen.findByText('The Police Character Certificate issue date cannot be in the future.')).toBeTruthy();
+      expect(candidateDocumentsClient.uploadDocument).not.toHaveBeenCalled();
+    });
+
+    it('sends the issue date as candidate_document[issued_on], never expires_on', async () => {
+      mockGetDocumentAsync.mockResolvedValue({ canceled: false, assets: [pickedDocument({ name: 'pcc.pdf' })] });
+      jest.mocked(candidateDocumentsClient.uploadDocument).mockResolvedValue(
+        pccItem({ status: 'uploaded', document: pccDocument() })
+      );
+      renderView({ checklist: [pccItem({ status: 'missing', document: null })] });
+
+      fireEvent.press(await screen.findByText('Upload'));
+      fireEvent.changeText(await screen.findByLabelText('Police Character Certificate issue date'), '2026-02-01');
+      fireEvent.press(screen.getByText('Choose file'));
+      await waitFor(() => expect(mockGetDocumentAsync).toHaveBeenCalled());
+      fireEvent.press(await screen.findByText('Submit'));
+
+      await waitFor(() => expect(candidateDocumentsClient.uploadDocument).toHaveBeenCalledTimes(1));
+      const [call] = jest.mocked(candidateDocumentsClient.uploadDocument).mock.calls[0];
+      expect(call.formData.get('candidate_document[issued_on]')).toBe('2026-02-01');
+      expect(call.formData.get('candidate_document[expires_on]')).toBeNull();
+    });
+
+    it('reuses the same idempotency key when retrying with the same file and issue date', async () => {
+      mockGetDocumentAsync.mockResolvedValue({ canceled: false, assets: [pickedDocument({ name: 'pcc.pdf' })] });
+      jest
+        .mocked(candidateDocumentsClient.uploadDocument)
+        .mockRejectedValueOnce({ code: 'SERVER_ERROR' })
+        .mockResolvedValueOnce(pccItem({ status: 'uploaded', document: pccDocument() }));
+      renderView({ checklist: [pccItem({ status: 'missing', document: null })] });
+
+      fireEvent.press(await screen.findByText('Upload'));
+      fireEvent.changeText(await screen.findByLabelText('Police Character Certificate issue date'), '2026-02-01');
+      fireEvent.press(screen.getByText('Choose file'));
+      await waitFor(() => expect(mockGetDocumentAsync).toHaveBeenCalled());
+      fireEvent.press(await screen.findByText('Submit'));
+      await waitFor(() => expect(candidateDocumentsClient.uploadDocument).toHaveBeenCalledTimes(1));
+
+      fireEvent.press(await screen.findByText('Retry'));
+      await waitFor(() => expect(candidateDocumentsClient.uploadDocument).toHaveBeenCalledTimes(2));
+
+      const calls = jest.mocked(candidateDocumentsClient.uploadDocument).mock.calls;
+      expect(calls[0][0].idempotencyKey).toBe(calls[1][0].idempotencyKey);
+    });
+
+    it('generates a new idempotency key after changing the issue date', async () => {
+      mockGetDocumentAsync.mockResolvedValue({ canceled: false, assets: [pickedDocument({ name: 'pcc.pdf' })] });
+      jest
+        .mocked(candidateDocumentsClient.uploadDocument)
+        .mockRejectedValueOnce({ code: 'SERVER_ERROR' })
+        .mockResolvedValueOnce(pccItem({ status: 'uploaded', document: pccDocument() }));
+      renderView({ checklist: [pccItem({ status: 'missing', document: null })] });
+
+      fireEvent.press(await screen.findByText('Upload'));
+      fireEvent.changeText(await screen.findByLabelText('Police Character Certificate issue date'), '2026-02-01');
+      fireEvent.press(screen.getByText('Choose file'));
+      await waitFor(() => expect(mockGetDocumentAsync).toHaveBeenCalled());
+      fireEvent.press(await screen.findByText('Submit'));
+      await waitFor(() => expect(candidateDocumentsClient.uploadDocument).toHaveBeenCalledTimes(1));
+
+      fireEvent.changeText(screen.getByLabelText('Police Character Certificate issue date'), '2026-02-02');
+      fireEvent.press(screen.getByText('Retry'));
+      await waitFor(() => expect(candidateDocumentsClient.uploadDocument).toHaveBeenCalledTimes(2));
+
+      const calls = jest.mocked(candidateDocumentsClient.uploadDocument).mock.calls;
+      expect(calls[0][0].idempotencyKey).not.toBe(calls[1][0].idempotencyKey);
+    });
+
+    it('shows the backend-localized message for a VALIDATION_ERROR without a raw code', async () => {
+      mockGetDocumentAsync.mockResolvedValue({ canceled: false, assets: [pickedDocument({ name: 'pcc.pdf' })] });
+      jest.mocked(candidateDocumentsClient.uploadDocument).mockRejectedValue({
+        code: 'VALIDATION_ERROR',
+        message: 'The Police Character Certificate expiry date is calculated by the server and cannot be provided.',
+        field: 'candidate_document.expires_on',
+      });
+      renderView({ checklist: [pccItem({ status: 'missing', document: null })] });
+
+      fireEvent.press(await screen.findByText('Upload'));
+      fireEvent.changeText(await screen.findByLabelText('Police Character Certificate issue date'), '2026-02-01');
+      fireEvent.press(screen.getByText('Choose file'));
+      await waitFor(() => expect(mockGetDocumentAsync).toHaveBeenCalled());
+      fireEvent.press(await screen.findByText('Submit'));
+
+      expect(
+        await screen.findByText('The Police Character Certificate expiry date is calculated by the server and cannot be provided.')
+      ).toBeTruthy();
+      expect(screen.queryByText('VALIDATION_ERROR')).toBeNull();
     });
   });
 

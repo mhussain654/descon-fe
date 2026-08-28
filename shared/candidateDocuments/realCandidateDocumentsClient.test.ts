@@ -137,6 +137,88 @@ describe('createCandidateDocumentsClient (real) -- getChecklist', () => {
     });
   });
 
+  it('maps PCC issue date, expiry date and compliance status', async () => {
+    stubFetch(async () =>
+      jsonResponse(
+        successEnvelope([
+          checklistItemPayload({
+            requirement_code: 'police_character',
+            status: 'uploaded',
+            document: documentPayload({ issued_on: '2026-02-01', expires_on: '2026-08-01', compliance_status: 'near_expiry' }),
+          }),
+        ])
+      )
+    );
+
+    const client = buildClient();
+    const checklist = await client.getChecklist('token');
+
+    expect(checklist[0].document).toMatchObject({
+      issuedOn: '2026-02-01',
+      expiresOn: '2026-08-01',
+      complianceStatus: 'near_expiry',
+    });
+  });
+
+  it.each(['current', 'near_expiry', 'expired', 'not_applicable'])('maps compliance_status %s through unchanged', async (status) => {
+    stubFetch(async () =>
+      jsonResponse(
+        successEnvelope([checklistItemPayload({ document: documentPayload({ compliance_status: status }) })])
+      )
+    );
+
+    const client = buildClient();
+    const checklist = await client.getChecklist('token');
+
+    expect(checklist[0].document?.complianceStatus).toBe(status);
+  });
+
+  it('falls back an unrecognized compliance_status to "unknown" rather than crashing or exposing the raw value', async () => {
+    stubFetch(async () =>
+      jsonResponse(successEnvelope([checklistItemPayload({ document: documentPayload({ compliance_status: 'some_future_value' }) })]))
+    );
+
+    const client = buildClient();
+    const checklist = await client.getChecklist('token');
+
+    expect(checklist[0].document?.complianceStatus).toBe('unknown');
+  });
+
+  it('leaves issuedOn/expiresOn/complianceStatus undefined for a non-PCC document', async () => {
+    stubFetch(async () => jsonResponse(successEnvelope([checklistItemPayload({ document: documentPayload() })])));
+
+    const client = buildClient();
+    const checklist = await client.getChecklist('token');
+
+    expect(checklist[0].document?.issuedOn).toBeUndefined();
+    expect(checklist[0].document?.expiresOn).toBeUndefined();
+    expect(checklist[0].document?.complianceStatus).toBeUndefined();
+  });
+
+  it('maps the rejection reason for a rejected document', async () => {
+    stubFetch(async () =>
+      jsonResponse(
+        successEnvelope([
+          checklistItemPayload({ status: 'rejected', document: documentPayload({ rejection_reason: 'Document is unreadable.' }) }),
+        ])
+      )
+    );
+
+    const client = buildClient();
+    const checklist = await client.getChecklist('token');
+
+    expect(checklist[0].document?.rejectionReason).toBe('Document is unreadable.');
+  });
+
+  it('leaves rejectionReason undefined for a document that has not been rejected', async () => {
+    stubFetch(async () => jsonResponse(successEnvelope([checklistItemPayload({ document: documentPayload() })])));
+
+    const client = buildClient();
+    const checklist = await client.getChecklist('token');
+
+    expect(checklist[0].document?.rejectionReason).toBeUndefined();
+  });
+
   it('renders the backend-localized name directly -- never a hardcoded frontend name', async () => {
     stubFetch(async () => jsonResponse(successEnvelope([checklistItemPayload({ name: 'پاسپورٹ' })])));
 
@@ -328,6 +410,18 @@ describe('createCandidateDocumentsClient (real) -- uploadDocument', () => {
     await expect(
       client.uploadDocument({ accessToken: 'token', requirementCode: 'passport', formData: formDataWithFile(), idempotencyKey: 'k' })
     ).rejects.toEqual({ code: 'INACTIVE_ACCOUNT', message: 'Inactive.' });
+  });
+
+  it.each([
+    ['validation_failed', 'candidate_document.issued_on', 'Enter the Police Character Certificate issue date.'],
+    ['pcc_expiry_not_editable', 'candidate_document.expires_on', 'The Police Character Certificate expiry date is calculated by the server and cannot be provided.'],
+  ])('maps a 422 %s to VALIDATION_ERROR with field and message', async (serverCode, field, message) => {
+    stubFetch(async () => jsonResponse(errorEnvelope([{ code: serverCode, message, field }]), { status: 422 }));
+
+    const client = buildClient();
+    await expect(
+      client.uploadDocument({ accessToken: 'token', requirementCode: 'police_character', formData: formDataWithFile(), idempotencyKey: 'k' })
+    ).rejects.toEqual({ code: 'VALIDATION_ERROR', message, field });
   });
 
   it('maps a 401 to SESSION_EXPIRED', async () => {

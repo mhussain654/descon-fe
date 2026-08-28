@@ -11,6 +11,7 @@ import type {
   CandidateDocumentsClient,
   CandidateDocumentsError,
   CandidateDocumentsErrorCode,
+  PccComplianceDisplayStatus,
   UploadDocumentParams,
 } from './types';
 
@@ -20,6 +21,10 @@ interface CandidateDocumentMetadataResponse {
   content_type: string;
   file_size: number;
   uploaded_at: string;
+  issued_on?: string | null;
+  expires_on?: string | null;
+  compliance_status?: string | null;
+  rejection_reason?: string | null;
 }
 
 interface CandidateDocumentChecklistItemResponse {
@@ -39,9 +44,15 @@ export interface RealCandidateDocumentsClientOptions {
 
 const KNOWN_STATUSES = new Set<string>(['missing', 'uploaded', 'pending_review', 'verified', 'rejected']);
 const KNOWN_CONTENT_TYPES = new Set<string>(['application/pdf', 'image/jpeg', 'image/png']);
+const KNOWN_COMPLIANCE_STATUSES = new Set<string>(['current', 'near_expiry', 'expired', 'not_applicable']);
 
 function toStatus(raw: unknown): CandidateDocumentDisplayStatus {
   return typeof raw === 'string' && KNOWN_STATUSES.has(raw) ? (raw as CandidateDocumentDisplayStatus) : 'unknown';
+}
+
+function toComplianceStatus(raw: unknown): PccComplianceDisplayStatus | undefined {
+  if (raw === null || raw === undefined) return undefined;
+  return typeof raw === 'string' && KNOWN_COMPLIANCE_STATUSES.has(raw) ? (raw as PccComplianceDisplayStatus) : 'unknown';
 }
 
 function toContentType(raw: unknown): CandidateDocumentContentType {
@@ -72,6 +83,10 @@ function toDocumentMetadata(raw: unknown): CandidateDocumentMetadata | null {
     contentType: toContentType(value.content_type),
     fileSize: typeof value.file_size === 'number' && Number.isFinite(value.file_size) ? value.file_size : 0,
     uploadedAt: typeof value.uploaded_at === 'string' ? value.uploaded_at : '',
+    issuedOn: typeof value.issued_on === 'string' ? value.issued_on : undefined,
+    expiresOn: typeof value.expires_on === 'string' ? value.expires_on : undefined,
+    complianceStatus: toComplianceStatus(value.compliance_status),
+    rejectionReason: typeof value.rejection_reason === 'string' ? value.rejection_reason : undefined,
   };
 }
 
@@ -107,6 +122,12 @@ const SERVER_CODE_TO_ERROR: Record<string, CandidateDocumentsErrorCode> = {
   file_too_large: 'FILE_TOO_LARGE',
   empty_file: 'EMPTY_FILE',
   replacement_not_allowed: 'REPLACEMENT_NOT_ALLOWED',
+  // A candidate-entered PCC issue date that's missing/malformed/in the
+  // future (validation_failed) or an attempt to supply expires_on, which
+  // the backend always computes itself (pcc_expiry_not_editable) -- both
+  // carry a specific, already-localized `message` for the actual problem.
+  validation_failed: 'VALIDATION_ERROR',
+  pcc_expiry_not_editable: 'VALIDATION_ERROR',
 };
 
 function toDocumentsError(error: unknown): CandidateDocumentsError {
@@ -122,7 +143,7 @@ function toDocumentsError(error: unknown): CandidateDocumentsError {
   if (apiError.status === 401) return { code: 'SESSION_EXPIRED' };
 
   const mapped = apiError.serverCode ? SERVER_CODE_TO_ERROR[apiError.serverCode] : undefined;
-  if (mapped) return { code: mapped, message: apiError.message };
+  if (mapped) return { code: mapped, message: apiError.message, field: apiError.field };
 
   if (apiError.status === 403) return { code: 'INACTIVE_ACCOUNT' };
   if (apiError.status === 409) return { code: 'CONFLICT', message: apiError.message };

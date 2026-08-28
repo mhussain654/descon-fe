@@ -4,9 +4,12 @@ import { colors, fontWeights, spacing } from '../../../../design-system/tokens';
 import {
   CANDIDATE_DOCUMENT_STATUS_KEYS,
   CANDIDATE_DOCUMENT_STATUS_TONES,
+  PCC_COMPLIANCE_STATUS_KEYS,
+  PCC_COMPLIANCE_STATUS_TONES,
 } from '../../../../../../shared/candidateDocuments/statusLabels';
 import { formatFileSize } from '../../../../../../shared/candidateDocuments/formatting';
 import { formatDate } from '../../../../../../shared/i18n/locale';
+import type { PccIssueDateError } from '../../../../../../shared/candidateDocuments/pccIssueDate';
 import type { CandidateDocumentChecklistItem, CandidateDocumentsError } from '../../../../lib/candidate-documents-client';
 import type { Language, TranslationKey } from '../../../../../../shared/i18n/translations';
 import type { FileValidationError } from '../../../../../../shared/candidateDocuments/fileValidation';
@@ -23,6 +26,10 @@ export interface DocumentChecklistItemRowProps {
   validationError: FileValidationError | null;
   uploadError: CandidateDocumentsError | null;
   isUploading: boolean;
+  isPccRequirement: boolean;
+  issuedOn: string;
+  onIssuedOnChange: (value: string) => void;
+  issuedOnError: PccIssueDateError | null;
   onStartUpload: (requirementCode: string) => void;
   onCancel: () => void;
   onPickDocument: () => void;
@@ -41,6 +48,10 @@ export function DocumentChecklistItemRow({
   validationError,
   uploadError,
   isUploading,
+  isPccRequirement,
+  issuedOn,
+  onIssuedOnChange,
+  issuedOnError,
   onStartUpload,
   onCancel,
   onPickDocument,
@@ -49,6 +60,7 @@ export function DocumentChecklistItemRow({
 }: DocumentChecklistItemRowProps) {
   const statusKey = CANDIDATE_DOCUMENT_STATUS_KEYS[item.status] as TranslationKey;
   const tone = CANDIDATE_DOCUMENT_STATUS_TONES[item.status];
+  const complianceStatus = item.document?.complianceStatus;
 
   // Use `replacement_allowed` from the API directly -- never infer it from
   // `status` (ticket: "Use replacement_allowed from the API. Do not infer
@@ -72,10 +84,26 @@ export function DocumentChecklistItemRow({
               ? `${item.document.fileName} · ${formatFileSize(item.document.fileSize, language)} · ${t('uploadedOnPrefix')} ${formatDate(item.document.uploadedAt, language)}`
               : t('notUploadedYet')}
           </Text>
+
+          {item.document?.issuedOn && item.document?.expiresOn ? (
+            <Text style={styles.detail}>
+              {t('candidateDocumentsPccIssuedOnLabel')}: {formatDate(item.document.issuedOn, language)} ·{' '}
+              {t('candidateDocumentsPccExpiresOnLabel')}: {formatDate(item.document.expiresOn, language)}
+            </Text>
+          ) : null}
+
+          {item.document?.rejectionReason ? (
+            <Text style={styles.rejectionReason}>
+              {t('candidateDocumentsRejectionReasonLabel')}: {item.document.rejectionReason}
+            </Text>
+          ) : null}
         </View>
 
         <View style={styles.actionGroup}>
           <Badge tone={tone}>{t(statusKey)}</Badge>
+          {complianceStatus ? (
+            <Badge tone={PCC_COMPLIANCE_STATUS_TONES[complianceStatus]}>{t(PCC_COMPLIANCE_STATUS_KEYS[complianceStatus] as TranslationKey)}</Badge>
+          ) : null}
           {!isActive && hasAction ? (
             <Button variant="outline" size="sm" onPress={() => onStartUpload(item.requirementCode)} disabled={isAnyUploadPending}>
               {t(canUpload ? 'candidateDocumentsUploadAction' : 'candidateDocumentsReplaceAction')}
@@ -92,6 +120,10 @@ export function DocumentChecklistItemRow({
           validationError={validationError}
           uploadError={uploadError}
           isUploading={isUploading}
+          isPccRequirement={isPccRequirement}
+          issuedOn={issuedOn}
+          onIssuedOnChange={onIssuedOnChange}
+          issuedOnError={issuedOnError}
           onPickDocument={onPickDocument}
           onRemoveDocument={onRemoveDocument}
           onCancel={onCancel}
@@ -110,6 +142,7 @@ const styles = StyleSheet.create({
   nameRow: { flexDirection: 'row', alignItems: 'center', gap: spacing[2], flexWrap: 'wrap' },
   name: { fontSize: 15, fontWeight: fontWeights.medium, color: colors.text.primary },
   detail: { marginTop: spacing[1], fontSize: 13, color: colors.text.secondary },
-  actionGroup: { flexDirection: 'row', alignItems: 'center', gap: spacing[2] },
+  rejectionReason: { marginTop: spacing[1], fontSize: 13, color: colors.danger.default },
+  actionGroup: { flexDirection: 'row', alignItems: 'center', gap: spacing[2], flexWrap: 'wrap' },
   noAction: { fontSize: 13, color: colors.text.tertiary },
 });
