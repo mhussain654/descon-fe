@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react';
 import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Button, type ButtonVariant } from './Button';
 import { colors, fontWeights, radii, spacing, zIndex } from './tokens';
@@ -12,6 +13,8 @@ export interface ConfirmDialogProps {
   onConfirm: () => void;
   confirmVariant?: ButtonVariant;
   isConfirming?: boolean;
+  /** Extra content between the description and the actions -- e.g. an inline error notice surfacing why a prior confirm attempt failed (the dialog stays open on failure, so that error must render somewhere inside it). */
+  children?: ReactNode;
 }
 
 /** Composed confirmation dialog for destructive/consequential actions, backed by RN's built-in Modal. */
@@ -25,6 +28,7 @@ export function ConfirmDialog({
   onConfirm,
   confirmVariant = 'primary',
   isConfirming = false,
+  children,
 }: ConfirmDialogProps) {
   return (
     <Modal
@@ -45,6 +49,7 @@ export function ConfirmDialog({
         <View style={styles.content} accessibilityViewIsModal accessibilityRole="alert">
           <Text style={styles.title}>{title}</Text>
           {description ? <Text style={styles.description}>{description}</Text> : null}
+          {children}
           <View style={styles.actions}>
             <Button variant="outline" onPress={() => onOpenChange(false)} disabled={isConfirming}>
               {cancelLabel}

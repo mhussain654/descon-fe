@@ -1,6 +1,7 @@
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { QueryClientProvider } from '@tanstack/react-query';
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react-native';
 import { Pressable, Text } from 'react-native';
+import { createQueryClientTestLifecycle } from '../testSupport/queryClientTestLifecycle';
 import { AuthProvider, useAuth } from './AuthContext';
 
 jest.mock('expo-secure-store', () => {
@@ -24,13 +25,17 @@ jest.mock('expo-secure-store', () => {
   };
 });
 
+const { createTestQueryClient, trackRender, cleanup } = createQueryClientTestLifecycle();
+
 function renderWithProviders(ui) {
-  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: 0 }, mutations: { gcTime: 0 } } });
+  const queryClient = createTestQueryClient();
   return {
-    ...render(
-      <QueryClientProvider client={queryClient}>
-        <AuthProvider>{ui}</AuthProvider>
-      </QueryClientProvider>
+    ...trackRender(
+      render(
+        <QueryClientProvider client={queryClient}>
+          <AuthProvider>{ui}</AuthProvider>
+        </QueryClientProvider>
+      )
     ),
     queryClient,
   };
@@ -85,6 +90,10 @@ describe('AuthProvider', () => {
     jest.requireMock('expo-secure-store').__reset();
   });
 
+  afterEach(async () => {
+    await cleanup();
+  });
+
   it('starts as "restoring" and resolves to unauthenticated once the secure-store read finishes', async () => {
     renderWithProviders(<Probe />);
     await screen.findByText('unauthenticated');
@@ -133,14 +142,16 @@ describe('AuthProvider', () => {
   });
 
   it('clears the TanStack Query cache on logout', async () => {
-    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: 0 }, mutations: { gcTime: 0 } } });
+    const queryClient = createTestQueryClient();
     const clearSpy = jest.spyOn(queryClient, 'clear');
-    render(
-      <QueryClientProvider client={queryClient}>
-        <AuthProvider>
-          <Probe />
-        </AuthProvider>
-      </QueryClientProvider>
+    trackRender(
+      render(
+        <QueryClientProvider client={queryClient}>
+          <AuthProvider>
+            <Probe />
+          </AuthProvider>
+        </QueryClientProvider>
+      )
     );
     await screen.findByText('unauthenticated');
     fireEvent.press(screen.getByTestId('login'));

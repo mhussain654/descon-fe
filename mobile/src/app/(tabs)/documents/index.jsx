@@ -12,6 +12,7 @@ import { useAuth } from "../../../contexts/AuthContext";
 import { useLanguage } from "../../../contexts/LanguageContext";
 import { useCandidateDocuments } from "../../../features/candidate/documents/hooks/useCandidateDocuments";
 import { DocumentChecklistView } from "../../../features/candidate/documents/components/DocumentChecklistView";
+import { ApplicationProgressSummary } from "../../../features/candidate/progress/components/ApplicationProgressSummary";
 
 export default function DocumentsScreen() {
   const insets = useSafeAreaInsets();
@@ -81,6 +82,8 @@ export default function DocumentsScreen() {
         }}
         showsVerticalScrollIndicator={false}
       >
+        <ApplicationProgressSummary onReturnToSignIn={returnToSignIn} />
+
         <DocumentChecklistView
           isLoading={checklistQuery.isLoading}
           error={checklistQuery.error ?? null}
