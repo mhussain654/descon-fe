@@ -1,15 +1,47 @@
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Link, MemoryRouter, Route, Routes } from "react-router";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { AuthProvider, useAuth } from "../../contexts/AuthContext";
 import { LanguageProvider } from "../../contexts/LanguageContext";
 import { candidateDocumentsClient } from "../../lib/candidate-documents-client";
+import { applicationProgressClient } from "../../lib/application-progress-client";
 import DocumentsPage from "./page";
 
 vi.mock("../../lib/candidate-documents-client", () => ({
   candidateDocumentsClient: { getChecklist: vi.fn(), uploadDocument: vi.fn() },
 }));
+
+// This page also renders ApplicationProgressSummary -- its own dedicated
+// behavior is covered by page.progress.test.jsx. Defaulting to a
+// `no_assignment` progress payload here keeps that section a small, static
+// empty state that shares no text with any checklist-status assertion in
+// this file (a "ready"/full payload would render "Missing"/"Uploaded"/
+// "Verified"/etc. count labels that collide with checklist status badges
+// using the exact same words).
+vi.mock("../../lib/application-progress-client", () => ({
+  applicationProgressClient: { getProgress: vi.fn(), submitDocuments: vi.fn() },
+}));
+
+function noAssignmentProgress() {
+  return {
+    candidateStatus: "registered",
+    currentWorkflowStage: null,
+    documents: {
+      requiredTotal: 0,
+      missing: 0,
+      uploaded: 0,
+      pendingReview: 0,
+      verified: 0,
+      rejected: 0,
+      submittedTotal: 0,
+      completionPercentage: 0,
+      canSubmit: false,
+      submissionState: "no_assignment",
+      blockingRequirements: [],
+    },
+  };
+}
 
 function LoginStub() {
   const { login } = useAuth();
@@ -93,9 +125,15 @@ function selectFileOnActiveRow(file) {
 }
 
 describe("DocumentsPage", () => {
+  beforeEach(() => {
+    applicationProgressClient.getProgress.mockResolvedValue(noAssignmentProgress());
+  });
+
   afterEach(() => {
     vi.mocked(candidateDocumentsClient.getChecklist).mockReset();
     vi.mocked(candidateDocumentsClient.uploadDocument).mockReset();
+    vi.mocked(applicationProgressClient.getProgress).mockReset();
+    vi.mocked(applicationProgressClient.submitDocuments).mockReset();
     // Guaranteed regardless of whether the Urdu test's own assertions
     // passed -- an in-test-body-only cleanup would leak the Urdu locale
     // into every later test if that test failed before reaching it.
@@ -185,18 +223,6 @@ describe("DocumentsPage", () => {
     expect(await screen.findByText("Rejected")).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Replace" })).not.toBeInTheDocument();
     expect(screen.getByText("No action available")).toBeInTheDocument();
-  });
-
-  it("shows the correct required-document progress", async () => {
-    candidateDocumentsClient.getChecklist.mockResolvedValue([
-      item({ requirementCode: "a", status: "uploaded", document: uploadedDocument() }),
-      item({ requirementCode: "b", status: "missing" }),
-      item({ requirementCode: "c", required: false, status: "missing" }),
-    ]);
-    await signInAndNavigateToDocuments();
-
-    await screen.findByRole("progressbar");
-    expect(screen.getByRole("progressbar")).toHaveAttribute("aria-valuenow", "50");
   });
 
   it("never renders a raw status or requirement code as text", async () => {

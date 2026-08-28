@@ -4,6 +4,7 @@ import { useAuth } from "../../contexts/AuthContext";
 import { useLanguage } from "../../contexts/LanguageContext";
 import { useCandidateDocuments } from "../../features/candidate/documents/hooks/useCandidateDocuments";
 import { DocumentChecklistView } from "../../features/candidate/documents/components/DocumentChecklistView";
+import { ApplicationProgressSummary } from "../../features/candidate/progress/components/ApplicationProgressSummary";
 
 export default function DocumentsPage() {
   const { t, language } = useLanguage();
@@ -26,6 +27,8 @@ export default function DocumentsPage() {
       </div>
 
       <div className="mx-auto max-w-5xl px-6 py-8">
+        <ApplicationProgressSummary onReturnToSignIn={returnToSignIn} />
+
         <DocumentChecklistView
           isLoading={checklistQuery.isLoading}
           error={checklistQuery.error ?? null}

@@ -6,10 +6,8 @@ import {
   ForbiddenState,
   LoadingState,
   OfflineState,
-  ProgressBar,
   SessionExpiredState,
 } from '../../../../design-system';
-import { calculateRequiredDocumentProgress } from '../../../../../../shared/candidateDocuments/progress';
 import { CANDIDATE_DOCUMENTS_ERROR_KEYS } from '../../../../../../shared/candidateDocuments/errorMessages';
 import type { CandidateDocumentChecklistItem, CandidateDocumentsError } from '../../../../lib/candidate-documents-client';
 import type { Language, TranslationKey } from '../../../../../../shared/i18n/translations';
@@ -90,27 +88,8 @@ export function DocumentChecklistView({
     return <EmptyState title={t('candidateDocumentsEmptyTitle')} description={t('candidateDocumentsEmptyDescription')} />;
   }
 
-  const progress = calculateRequiredDocumentProgress(checklist);
-
   return (
     <>
-      {progress.hasRequiredDocuments ? (
-        <Card className="mb-5">
-          <ProgressBar
-            value={progress.percentage}
-            label={t('candidateDocumentsProgressLabel')}
-            // ProgressBar renders `displayText` as a plain paragraph with
-            // no `dir` control exposed -- under Urdu's RTL layout, this
-            // numeral/symbol string (no strong-direction characters of its
-            // own) gets visually bidi-reordered by the browser, exactly
-            // like the masked-CNIC issue elsewhere. U+2066/U+2069 (Unicode
-            // LRI/PDI) isolate it as a left-to-right run without needing
-            // DOM-level `dir` markup.
-            displayText={`⁦${progress.requiredSubmitted} / ${progress.requiredTotal} · ${progress.percentage}%⁩`}
-          />
-        </Card>
-      ) : null}
-
       <Card noPadding>
         {checklist.map((item) => (
           <DocumentChecklistItemRow

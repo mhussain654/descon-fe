@@ -432,6 +432,10 @@ export const AlertModal = () => {
 };
 
 const styling = (userInterfaceStyle: string) =>
+	// @ts-expect-error - backdropFilter/outlineStyle are for web only; the
+	// index-signature mismatch is reported once for the whole call (verified
+	// against a real Linux typecheck via Docker, since this file's errors do
+	// not reproduce consistently on macOS), not per-property.
 	StyleSheet.create({
 		container: {
 			flex: 1,
@@ -440,7 +444,6 @@ const styling = (userInterfaceStyle: string) =>
 			backgroundColor: 'rgba(0,0,0,0.2)',
 		},
 		content: {
-			// @ts-expect-error - backdropFilter is for web only
 			backdropFilter: 'blur(20px)',
 			borderRadius: 12,
 			width: 244,

@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { View } from 'react-native';
 import {
   Card,
   EmptyState,
@@ -7,11 +7,8 @@ import {
   ForbiddenState,
   LoadingState,
   OfflineState,
-  ProgressBar,
   SessionExpiredState,
 } from '../../../../design-system';
-import { spacing } from '../../../../design-system/tokens';
-import { calculateRequiredDocumentProgress } from '../../../../../../shared/candidateDocuments/progress';
 import { CANDIDATE_DOCUMENTS_ERROR_KEYS } from '../../../../../../shared/candidateDocuments/errorMessages';
 import type { CandidateDocumentChecklistItem, CandidateDocumentsError } from '../../../../lib/candidate-documents-client';
 import type { Language, TranslationKey } from '../../../../../../shared/i18n/translations';
@@ -89,22 +86,8 @@ export function DocumentChecklistView({
     return <EmptyState title={t('candidateDocumentsEmptyTitle')} description={t('candidateDocumentsEmptyDescription')} />;
   }
 
-  const progress = calculateRequiredDocumentProgress(checklist);
-
   return (
     <View>
-      {progress.hasRequiredDocuments ? (
-        <Card style={styles.progressCard}>
-          <ProgressBar
-            value={progress.percentage}
-            label={t('candidateDocumentsProgressLabel')}
-            // See web's identical comment: forces the numeral/symbol string
-            // as an LTR run under Urdu's RTL layout via Unicode LRI/PDI.
-            displayText={`⁦${progress.requiredSubmitted} / ${progress.requiredTotal} · ${progress.percentage}%⁩`}
-          />
-        </Card>
-      ) : null}
-
       <Card noPadding>
         {checklist.map((item) => (
           <DocumentChecklistItemRow
@@ -129,7 +112,3 @@ export function DocumentChecklistView({
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  progressCard: { marginBottom: spacing[5] },
-});
