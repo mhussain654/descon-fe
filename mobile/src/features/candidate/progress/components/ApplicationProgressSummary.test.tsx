@@ -218,7 +218,7 @@ describe('ApplicationProgressSummary', () => {
       getProgress.mockResolvedValue(progress({ documents: documentsSummary({ submissionState: 'submitted', canSubmit: false, pendingReview: 2 }) }));
       fireEvent.press(screen.getByText('Submit'));
 
-      await waitFor(() => expect(screen.queryByText('Submit documents for review?')).toBeNull());
+      await waitFor(() => expect(screen.queryByText('Submit documents for review?')).not.toBeOnTheScreen());
       expect(await screen.findByText('Submitted for review')).toBeTruthy();
     });
 
@@ -245,7 +245,7 @@ describe('ApplicationProgressSummary', () => {
       await screen.findByText('Something went wrong.');
 
       fireEvent.press(screen.getByText('Submit'));
-      await waitFor(() => expect(screen.queryByText('Submit documents for review?')).toBeNull());
+      await waitFor(() => expect(screen.queryByText('Submit documents for review?')).not.toBeOnTheScreen());
 
       const [firstCall, secondCall] = submitDocuments.mock.calls;
       expect(firstCall[0].idempotencyKey).toBe(secondCall[0].idempotencyKey);
@@ -260,7 +260,7 @@ describe('ApplicationProgressSummary', () => {
       await screen.findByText('This submission could not be confirmed. Try submitting again.');
 
       fireEvent.press(screen.getByText('Submit'));
-      await waitFor(() => expect(screen.queryByText('Submit documents for review?')).toBeNull());
+      await waitFor(() => expect(screen.queryByText('Submit documents for review?')).not.toBeOnTheScreen());
 
       const [firstCall, secondCall] = submitDocuments.mock.calls;
       expect(firstCall[0].idempotencyKey).not.toBe(secondCall[0].idempotencyKey);
@@ -285,7 +285,7 @@ describe('ApplicationProgressSummary', () => {
       );
       fireEvent.press(screen.getByText('Submit'));
 
-      await waitFor(() => expect(screen.queryByText('Submit documents for review?')).toBeNull());
+      await waitFor(() => expect(screen.queryByText('Submit documents for review?')).not.toBeOnTheScreen());
       expect(await screen.findByText('Documents incomplete')).toBeTruthy();
       expect(screen.getByText('CNIC (Front)')).toBeTruthy();
     });

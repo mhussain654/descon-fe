@@ -7,7 +7,7 @@
   },
   "scripts": {
     "postinstall": "patch-package",
-    "test": "jest --forceExit",
+    "test": "jest --detectOpenHandles",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
@@ -111,7 +111,8 @@
     ],
     "moduleNameMapper": {
       "^@babel/runtime/(.*)$": "<rootDir>/node_modules/@babel/runtime/$1",
-      "^react$": "<rootDir>/node_modules/react"
+      "^react$": "<rootDir>/node_modules/react",
+      "^react-native-reanimated$": "<rootDir>/node_modules/react-native-reanimated/mock.js"
     }
   },
   "private": true,

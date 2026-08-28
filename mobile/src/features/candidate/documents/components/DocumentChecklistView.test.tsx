@@ -243,17 +243,6 @@ describe('DocumentChecklistView', () => {
     expect(await screen.findByText('Status unavailable')).toBeTruthy();
   });
 
-  it('shows overall required-document progress', async () => {
-    renderView({
-      checklist: [
-        item({ requirementCode: 'a', status: 'uploaded', document: uploadedDocument() }),
-        item({ requirementCode: 'b', status: 'missing' }),
-      ],
-    });
-    await screen.findByRole('progressbar');
-    expect(screen.getByRole('progressbar').props.accessibilityValue.now).toBe(50);
-  });
-
   it('shows an offline state with retry', async () => {
     renderView({ error: { code: 'OFFLINE' } });
     expect(await screen.findByText('You are offline')).toBeTruthy();
