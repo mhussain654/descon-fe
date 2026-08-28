@@ -7,7 +7,7 @@ import { AuthProvider, useAuth } from '../../../../contexts/AuthContext';
 import { LanguageProvider } from '../../../../contexts/LanguageContext';
 import { Toaster } from '../../../../design-system';
 import { applicationProgressClient } from '../../../../lib/application-progress-client';
-import type { ApplicationProgress } from '../../../../lib/application-progress-client';
+import type { ApplicationProgress, ApplicationProgressDocuments, DocumentSubmissionResult } from '../../../../lib/application-progress-client';
 import { ApplicationProgressSummary } from './ApplicationProgressSummary';
 
 const TEST_SAFE_AREA_METRICS = {
@@ -33,7 +33,10 @@ jest.mock('../../../../lib/application-progress-client', () => ({
   applicationProgressClient: { getProgress: jest.fn(), submitDocuments: jest.fn() },
 }));
 
-function documentsSummary(overrides = {}) {
+const getProgress = jest.mocked(applicationProgressClient.getProgress);
+const submitDocuments = jest.mocked(applicationProgressClient.submitDocuments);
+
+function documentsSummary(overrides: Partial<ApplicationProgressDocuments> = {}): ApplicationProgressDocuments {
   return {
     requiredTotal: 2,
     missing: 0,
@@ -56,10 +59,10 @@ function progress(overrides: Partial<ApplicationProgress> = {}): ApplicationProg
     currentWorkflowStage: { code: 'registered', name: 'Registered' },
     documents: documentsSummary(),
     ...overrides,
-  } as ApplicationProgress;
+  };
 }
 
-function submissionResult(overrides = {}) {
+function submissionResult(overrides: Partial<DocumentSubmissionResult> = {}): DocumentSubmissionResult {
   return {
     message: 'Documents submitted for review.',
     submissionId: '0f5b8c9a-4f88-440d-94eb-cf70f780ff95',
@@ -110,21 +113,21 @@ function renderSummary({ onReturnToSignIn = jest.fn() } = {}) {
 
 describe('ApplicationProgressSummary', () => {
   afterEach(async () => {
-    jest.mocked(applicationProgressClient.getProgress).mockReset();
-    jest.mocked(applicationProgressClient.submitDocuments).mockReset();
+    getProgress.mockReset();
+    submitDocuments.mockReset();
     // Guaranteed regardless of whether the Urdu test's own assertions
     // passed -- matches LanguageContext.test.jsx's cleanup pattern.
     await AsyncStorage.clear();
   });
 
   it('shows a loading state before progress resolves', async () => {
-    applicationProgressClient.getProgress.mockReturnValue(new Promise(() => {}));
+    getProgress.mockReturnValue(new Promise(() => {}));
     renderSummary();
     expect(await screen.findByText('Loading…')).toBeTruthy();
   });
 
   it('shows an informative empty state for no_assignment, not an error', async () => {
-    applicationProgressClient.getProgress.mockResolvedValue(
+    getProgress.mockResolvedValue(
       progress({ currentWorkflowStage: null, documents: documentsSummary({ requiredTotal: 0, submissionState: 'no_assignment' }) })
     );
     renderSummary();
@@ -132,15 +135,13 @@ describe('ApplicationProgressSummary', () => {
   });
 
   it('shows an informative empty state for no_requirements, not an error', async () => {
-    applicationProgressClient.getProgress.mockResolvedValue(
-      progress({ documents: documentsSummary({ requiredTotal: 0, submissionState: 'no_requirements' }) })
-    );
+    getProgress.mockResolvedValue(progress({ documents: documentsSummary({ requiredTotal: 0, submissionState: 'no_requirements' }) }));
     renderSummary();
     expect(await screen.findByText('No documents required')).toBeTruthy();
   });
 
   it('shows blocking documents and no enabled submit action for incomplete', async () => {
-    applicationProgressClient.getProgress.mockResolvedValue(
+    getProgress.mockResolvedValue(
       progress({
         documents: documentsSummary({
           submissionState: 'incomplete',
@@ -158,9 +159,7 @@ describe('ApplicationProgressSummary', () => {
   });
 
   it('shows an enabled submit action only when can_submit is true (ready)', async () => {
-    applicationProgressClient.getProgress.mockResolvedValue(
-      progress({ documents: documentsSummary({ submissionState: 'ready', canSubmit: true, completionPercentage: 100 }) })
-    );
+    getProgress.mockResolvedValue(progress({ documents: documentsSummary({ submissionState: 'ready', canSubmit: true, completionPercentage: 100 }) }));
     renderSummary();
 
     expect(await screen.findByText('Ready to submit')).toBeTruthy();
@@ -168,7 +167,7 @@ describe('ApplicationProgressSummary', () => {
   });
 
   it('shows a replace reason for changes_required, and no enabled submit action', async () => {
-    applicationProgressClient.getProgress.mockResolvedValue(
+    getProgress.mockResolvedValue(
       progress({
         documents: documentsSummary({
           submissionState: 'changes_required',
@@ -184,10 +183,8 @@ describe('ApplicationProgressSummary', () => {
     expect(screen.queryByText('Submit for review')).toBeNull();
   });
 
-  it.each(['submitted', 'partially_verified', 'verified'])('shows no enabled submit action for %s', async (submissionState) => {
-    applicationProgressClient.getProgress.mockResolvedValue(
-      progress({ documents: documentsSummary({ submissionState, canSubmit: false, completionPercentage: 100 }) })
-    );
+  it.each(['submitted', 'partially_verified', 'verified'] as const)('shows no enabled submit action for %s', async (submissionState) => {
+    getProgress.mockResolvedValue(progress({ documents: documentsSummary({ submissionState, canSubmit: false, completionPercentage: 100 }) }));
     renderSummary();
 
     await waitFor(() => expect(screen.queryByText('Loading…')).toBeNull());
@@ -195,18 +192,14 @@ describe('ApplicationProgressSummary', () => {
   });
 
   it('falls back an unrecognized submission state to a neutral, non-crashing display', async () => {
-    applicationProgressClient.getProgress.mockResolvedValue(
-      progress({ documents: documentsSummary({ submissionState: 'unknown', canSubmit: false }) })
-    );
+    getProgress.mockResolvedValue(progress({ documents: documentsSummary({ submissionState: 'unknown', canSubmit: false }) }));
     renderSummary();
     expect(await screen.findByText('Status unavailable')).toBeTruthy();
   });
 
   describe('submission confirmation', () => {
     async function readyState() {
-      applicationProgressClient.getProgress.mockResolvedValue(
-        progress({ documents: documentsSummary({ submissionState: 'ready', canSubmit: true }) })
-      );
+      getProgress.mockResolvedValue(progress({ documents: documentsSummary({ submissionState: 'ready', canSubmit: true }) }));
       renderSummary();
       fireEvent.press(await screen.findByText('Submit for review'));
     }
@@ -214,17 +207,15 @@ describe('ApplicationProgressSummary', () => {
     it('opens a confirmation dialog before submitting', async () => {
       await readyState();
       expect(await screen.findByText('Submit documents for review?')).toBeTruthy();
-      expect(applicationProgressClient.submitDocuments).not.toHaveBeenCalled();
+      expect(submitDocuments).not.toHaveBeenCalled();
     });
 
     it('submits on confirmation and clears the dialog', async () => {
-      applicationProgressClient.submitDocuments.mockResolvedValue(submissionResult());
+      submitDocuments.mockResolvedValue(submissionResult());
       await readyState();
       await screen.findByText('Submit documents for review?');
 
-      applicationProgressClient.getProgress.mockResolvedValue(
-        progress({ documents: documentsSummary({ submissionState: 'submitted', canSubmit: false, pendingReview: 2 }) })
-      );
+      getProgress.mockResolvedValue(progress({ documents: documentsSummary({ submissionState: 'submitted', canSubmit: false, pendingReview: 2 }) }));
       fireEvent.press(screen.getByText('Submit'));
 
       await waitFor(() => expect(screen.queryByText('Submit documents for review?')).toBeNull());
@@ -232,23 +223,21 @@ describe('ApplicationProgressSummary', () => {
     });
 
     it('prevents duplicate submission while a submission is already in flight', async () => {
-      applicationProgressClient.submitDocuments.mockReturnValue(new Promise(() => {}));
+      submitDocuments.mockReturnValue(new Promise(() => {}));
       await readyState();
       await screen.findByText('Submit documents for review?');
 
       const confirmButton = screen.getByText('Submit');
       fireEvent.press(confirmButton);
-      await waitFor(() => expect(applicationProgressClient.submitDocuments).toHaveBeenCalledTimes(1));
+      await waitFor(() => expect(submitDocuments).toHaveBeenCalledTimes(1));
       fireEvent.press(confirmButton);
       fireEvent.press(confirmButton);
 
-      expect(applicationProgressClient.submitDocuments).toHaveBeenCalledTimes(1);
+      expect(submitDocuments).toHaveBeenCalledTimes(1);
     });
 
     it('retries a failed submission with the same idempotency key after a server error', async () => {
-      applicationProgressClient.submitDocuments
-        .mockRejectedValueOnce({ code: 'SERVER_ERROR' })
-        .mockResolvedValueOnce(submissionResult());
+      submitDocuments.mockRejectedValueOnce({ code: 'SERVER_ERROR' }).mockResolvedValueOnce(submissionResult());
       await readyState();
       await screen.findByText('Submit documents for review?');
 
@@ -258,14 +247,12 @@ describe('ApplicationProgressSummary', () => {
       fireEvent.press(screen.getByText('Submit'));
       await waitFor(() => expect(screen.queryByText('Submit documents for review?')).toBeNull());
 
-      const [firstCall, secondCall] = applicationProgressClient.submitDocuments.mock.calls;
+      const [firstCall, secondCall] = submitDocuments.mock.calls;
       expect(firstCall[0].idempotencyKey).toBe(secondCall[0].idempotencyKey);
     });
 
     it('generates a fresh idempotency key after an idempotency conflict', async () => {
-      applicationProgressClient.submitDocuments
-        .mockRejectedValueOnce({ code: 'CONFLICT' })
-        .mockResolvedValueOnce(submissionResult());
+      submitDocuments.mockRejectedValueOnce({ code: 'CONFLICT' }).mockResolvedValueOnce(submissionResult());
       await readyState();
       await screen.findByText('Submit documents for review?');
 
@@ -275,19 +262,19 @@ describe('ApplicationProgressSummary', () => {
       fireEvent.press(screen.getByText('Submit'));
       await waitFor(() => expect(screen.queryByText('Submit documents for review?')).toBeNull());
 
-      const [firstCall, secondCall] = applicationProgressClient.submitDocuments.mock.calls;
+      const [firstCall, secondCall] = submitDocuments.mock.calls;
       expect(firstCall[0].idempotencyKey).not.toBe(secondCall[0].idempotencyKey);
     });
 
     it('closes the dialog and refreshes progress on documents_incomplete rather than an automatic retry', async () => {
-      applicationProgressClient.submitDocuments.mockRejectedValue({
+      submitDocuments.mockRejectedValue({
         code: 'DOCUMENTS_INCOMPLETE',
         blockingRequirements: [{ requirementCode: 'cnic_front', name: 'CNIC (Front)', reason: 'missing' }],
       });
       await readyState();
       await screen.findByText('Submit documents for review?');
 
-      applicationProgressClient.getProgress.mockResolvedValue(
+      getProgress.mockResolvedValue(
         progress({
           documents: documentsSummary({
             submissionState: 'incomplete',
@@ -305,10 +292,8 @@ describe('ApplicationProgressSummary', () => {
 
     it('ends the session and returns to sign-in on a 401 during submission', async () => {
       const onReturnToSignIn = jest.fn();
-      applicationProgressClient.submitDocuments.mockRejectedValue({ code: 'SESSION_EXPIRED' });
-      applicationProgressClient.getProgress.mockResolvedValue(
-        progress({ documents: documentsSummary({ submissionState: 'ready', canSubmit: true }) })
-      );
+      submitDocuments.mockRejectedValue({ code: 'SESSION_EXPIRED' });
+      getProgress.mockResolvedValue(progress({ documents: documentsSummary({ submissionState: 'ready', canSubmit: true }) }));
       renderSummary({ onReturnToSignIn });
       fireEvent.press(await screen.findByText('Submit for review'));
       await screen.findByText('Submit documents for review?');
@@ -319,10 +304,8 @@ describe('ApplicationProgressSummary', () => {
 
     it('ends the session and shows the inactive-account flow on inactive_account during submission', async () => {
       const onReturnToSignIn = jest.fn();
-      applicationProgressClient.submitDocuments.mockRejectedValue({ code: 'INACTIVE_ACCOUNT' });
-      applicationProgressClient.getProgress.mockResolvedValue(
-        progress({ documents: documentsSummary({ submissionState: 'ready', canSubmit: true }) })
-      );
+      submitDocuments.mockRejectedValue({ code: 'INACTIVE_ACCOUNT' });
+      getProgress.mockResolvedValue(progress({ documents: documentsSummary({ submissionState: 'ready', canSubmit: true }) }));
       renderSummary({ onReturnToSignIn });
       fireEvent.press(await screen.findByText('Submit for review'));
       await screen.findByText('Submit documents for review?');
@@ -333,23 +316,21 @@ describe('ApplicationProgressSummary', () => {
   });
 
   it('never sends a candidate id, assignment id, document id or requirement code when submitting', async () => {
-    applicationProgressClient.submitDocuments.mockResolvedValue(submissionResult());
-    applicationProgressClient.getProgress.mockResolvedValue(
-      progress({ documents: documentsSummary({ submissionState: 'ready', canSubmit: true }) })
-    );
+    submitDocuments.mockResolvedValue(submissionResult());
+    getProgress.mockResolvedValue(progress({ documents: documentsSummary({ submissionState: 'ready', canSubmit: true }) }));
     renderSummary();
 
     fireEvent.press(await screen.findByText('Submit for review'));
     fireEvent.press(await screen.findByText('Submit'));
 
-    await waitFor(() => expect(applicationProgressClient.submitDocuments).toHaveBeenCalledTimes(1));
-    const call = applicationProgressClient.submitDocuments.mock.calls[0][0];
+    await waitFor(() => expect(submitDocuments).toHaveBeenCalledTimes(1));
+    const call = submitDocuments.mock.calls[0][0];
     expect(Object.keys(call).sort()).toEqual(['accessToken', 'idempotencyKey']);
   });
 
   it('renders in Urdu when the persisted language is Urdu', async () => {
     await AsyncStorage.setItem('descon.language', 'ur');
-    applicationProgressClient.getProgress.mockResolvedValue(
+    getProgress.mockResolvedValue(
       progress({
         currentWorkflowStage: { code: 'registered', name: 'رجسٹرڈ' },
         documents: documentsSummary({ submissionState: 'ready', canSubmit: true, completionPercentage: 100 }),
