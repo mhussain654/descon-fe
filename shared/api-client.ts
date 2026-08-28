@@ -146,10 +146,16 @@ async function toResponseError(response: Response): Promise<ApiError> {
   return { status: response.status, code, retryAfterSeconds, details: body };
 }
 
-async function parseJsonBody<T>(response: Response): Promise<T | undefined> {
-  if (response.status === 204) return undefined;
+export interface ParsedEnvelope<T> {
+  data: T | undefined;
+  /** The envelope's `meta` object (pagination, request_id, timestamp, ...), when the response was wrapped in a SuccessEnvelope. Undefined for a bare/unwrapped body or an empty (204) response. */
+  meta: Record<string, unknown> | undefined;
+}
+
+async function parseEnvelope<T>(response: Response): Promise<ParsedEnvelope<T>> {
+  if (response.status === 204) return { data: undefined, meta: undefined };
   const text = await response.text();
-  if (!text) return undefined;
+  if (!text) return { data: undefined, meta: undefined };
   let parsed: unknown;
   try {
     parsed = JSON.parse(text);
@@ -157,7 +163,14 @@ async function parseJsonBody<T>(response: Response): Promise<T | undefined> {
     const parseError: ApiError = { status: response.status, code: 'PARSE_ERROR', details: error };
     throw parseError;
   }
-  return (isSuccessEnvelope(parsed) ? parsed.data : parsed) as T;
+  if (isSuccessEnvelope(parsed)) {
+    return { data: parsed.data as T, meta: parsed.meta as Record<string, unknown> };
+  }
+  return { data: parsed as T, meta: undefined };
+}
+
+async function parseJsonBody<T>(response: Response): Promise<T | undefined> {
+  return (await parseEnvelope<T>(response)).data;
 }
 
 export function createApiClient(config: ApiClientConfig) {
@@ -168,12 +181,12 @@ export function createApiClient(config: ApiClientConfig) {
     isOnline = defaultIsOnline,
   } = config;
 
-  async function request<T>(
+  async function fetchOkResponse(
     method: string,
     path: string,
     body: unknown,
-    opts: RequestOptions = {}
-  ): Promise<T | undefined> {
+    opts: RequestOptions
+  ): Promise<Response> {
     const controller = new AbortController();
     const timeout = opts.timeoutMs ?? timeoutMs;
     let timedOut = false;
@@ -228,6 +241,16 @@ export function createApiClient(config: ApiClientConfig) {
       throw await toResponseError(response);
     }
 
+    return response;
+  }
+
+  async function request<T>(
+    method: string,
+    path: string,
+    body: unknown,
+    opts: RequestOptions = {}
+  ): Promise<T | undefined> {
+    const response = await fetchOkResponse(method, path, body, opts);
     try {
       return await parseJsonBody<T>(response);
     } catch (error) {
@@ -238,8 +261,32 @@ export function createApiClient(config: ApiClientConfig) {
     }
   }
 
+  /**
+   * Like `request`, but also surfaces the SuccessEnvelope's `meta` (e.g.
+   * `meta.pagination` on a collection endpoint) instead of discarding it --
+   * `request`/`get` intentionally return only `data` since nothing needed
+   * `meta` before the admin document-review queue's pagination.
+   */
+  async function requestWithMeta<T>(
+    method: string,
+    path: string,
+    body: unknown,
+    opts: RequestOptions = {}
+  ): Promise<ParsedEnvelope<T>> {
+    const response = await fetchOkResponse(method, path, body, opts);
+    try {
+      return await parseEnvelope<T>(response);
+    } catch (error) {
+      if (error && typeof error === 'object' && 'code' in error) {
+        throw error as ApiError;
+      }
+      throw { status: response.status, code: 'UNKNOWN', details: error } satisfies ApiError;
+    }
+  }
+
   return {
     get: <T>(path: string, opts?: RequestOptions) => request<T>('GET', path, undefined, opts),
+    getWithMeta: <T>(path: string, opts?: RequestOptions) => requestWithMeta<T>('GET', path, undefined, opts),
     post: <T>(path: string, body?: unknown, opts?: RequestOptions) =>
       request<T>('POST', path, body, opts),
     put: <T>(path: string, body?: unknown, opts?: RequestOptions) =>

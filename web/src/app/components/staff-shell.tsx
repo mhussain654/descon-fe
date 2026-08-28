@@ -43,6 +43,11 @@ function StaffShellContent({ children }: { children: ReactNode }) {
       labelKey: 'staffNavCandidateImport',
       visible: hasPermission('manage_candidates'),
     },
+    {
+      href: '/admin/document-reviews',
+      labelKey: 'staffNavDocumentReviews',
+      visible: hasPermission('manage_candidate_documents'),
+    },
     { href: '/admin/users', labelKey: 'staffNavUsers', visible: hasPermission('manage_staff_users') },
   ].filter((item) => item.visible);
 

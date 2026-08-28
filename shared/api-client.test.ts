@@ -209,4 +209,46 @@ describe('api-client', () => {
 
     expect(removedEvents).toContain('abort');
   });
+
+  describe('getWithMeta', () => {
+    it('surfaces the envelope meta alongside data, unlike get() which discards it', async () => {
+      stubFetch(async () =>
+        jsonResponse({
+          data: [{ id: '1' }],
+          meta: { pagination: { page: 1, per_page: 20, total_count: 1, total_pages: 1 }, request_id: 'r1' },
+          errors: [],
+        })
+      );
+      const client = createApiClient({ baseUrl: 'http://example.test' });
+      await expect(client.getWithMeta('/things')).resolves.toEqual({
+        data: [{ id: '1' }],
+        meta: { pagination: { page: 1, per_page: 20, total_count: 1, total_pages: 1 }, request_id: 'r1' },
+      });
+    });
+
+    it('leaves meta undefined for a bare, unwrapped body', async () => {
+      stubFetch(async () => jsonResponse({ hello: 'world' }));
+      const client = createApiClient({ baseUrl: 'http://example.test' });
+      await expect(client.getWithMeta('/ping')).resolves.toEqual({ data: { hello: 'world' }, meta: undefined });
+    });
+
+    it('resolves with undefined data and meta for a 204 response', async () => {
+      stubFetch(async () => new Response(null, { status: 204 }));
+      const client = createApiClient({ baseUrl: 'http://example.test' });
+      await expect(client.getWithMeta('/things/1')).resolves.toEqual({ data: undefined, meta: undefined });
+    });
+
+    it('still throws the normalized ApiError on a 4xx response', async () => {
+      stubFetch(async () =>
+        jsonResponse(errorEnvelope([{ code: 'invalid_query_parameter', message: 'Invalid filter' }]), {
+          status: 400,
+        })
+      );
+      const client = createApiClient({ baseUrl: 'http://example.test' });
+      await expect(client.getWithMeta('/things')).rejects.toMatchObject({
+        status: 400,
+        serverCode: 'invalid_query_parameter',
+      });
+    });
+  });
 });

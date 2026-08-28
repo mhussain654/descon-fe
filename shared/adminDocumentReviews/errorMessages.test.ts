@@ -1,0 +1,35 @@
+import { ADMIN_DOCUMENT_REVIEW_ERROR_KEYS } from './errorMessages';
+import type { AdminDocumentReviewErrorCode } from './types';
+
+const ALL_CODES: AdminDocumentReviewErrorCode[] = [
+  'MISSING_IDEMPOTENCY_KEY',
+  'INVALID_IDEMPOTENCY_KEY',
+  'REVIEW_NOT_ALLOWED',
+  'DOCUMENT_SUBMISSION_NOT_FOUND',
+  'CANDIDATE_DOCUMENT_NOT_FOUND',
+  'DOCUMENT_ACCESS_FORBIDDEN',
+  'DOCUMENT_ATTACHMENT_MISSING',
+  'DOCUMENT_NOT_PENDING_REVIEW',
+  'DOCUMENT_ALREADY_REVIEWED',
+  'REJECTION_REASON_REQUIRED',
+  'REJECTION_REASON_INVALID',
+  'IDEMPOTENCY_CONFLICT',
+  'IDEMPOTENCY_IN_PROGRESS',
+  'INACTIVE_ACCOUNT',
+  'SESSION_EXPIRED',
+  'FORBIDDEN',
+  'VALIDATION_ERROR',
+  'RATE_LIMITED',
+  'NETWORK_ERROR',
+  'OFFLINE',
+  'SERVER_ERROR',
+  'UNKNOWN',
+];
+
+describe('ADMIN_DOCUMENT_REVIEW_ERROR_KEYS', () => {
+  it('has a non-empty translation key for every error code', () => {
+    ALL_CODES.forEach((code) => {
+      expect(ADMIN_DOCUMENT_REVIEW_ERROR_KEYS[code]).toBeTruthy();
+    });
+  });
+});
