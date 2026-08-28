@@ -131,11 +131,19 @@ function toNumber(raw: unknown): number {
   return typeof raw === 'number' && Number.isFinite(raw) ? raw : 0;
 }
 
+/**
+ * A missing/malformed `name` maps to '' here, never to the raw `code` --
+ * `code` is a business identifier (e.g. a project code), not display text,
+ * and the ticket explicitly forbids ever showing a raw API code to a
+ * reviewer (review finding: "Defensive mapping can display raw project/
+ * country/craft codes"). The UI layer renders '' as a localized "Name
+ * unavailable" fallback instead.
+ */
 function toReferenceCode(raw: unknown): ReferenceCode {
   const value = (raw && typeof raw === 'object' ? raw : {}) as Partial<ReferenceCodeResponse>;
   return {
     code: typeof value.code === 'string' ? value.code : '',
-    name: typeof value.name === 'string' && value.name ? value.name : (typeof value.code === 'string' ? value.code : ''),
+    name: typeof value.name === 'string' ? value.name : '',
   };
 }
 

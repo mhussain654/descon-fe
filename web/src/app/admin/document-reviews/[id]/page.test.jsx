@@ -11,6 +11,7 @@ import { LanguageProvider } from "../../../../contexts/LanguageContext";
 import { StaffAuthProvider } from "../../../../contexts/StaffAuthContext";
 import { StaffShell } from "../../../components/staff-shell";
 import DocumentReviewDetailPage from "./page";
+import { SubmissionDetail } from "../../../../features/admin/documentReviews/components/SubmissionDetail";
 import { adminDocumentReviewsClient } from "../../../../lib/admin-document-reviews-client";
 
 vi.mock("../../../../lib/admin-document-reviews-client", () => ({
@@ -217,6 +218,78 @@ describe("DocumentReviewDetailPage", () => {
 
       await waitFor(() => expect(screen.getByText("Login stub")).toBeInTheDocument());
     });
+
+    it("never displays a raw project, country or craft code when the backend didn't return a name", async () => {
+      adminDocumentReviewsClient.getSubmission.mockResolvedValue(
+        submissionDetail({
+          assignment: {
+            id: "assignment-1",
+            referenceNumber: "REF-100",
+            country: { code: "SA" },
+            project: { code: "PRJ-1" },
+            craft: { code: "welder" },
+          },
+        })
+      );
+      const client = await signInAs(ADMIN);
+      renderAt("/admin/document-reviews/submission-1", client);
+
+      expect(await screen.findAllByText("Name unavailable")).toHaveLength(3);
+      expect(screen.queryByText("SA")).not.toBeInTheDocument();
+      expect(screen.queryByText("PRJ-1")).not.toBeInTheDocument();
+      expect(screen.queryByText("welder")).not.toBeInTheDocument();
+    });
+  });
+
+  // Review finding: "Session errors from preview and review mutations do
+  // not end the session" -- SubmissionDetail previously only watched the
+  // submission query's error, missing a SESSION_EXPIRED/INACTIVE_ACCOUNT
+  // surfaced by requesting preview access or by a verify/reject decision.
+  describe("session ending from any operation", () => {
+    it("ends the session when requesting preview access returns SESSION_EXPIRED", async () => {
+      adminDocumentReviewsClient.getSubmission.mockResolvedValue(submissionDetail());
+      adminDocumentReviewsClient.requestDocumentAccess.mockRejectedValue({ code: "SESSION_EXPIRED" });
+      const client = await signInAs(ADMIN);
+      renderAt("/admin/document-reviews/submission-1", client);
+
+      fireEvent.click(await screen.findByRole("button", { name: "Preview" }));
+      await waitFor(() => expect(screen.getByText("Login stub")).toBeInTheDocument());
+    });
+
+    it("ends the session when requesting preview access returns INACTIVE_ACCOUNT", async () => {
+      adminDocumentReviewsClient.getSubmission.mockResolvedValue(submissionDetail());
+      adminDocumentReviewsClient.requestDocumentAccess.mockRejectedValue({ code: "INACTIVE_ACCOUNT" });
+      const client = await signInAs(ADMIN);
+      renderAt("/admin/document-reviews/submission-1", client);
+
+      fireEvent.click(await screen.findByRole("button", { name: "Preview" }));
+      await waitFor(() => expect(screen.getByText("Login stub")).toBeInTheDocument());
+    });
+
+    it("ends the session when verification returns SESSION_EXPIRED", async () => {
+      adminDocumentReviewsClient.getSubmission.mockResolvedValue(submissionDetail());
+      adminDocumentReviewsClient.verifyDocument.mockRejectedValue({ code: "SESSION_EXPIRED" });
+      const client = await signInAs(ADMIN);
+      renderAt("/admin/document-reviews/submission-1", client);
+
+      fireEvent.click(await screen.findByRole("button", { name: "Verify" }));
+      fireEvent.click(await screen.findByRole("button", { name: "Verify", exact: false }));
+
+      await waitFor(() => expect(screen.getByText("Login stub")).toBeInTheDocument());
+    });
+
+    it("ends the session when rejection returns INACTIVE_ACCOUNT", async () => {
+      adminDocumentReviewsClient.getSubmission.mockResolvedValue(submissionDetail());
+      adminDocumentReviewsClient.rejectDocument.mockRejectedValue({ code: "INACTIVE_ACCOUNT" });
+      const client = await signInAs(ADMIN);
+      renderAt("/admin/document-reviews/submission-1", client);
+
+      fireEvent.click(await screen.findByRole("button", { name: "Reject" }));
+      fireEvent.change(await screen.findByLabelText("Reason"), { target: { value: "Blurry photo." } });
+      fireEvent.click(screen.getByRole("button", { name: "Reject", exact: false }));
+
+      await waitFor(() => expect(screen.getByText("Login stub")).toBeInTheDocument());
+    });
   });
 
   describe("secure document preview", () => {
@@ -295,6 +368,106 @@ describe("DocumentReviewDetailPage", () => {
 
       expect(document.querySelector("a[download]")).not.toBeInTheDocument();
       expect(screen.queryByText(/active_storage/)).not.toBeInTheDocument();
+    });
+
+    it("does not restore access if the preview is closed before the access response resolves", async () => {
+      adminDocumentReviewsClient.getSubmission.mockResolvedValue(submissionDetail());
+      let resolveAccess;
+      adminDocumentReviewsClient.requestDocumentAccess.mockReturnValue(
+        new Promise((resolve) => {
+          resolveAccess = resolve;
+        })
+      );
+      const client = await signInAs(ADMIN);
+      renderAt("/admin/document-reviews/submission-1", client);
+
+      fireEvent.click(await screen.findByRole("button", { name: "Preview" }));
+      await screen.findByText("Loading…");
+      fireEvent.click(screen.getByRole("button", { name: "Close" }));
+
+      resolveAccess({
+        documentId: "doc-1",
+        url: "/rails/blobs/xyz",
+        expiresAt: new Date(Date.now() + 5 * 60 * 1000).toISOString(),
+      });
+      await waitFor(() => expect(document.querySelector('embed[type="application/pdf"]')).not.toBeInTheDocument());
+    });
+
+    it("does not let a slower access response for a previously-opened document overwrite the one currently shown", async () => {
+      adminDocumentReviewsClient.getSubmission.mockResolvedValue(
+        submissionDetail({ documents: [passportDocument({ id: "doc-1", name: "Passport" }), passportDocument({ id: "doc-2", name: "CNIC" })] })
+      );
+      let resolveFirst;
+      adminDocumentReviewsClient.requestDocumentAccess
+        .mockImplementationOnce(
+          () =>
+            new Promise((resolve) => {
+              resolveFirst = resolve;
+            })
+        )
+        .mockResolvedValueOnce({ documentId: "doc-2", url: "/rails/blobs/two", expiresAt: new Date(Date.now() + 5 * 60 * 1000).toISOString() });
+      const client = await signInAs(ADMIN);
+      renderAt("/admin/document-reviews/submission-1", client);
+
+      const previewButtons = await screen.findAllByRole("button", { name: "Preview" });
+      fireEvent.click(previewButtons[0]);
+      fireEvent.click(screen.getByRole("button", { name: "Close" }));
+      fireEvent.click(previewButtons[1]);
+
+      await waitFor(() => expect(document.querySelector('embed[type="application/pdf"]')).toBeInTheDocument());
+      resolveFirst({ documentId: "doc-1", url: "/rails/blobs/one", expiresAt: new Date(Date.now() + 5 * 60 * 1000).toISOString() });
+
+      await waitFor(() => expect(document.querySelector("embed").getAttribute("src")).toContain("/rails/blobs/two"));
+    });
+
+    // The page-level harness above maps every `:id` to a fixed `params.id`,
+    // so real client-side navigation between two different submissions
+    // can't be exercised through it -- rendering SubmissionDetail directly
+    // and changing its `submissionId` prop across a rerender is the precise
+    // way to exercise the same effect (`useEffect(() => {...}, [submissionId])`)
+    // that a real navigation between detail pages would trigger.
+    it("clears a still-pending preview access when the submissionId prop changes (navigating to a different submission)", async () => {
+      adminDocumentReviewsClient.getSubmission.mockImplementation((id) =>
+        Promise.resolve(submissionDetail({ id, documents: [passportDocument({ id: `doc-${id}` })] }))
+      );
+      let resolveAccess;
+      adminDocumentReviewsClient.requestDocumentAccess.mockReturnValue(
+        new Promise((resolve) => {
+          resolveAccess = resolve;
+        })
+      );
+      const client = await signInAs(ADMIN);
+      const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+      const { rerender } = render(
+        <MemoryRouter>
+          <QueryClientProvider client={queryClient}>
+            <LanguageProvider>
+              <StaffAuthProvider client={client}>
+                <SubmissionDetail submissionId="submission-1" />
+              </StaffAuthProvider>
+            </LanguageProvider>
+          </QueryClientProvider>
+        </MemoryRouter>
+      );
+
+      fireEvent.click(await screen.findByRole("button", { name: "Preview" }));
+      await screen.findByText("Loading…");
+
+      rerender(
+        <MemoryRouter>
+          <QueryClientProvider client={queryClient}>
+            <LanguageProvider>
+              <StaffAuthProvider client={client}>
+                <SubmissionDetail submissionId="submission-2" />
+              </StaffAuthProvider>
+            </LanguageProvider>
+          </QueryClientProvider>
+        </MemoryRouter>
+      );
+      await screen.findByText("Passport");
+
+      resolveAccess({ documentId: "doc-submission-1", url: "/rails/blobs/stale", expiresAt: new Date(Date.now() + 5 * 60 * 1000).toISOString() });
+      await waitFor(() => expect(document.querySelector('embed[type="application/pdf"]')).not.toBeInTheDocument());
     });
 
     it("shows the expired state and requests a new access on demand, without auto-refetching", async () => {
@@ -443,7 +616,7 @@ describe("DocumentReviewDetailPage", () => {
       expect(secondCall[2]).not.toBe(firstCall[2]);
     });
 
-    it("clears the key and requires a fresh attempt after an idempotency_conflict", async () => {
+    it("shows a visible idempotency-conflict message, keeps the dialog open, and requires a fresh attempt", async () => {
       adminDocumentReviewsClient.getSubmission.mockResolvedValue(submissionDetail());
       adminDocumentReviewsClient.rejectDocument.mockRejectedValueOnce({ code: "IDEMPOTENCY_CONFLICT" });
       const client = await signInAs(ADMIN);
@@ -453,6 +626,14 @@ describe("DocumentReviewDetailPage", () => {
       fireEvent.change(await screen.findByLabelText("Reason"), { target: { value: "Blurry photo." } });
       fireEvent.click(screen.getByRole("button", { name: "Reject", exact: false }));
       await waitFor(() => expect(adminDocumentReviewsClient.rejectDocument).toHaveBeenCalledTimes(1));
+
+      // The reviewer must see *why* nothing obviously happened -- not just a
+      // silently-cleared key (review finding: "Idempotency conflict is
+      // hidden from the reviewer").
+      expect(
+        await screen.findByText("This request couldn't be repeated safely. Confirm again to make a fresh attempt.")
+      ).toBeInTheDocument();
+      expect(screen.getByText("Reject this document?")).toBeInTheDocument();
 
       adminDocumentReviewsClient.rejectDocument.mockResolvedValueOnce({
         document: passportDocument({ status: "rejected", rejectionReason: "Blurry photo." }),

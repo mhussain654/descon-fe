@@ -28,6 +28,14 @@ export function useDocumentAccess(): UseDocumentAccessResult {
   const [error, setError] = useState<AdminDocumentReviewError | null>(null);
   const [isExpired, setIsExpired] = useState(false);
   const expiryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Every requestAccess()/clearAccess() call bumps this. A response is only
+  // applied if it's still the current generation when it resolves -- without
+  // this, a slow response for a document the reviewer already closed (or
+  // navigated away from, or replaced by opening a different document) could
+  // land afterward and silently restore or overwrite the access credential
+  // (review finding: "A closed preview request can restore a private access
+  // credential").
+  const requestVersionRef = useRef(0);
 
   const clearExpiryTimer = useCallback(() => {
     if (expiryTimerRef.current) {
@@ -37,26 +45,37 @@ export function useDocumentAccess(): UseDocumentAccessResult {
   }, []);
 
   const clearAccess = useCallback(() => {
+    requestVersionRef.current += 1;
     clearExpiryTimer();
     setAccess(null);
     setIsExpired(false);
     setError(null);
+    setIsRequesting(false);
   }, [clearExpiryTimer]);
 
   const requestAccess = useCallback(
     async (documentId: string) => {
       clearAccess();
+      const requestVersion = ++requestVersionRef.current;
       setIsRequesting(true);
       try {
         const result = await adminDocumentReviewsClient.requestDocumentAccess(documentId);
+        if (requestVersion !== requestVersionRef.current) return;
+
         setAccess(result);
         setIsExpired(false);
         const msUntilExpiry = new Date(result.expiresAt).getTime() - Date.now();
-        expiryTimerRef.current = setTimeout(() => setIsExpired(true), Math.max(msUntilExpiry, 0));
+        expiryTimerRef.current = setTimeout(() => {
+          if (requestVersion !== requestVersionRef.current) return;
+          setIsExpired(true);
+        }, Math.max(msUntilExpiry, 0));
       } catch (requestError) {
+        if (requestVersion !== requestVersionRef.current) return;
         setError(requestError as AdminDocumentReviewError);
       } finally {
-        setIsRequesting(false);
+        if (requestVersion === requestVersionRef.current) {
+          setIsRequesting(false);
+        }
       }
     },
     [clearAccess]

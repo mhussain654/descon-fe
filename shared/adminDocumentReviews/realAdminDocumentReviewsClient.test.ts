@@ -159,6 +159,31 @@ describe('createAdminDocumentReviewsClient (real)', () => {
 
       expect(result.items[0].review.reviewState).toBe('unknown');
     });
+
+    it('never substitutes the raw code as the name for a missing/malformed country, project or craft', async () => {
+      stubFetch(async () =>
+        jsonResponse(
+          successEnvelope([
+            queueItemResponse({
+              assignment: {
+                ...queueItemResponse().assignment,
+                country: { code: 'SA' },
+                project: { code: 'PRJ-1', name: null },
+                craft: {},
+              },
+            }),
+          ])
+        )
+      );
+      const client = buildClient();
+
+      const result = await client.getQueue({}, {});
+
+      const { country, project, craft } = result.items[0].assignment;
+      expect(country).toEqual({ code: 'SA', name: '' });
+      expect(project).toEqual({ code: 'PRJ-1', name: '' });
+      expect(craft).toEqual({ code: '', name: '' });
+    });
   });
 
   describe('getSubmission', () => {

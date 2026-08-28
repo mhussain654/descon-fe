@@ -19,6 +19,7 @@ import {
 } from '../../../../design-system';
 import { formatDate } from '../../../../../../shared/i18n/locale';
 import { ADMIN_DOCUMENT_REVIEW_ERROR_KEYS } from '../../../../../../shared/adminDocumentReviews/errorMessages';
+import { referenceDisplayName } from '../../../../../../shared/adminDocumentReviews/formatting';
 import { FILTERABLE_REVIEW_STATES, REVIEW_STATE_KEYS, REVIEW_STATE_TONES } from '../../../../../../shared/adminDocumentReviews/statusLabels';
 import type { DocumentReviewQueueItem, ReviewState } from '../../../../../../shared/adminDocumentReviews/types';
 import type { TranslationKey } from '../../../../../../shared/i18n/translations';
@@ -102,9 +103,21 @@ export function DocumentReviewQueue() {
       header: t('adminDocumentReviewColumnAssignment'),
       render: (row) => row.assignment.referenceNumber,
     },
-    { key: 'project', header: t('adminDocumentReviewColumnProject'), render: (row) => row.assignment.project.name },
-    { key: 'country', header: t('adminDocumentReviewColumnCountry'), render: (row) => row.assignment.country.name },
-    { key: 'craft', header: t('adminDocumentReviewColumnCraft'), render: (row) => row.assignment.craft.name },
+    {
+      key: 'project',
+      header: t('adminDocumentReviewColumnProject'),
+      render: (row) => referenceDisplayName(row.assignment.project, t('adminDocumentReviewNameUnavailable')),
+    },
+    {
+      key: 'country',
+      header: t('adminDocumentReviewColumnCountry'),
+      render: (row) => referenceDisplayName(row.assignment.country, t('adminDocumentReviewNameUnavailable')),
+    },
+    {
+      key: 'craft',
+      header: t('adminDocumentReviewColumnCraft'),
+      render: (row) => referenceDisplayName(row.assignment.craft, t('adminDocumentReviewNameUnavailable')),
+    },
     {
       key: 'submitted',
       header: t('adminDocumentReviewColumnSubmitted'),

@@ -17,7 +17,7 @@ import {
 } from '../../../../design-system';
 import { formatDate } from '../../../../../../shared/i18n/locale';
 import { ADMIN_DOCUMENT_REVIEW_ERROR_KEYS } from '../../../../../../shared/adminDocumentReviews/errorMessages';
-import { formatFileSize } from '../../../../../../shared/adminDocumentReviews/formatting';
+import { formatFileSize, referenceDisplayName } from '../../../../../../shared/adminDocumentReviews/formatting';
 import { DOCUMENT_STATUS_KEYS, DOCUMENT_STATUS_TONES } from '../../../../../../shared/adminDocumentReviews/statusLabels';
 import type { SubmissionDocument } from '../../../../../../shared/adminDocumentReviews/types';
 import type { TranslationKey } from '../../../../../../shared/i18n/translations';
@@ -39,13 +39,26 @@ export function SubmissionDetail({ submissionId }: SubmissionDetailProps) {
   const documentAccess = useDocumentAccess();
   const [previewDocumentId, setPreviewDocumentId] = useState<string | null>(null);
 
+  // A confirmed-dead session or a deactivated account can surface from any
+  // of the three independent operations on this page -- loading the
+  // submission, requesting a preview credential, or a verify/reject
+  // decision -- not only the submission query (review finding: "Session
+  // errors from preview and review mutations do not end the session").
+  // Preview access and the decision's own error/idempotency state are
+  // cleared immediately alongside signing out, so a late response racing
+  // the logout can never restore sensitive state afterward (the generation
+  // check in useDocumentAccess and the mutation being reset here both
+  // guard this).
   useEffect(() => {
-    if (query.error?.code === 'SESSION_EXPIRED') {
-      signOut('expired');
-    } else if (query.error?.code === 'INACTIVE_ACCOUNT') {
-      signOut('manual');
+    const code = query.error?.code ?? documentAccess.error?.code ?? decision.mutation.error?.code;
+    if (code === 'SESSION_EXPIRED' || code === 'INACTIVE_ACCOUNT') {
+      documentAccess.clearAccess();
+      decision.closeConfirm();
+      decision.mutation.reset();
+      signOut(code === 'SESSION_EXPIRED' ? 'expired' : 'manual');
     }
-  }, [query.error, signOut]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [query.error, documentAccess.error, decision.mutation.error, signOut]);
 
   // A still-open preview credential must not survive navigating to a
   // different submission (ticket: "Clear it when the submission changes.").
@@ -100,8 +113,18 @@ export function SubmissionDetail({ submissionId }: SubmissionDetailProps) {
     decisionError?.code === 'REJECTION_REASON_REQUIRED' || decisionError?.code === 'REJECTION_REASON_INVALID'
       ? decisionError.message || t(ADMIN_DOCUMENT_REVIEW_ERROR_KEYS[decisionError.code] as TranslationKey)
       : undefined;
+  // A conflict means the previous attempt's key can't be safely reused --
+  // the reviewer must see *why* confirming again didn't obviously work
+  // (review finding: "Idempotency conflict is hidden from the reviewer").
+  // useReviewDecision already cleared the key on this error, so the next
+  // confirm mints a fresh one; the dialog stays open (not a terminal error)
+  // so the reviewer can just press confirm again.
+  const conflictMessage =
+    decisionError?.code === 'IDEMPOTENCY_CONFLICT'
+      ? decisionError.message || t(ADMIN_DOCUMENT_REVIEW_ERROR_KEYS.IDEMPOTENCY_CONFLICT as TranslationKey)
+      : undefined;
   const nonFieldDecisionError =
-    decisionError && !rejectionFieldError && decisionError.code !== 'IDEMPOTENCY_CONFLICT'
+    decisionError && !rejectionFieldError && !conflictMessage
       ? decisionError.message || t(ADMIN_DOCUMENT_REVIEW_ERROR_KEYS[decisionError.code] as TranslationKey)
       : undefined;
 
@@ -125,15 +148,15 @@ export function SubmissionDetail({ submissionId }: SubmissionDetailProps) {
           </div>
           <div>
             <dt className="text-text-tertiary">{t('adminDocumentReviewColumnProject')}</dt>
-            <dd className="font-medium text-text-primary">{detail.assignment.project.name}</dd>
+            <dd className="font-medium text-text-primary">{referenceDisplayName(detail.assignment.project, t('adminDocumentReviewNameUnavailable'))}</dd>
           </div>
           <div>
             <dt className="text-text-tertiary">{t('adminDocumentReviewColumnCountry')}</dt>
-            <dd className="font-medium text-text-primary">{detail.assignment.country.name}</dd>
+            <dd className="font-medium text-text-primary">{referenceDisplayName(detail.assignment.country, t('adminDocumentReviewNameUnavailable'))}</dd>
           </div>
           <div>
             <dt className="text-text-tertiary">{t('adminDocumentReviewColumnCraft')}</dt>
-            <dd className="font-medium text-text-primary">{detail.assignment.craft.name}</dd>
+            <dd className="font-medium text-text-primary">{referenceDisplayName(detail.assignment.craft, t('adminDocumentReviewNameUnavailable'))}</dd>
           </div>
           <div>
             <dt className="text-text-tertiary">{t('adminDocumentReviewColumnSubmitted')}</dt>
@@ -171,6 +194,7 @@ export function SubmissionDetail({ submissionId }: SubmissionDetailProps) {
         onConfirm={decision.confirm}
         isConfirming={decision.mutation.isPending}
       >
+        {conflictMessage ? <ValidationMessage tone="error">{conflictMessage}</ValidationMessage> : null}
         {nonFieldDecisionError ? <ValidationMessage tone="error">{nonFieldDecisionError}</ValidationMessage> : null}
       </ConfirmDialog>
 
@@ -194,6 +218,7 @@ export function SubmissionDetail({ submissionId }: SubmissionDetailProps) {
           onChange={(event) => decision.setReason(event.target.value)}
           disabled={decision.mutation.isPending}
         />
+        {conflictMessage ? <ValidationMessage tone="error">{conflictMessage}</ValidationMessage> : null}
         {nonFieldDecisionError ? <ValidationMessage tone="error">{nonFieldDecisionError}</ValidationMessage> : null}
       </ConfirmDialog>
 

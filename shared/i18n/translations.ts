@@ -393,6 +393,7 @@ export const translations = {
     adminDocumentReviewPreviewExpiredMessage: 'This preview link has expired.',
     adminDocumentReviewRequestNewAccess: 'Request new preview',
     adminDocumentReviewNoDocumentsMessage: 'No documents in this submission.',
+    adminDocumentReviewNameUnavailable: 'Name unavailable',
     adminDocumentReviewSubmissionNotFoundError: 'Submission not found.',
     adminDocumentReviewDocumentNotFoundError: 'Document not found.',
     adminDocumentReviewAttachmentMissingError: "This document's file is missing.",
@@ -400,7 +401,7 @@ export const translations = {
     adminDocumentReviewAlreadyReviewedError: 'This document has already been reviewed.',
     adminDocumentReviewRejectionReasonRequiredError: 'Enter a reason for rejecting this document.',
     adminDocumentReviewRejectionReasonInvalidError: 'Enter a valid reason (10-500 characters, no HTML).',
-    adminDocumentReviewIdempotencyConflictError: "This request couldn't be repeated safely. Please try again.",
+    adminDocumentReviewIdempotencyConflictError: "This request couldn't be repeated safely. Confirm again to make a fresh attempt.",
     adminDocumentReviewIdempotencyInProgressError: 'This decision is still being processed.',
 
     // Staff/user & role administration (MPS-F203)
@@ -851,6 +852,7 @@ export const translations = {
     adminDocumentReviewPreviewExpiredMessage: 'اس پیش منظر کی مدت ختم ہو چکی ہے۔',
     adminDocumentReviewRequestNewAccess: 'نیا پیش منظر درخواست کریں',
     adminDocumentReviewNoDocumentsMessage: 'اس درخواست میں کوئی دستاویز نہیں ہے۔',
+    adminDocumentReviewNameUnavailable: 'نام دستیاب نہیں',
     adminDocumentReviewSubmissionNotFoundError: 'درخواست نہیں ملی۔',
     adminDocumentReviewDocumentNotFoundError: 'دستاویز نہیں ملی۔',
     adminDocumentReviewAttachmentMissingError: 'اس دستاویز کی فائل غائب ہے۔',
@@ -858,7 +860,7 @@ export const translations = {
     adminDocumentReviewAlreadyReviewedError: 'اس دستاویز کا جائزہ پہلے ہی لیا جا چکا ہے۔',
     adminDocumentReviewRejectionReasonRequiredError: 'اس دستاویز کو مسترد کرنے کی وجہ درج کریں۔',
     adminDocumentReviewRejectionReasonInvalidError: 'ایک درست وجہ درج کریں (10 سے 500 حروف، بغیر HTML کے)۔',
-    adminDocumentReviewIdempotencyConflictError: 'یہ درخواست محفوظ طریقے سے دہرائی نہیں جا سکی۔ براہ کرم دوبارہ کوشش کریں۔',
+    adminDocumentReviewIdempotencyConflictError: 'یہ درخواست محفوظ طریقے سے دہرائی نہیں جا سکی۔ نئی کوشش کے لیے دوبارہ تصدیق کریں۔',
     adminDocumentReviewIdempotencyInProgressError: 'یہ فیصلہ ابھی عملدرآمد میں ہے۔',
 
     // Staff/user & role administration (MPS-F203)
