@@ -1,14 +1,13 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react-native';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { useEffect, useRef } from 'react';
+import { QueryClientProvider } from '@tanstack/react-query';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
-import { AuthProvider, useAuth } from '../../../../contexts/AuthContext';
+import { AuthProvider } from '../../../../contexts/AuthContext';
 import { LanguageProvider } from '../../../../contexts/LanguageContext';
 import { Toaster } from '../../../../design-system';
 import { applicationProgressClient } from '../../../../lib/application-progress-client';
 import type { ApplicationProgress, ApplicationProgressDocuments, DocumentSubmissionResult } from '../../../../lib/application-progress-client';
-import { destroyQueryClientMutations } from '../../../../testSupport/destroyQueryClientMutations';
+import { createQueryClientTestLifecycle } from '../../../../testSupport/queryClientTestLifecycle';
 import { ApplicationProgressSummary } from './ApplicationProgressSummary';
 
 const TEST_SAFE_AREA_METRICS = {
@@ -16,8 +15,21 @@ const TEST_SAFE_AREA_METRICS = {
   insets: { top: 47, left: 0, right: 0, bottom: 34 },
 };
 
+// Restored by AuthContext.tsx's own SecureStore-backed session restoration
+// on mount -- pre-seeding it here (rather than an in-effect `login()` call
+// on a harness component) avoids state updates outside RTL's act()
+// boundary entirely.
+const mockCandidateSession = {
+  accessToken: 'candidate-access-token',
+  refreshToken: 'refresh',
+  candidateId: 'candidate-public-id-1',
+  candidateName: 'Ahmed Ali',
+  preferredLocale: 'en',
+  expiresAt: new Date(Date.now() + 60_000).toISOString(),
+};
+
 jest.mock('expo-secure-store', () => ({
-  getItemAsync: jest.fn(() => Promise.resolve(null)),
+  getItemAsync: jest.fn(() => Promise.resolve(JSON.stringify(mockCandidateSession))),
   setItemAsync: jest.fn(() => Promise.resolve()),
   deleteItemAsync: jest.fn(() => Promise.resolve()),
 }));
@@ -74,46 +86,23 @@ function submissionResult(overrides: Partial<DocumentSubmissionResult> = {}): Do
   };
 }
 
-function LoggedInHarness({ children }: { children: React.ReactNode }) {
-  const { login, status } = useAuth();
-  const hasLoggedInRef = useRef(false);
-  useEffect(() => {
-    if (status === 'restoring' || hasLoggedInRef.current) return;
-    hasLoggedInRef.current = true;
-    login({
-      accessToken: 'candidate-access-token',
-      refreshToken: 'refresh',
-      candidateId: 'candidate-public-id-1',
-      candidateName: 'Ahmed Ali',
-      preferredLocale: 'en',
-      expiresAt: new Date(Date.now() + 60_000).toISOString(),
-    });
-  }, [status, login]);
-
-  if (status !== 'authenticated') return null;
-  return <>{children}</>;
-}
-
-// See destroyQueryClientMutations.ts for why this is needed even with
-// `gcTime: 0` set below.
-let activeQueryClient: QueryClient | undefined;
+const { createTestQueryClient, trackRender, cleanup } = createQueryClientTestLifecycle();
 
 function renderSummary({ onReturnToSignIn = jest.fn() } = {}) {
-  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: 0 }, mutations: { gcTime: 0 } } });
-  activeQueryClient = queryClient;
-  return render(
-    <SafeAreaProvider initialMetrics={TEST_SAFE_AREA_METRICS}>
-      <QueryClientProvider client={queryClient}>
-        <LanguageProvider>
-          <AuthProvider>
-            <LoggedInHarness>
+  const queryClient = createTestQueryClient();
+  return trackRender(
+    render(
+      <SafeAreaProvider initialMetrics={TEST_SAFE_AREA_METRICS}>
+        <QueryClientProvider client={queryClient}>
+          <LanguageProvider>
+            <AuthProvider>
               <ApplicationProgressSummary onReturnToSignIn={onReturnToSignIn} />
-            </LoggedInHarness>
-            <Toaster />
-          </AuthProvider>
-        </LanguageProvider>
-      </QueryClientProvider>
-    </SafeAreaProvider>
+              <Toaster />
+            </AuthProvider>
+          </LanguageProvider>
+        </QueryClientProvider>
+      </SafeAreaProvider>
+    )
   );
 }
 
@@ -121,11 +110,7 @@ describe('ApplicationProgressSummary', () => {
   afterEach(async () => {
     getProgress.mockReset();
     submitDocuments.mockReset();
-    // See destroyQueryClientMutations.ts -- `.clear()` alone does not clear
-    // each mutation's pending GC timeout.
-    if (activeQueryClient) destroyQueryClientMutations(activeQueryClient);
-    activeQueryClient?.clear();
-    activeQueryClient = undefined;
+    await cleanup();
     // Guaranteed regardless of whether the Urdu test's own assertions
     // passed -- matches LanguageContext.test.jsx's cleanup pattern.
     await AsyncStorage.clear();

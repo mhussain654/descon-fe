@@ -7,7 +7,12 @@ import {
 	Animated,
 	TouchableOpacity,
 	TextInput,
+	type TextStyle,
+	type ViewStyle,
 } from 'react-native';
+
+// backdropFilter is a web-only CSS-in-RN property ViewStyle doesn't declare.
+type WebViewStyle = ViewStyle & { backdropFilter?: string };
 
 type AlertButton = {
 	text: string;
@@ -296,7 +301,6 @@ export const AlertModal = () => {
 								{modalData.type === 'login-password' ? (
 									<TextInput
 										style={[
-											// @ts-expect-error - outlineStyle is for web only
 											styles.textInput,
 											styles.textInputTop,
 											modalData.userInterfaceStyle === 'dark'
@@ -324,7 +328,6 @@ export const AlertModal = () => {
 								) : null}
 								<TextInput
 									style={[
-										// @ts-expect-error - outlineStyle is for web only
 										styles.textInput,
 										modalData.type === 'login-password' &&
 											styles.textInputBottom,
@@ -432,10 +435,6 @@ export const AlertModal = () => {
 };
 
 const styling = (userInterfaceStyle: string) =>
-	// @ts-expect-error - backdropFilter/outlineStyle are for web only; the
-	// index-signature mismatch is reported once for the whole call (verified
-	// against a real Linux typecheck via Docker, since this file's errors do
-	// not reproduce consistently on macOS), not per-property.
 	StyleSheet.create({
 		container: {
 			flex: 1,
@@ -447,7 +446,7 @@ const styling = (userInterfaceStyle: string) =>
 			backdropFilter: 'blur(20px)',
 			borderRadius: 12,
 			width: 244,
-		},
+		} as WebViewStyle,
 		contentContainer: {
 			paddingVertical: 20,
 			paddingHorizontal: 12,
@@ -480,8 +479,14 @@ const styling = (userInterfaceStyle: string) =>
 			marginBottom: -8,
 			marginHorizontal: 12,
 			fontSize: 12,
+			// RN's TextStyle.outlineStyle only allows native border-style values
+			// ('solid' | 'dotted' | 'dashed'); 'none' is the react-native-web CSS
+			// value that removes the browser's default focus outline. TS reports
+			// the resulting mismatch at StyleSheet.create()'s call site and at
+			// each JSX usage site, not on this property itself, so the cast has
+			// to live on the object as a whole.
 			outlineStyle: 'none',
-		},
+		} as unknown as TextStyle,
 		textInputTop: {
 			borderTopLeftRadius: 8,
 			borderTopRightRadius: 8,

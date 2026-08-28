@@ -1,11 +1,11 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { QueryClientProvider } from '@tanstack/react-query';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { AuthProvider } from '../contexts/AuthContext';
 import { LanguageProvider } from '../contexts/LanguageContext';
 import { Toaster } from '../design-system/toast';
-import { destroyQueryClientMutations } from '../testSupport/destroyQueryClientMutations';
+import { createQueryClientTestLifecycle } from '../testSupport/queryClientTestLifecycle';
 import LoginScreen from './login';
 
 // `initialWindowMetrics` is null under Jest (it's populated by a native
@@ -68,36 +68,31 @@ beforeEach(() => {
   });
 });
 
-// See destroyQueryClientMutations.ts for why this is needed even with
-// `gcTime: 0` set below.
-let activeQueryClient;
+const { createTestQueryClient, trackRender, cleanup } = createQueryClientTestLifecycle();
 
 afterEach(async () => {
   globalThis.fetch = originalFetch;
-  // See destroyQueryClientMutations.ts -- `.clear()` alone does not clear
-  // each mutation's pending GC timeout.
-  if (activeQueryClient) destroyQueryClientMutations(activeQueryClient);
-  activeQueryClient?.clear();
-  activeQueryClient = undefined;
+  await cleanup();
   // Otherwise a test that persists 'ur' (AsyncStorage) leaks into whichever
   // test runs next, since LanguageProvider reads it back on every mount.
   await AsyncStorage.clear();
 });
 
 function renderLoginScreen() {
-  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: 0 }, mutations: { gcTime: 0 } } });
-  activeQueryClient = queryClient;
-  return render(
-    <SafeAreaProvider initialMetrics={TEST_SAFE_AREA_METRICS}>
-      <QueryClientProvider client={queryClient}>
-        <LanguageProvider>
-          <AuthProvider>
-            <LoginScreen />
-            <Toaster />
-          </AuthProvider>
-        </LanguageProvider>
-      </QueryClientProvider>
-    </SafeAreaProvider>
+  const queryClient = createTestQueryClient();
+  return trackRender(
+    render(
+      <SafeAreaProvider initialMetrics={TEST_SAFE_AREA_METRICS}>
+        <QueryClientProvider client={queryClient}>
+          <LanguageProvider>
+            <AuthProvider>
+              <LoginScreen />
+              <Toaster />
+            </AuthProvider>
+          </LanguageProvider>
+        </QueryClientProvider>
+      </SafeAreaProvider>
+    )
   );
 }
 

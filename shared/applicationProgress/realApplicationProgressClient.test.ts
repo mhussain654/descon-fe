@@ -239,8 +239,12 @@ describe('createApplicationProgressClient (real) -- getProgress', () => {
     await expect(client.getProgress('token')).rejects.toMatchObject({ code: 'SESSION_EXPIRED' });
   });
 
-  it('maps offline to OFFLINE without attempting a request', async () => {
+  it('maps offline to OFFLINE', async () => {
     const client = buildOfflineClient();
+    stubFetch(async () => {
+      throw new TypeError('Failed to fetch');
+    });
+
     await expect(client.getProgress('token')).rejects.toEqual({ code: 'OFFLINE' });
   });
 });

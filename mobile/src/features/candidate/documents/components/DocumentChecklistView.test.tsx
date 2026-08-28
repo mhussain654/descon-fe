@@ -1,8 +1,7 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react-native';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { useEffect, useRef } from 'react';
+import { QueryClientProvider } from '@tanstack/react-query';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
-import { AuthProvider, useAuth } from '../../../../contexts/AuthContext';
+import { AuthProvider } from '../../../../contexts/AuthContext';
 import { LanguageProvider } from '../../../../contexts/LanguageContext';
 import { Toaster } from '../../../../design-system';
 import { candidateDocumentsClient } from '../../../../lib/candidate-documents-client';
@@ -12,7 +11,7 @@ import type {
   CandidateDocumentsError,
 } from '../../../../lib/candidate-documents-client';
 import { useCandidateDocuments } from '../hooks/useCandidateDocuments';
-import { destroyQueryClientMutations } from '../../../../testSupport/destroyQueryClientMutations';
+import { createQueryClientTestLifecycle } from '../../../../testSupport/queryClientTestLifecycle';
 import { DocumentChecklistView } from './DocumentChecklistView';
 
 // `initialWindowMetrics` is null under Jest (populated natively), which
@@ -22,8 +21,21 @@ const TEST_SAFE_AREA_METRICS = {
   insets: { top: 47, left: 0, right: 0, bottom: 34 },
 };
 
+// Restored by AuthContext.tsx's own SecureStore-backed session restoration
+// on mount -- pre-seeding it here (rather than an in-effect `login()` call
+// on a harness component) avoids state updates outside RTL's act() boundary
+// entirely.
+const mockCandidateSession = {
+  accessToken: 'candidate-access-token',
+  refreshToken: 'refresh',
+  candidateId: 'candidate-public-id-1',
+  candidateName: 'Ahmed Ali',
+  preferredLocale: 'en',
+  expiresAt: new Date(Date.now() + 60_000).toISOString(),
+};
+
 jest.mock('expo-secure-store', () => ({
-  getItemAsync: jest.fn(() => Promise.resolve(null)),
+  getItemAsync: jest.fn(() => Promise.resolve(JSON.stringify(mockCandidateSession))),
   setItemAsync: jest.fn(() => Promise.resolve()),
   deleteItemAsync: jest.fn(() => Promise.resolve()),
 }));
@@ -79,29 +91,6 @@ function pickedDocument(overrides = {}) {
   };
 }
 
-function LoggedInHarness({ children }: { children: React.ReactNode }) {
-  const { login, status } = useAuth();
-  // Fires exactly once (login() is async -- a SecureStore write) rather
-  // than being called directly in the render body, which would re-invoke
-  // on every re-render triggered by its own state update.
-  const hasLoggedInRef = useRef(false);
-  useEffect(() => {
-    if (status === 'restoring' || hasLoggedInRef.current) return;
-    hasLoggedInRef.current = true;
-    login({
-      accessToken: 'candidate-access-token',
-      refreshToken: 'refresh',
-      candidateId: 'candidate-public-id-1',
-      candidateName: 'Ahmed Ali',
-      preferredLocale: 'en',
-      expiresAt: new Date(Date.now() + 60_000).toISOString(),
-    });
-  }, [status, login]);
-
-  if (status !== 'authenticated') return null;
-  return <>{children}</>;
-}
-
 // `DocumentChecklistView` itself receives `checklist` as a plain prop --
 // production wiring (`(tabs)/documents/index.jsx`) feeds it from the real
 // `useCandidateDocuments()` query so that `queryClient.setQueryData` calls
@@ -126,26 +115,23 @@ function ConnectedHarness({ onReturnToSignIn = jest.fn() }: { onReturnToSignIn?:
   );
 }
 
-// See destroyQueryClientMutations.ts for why this is needed even with
-// `gcTime: 0` set below.
-let activeQueryClient: QueryClient | undefined;
+const { createTestQueryClient, trackRender, cleanup } = createQueryClientTestLifecycle();
 
 function renderConnectedView({ onReturnToSignIn = jest.fn() } = {}) {
-  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: 0 }, mutations: { gcTime: 0 } } });
-  activeQueryClient = queryClient;
-  return render(
-    <SafeAreaProvider initialMetrics={TEST_SAFE_AREA_METRICS}>
-      <QueryClientProvider client={queryClient}>
-        <LanguageProvider>
-          <AuthProvider>
-            <LoggedInHarness>
+  const queryClient = createTestQueryClient();
+  return trackRender(
+    render(
+      <SafeAreaProvider initialMetrics={TEST_SAFE_AREA_METRICS}>
+        <QueryClientProvider client={queryClient}>
+          <LanguageProvider>
+            <AuthProvider>
               <ConnectedHarness onReturnToSignIn={onReturnToSignIn} />
-            </LoggedInHarness>
-            <Toaster />
-          </AuthProvider>
-        </LanguageProvider>
-      </QueryClientProvider>
-    </SafeAreaProvider>
+              <Toaster />
+            </AuthProvider>
+          </LanguageProvider>
+        </QueryClientProvider>
+      </SafeAreaProvider>
+    )
   );
 }
 
@@ -164,16 +150,15 @@ function renderView({
   onRetry = jest.fn(),
   onReturnToSignIn = jest.fn(),
 }: RenderViewOptions = {}) {
-  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: 0 }, mutations: { gcTime: 0 } } });
-  activeQueryClient = queryClient;
+  const queryClient = createTestQueryClient();
   const t = (key: string) => require('../../../../../../shared/i18n/translate').translate('en', key);
 
-  return render(
-    <SafeAreaProvider initialMetrics={TEST_SAFE_AREA_METRICS}>
-      <QueryClientProvider client={queryClient}>
-        <LanguageProvider>
-          <AuthProvider>
-            <LoggedInHarness>
+  return trackRender(
+    render(
+      <SafeAreaProvider initialMetrics={TEST_SAFE_AREA_METRICS}>
+        <QueryClientProvider client={queryClient}>
+          <LanguageProvider>
+            <AuthProvider>
               <DocumentChecklistView
                 isLoading={isLoading}
                 error={error}
@@ -183,24 +168,20 @@ function renderView({
                 onRetry={onRetry}
                 onReturnToSignIn={onReturnToSignIn}
               />
-            </LoggedInHarness>
-            <Toaster />
-          </AuthProvider>
-        </LanguageProvider>
-      </QueryClientProvider>
-    </SafeAreaProvider>
+              <Toaster />
+            </AuthProvider>
+          </LanguageProvider>
+        </QueryClientProvider>
+      </SafeAreaProvider>
+    )
   );
 }
 
 describe('DocumentChecklistView', () => {
-  afterEach(() => {
+  afterEach(async () => {
     jest.mocked(candidateDocumentsClient.uploadDocument).mockReset();
     mockGetDocumentAsync.mockReset();
-    // See destroyQueryClientMutations.ts -- `.clear()` alone does not clear
-    // each mutation's pending GC timeout.
-    if (activeQueryClient) destroyQueryClientMutations(activeQueryClient);
-    activeQueryClient?.clear();
-    activeQueryClient = undefined;
+    await cleanup();
   });
 
   it('shows a loading state', async () => {
@@ -432,15 +413,19 @@ describe('DocumentChecklistView', () => {
   });
 
   it('renders in Urdu when given the Urdu translator', async () => {
-    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: 0 }, mutations: { gcTime: 0 } } });
-    activeQueryClient = queryClient;
     const { translate } = require('../../../../../../shared/i18n/translate');
-    render(
-      <SafeAreaProvider initialMetrics={TEST_SAFE_AREA_METRICS}>
-        <QueryClientProvider client={queryClient}>
-          <LanguageProvider>
-            <AuthProvider>
-              <LoggedInHarness>
+    renderView({
+      checklist: [item({ name: 'پاسپورٹ', status: 'missing' })],
+    });
+    // renderView's `t` defaults to English -- render directly with the Urdu
+    // translator instead, still going through the same tracked lifecycle.
+    const queryClient = createTestQueryClient();
+    trackRender(
+      render(
+        <SafeAreaProvider initialMetrics={TEST_SAFE_AREA_METRICS}>
+          <QueryClientProvider client={queryClient}>
+            <LanguageProvider>
+              <AuthProvider>
                 <DocumentChecklistView
                   isLoading={false}
                   error={null}
@@ -450,15 +435,15 @@ describe('DocumentChecklistView', () => {
                   onRetry={jest.fn()}
                   onReturnToSignIn={jest.fn()}
                 />
-              </LoggedInHarness>
-              <Toaster />
-            </AuthProvider>
-          </LanguageProvider>
-        </QueryClientProvider>
-      </SafeAreaProvider>
+                <Toaster />
+              </AuthProvider>
+            </LanguageProvider>
+          </QueryClientProvider>
+        </SafeAreaProvider>
+      )
     );
 
-    expect(await screen.findByText('پاسپورٹ')).toBeTruthy();
+    expect(await screen.findAllByText('پاسپورٹ')).not.toHaveLength(0);
     expect(screen.getByText('غیر موجود')).toBeTruthy();
   });
 });
