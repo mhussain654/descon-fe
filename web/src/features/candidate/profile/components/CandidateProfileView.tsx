@@ -1,7 +1,11 @@
 import { humanizeStatusCode } from '../../../../../../shared/candidateProfile/formatting';
 import type { CandidateProfile, CandidateProfileError } from '../../../../lib/candidate-profile-client';
 import { CANDIDATE_PROFILE_ERROR_KEYS } from '../../../../../../shared/candidateProfile/errorMessages';
+import { APPLICATION_SUBMISSION_STATE_KEYS, APPLICATION_SUBMISSION_STATE_TONES } from '../../../../../../shared/applicationProgress/statusLabels';
+import { CANDIDATE_DOCUMENT_STATUS_KEYS } from '../../../../../../shared/candidateDocuments/statusLabels';
+import type { ApplicationProgressDocuments } from '../../../../../../shared/applicationProgress/types';
 import {
+  Badge,
   Card,
   ErrorState,
   ForbiddenState,
@@ -15,11 +19,29 @@ export interface CandidateProfileViewProps {
   isLoading: boolean;
   error: CandidateProfileError | null;
   profile: CandidateProfile | undefined;
+  /**
+   * The candidate's own document-verification aggregate, from the same
+   * application-progress endpoint the dashboard/documents pages already
+   * use -- composed in here (not re-fetched) so the profile page shows the
+   * real, backend-computed `submissionState` as its verified indicator
+   * rather than inferring one from individual document badges (ticket: "Do
+   * not infer candidate verification merely because all visible document
+   * badges happen to be green."). Undefined while progress hasn't loaded
+   * yet -- the section is simply omitted rather than shown empty/wrong.
+   */
+  documents?: ApplicationProgressDocuments;
   t: (key: TranslationKey) => string;
   onRetry: () => void;
   /** Signs the candidate out and returns them to sign-in -- used by the session-expired/inactive-account actions. */
   onReturnToSignIn: () => void;
 }
+
+const DOCUMENT_COUNT_ROWS = [
+  ['missing', 'missing'],
+  ['pending_review', 'pendingReview'],
+  ['verified', 'verified'],
+  ['rejected', 'rejected'],
+] as const;
 
 /**
  * Renders the candidate self-profile per the ticket's required UI states:
@@ -31,6 +53,7 @@ export function CandidateProfileView({
   isLoading,
   error,
   profile,
+  documents,
   t,
   onRetry,
   onReturnToSignIn,
@@ -131,6 +154,25 @@ export function CandidateProfileView({
           ))}
         </dl>
       </Card>
+
+      {documents ? (
+        <Card className="mb-5">
+          <div className="mb-4 flex items-center justify-between gap-2">
+            <h2 className="text-lg font-semibold text-text-primary">{t('candidateProfileDocumentsSectionTitle')}</h2>
+            <Badge tone={APPLICATION_SUBMISSION_STATE_TONES[documents.submissionState]}>
+              {t(APPLICATION_SUBMISSION_STATE_KEYS[documents.submissionState] as TranslationKey)}
+            </Badge>
+          </div>
+          <div className="flex flex-wrap gap-4">
+            {DOCUMENT_COUNT_ROWS.map(([status, field]) => (
+              <div key={status} className="min-w-[90px]">
+                <div className="text-xs text-text-secondary">{t(CANDIDATE_DOCUMENT_STATUS_KEYS[status] as TranslationKey)}</div>
+                <div className="text-base font-medium text-text-primary">{documents[field]}</div>
+              </div>
+            ))}
+          </div>
+        </Card>
+      ) : null}
     </>
   );
 }

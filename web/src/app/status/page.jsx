@@ -1,25 +1,18 @@
+import { useNavigate } from "react-router";
 import UserShell from "../components/user-shell";
+import { useAuth } from "../../contexts/AuthContext";
 import { useLanguage } from "../../contexts/LanguageContext";
-
-const timeline = [
-  { id: 1, labelKey: "registered", status: "completed", date: "2026-08-10" },
-  { id: 2, labelKey: "documentsPending", status: "completed", date: "2026-08-12" },
-  { id: 3, labelKey: "documentsUploaded", status: "current", date: "2026-08-16" },
-  { id: 4, labelKey: "documentsVerified", status: "pending", date: null },
-  { id: 5, labelKey: "feePending", status: "pending", date: null },
-  { id: 6, labelKey: "feePaid", status: "pending", date: null },
-  { id: 7, labelKey: "sharedWithBU", status: "pending", date: null },
-  { id: 8, labelKey: "qvcBooked", status: "pending", date: null },
-  { id: 9, labelKey: "qvcOutcome", status: "pending", date: null },
-  { id: 10, labelKey: "visaIssued", status: "pending", date: null },
-  { id: 11, labelKey: "protectionCompleted", status: "pending", date: null },
-  { id: 12, labelKey: "readyToFly", status: "pending", date: null },
-  { id: 13, labelKey: "flightDetailsUploaded", status: "pending", date: null },
-  { id: 14, labelKey: "mobilized", status: "pending", date: null },
-];
+import { ApplicationProgressSummary } from "../../features/candidate/progress/components/ApplicationProgressSummary";
 
 export default function StatusPage() {
   const { t } = useLanguage();
+  const { logout } = useAuth();
+  const navigate = useNavigate();
+
+  const returnToSignIn = () => {
+    logout("expired");
+    navigate("/login", { replace: true });
+  };
 
   return (
     <UserShell activeTab="/status">
@@ -31,47 +24,7 @@ export default function StatusPage() {
       </div>
 
       <div className="mx-auto max-w-4xl px-6 py-8">
-        <div className="rounded-2xl border border-gray-200 bg-white p-6">
-          {timeline.map((item, index) => (
-            <div key={item.id} className="flex gap-4">
-              <div className="flex flex-col items-center">
-                <div
-                  className={`flex h-8 w-8 items-center justify-center rounded-full text-sm font-semibold ${
-                    item.status === "completed"
-                      ? "bg-[#E6F9F0] text-[#10B981]"
-                      : item.status === "current"
-                        ? "bg-[#E6F2FF] text-[#0066CC]"
-                        : "bg-white text-[#9CA3AF] ring-2 ring-gray-200"
-                  }`}
-                >
-                  {item.status === "completed" ? "✓" : item.status === "current" ? "•" : ""}
-                </div>
-                {index < timeline.length - 1 ? (
-                  <div
-                    className={`min-h-12 w-0.5 ${
-                      item.status === "completed" ? "bg-[#10B981]" : "bg-gray-200"
-                    }`}
-                  />
-                ) : null}
-              </div>
-              <div className="pb-6">
-                <div
-                  className={`text-base ${
-                    item.status === "current" ? "font-semibold text-black" : "font-medium text-black"
-                  }`}
-                >
-                  {t(item.labelKey)}
-                </div>
-                {item.date ? <div className="mt-1 text-sm text-gray-500">{item.date}</div> : null}
-                {item.status === "current" ? (
-                  <div className="mt-3 inline-flex rounded-lg bg-[#E6F2FF] px-3 py-2 text-xs font-medium text-[#0066CC]">
-                    {t("inProgress")}
-                  </div>
-                ) : null}
-              </div>
-            </div>
-          ))}
-        </div>
+        <ApplicationProgressSummary onReturnToSignIn={returnToSignIn} />
       </div>
     </UserShell>
   );

@@ -49,6 +49,16 @@ export interface DocumentReviewQueueItem {
   review: ReviewSummary;
 }
 
+/** Known staff role codes (User::STAFF_ROLE_CODES). 'unknown' is the safe fallback for a future role this build doesn't recognize yet -- never rendered as a raw code. */
+export type ReviewerRole = 'admin' | 'hr' | 'mps' | 'finance' | 'management';
+export type ReviewerDisplayRole = ReviewerRole | 'unknown';
+
+/** Safe reviewer identity -- the backend has no staff display-name field, so `role` (translated client-side) is the entire extent of "reviewer information" the contract provides. Never a personal name or email. */
+export interface ReviewerInfo {
+  id: string;
+  role: ReviewerDisplayRole;
+}
+
 export interface SubmissionDocument {
   id: string;
   requirementCode: string;
@@ -61,8 +71,8 @@ export interface SubmissionDocument {
   status: DocumentDisplayStatus;
   verifiedAt?: string;
   rejectionReason?: string;
-  /** The reviewing staff member's public id -- the backend has no staff display-name field, so this is the entire extent of "reviewer information" the contract provides. */
-  reviewerId?: string;
+  /** Present once the document has been reviewed (verified or rejected). */
+  reviewer?: ReviewerInfo;
 }
 
 export interface DocumentSubmissionDetail {
@@ -81,14 +91,33 @@ export interface QueuePagination {
   totalPages: number;
 }
 
+/** Distinct-candidate counts per review bucket, scoped by every active filter except `status` -- present on every queue result (ticket: "Staff compliance summary" / "Counts that reconcile with the review queue"). */
+export interface DocumentReviewQueueSummary {
+  pendingReview: number;
+  verified: number;
+  rejected: number;
+  expiredPcc: number;
+  nearExpiryPcc: number;
+}
+
 export interface DocumentReviewQueueResult {
   items: DocumentReviewQueueItem[];
   pagination: QueuePagination;
+  summary: DocumentReviewQueueSummary;
 }
+
+/**
+ * `'rejected'`, `'expired_pcc'`, and `'near_expiry_pcc'` are filter-only
+ * values -- they narrow the queue but never appear as a `ReviewState` on a
+ * returned item's `review.reviewState` (rejected items report
+ * `'changes_required'` there; PCC-expiry state is a separate document-level
+ * concept from review state).
+ */
+export type QueueStatusFilter = ReviewState | 'rejected' | 'expired_pcc' | 'near_expiry_pcc';
 
 export interface DocumentReviewQueueFilters {
   /** Omit to use the backend's own default (`pending_review, partially_reviewed`) -- never invent a different client-side default. */
-  status?: ReviewState[];
+  status?: QueueStatusFilter[];
   /** ISO 8601 datetime (not just a date) -- the backend parses with `Time.iso8601`. */
   submittedFrom?: string;
   submittedTo?: string;

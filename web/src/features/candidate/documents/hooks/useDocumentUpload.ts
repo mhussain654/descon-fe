@@ -13,7 +13,7 @@ import {
   type IdempotencyKeyState,
 } from '../../../../../../shared/candidateDocuments/idempotency';
 import { validateSelectedFile, type FileValidationError } from '../../../../../../shared/candidateDocuments/fileValidation';
-import { CANDIDATE_DOCUMENTS_QUERY_KEY } from './useCandidateDocuments';
+import { documentQueries } from '../../../../../../shared/queryKeys/documentQueries';
 
 interface UploadVariables {
   requirementCode: string;
@@ -38,8 +38,9 @@ function fileSignature(file: File): string {
  */
 export function useDocumentUpload() {
   const { session } = useAuth();
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
   const queryClient = useQueryClient();
+  const candidateId = session?.candidateId ?? 'anonymous';
 
   const [activeRequirementCode, setActiveRequirementCode] = useState<string | null>(null);
   const [file, setFile] = useState<File | null>(null);
@@ -69,7 +70,7 @@ export function useDocumentUpload() {
     onSuccess: (result, variables) => {
       if (session?.accessToken !== variables.accessTokenAtCallTime) return;
 
-      queryClient.setQueryData<CandidateDocumentChecklistItem[]>(CANDIDATE_DOCUMENTS_QUERY_KEY, (old) =>
+      queryClient.setQueryData<CandidateDocumentChecklistItem[]>(documentQueries.candidateChecklist(candidateId, language), (old) =>
         old ? old.map((item) => (item.requirementCode === result.requirementCode ? result : item)) : old
       );
       toast.success(t('candidateDocumentsUploadSuccessToast'));
@@ -105,7 +106,7 @@ export function useDocumentUpload() {
         setIdempotencyState(EMPTY_IDEMPOTENCY_KEY_STATE);
       }
       if (error.code === 'REPLACEMENT_NOT_ALLOWED') {
-        queryClient.invalidateQueries({ queryKey: CANDIDATE_DOCUMENTS_QUERY_KEY });
+        queryClient.invalidateQueries({ queryKey: documentQueries.candidateChecklist(candidateId, language) });
       }
     },
   });

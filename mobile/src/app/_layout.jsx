@@ -1,12 +1,26 @@
 import { Stack } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import { useEffect } from "react";
+import { AppState } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { QueryClient, QueryClientProvider, focusManager } from "@tanstack/react-query";
 import { AuthProvider } from "../contexts/AuthContext";
 import { LanguageProvider } from "../contexts/LanguageContext";
 import { Toaster } from "../design-system/toast";
 SplashScreen.preventAutoHideAsync();
+
+// The standard TanStack Query React Native recipe: without this, the
+// library has no way to know the app backgrounded/foregrounded at all, so
+// `refetchOnWindowFocus`/`refetchIntervalInBackground: false` (used by the
+// candidate document/progress queries for live sync -- see
+// shared/queryKeys/documentQueries.ts's consumers) are silent no-ops on
+// native. Wired once, here, for the whole app rather than per-screen.
+focusManager.setEventListener((handleFocus) => {
+  const subscription = AppState.addEventListener("change", (state) => {
+    handleFocus(state === "active");
+  });
+  return () => subscription.remove();
+});
 
 const queryClient = new QueryClient({
   defaultOptions: {

@@ -219,6 +219,30 @@ describe('createCandidateDocumentsClient (real) -- getChecklist', () => {
     expect(checklist[0].document?.rejectionReason).toBeUndefined();
   });
 
+  it('maps the review date once a document has been reviewed', async () => {
+    stubFetch(async () =>
+      jsonResponse(
+        successEnvelope([
+          checklistItemPayload({ status: 'verified', document: documentPayload({ reviewed_at: '2026-08-21T09:00:00Z' }) }),
+        ])
+      )
+    );
+
+    const client = buildClient();
+    const checklist = await client.getChecklist('token');
+
+    expect(checklist[0].document?.reviewedAt).toBe('2026-08-21T09:00:00Z');
+  });
+
+  it('leaves reviewedAt undefined for a document that has not been reviewed', async () => {
+    stubFetch(async () => jsonResponse(successEnvelope([checklistItemPayload({ document: documentPayload() })])));
+
+    const client = buildClient();
+    const checklist = await client.getChecklist('token');
+
+    expect(checklist[0].document?.reviewedAt).toBeUndefined();
+  });
+
   it('renders the backend-localized name directly -- never a hardcoded frontend name', async () => {
     stubFetch(async () => jsonResponse(successEnvelope([checklistItemPayload({ name: 'پاسپورٹ' })])));
 

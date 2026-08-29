@@ -125,6 +125,31 @@ describe('createAdminDocumentReviewsClient (real)', () => {
       expect(capturedUrl).toContain('page%5Bnumber%5D=2');
     });
 
+    it('maps the aggregate summary from meta.summary', async () => {
+      stubFetch(async () =>
+        jsonResponse(
+          successEnvelope([queueItemResponse()], {
+            pagination: { page: 1, per_page: 20, total_count: 1, total_pages: 1 },
+            summary: { pending_review: 3, verified: 5, rejected: 2, expired_pcc: 1, near_expiry_pcc: 4 },
+          })
+        )
+      );
+      const client = buildClient();
+
+      const result = await client.getQueue({}, {});
+
+      expect(result.summary).toEqual({ pendingReview: 3, verified: 5, rejected: 2, expiredPcc: 1, nearExpiryPcc: 4 });
+    });
+
+    it('falls back to zero counts when meta.summary is missing or malformed', async () => {
+      stubFetch(async () => jsonResponse(successEnvelope([queueItemResponse()])));
+      const client = buildClient();
+
+      const result = await client.getQueue({}, {});
+
+      expect(result.summary).toEqual({ pendingReview: 0, verified: 0, rejected: 0, expiredPcc: 0, nearExpiryPcc: 0 });
+    });
+
     it('sends the bearer token and X-Locale header', async () => {
       let capturedHeaders: Record<string, string> | undefined;
       stubFetch(async (_url, init) => {
@@ -201,7 +226,7 @@ describe('createAdminDocumentReviewsClient (real)', () => {
                 status: 'rejected',
                 verified_at: '2026-08-21T09:00:00Z',
                 rejection_reason: 'Document is unreadable.',
-                reviewer_id: 'staff-public-id-1',
+                reviewer: { id: 'staff-public-id-1', role: 'admin' },
               }),
             ],
           })
@@ -216,14 +241,50 @@ describe('createAdminDocumentReviewsClient (real)', () => {
       expect(detail.documents[0]).toMatchObject({ id: 'doc-1', status: 'pending_review', requirementCode: 'passport' });
       expect(detail.documents[0].verifiedAt).toBeUndefined();
       expect(detail.documents[0].rejectionReason).toBeUndefined();
-      expect(detail.documents[0].reviewerId).toBeUndefined();
+      expect(detail.documents[0].reviewer).toBeUndefined();
       expect(detail.documents[1]).toMatchObject({
         id: 'doc-2',
         status: 'rejected',
         verifiedAt: '2026-08-21T09:00:00Z',
         rejectionReason: 'Document is unreadable.',
-        reviewerId: 'staff-public-id-1',
+        reviewer: { id: 'staff-public-id-1', role: 'admin' },
       });
+    });
+
+    it('maps an unrecognized reviewer role to "unknown" rather than displaying the raw code', async () => {
+      stubFetch(async () =>
+        jsonResponse(
+          successEnvelope({
+            ...queueItemResponse(),
+            documents: [submissionDocumentResponse({ reviewer: { id: 'staff-1', role: 'superadmin' } })],
+          })
+        )
+      );
+      const client = buildClient();
+
+      const detail = await client.getSubmission('submission-1');
+
+      expect(detail.documents[0].reviewer).toEqual({ id: 'staff-1', role: 'unknown' });
+    });
+
+    it('never maps a reviewer email or name -- only id and role', async () => {
+      stubFetch(async () =>
+        jsonResponse(
+          successEnvelope({
+            ...queueItemResponse(),
+            documents: [
+              submissionDocumentResponse({
+                reviewer: { id: 'staff-1', role: 'hr', email: 'reviewer@example.com', name: 'Should Not Appear' },
+              }),
+            ],
+          })
+        )
+      );
+      const client = buildClient();
+
+      const detail = await client.getSubmission('submission-1');
+
+      expect(detail.documents[0].reviewer).toEqual({ id: 'staff-1', role: 'hr' });
     });
 
     it('URL-encodes the submission id', async () => {

@@ -225,6 +225,45 @@ describe("DocumentsPage", () => {
     expect(screen.getByText("No action available")).toBeInTheDocument();
   });
 
+  it("shows the rejection reason and review date for a rejected document, matching mobile's display", async () => {
+    candidateDocumentsClient.getChecklist.mockResolvedValue([
+      item({
+        status: "rejected",
+        document: uploadedDocument({ rejectionReason: "Document is unreadable.", reviewedAt: "2026-08-27T09:00:00Z" }),
+        replacementAllowed: true,
+      }),
+    ]);
+    await signInAndNavigateToDocuments();
+
+    expect(await screen.findByText(/Document is unreadable\./)).toBeInTheDocument();
+    expect(screen.getByText(/Reviewed on/)).toBeInTheDocument();
+  });
+
+  it("does not show a rejection reason or review date for a document that has not been reviewed", async () => {
+    candidateDocumentsClient.getChecklist.mockResolvedValue([item({ status: "uploaded", document: uploadedDocument() })]);
+    await signInAndNavigateToDocuments();
+
+    await screen.findByText("passport.pdf");
+    expect(screen.queryByText(/Reviewed on/)).not.toBeInTheDocument();
+    expect(screen.queryByText("Rejection reason")).not.toBeInTheDocument();
+  });
+
+  it("shows the PCC compliance badge and issued/expiry dates for a police-character document", async () => {
+    candidateDocumentsClient.getChecklist.mockResolvedValue([
+      item({
+        requirementCode: "police_character",
+        name: "Police Character Certificate",
+        status: "verified",
+        replacementAllowed: false,
+        document: uploadedDocument({ issuedOn: "2026-08-01", expiresOn: "2027-02-01", complianceStatus: "current" }),
+      }),
+    ]);
+    await signInAndNavigateToDocuments();
+
+    expect(await screen.findByText("Compliant")).toBeInTheDocument();
+    expect(screen.getByText(/2027/)).toBeInTheDocument();
+  });
+
   it("never renders a raw status or requirement code as text", async () => {
     // `"unknown"` is what the real client's defensive mapping already
     // normalizes an unrecognized backend status to (see

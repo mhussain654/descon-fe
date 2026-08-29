@@ -263,6 +263,19 @@ describe('DocumentChecklistView', () => {
     expect(screen.queryByText(/Rejection reason/)).toBeNull();
   });
 
+  it('shows the review date once a document has been reviewed', async () => {
+    renderView({
+      checklist: [pccItem({ status: 'verified', document: pccDocument({ reviewedAt: '2026-08-27T09:00:00Z', complianceStatus: undefined }) })],
+    });
+    expect(await screen.findByText(/Reviewed on/)).toBeTruthy();
+  });
+
+  it('does not render a review date for a document that has not been reviewed', async () => {
+    renderView({ checklist: [item({ status: 'uploaded', document: uploadedDocument() })] });
+    await screen.findByText('Passport');
+    expect(screen.queryByText(/Reviewed on/)).toBeNull();
+  });
+
   it.each([
     ['current', 'Compliant'],
     ['near_expiry', 'Expiring soon'],

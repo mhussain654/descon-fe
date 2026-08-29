@@ -24,6 +24,7 @@ import type {
   DocumentReviewQueueItem,
   DocumentReviewQueuePage,
   DocumentReviewQueueResult,
+  DocumentReviewQueueSummary,
   DocumentSubmissionDetail,
   QueueAssignment,
   QueueCandidate,
@@ -31,6 +32,8 @@ import type {
   ReferenceCode,
   ReviewDecisionResult,
   ReviewDisplayState,
+  ReviewerDisplayRole,
+  ReviewerInfo,
   ReviewSummary,
   SubmissionDocument,
 } from './types';
@@ -69,6 +72,11 @@ interface QueueItemResponse {
   review: ReviewSummaryResponse;
 }
 
+interface ReviewerResponse {
+  id: string;
+  role: string;
+}
+
 interface SubmissionDocumentResponse {
   id: string;
   requirement_code: string;
@@ -81,7 +89,15 @@ interface SubmissionDocumentResponse {
   status: string;
   verified_at?: string;
   rejection_reason?: string;
-  reviewer_id?: string;
+  reviewer?: ReviewerResponse | null;
+}
+
+interface QueueSummaryResponse {
+  pending_review: number;
+  verified: number;
+  rejected: number;
+  expired_pcc: number;
+  near_expiry_pcc: number;
 }
 
 interface SubmissionDetailResponse extends QueueItemResponse {
@@ -118,9 +134,23 @@ export interface RealAdminDocumentReviewsClientOptions {
 
 const KNOWN_REVIEW_STATES = new Set<string>(['pending_review', 'partially_reviewed', 'changes_required', 'verified']);
 const KNOWN_DOCUMENT_STATUSES = new Set<string>(['uploaded', 'pending_review', 'verified', 'rejected']);
+const KNOWN_REVIEWER_ROLES = new Set<string>(['admin', 'hr', 'mps', 'finance', 'management']);
 
 function toReviewState(raw: unknown): ReviewDisplayState {
   return typeof raw === 'string' && KNOWN_REVIEW_STATES.has(raw) ? (raw as ReviewDisplayState) : 'unknown';
+}
+
+function toReviewerRole(raw: unknown): ReviewerDisplayRole {
+  return typeof raw === 'string' && KNOWN_REVIEWER_ROLES.has(raw) ? (raw as ReviewerDisplayRole) : 'unknown';
+}
+
+/** No personal name or email is ever mapped here -- `role` (translated client-side) is the entire extent of "reviewer information" the backend contract provides. */
+function toReviewerInfo(raw: unknown): ReviewerInfo | undefined {
+  if (!raw || typeof raw !== 'object') return undefined;
+  const value = raw as Partial<ReviewerResponse>;
+  if (typeof value.id !== 'string' || !value.id) return undefined;
+
+  return { id: value.id, role: toReviewerRole(value.role) };
 }
 
 function toDocumentStatus(raw: unknown): DocumentDisplayStatus {
@@ -205,7 +235,7 @@ function toSubmissionDocument(raw: unknown): SubmissionDocument | null {
     status: toDocumentStatus(value.status),
     verifiedAt: typeof value.verified_at === 'string' ? value.verified_at : undefined,
     rejectionReason: typeof value.rejection_reason === 'string' ? value.rejection_reason : undefined,
-    reviewerId: typeof value.reviewer_id === 'string' ? value.reviewer_id : undefined,
+    reviewer: toReviewerInfo(value.reviewer),
   };
 }
 
@@ -256,6 +286,17 @@ function toReviewDecisionResult(raw: unknown): ReviewDecisionResult {
       id: typeof submission.id === 'string' ? submission.id : '',
       review: toReviewSummary(submission.review),
     },
+  };
+}
+
+function toQueueSummary(raw: unknown): DocumentReviewQueueSummary {
+  const value = (raw && typeof raw === 'object' ? raw : {}) as Partial<QueueSummaryResponse>;
+  return {
+    pendingReview: toNumber(value.pending_review),
+    verified: toNumber(value.verified),
+    rejected: toNumber(value.rejected),
+    expiredPcc: toNumber(value.expired_pcc),
+    nearExpiryPcc: toNumber(value.near_expiry_pcc),
   };
 }
 
@@ -345,8 +386,10 @@ export function createAdminDocumentReviewsClient(
         if (!result) throw { code: 'UNKNOWN' } satisfies AdminDocumentReviewError;
 
         const items = Array.isArray(result.data) ? result.data.map(toQueueItem) : [];
-        const pagination = toPagination((result.meta as { pagination?: unknown } | undefined)?.pagination);
-        return { items, pagination };
+        const meta = result.meta as { pagination?: unknown; summary?: unknown } | undefined;
+        const pagination = toPagination(meta?.pagination);
+        const summary = toQueueSummary(meta?.summary);
+        return { items, pagination, summary };
       } catch (error) {
         throw toReviewError(error);
       }

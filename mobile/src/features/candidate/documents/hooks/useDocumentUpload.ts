@@ -15,7 +15,7 @@ import {
 } from '../../../../../../shared/candidateDocuments/idempotency';
 import { validateSelectedFile, type FileValidationError } from '../../../../../../shared/candidateDocuments/fileValidation';
 import { PCC_REQUIREMENT_CODE, validatePccIssueDate, type PccIssueDateError } from '../../../../../../shared/candidateDocuments/pccIssueDate';
-import { CANDIDATE_DOCUMENTS_QUERY_KEY } from './useCandidateDocuments';
+import { documentQueries } from '../../../../../../shared/queryKeys/documentQueries';
 
 /** iOS/Android both report `size`/`mimeType` on a picked asset, but neither is guaranteed on every device/provider -- validation and the idempotency signature both tolerate either being absent, matching web's handling of a platform that doesn't report a MIME type. */
 export type PickedDocument = DocumentPicker.DocumentPickerAsset;
@@ -82,8 +82,9 @@ function buildFormData(requirementCode: string, document: PickedDocument, issued
  */
 export function useDocumentUpload() {
   const { session } = useAuth();
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
   const queryClient = useQueryClient();
+  const candidateId = session?.candidateId ?? 'anonymous';
 
   const [activeRequirementCode, setActiveRequirementCode] = useState<string | null>(null);
   const [document, setDocument] = useState<PickedDocument | null>(null);
@@ -118,7 +119,7 @@ export function useDocumentUpload() {
     onSuccess: (result, variables) => {
       if (session?.accessToken !== variables.accessTokenAtCallTime) return;
 
-      queryClient.setQueryData<CandidateDocumentChecklistItem[]>(CANDIDATE_DOCUMENTS_QUERY_KEY, (old) =>
+      queryClient.setQueryData<CandidateDocumentChecklistItem[]>(documentQueries.candidateChecklist(candidateId, language), (old) =>
         old ? old.map((item) => (item.requirementCode === result.requirementCode ? result : item)) : old
       );
       toast.success(t('candidateDocumentsUploadSuccessToast'));
@@ -137,7 +138,7 @@ export function useDocumentUpload() {
         setIdempotencyState(EMPTY_IDEMPOTENCY_KEY_STATE);
       }
       if (error.code === 'REPLACEMENT_NOT_ALLOWED') {
-        queryClient.invalidateQueries({ queryKey: CANDIDATE_DOCUMENTS_QUERY_KEY });
+        queryClient.invalidateQueries({ queryKey: documentQueries.candidateChecklist(candidateId, language) });
       }
       // VALIDATION_ERROR (a bad/missing PCC issue date): the panel stays
       // open with the typed date preserved so the candidate can fix it --

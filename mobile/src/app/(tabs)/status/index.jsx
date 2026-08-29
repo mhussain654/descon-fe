@@ -1,20 +1,30 @@
-import { View, Text, ScrollView, useColorScheme } from "react-native";
+import { View, Text, ScrollView, RefreshControl, useColorScheme } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
-import { CheckCircle, Circle, Clock } from "lucide-react-native";
+import { useRouter } from "expo-router";
 import {
   useFonts,
   Inter_400Regular,
   Inter_500Medium,
   Inter_600SemiBold,
 } from "@expo-google-fonts/inter";
+import { useAuth } from "../../../contexts/AuthContext";
 import { useLanguage } from "../../../contexts/LanguageContext";
+import { useRefetchOnFocus } from "../../../hooks/useRefetchOnFocus";
+import { useApplicationProgress } from "../../../features/candidate/progress/hooks/useApplicationProgress";
+import { ApplicationProgressSummary } from "../../../features/candidate/progress/components/ApplicationProgressSummary";
 
 export default function StatusScreen() {
   const insets = useSafeAreaInsets();
+  const router = useRouter();
   const colorScheme = useColorScheme();
   const isDark = colorScheme === "dark";
   const { t } = useLanguage();
+  const { logout } = useAuth();
+  // Shares its query cache with ApplicationProgressSummary's own
+  // useApplicationProgress() call below -- no extra request.
+  const progressQuery = useApplicationProgress();
+  useRefetchOnFocus(progressQuery.refetch, progressQuery.isFetching);
 
   const [fontsLoaded] = useFonts({
     Inter_400Regular,
@@ -26,70 +36,15 @@ export default function StatusScreen() {
     return null;
   }
 
-  // Stub timeline data
-  const timeline = [
-    { id: 1, label: t("registered"), status: "completed", date: "2024-01-10" },
-    {
-      id: 2,
-      label: t("documentsPending"),
-      status: "completed",
-      date: "2024-01-12",
-    },
-    {
-      id: 3,
-      label: t("documentsUploaded"),
-      status: "current",
-      date: "2024-01-16",
-    },
-    { id: 4, label: t("documentsVerified"), status: "pending", date: null },
-    { id: 5, label: t("feePending"), status: "pending", date: null },
-    { id: 6, label: t("feePaid"), status: "pending", date: null },
-    { id: 7, label: t("sharedWithBU"), status: "pending", date: null },
-    { id: 8, label: t("qvcBooked"), status: "pending", date: null },
-    { id: 9, label: t("qvcOutcome"), status: "pending", date: null },
-    { id: 10, label: t("visaIssued"), status: "pending", date: null },
-    { id: 11, label: t("protectionCompleted"), status: "pending", date: null },
-    { id: 12, label: t("readyToFly"), status: "pending", date: null },
-    {
-      id: 13,
-      label: t("flightDetailsUploaded"),
-      status: "pending",
-      date: null,
-    },
-    { id: 14, label: t("mobilized"), status: "pending", date: null },
-  ];
-
-  const getStatusConfig = (status) => {
-    switch (status) {
-      case "completed":
-        return {
-          icon: CheckCircle,
-          iconColor: "#10B981",
-          lineColor: "#10B981",
-          textColor: isDark ? "#FFFFFF" : "#000000",
-        };
-      case "current":
-        return {
-          icon: Clock,
-          iconColor: "#0066CC",
-          lineColor: "#E5E7EB",
-          textColor: isDark ? "#FFFFFF" : "#000000",
-        };
-      default:
-        return {
-          icon: Circle,
-          iconColor: isDark ? "#4B5563" : "#D1D5DB",
-          lineColor: isDark ? "#333333" : "#E5E7EB",
-          textColor: isDark ? "#6B7280" : "#9CA3AF",
-        };
-    }
+  const returnToSignIn = async () => {
+    await logout("expired");
+    router.replace("/login");
   };
 
   return (
     <View style={{ flex: 1, backgroundColor: isDark ? "#121212" : "#F8F9FA" }}>
       <StatusBar style={isDark ? "light" : "dark"} />
 
-      {/* Header */}
       <View
         style={{
           paddingTop: insets.top + 16,
@@ -129,117 +84,11 @@ export default function StatusScreen() {
           paddingBottom: insets.bottom + 80,
         }}
         showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl refreshing={progressQuery.isRefetching} onRefresh={() => progressQuery.refetch()} title={t("pullToRefresh")} />
+        }
       >
-        {/* Timeline */}
-        <View>
-          {timeline.map((item, index) => {
-            const config = getStatusConfig(item.status);
-            const StatusIcon = config.icon;
-            const isLast = index === timeline.length - 1;
-
-            return (
-              <View key={item.id} style={{ flexDirection: "row" }}>
-                {/* Icon Column */}
-                <View style={{ alignItems: "center", marginRight: 16 }}>
-                  <View
-                    style={{
-                      width: 32,
-                      height: 32,
-                      borderRadius: 16,
-                      backgroundColor:
-                        item.status === "current"
-                          ? isDark
-                            ? "#1A2B3D"
-                            : "#E6F2FF"
-                          : isDark
-                            ? "#1E1E1E"
-                            : "#FFFFFF",
-                      borderWidth: item.status === "pending" ? 2 : 0,
-                      borderColor: isDark ? "#333333" : "#E5E7EB",
-                      justifyContent: "center",
-                      alignItems: "center",
-                    }}
-                  >
-                    <StatusIcon
-                      size={item.status === "pending" ? 12 : 18}
-                      color={config.iconColor}
-                      fill={
-                        item.status === "completed" ? config.iconColor : "none"
-                      }
-                    />
-                  </View>
-
-                  {!isLast && (
-                    <View
-                      style={{
-                        width: 2,
-                        flex: 1,
-                        backgroundColor: config.lineColor,
-                        marginVertical: 4,
-                        minHeight: 40,
-                      }}
-                    />
-                  )}
-                </View>
-
-                {/* Content Column */}
-                <View
-                  style={{
-                    flex: 1,
-                    paddingBottom: isLast ? 0 : 24,
-                  }}
-                >
-                  <Text
-                    style={{
-                      fontSize: 15,
-                      fontFamily:
-                        item.status === "current"
-                          ? "Inter_600SemiBold"
-                          : "Inter_500Medium",
-                      color: config.textColor,
-                      marginBottom: 2,
-                    }}
-                  >
-                    {item.label}
-                  </Text>
-                  {item.date && (
-                    <Text
-                      style={{
-                        fontSize: 13,
-                        fontFamily: "Inter_400Regular",
-                        color: isDark ? "#6B7280" : "#9CA3AF",
-                      }}
-                    >
-                      {item.date}
-                    </Text>
-                  )}
-                  {item.status === "current" && (
-                    <View
-                      style={{
-                        backgroundColor: isDark ? "#1A2B3D" : "#E6F2FF",
-                        borderRadius: 8,
-                        paddingHorizontal: 12,
-                        paddingVertical: 8,
-                        marginTop: 8,
-                        alignSelf: "flex-start",
-                      }}
-                    >
-                      <Text
-                        style={{
-                          fontSize: 12,
-                          fontFamily: "Inter_500Medium",
-                          color: "#0066CC",
-                        }}
-                      >
-                        {t("inProgress")}
-                      </Text>
-                    </View>
-                  )}
-                </View>
-              </View>
-            );
-          })}
-        </View>
+        <ApplicationProgressSummary onReturnToSignIn={returnToSignIn} />
       </ScrollView>
     </View>
   );

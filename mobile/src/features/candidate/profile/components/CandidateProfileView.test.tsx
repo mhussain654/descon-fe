@@ -154,6 +154,79 @@ describe('CandidateProfileView', () => {
     expect(onRetry).toHaveBeenCalled();
   });
 
+  it('shows the green verified indicator only when the backend submissionState is verified, plus document counts', () => {
+    render(
+      <CandidateProfileView
+        isLoading={false}
+        error={null}
+        profile={profile()}
+        documents={{
+          requiredTotal: 3,
+          missing: 0,
+          uploaded: 0,
+          pendingReview: 0,
+          verified: 3,
+          rejected: 0,
+          submittedTotal: 3,
+          completionPercentage: 100,
+          canSubmit: false,
+          submissionState: 'verified',
+          blockingRequirements: [],
+        }}
+        t={tFor('en')}
+        onRetry={() => {}}
+        onReturnToSignIn={() => {}}
+      />
+    );
+
+    expect(screen.getByText('Document verification')).toBeTruthy();
+    expect(screen.getAllByText('Verified').length).toBeGreaterThan(0);
+    expect(screen.getByText('3')).toBeTruthy();
+  });
+
+  it('shows the submission state (not "Verified") while documents are only partially verified', () => {
+    render(
+      <CandidateProfileView
+        isLoading={false}
+        error={null}
+        profile={profile()}
+        documents={{
+          requiredTotal: 3,
+          missing: 0,
+          uploaded: 0,
+          pendingReview: 2,
+          verified: 1,
+          rejected: 0,
+          submittedTotal: 3,
+          completionPercentage: 100,
+          canSubmit: false,
+          submissionState: 'partially_verified',
+          blockingRequirements: [],
+        }}
+        t={tFor('en')}
+        onRetry={() => {}}
+        onReturnToSignIn={() => {}}
+      />
+    );
+
+    expect(screen.getByText('Partially verified')).toBeTruthy();
+  });
+
+  it('omits the document-verification section until progress data is available', () => {
+    render(
+      <CandidateProfileView
+        isLoading={false}
+        error={null}
+        profile={profile()}
+        t={tFor('en')}
+        onRetry={() => {}}
+        onReturnToSignIn={() => {}}
+      />
+    );
+
+    expect(screen.queryByText('Document verification')).toBeNull();
+  });
+
   it('renders in Urdu when given the Urdu translator', () => {
     render(
       <CandidateProfileView

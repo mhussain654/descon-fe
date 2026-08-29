@@ -1,4 +1,4 @@
-import { View, ScrollView, TouchableOpacity, Pressable, useColorScheme } from "react-native";
+import { View, ScrollView, RefreshControl, TouchableOpacity, Pressable, useColorScheme } from "react-native";
 import { Text } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
@@ -12,7 +12,9 @@ import {
 } from "@expo-google-fonts/inter";
 import { useAuth } from "../../../contexts/AuthContext";
 import { useLanguage } from "../../../contexts/LanguageContext";
+import { useRefetchOnFocus } from "../../../hooks/useRefetchOnFocus";
 import { useCandidateProfile } from "../../../features/candidate/profile/hooks/useCandidateProfile";
+import { useApplicationProgress } from "../../../features/candidate/progress/hooks/useApplicationProgress";
 import { CandidateProfileView } from "../../../features/candidate/profile/components/CandidateProfileView";
 
 export default function ProfileScreen() {
@@ -23,6 +25,9 @@ export default function ProfileScreen() {
   const { t, toggleLanguage, language } = useLanguage();
   const { logout } = useAuth();
   const profileQuery = useCandidateProfile();
+  const progressQuery = useApplicationProgress();
+  useRefetchOnFocus(profileQuery.refetch, profileQuery.isFetching);
+  useRefetchOnFocus(progressQuery.refetch, progressQuery.isFetching);
 
   const [fontsLoaded] = useFonts({
     Inter_400Regular,
@@ -77,11 +82,22 @@ export default function ProfileScreen() {
           paddingBottom: insets.bottom + 80,
         }}
         showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={profileQuery.isRefetching || progressQuery.isRefetching}
+            onRefresh={() => {
+              profileQuery.refetch();
+              progressQuery.refetch();
+            }}
+            title={t("pullToRefresh")}
+          />
+        }
       >
         <CandidateProfileView
           isLoading={profileQuery.isLoading}
           error={profileQuery.error ?? null}
           profile={profileQuery.data}
+          documents={progressQuery.data?.documents}
           t={t}
           onRetry={() => profileQuery.refetch()}
           onReturnToSignIn={returnToSignIn}

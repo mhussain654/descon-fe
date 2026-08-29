@@ -3,6 +3,7 @@ import UserShell from "../components/user-shell";
 import { useAuth } from "../../contexts/AuthContext";
 import { useLanguage } from "../../contexts/LanguageContext";
 import { useCandidateProfile } from "../../features/candidate/profile/hooks/useCandidateProfile";
+import { useApplicationProgress } from "../../features/candidate/progress/hooks/useApplicationProgress";
 import { CandidateProfileView } from "../../features/candidate/profile/components/CandidateProfileView";
 
 export default function ProfilePage() {
@@ -10,6 +11,7 @@ export default function ProfilePage() {
   const { logout } = useAuth();
   const navigate = useNavigate();
   const profileQuery = useCandidateProfile();
+  const progressQuery = useApplicationProgress();
 
   const handleLogout = () => {
     logout();
@@ -34,6 +36,7 @@ export default function ProfilePage() {
           isLoading={profileQuery.isLoading}
           error={profileQuery.error ?? null}
           profile={profileQuery.data}
+          documents={progressQuery.data?.documents}
           t={t}
           onRetry={() => profileQuery.refetch()}
           onReturnToSignIn={returnToSignIn}

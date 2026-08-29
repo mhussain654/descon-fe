@@ -1,9 +1,13 @@
 import { StyleSheet, Text, View } from 'react-native';
 import { humanizeStatusCode } from '../../../../../../shared/candidateProfile/formatting';
 import { CANDIDATE_PROFILE_ERROR_KEYS } from '../../../../../../shared/candidateProfile/errorMessages';
+import { APPLICATION_SUBMISSION_STATE_KEYS, APPLICATION_SUBMISSION_STATE_TONES } from '../../../../../../shared/applicationProgress/statusLabels';
+import { CANDIDATE_DOCUMENT_STATUS_KEYS } from '../../../../../../shared/candidateDocuments/statusLabels';
+import type { ApplicationProgressDocuments } from '../../../../../../shared/applicationProgress/types';
 import type { TranslationKey } from '../../../../../../shared/i18n/translations';
 import type { CandidateProfile, CandidateProfileError } from '../../../../lib/candidate-profile-client';
 import {
+  Badge,
   Card,
   ErrorState,
   ForbiddenState,
@@ -17,17 +21,36 @@ export interface CandidateProfileViewProps {
   isLoading: boolean;
   error: CandidateProfileError | null;
   profile: CandidateProfile | undefined;
+  /**
+   * The candidate's own document-verification aggregate, from the same
+   * application-progress endpoint the dashboard/documents screens already
+   * use -- composed in here (not re-fetched) so the profile screen shows
+   * the real, backend-computed `submissionState` as its verified indicator
+   * rather than inferring one from individual document badges (ticket: "Do
+   * not infer candidate verification merely because all visible document
+   * badges happen to be green."). Undefined while progress hasn't loaded
+   * yet -- the section is simply omitted rather than shown empty/wrong.
+   */
+  documents?: ApplicationProgressDocuments;
   t: (key: TranslationKey) => string;
   onRetry: () => void;
   /** Signs the candidate out and returns them to sign-in -- used by the session-expired/inactive-account actions. */
   onReturnToSignIn: () => void;
 }
 
+const DOCUMENT_COUNT_ROWS = [
+  ['missing', 'missing'],
+  ['pending_review', 'pendingReview'],
+  ['verified', 'verified'],
+  ['rejected', 'rejected'],
+] as const;
+
 /** Mirrors web/src/features/candidate/profile/components/CandidateProfileView.tsx exactly (AGENTS.md: "Web and mobile candidate experiences must share the same ... loading, empty, error, offline and retry scenarios"). */
 export function CandidateProfileView({
   isLoading,
   error,
   profile,
+  documents,
   t,
   onRetry,
   onReturnToSignIn,
@@ -118,6 +141,25 @@ export function CandidateProfileView({
           </View>
         ))}
       </Card>
+
+      {documents ? (
+        <Card style={styles.infoCard}>
+          <View style={styles.documentsHeader}>
+            <Text style={styles.sectionTitle}>{t('candidateProfileDocumentsSectionTitle')}</Text>
+            <Badge tone={APPLICATION_SUBMISSION_STATE_TONES[documents.submissionState]}>
+              {t(APPLICATION_SUBMISSION_STATE_KEYS[documents.submissionState] as TranslationKey)}
+            </Badge>
+          </View>
+          <View style={styles.documentCounts}>
+            {DOCUMENT_COUNT_ROWS.map(([status, field]) => (
+              <View key={status} style={styles.countItem}>
+                <Text style={styles.countLabel}>{t(CANDIDATE_DOCUMENT_STATUS_KEYS[status] as TranslationKey)}</Text>
+                <Text style={styles.countValue}>{documents[field]}</Text>
+              </View>
+            ))}
+          </View>
+        </Card>
+      ) : null}
     </>
   );
 }
@@ -153,4 +195,9 @@ const styles = StyleSheet.create({
   // (the same reason CnicField.tsx has to force 'left' to *resist* it).
   rowValue: { maxWidth: '60%', fontSize: 14, fontWeight: fontWeights.medium, color: colors.text.primary },
   rowValueLtr: { writingDirection: 'ltr' },
+  documentsHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: spacing[4], gap: spacing[2] },
+  documentCounts: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing[4] },
+  countItem: { minWidth: 90 },
+  countLabel: { fontSize: 12, color: colors.text.secondary },
+  countValue: { fontSize: 16, fontWeight: fontWeights.medium, color: colors.text.primary },
 });

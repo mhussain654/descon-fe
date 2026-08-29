@@ -1,12 +1,14 @@
 import { useQuery } from '@tanstack/react-query';
+import { useLanguage } from '../../../../contexts/LanguageContext';
 import { adminDocumentReviewsClient } from '../../../../lib/admin-document-reviews-client';
 import type { AdminDocumentReviewError, DocumentSubmissionDetail } from '../../../../lib/admin-document-reviews-client';
-
-export const DOCUMENT_REVIEW_SUBMISSION_QUERY_KEY = 'admin-document-review-submission';
+import { documentQueries } from '../../../../../../shared/queryKeys/documentQueries';
 
 export function useDocumentSubmission(submissionId: string | undefined) {
+  const { language } = useLanguage();
+
   return useQuery<DocumentSubmissionDetail, AdminDocumentReviewError>({
-    queryKey: [DOCUMENT_REVIEW_SUBMISSION_QUERY_KEY, submissionId],
+    queryKey: documentQueries.staffSubmission(submissionId ?? '', language),
     queryFn: () => adminDocumentReviewsClient.getSubmission(submissionId as string),
     enabled: Boolean(submissionId),
   });

@@ -1,4 +1,4 @@
-import { View, Text, ScrollView, useColorScheme } from "react-native";
+import { View, Text, ScrollView, RefreshControl, useColorScheme } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
 import { useRouter } from "expo-router";
@@ -10,7 +10,9 @@ import {
 } from "@expo-google-fonts/inter";
 import { useAuth } from "../../../contexts/AuthContext";
 import { useLanguage } from "../../../contexts/LanguageContext";
+import { useRefetchOnFocus } from "../../../hooks/useRefetchOnFocus";
 import { useCandidateDocuments } from "../../../features/candidate/documents/hooks/useCandidateDocuments";
+import { useApplicationProgress } from "../../../features/candidate/progress/hooks/useApplicationProgress";
 import { DocumentChecklistView } from "../../../features/candidate/documents/components/DocumentChecklistView";
 import { ApplicationProgressSummary } from "../../../features/candidate/progress/components/ApplicationProgressSummary";
 
@@ -22,6 +24,13 @@ export default function DocumentsScreen() {
   const { t, language } = useLanguage();
   const { logout } = useAuth();
   const checklistQuery = useCandidateDocuments();
+  // Shares the same query cache as ApplicationProgressSummary's own
+  // useApplicationProgress() call below -- calling the hook here too costs
+  // no extra request, it just gives this screen access to `refetch`/
+  // `isRefetching` for focus-refresh and pull-to-refresh.
+  const progressQuery = useApplicationProgress();
+  useRefetchOnFocus(checklistQuery.refetch, checklistQuery.isFetching);
+  useRefetchOnFocus(progressQuery.refetch, progressQuery.isFetching);
 
   const [fontsLoaded] = useFonts({
     Inter_400Regular,
@@ -81,6 +90,16 @@ export default function DocumentsScreen() {
           paddingBottom: insets.bottom + 80,
         }}
         showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={checklistQuery.isRefetching || progressQuery.isRefetching}
+            onRefresh={() => {
+              checklistQuery.refetch();
+              progressQuery.refetch();
+            }}
+            title={t("pullToRefresh")}
+          />
+        }
       >
         <ApplicationProgressSummary onReturnToSignIn={returnToSignIn} />
 

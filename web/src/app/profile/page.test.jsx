@@ -1,14 +1,19 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Link, MemoryRouter, Route, Routes } from "react-router";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { AuthProvider, useAuth } from "../../contexts/AuthContext";
 import { LanguageProvider } from "../../contexts/LanguageContext";
 import { candidateProfileClient } from "../../lib/candidate-profile-client";
+import { applicationProgressClient } from "../../lib/application-progress-client";
 import ProfilePage from "./page";
 
 vi.mock("../../lib/candidate-profile-client", () => ({
   candidateProfileClient: { getProfile: vi.fn() },
+}));
+
+vi.mock("../../lib/application-progress-client", () => ({
+  applicationProgressClient: { getProgress: vi.fn(), submitDocuments: vi.fn() },
 }));
 
 function LoginStub() {
@@ -74,9 +79,38 @@ function profilePayload(overrides = {}) {
   };
 }
 
+function progressPayload(overrides = {}) {
+  return {
+    candidateStatus: "documents_pending",
+    currentWorkflowStage: { code: "documents_pending", name: "Documents pending" },
+    documents: {
+      requiredTotal: 3,
+      missing: 0,
+      uploaded: 0,
+      pendingReview: 0,
+      verified: 3,
+      rejected: 0,
+      submittedTotal: 3,
+      completionPercentage: 100,
+      canSubmit: false,
+      submissionState: "verified",
+      blockingRequirements: [],
+    },
+    ...overrides,
+  };
+}
+
 describe("ProfilePage", () => {
+  // Default so pre-existing tests unrelated to the document-verification
+  // section (added for MPS-F403) don't need to mock this themselves --
+  // tests that care about progress override this per-case.
+  beforeEach(() => {
+    applicationProgressClient.getProgress.mockResolvedValue(progressPayload());
+  });
+
   afterEach(() => {
     vi.mocked(candidateProfileClient.getProfile).mockReset();
+    vi.mocked(applicationProgressClient.getProgress).mockReset();
   });
 
   it("shows a loading state before the profile resolves", async () => {
@@ -98,6 +132,45 @@ describe("ProfilePage", () => {
 
     // The real CNIC value must never appear anywhere in the rendered output.
     expect(screen.queryByText("42101-1234567-1")).not.toBeInTheDocument();
+  });
+
+  it("shows the green verified indicator only when the backend's submissionState is verified, plus the document counts", async () => {
+    candidateProfileClient.getProfile.mockResolvedValue(profilePayload());
+    applicationProgressClient.getProgress.mockResolvedValue(progressPayload());
+    await signInAndNavigateToProfile();
+
+    const section = (await screen.findByText("Document verification")).closest("div").parentElement;
+    expect(within(section).getByText("Verified", { selector: "span" })).toBeInTheDocument();
+    expect(within(section).getByText("3")).toBeInTheDocument();
+  });
+
+  it("does not show the verified indicator while documents are only partially verified", async () => {
+    candidateProfileClient.getProfile.mockResolvedValue(profilePayload());
+    applicationProgressClient.getProgress.mockResolvedValue(
+      progressPayload({
+        documents: {
+          ...progressPayload().documents,
+          verified: 1,
+          pendingReview: 2,
+          submittedTotal: 3,
+          submissionState: "partially_verified",
+        },
+      })
+    );
+    await signInAndNavigateToProfile();
+
+    const section = (await screen.findByText("Document verification")).closest("div").parentElement;
+    expect(within(section).queryByText("Verified", { selector: "span" })).not.toBeInTheDocument();
+    expect(within(section).getByText("Partially verified")).toBeInTheDocument();
+  });
+
+  it("does not render the document-verification section until progress has loaded", async () => {
+    candidateProfileClient.getProfile.mockResolvedValue(profilePayload());
+    applicationProgressClient.getProgress.mockReturnValue(new Promise(() => {}));
+    await signInAndNavigateToProfile();
+
+    await screen.findByText("Ahmed Ali");
+    expect(screen.queryByText("Document verification")).not.toBeInTheDocument();
   });
 
   it("shows the empty-assignment label when there is no current workflow stage", async () => {

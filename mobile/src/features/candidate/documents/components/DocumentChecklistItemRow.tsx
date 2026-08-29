@@ -92,6 +92,12 @@ export function DocumentChecklistItemRow({
             </Text>
           ) : null}
 
+          {item.document?.reviewedAt ? (
+            <Text style={styles.detail}>
+              {t('adminDocumentReviewDecidedAtLabel')}: {formatDate(item.document.reviewedAt, language)}
+            </Text>
+          ) : null}
+
           {item.document?.rejectionReason ? (
             <Text style={styles.rejectionReason}>
               {t('candidateDocumentsRejectionReasonLabel')}: {item.document.rejectionReason}

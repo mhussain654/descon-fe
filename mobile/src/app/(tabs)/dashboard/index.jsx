@@ -2,26 +2,28 @@ import {
   View,
   Text,
   ScrollView,
+  RefreshControl,
   TouchableOpacity,
   useColorScheme,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
 import { useRouter } from "expo-router";
-import {
-  FileText,
-  CreditCard,
-  Clock,
-  CheckCircle,
-  AlertCircle,
-} from "lucide-react-native";
+import { FileText, CreditCard, Clock, AlertCircle } from "lucide-react-native";
 import {
   useFonts,
   Inter_400Regular,
   Inter_500Medium,
   Inter_600SemiBold,
 } from "@expo-google-fonts/inter";
+import { useAuth } from "../../../contexts/AuthContext";
 import { useLanguage } from "../../../contexts/LanguageContext";
+import { useRefetchOnFocus } from "../../../hooks/useRefetchOnFocus";
+import { useCandidateProfile } from "../../../features/candidate/profile/hooks/useCandidateProfile";
+import { useCandidateDocuments } from "../../../features/candidate/documents/hooks/useCandidateDocuments";
+import { useApplicationProgress } from "../../../features/candidate/progress/hooks/useApplicationProgress";
+import { ApplicationProgressSummary } from "../../../features/candidate/progress/components/ApplicationProgressSummary";
+import { resolveNextAction, NEXT_ACTION_KEYS } from "../../../../../shared/applicationProgress/nextAction";
 
 export default function DashboardScreen() {
   const insets = useSafeAreaInsets();
@@ -29,6 +31,16 @@ export default function DashboardScreen() {
   const colorScheme = useColorScheme();
   const isDark = colorScheme === "dark";
   const { t } = useLanguage();
+  const { logout } = useAuth();
+  const profileQuery = useCandidateProfile();
+  const checklistQuery = useCandidateDocuments();
+  // Shares its query cache with ApplicationProgressSummary's own
+  // useApplicationProgress() call below -- no extra request, just gives
+  // this screen access to the data resolveNextAction() needs.
+  const progressQuery = useApplicationProgress();
+  useRefetchOnFocus(profileQuery.refetch, profileQuery.isFetching);
+  useRefetchOnFocus(checklistQuery.refetch, checklistQuery.isFetching);
+  useRefetchOnFocus(progressQuery.refetch, progressQuery.isFetching);
 
   const [fontsLoaded] = useFonts({
     Inter_400Regular,
@@ -40,15 +52,13 @@ export default function DashboardScreen() {
     return null;
   }
 
-  // Stub data
-  const candidateData = {
-    name: "Ahmed Khan",
-    regNumber: "DES-2024-001",
-    currentStageKey: "documentsUploaded",
-    progress: 30,
-    documentsStatus: "pending_verification",
-    paymentStatus: "pending",
+  const returnToSignIn = async () => {
+    await logout("expired");
+    router.replace("/login");
   };
+
+  const nextAction =
+    progressQuery.data && checklistQuery.data ? resolveNextAction(progressQuery.data, checklistQuery.data) : null;
 
   const quickActions = [
     {
@@ -64,7 +74,6 @@ export default function DashboardScreen() {
       color: "#10B981",
       bgColor: isDark ? "#1A2E1A" : "#E6F9F0",
       onPress: () => {},
-      disabled: candidateData.paymentStatus === "pending",
     },
     {
       icon: Clock,
@@ -107,7 +116,7 @@ export default function DashboardScreen() {
             color: isDark ? "#FFFFFF" : "#000000",
           }}
         >
-          {candidateData.name}
+          {profileQuery.data?.fullName ?? " "}
         </Text>
         <Text
           style={{
@@ -117,7 +126,7 @@ export default function DashboardScreen() {
             marginTop: 2,
           }}
         >
-          {candidateData.regNumber}
+          {profileQuery.data?.referenceNumber ?? ""}
         </Text>
       </View>
 
@@ -129,118 +138,60 @@ export default function DashboardScreen() {
           paddingBottom: insets.bottom + 80,
         }}
         showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={profileQuery.isRefetching || checklistQuery.isRefetching || progressQuery.isRefetching}
+            onRefresh={() => {
+              profileQuery.refetch();
+              checklistQuery.refetch();
+              progressQuery.refetch();
+            }}
+            title={t("pullToRefresh")}
+          />
+        }
       >
-        {/* Current Status Card */}
-        <View
-          style={{
-            backgroundColor: isDark ? "#1E1E1E" : "#FFFFFF",
-            borderRadius: 16,
-            padding: 20,
-            marginBottom: 20,
-            borderWidth: 1,
-            borderColor: isDark ? "#333333" : "#E5E7EB",
-          }}
-        >
-          <Text
-            style={{
-              fontSize: 16,
-              fontFamily: "Inter_600SemiBold",
-              color: isDark ? "#FFFFFF" : "#000000",
-              marginBottom: 16,
-            }}
-          >
-            {t("currentStatus")}
-          </Text>
+        <ApplicationProgressSummary onReturnToSignIn={returnToSignIn} />
 
-          <View
-            style={{
-              flexDirection: "row",
-              alignItems: "center",
-              marginBottom: 12,
-            }}
-          >
-            <CheckCircle size={20} color="#0066CC" />
+        {nextAction ? (
+          <View style={{ marginBottom: 20 }}>
             <Text
               style={{
-                fontSize: 15,
-                fontFamily: "Inter_500Medium",
+                fontSize: 16,
+                fontFamily: "Inter_600SemiBold",
                 color: isDark ? "#FFFFFF" : "#000000",
-                marginLeft: 10,
+                marginBottom: 12,
               }}
             >
-              {t(candidateData.currentStageKey)}
+              {t("applicationProgressNextActionTitle")}
             </Text>
-          </View>
 
-          {/* Progress Bar */}
-          <View
-            style={{
-              height: 8,
-              backgroundColor: isDark ? "#333333" : "#E5E7EB",
-              borderRadius: 4,
-              overflow: "hidden",
-              marginBottom: 8,
-            }}
-          >
             <View
               style={{
-                height: "100%",
-                width: `${candidateData.progress}%`,
-                backgroundColor: "#0066CC",
-                borderRadius: 4,
-              }}
-            />
-          </View>
-
-          <Text
-            style={{
-              fontSize: 13,
-              fontFamily: "Inter_400Regular",
-              color: isDark ? "#9CA3AF" : "#6B7280",
-            }}
-          >
-            {candidateData.progress}% {t("complete")}
-          </Text>
-        </View>
-
-        {/* Next Steps */}
-        <View style={{ marginBottom: 20 }}>
-          <Text
-            style={{
-              fontSize: 16,
-              fontFamily: "Inter_600SemiBold",
-              color: isDark ? "#FFFFFF" : "#000000",
-              marginBottom: 12,
-            }}
-          >
-            {t("nextSteps")}
-          </Text>
-
-          <View
-            style={{
-              backgroundColor: isDark ? "#1E1E1E" : "#FFFFFF",
-              borderRadius: 12,
-              padding: 16,
-              borderWidth: 1,
-              borderColor: isDark ? "#333333" : "#E5E7EB",
-              flexDirection: "row",
-              alignItems: "center",
-            }}
-          >
-            <AlertCircle size={20} color="#F59E0B" />
-            <Text
-              style={{
-                flex: 1,
-                fontSize: 14,
-                fontFamily: "Inter_400Regular",
-                color: isDark ? "#FFFFFF" : "#000000",
-                marginLeft: 12,
+                backgroundColor: isDark ? "#1E1E1E" : "#FFFFFF",
+                borderRadius: 12,
+                padding: 16,
+                borderWidth: 1,
+                borderColor: isDark ? "#333333" : "#E5E7EB",
+                flexDirection: "row",
+                alignItems: "center",
               }}
             >
-              {t("waitingForVerification")}
-            </Text>
+              <AlertCircle size={20} color="#F59E0B" />
+              <Text
+                style={{
+                  flex: 1,
+                  fontSize: 14,
+                  fontFamily: "Inter_400Regular",
+                  color: isDark ? "#FFFFFF" : "#000000",
+                  marginLeft: 12,
+                }}
+              >
+                {t(NEXT_ACTION_KEYS[nextAction.kind])}
+                {nextAction.requirementName ? `: ${nextAction.requirementName}` : ""}
+              </Text>
+            </View>
           </View>
-        </View>
+        ) : null}
 
         {/* Quick Actions */}
         <View>
@@ -266,7 +217,6 @@ export default function DashboardScreen() {
               <TouchableOpacity
                 key={index}
                 onPress={action.onPress}
-                disabled={action.disabled}
                 style={{
                   width: "50%",
                   paddingHorizontal: 6,
@@ -279,7 +229,6 @@ export default function DashboardScreen() {
                     borderRadius: 12,
                     padding: 20,
                     alignItems: "center",
-                    opacity: action.disabled ? 0.5 : 1,
                   }}
                 >
                   <View

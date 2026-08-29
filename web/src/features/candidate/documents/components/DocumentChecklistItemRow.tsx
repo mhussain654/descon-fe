@@ -1,5 +1,10 @@
 import { Badge, Button } from '../../../../design-system';
-import { CANDIDATE_DOCUMENT_STATUS_KEYS, CANDIDATE_DOCUMENT_STATUS_TONES } from '../../../../../../shared/candidateDocuments/statusLabels';
+import {
+  CANDIDATE_DOCUMENT_STATUS_KEYS,
+  CANDIDATE_DOCUMENT_STATUS_TONES,
+  PCC_COMPLIANCE_STATUS_KEYS,
+  PCC_COMPLIANCE_STATUS_TONES,
+} from '../../../../../../shared/candidateDocuments/statusLabels';
 import { formatFileSize } from '../../../../../../shared/candidateDocuments/formatting';
 import { formatDate } from '../../../../../../shared/i18n/locale';
 import type { CandidateDocumentChecklistItem, CandidateDocumentsError } from '../../../../lib/candidate-documents-client';
@@ -41,6 +46,7 @@ export function DocumentChecklistItemRow({
 }: DocumentChecklistItemRowProps) {
   const statusKey = CANDIDATE_DOCUMENT_STATUS_KEYS[item.status] as TranslationKey;
   const tone = CANDIDATE_DOCUMENT_STATUS_TONES[item.status];
+  const complianceStatus = item.document?.complianceStatus;
 
   // Use `replacement_allowed` from the API directly -- never infer it from
   // `status` (ticket: "Use replacement_allowed from the API. Do not infer
@@ -74,10 +80,32 @@ export function DocumentChecklistItemRow({
               t('notUploadedYet')
             )}
           </div>
+
+          {item.document?.issuedOn && item.document?.expiresOn ? (
+            <div className="mt-1 text-sm text-text-secondary">
+              {t('candidateDocumentsPccIssuedOnLabel')}: {formatDate(item.document.issuedOn, language)} ·{' '}
+              {t('candidateDocumentsPccExpiresOnLabel')}: {formatDate(item.document.expiresOn, language)}
+            </div>
+          ) : null}
+
+          {item.document?.reviewedAt ? (
+            <div className="mt-1 text-sm text-text-secondary">
+              {t('adminDocumentReviewDecidedAtLabel')}: {formatDate(item.document.reviewedAt, language)}
+            </div>
+          ) : null}
+
+          {item.document?.rejectionReason ? (
+            <div className="mt-1 text-sm text-danger">
+              {t('candidateDocumentsRejectionReasonLabel')}: {item.document.rejectionReason}
+            </div>
+          ) : null}
         </div>
 
         <div className="flex items-center gap-2">
           <Badge tone={tone}>{t(statusKey)}</Badge>
+          {complianceStatus ? (
+            <Badge tone={PCC_COMPLIANCE_STATUS_TONES[complianceStatus]}>{t(PCC_COMPLIANCE_STATUS_KEYS[complianceStatus] as TranslationKey)}</Badge>
+          ) : null}
           {!isActive && hasAction ? (
             <Button
               type="button"
