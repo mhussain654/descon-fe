@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, within } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Link, MemoryRouter, Route, Routes } from "react-router";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -81,30 +81,110 @@ async function signInAndNavigateToStatus() {
   fireEvent.click(await screen.findByText("Go to status"));
 }
 
+function stageRow(labelText) {
+  return screen.getByText(labelText).parentElement;
+}
+
 describe("StatusPage", () => {
   afterEach(() => {
     vi.mocked(applicationProgressClient.getProgress).mockReset();
   });
 
-  it("shows the real, backend-reported workflow stage and progress, not a fabricated multi-stage pipeline", async () => {
+  it("shows a loading state before progress resolves", async () => {
+    applicationProgressClient.getProgress.mockReturnValue(new Promise(() => {}));
+    await signInAndNavigateToStatus();
+
+    expect(await screen.findByText("Loading…")).toBeInTheDocument();
+  });
+
+  it("renders the full approved-prototype timeline, including the downstream stages that have no backend data yet", async () => {
     applicationProgressClient.getProgress.mockResolvedValue(progressPayload());
     await signInAndNavigateToStatus();
 
-    expect(await screen.findByText("Documents pending")).toBeInTheDocument();
-    // The old prototype's fabricated downstream stages (fee/QVC/visa/
-    // mobilization) have no backing endpoint and must never be shown as if
-    // they were real status.
-    expect(screen.queryByText("QVC Appointment Booked")).not.toBeInTheDocument();
-    expect(screen.queryByText("Visa Issued")).not.toBeInTheDocument();
-    expect(screen.queryByText("Mobilized")).not.toBeInTheDocument();
+    expect(await screen.findByText("Registered")).toBeInTheDocument();
+    expect(screen.getByText("Documents Pending")).toBeInTheDocument();
+    expect(screen.getByText("Documents Uploaded")).toBeInTheDocument();
+    expect(screen.getByText("Verified")).toBeInTheDocument();
+    // The prototype's downstream stages (fee/QVC/visa/mobilization) have no
+    // backing field in the real contract, so they render as plain, un-dated
+    // upcoming stages rather than being hidden or fabricated as reached.
+    expect(screen.getByText("Fee Pending")).toBeInTheDocument();
+    expect(screen.getByText("QVC Appointment Booked")).toBeInTheDocument();
+    expect(screen.getByText("Visa Issued")).toBeInTheDocument();
+    expect(screen.getByText("Mobilized")).toBeInTheDocument();
   });
 
-  it("shows the verified badge only once the backend reports the submission as verified", async () => {
-    applicationProgressClient.getProgress.mockResolvedValue(
-      progressPayload({ verified: 2, missing: 0, uploaded: 0, submittedTotal: 2, submissionState: "verified" })
-    );
+  it("marks documents-uploaded as the in-progress stage while documents are incomplete", async () => {
+    applicationProgressClient.getProgress.mockResolvedValue(progressPayload({ submissionState: "incomplete" }));
     await signInAndNavigateToStatus();
 
-    expect(await screen.findByText("Verified", { selector: "span" })).toBeInTheDocument();
+    await screen.findByText("Documents Uploaded");
+    expect(within(stageRow("Documents Uploaded")).getByText("In Progress")).toBeInTheDocument();
+    expect(within(stageRow("Verified")).queryByText("In Progress")).not.toBeInTheDocument();
+  });
+
+  it("marks verified as the in-progress stage once documents are submitted but not yet fully verified", async () => {
+    applicationProgressClient.getProgress.mockResolvedValue(progressPayload({ submissionState: "partially_verified" }));
+    await signInAndNavigateToStatus();
+
+    await screen.findByText("Verified");
+    expect(within(stageRow("Verified")).getByText("In Progress")).toBeInTheDocument();
+  });
+
+  it("shows no in-progress stage and never fabricates downstream progress once fully verified", async () => {
+    applicationProgressClient.getProgress.mockResolvedValue(progressPayload({ submissionState: "verified" }));
+    await signInAndNavigateToStatus();
+
+    await screen.findByText("Verified");
+    expect(screen.queryByText("In Progress")).not.toBeInTheDocument();
+  });
+
+  it("shows a session-expired state and returns to sign-in on the confirming action", async () => {
+    applicationProgressClient.getProgress.mockRejectedValue({ code: "SESSION_EXPIRED" });
+    await signInAndNavigateToStatus();
+
+    expect(await screen.findByText("Session expired")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Sign in again" }));
+
+    expect(await screen.findByText("Login screen")).toBeInTheDocument();
+  });
+
+  it("shows a distinct inactive-account state and returns to sign-in on the confirming action", async () => {
+    applicationProgressClient.getProgress.mockRejectedValue({ code: "INACTIVE_ACCOUNT" });
+    await signInAndNavigateToStatus();
+
+    expect(await screen.findByText("Account inactive")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Return to sign in" }));
+
+    expect(await screen.findByText("Login screen")).toBeInTheDocument();
+  });
+
+  it("shows an offline state with a retry action for a network failure", async () => {
+    applicationProgressClient.getProgress.mockRejectedValueOnce({ code: "OFFLINE" }).mockResolvedValueOnce(progressPayload());
+    await signInAndNavigateToStatus();
+
+    expect(await screen.findByText("You are offline")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Retry" }));
+
+    await screen.findByText("Registered");
+  });
+
+  it("retries the query when the retry action is used after a server error", async () => {
+    applicationProgressClient.getProgress.mockRejectedValueOnce({ code: "SERVER_ERROR" }).mockResolvedValueOnce(progressPayload());
+    await signInAndNavigateToStatus();
+
+    expect(await screen.findByText("Something went wrong.")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Retry" }));
+
+    await screen.findByText("Registered");
+  });
+
+  it("renders the timeline in Urdu when the language is switched", async () => {
+    applicationProgressClient.getProgress.mockResolvedValue(progressPayload());
+    localStorage.setItem("descon.language", "ur");
+    await signInAndNavigateToStatus();
+
+    expect(await screen.findByText("رجسٹرڈ")).toBeInTheDocument();
+    localStorage.removeItem("descon.language");
   });
 });

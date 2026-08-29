@@ -3,6 +3,7 @@ import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-nati
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
 import { useRouter } from "expo-router";
+import { Shield } from "lucide-react-native";
 import { useAuth } from "../contexts/AuthContext";
 import { useLanguage } from "../contexts/LanguageContext";
 import KeyboardAvoidingAnimatedView from "@/components/KeyboardAvoidingAnimatedView";
@@ -14,7 +15,7 @@ import {
   ValidationMessage,
   toast,
 } from "../design-system";
-import { colors, fontWeights, spacing } from "../design-system/tokens";
+import { colors, fontWeights, radii, spacing } from "../design-system/tokens";
 import { AUTH_ERROR_KEYS, CNIC_FIELD_ERROR_KEYS } from "../../../shared/auth/errorMessages";
 import { formatCountdown } from "../../../shared/auth/cnicOtpFlow";
 import { OTP_LENGTH } from "../../../shared/auth/types";
@@ -119,6 +120,9 @@ export default function LoginScreen() {
         </TouchableOpacity>
 
         <View style={styles.titleBlock}>
+          <View style={styles.logoBadge}>
+            <Shield size={32} color={colors.brand.on} strokeWidth={2} />
+          </View>
           <Text style={styles.title}>{step === "cnic" ? t("login") : t("verifyOTP")}</Text>
           <Text style={styles.message}>
             {step === "cnic"
@@ -228,6 +232,15 @@ const styles = StyleSheet.create({
   backButton: { marginBottom: spacing[10] },
   backText: { fontSize: 14, fontWeight: fontWeights.medium, color: colors.text.secondary },
   titleBlock: { marginBottom: spacing[10] },
+  logoBadge: {
+    width: 64,
+    height: 64,
+    borderRadius: radii.xl,
+    backgroundColor: colors.brand.default,
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: spacing[6],
+  },
   title: { fontSize: 28, fontWeight: fontWeights.semibold, color: colors.text.primary, marginBottom: spacing[2] },
   message: { fontSize: 16, color: colors.text.secondary, lineHeight: 22 },
   fieldStack: { gap: spacing[5] },

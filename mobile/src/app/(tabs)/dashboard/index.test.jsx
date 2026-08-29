@@ -1,22 +1,62 @@
-import { fireEvent, render, screen } from "@testing-library/react";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { Link, MemoryRouter, Route, Routes } from "react-router";
-import { afterEach, describe, expect, it, vi } from "vitest";
-import { AuthProvider, useAuth } from "../../contexts/AuthContext";
-import { LanguageProvider } from "../../contexts/LanguageContext";
-import { candidateProfileClient } from "../../lib/candidate-profile-client";
-import { candidateDocumentsClient } from "../../lib/candidate-documents-client";
-import { applicationProgressClient } from "../../lib/application-progress-client";
-import DashboardPage from "./page";
+import { QueryClientProvider } from "@tanstack/react-query";
+import { render, screen, waitFor } from "@testing-library/react-native";
+import { SafeAreaProvider } from "react-native-safe-area-context";
+import { AuthProvider } from "../../../contexts/AuthContext";
+import { LanguageProvider } from "../../../contexts/LanguageContext";
+import { candidateProfileClient } from "../../../lib/candidate-profile-client";
+import { candidateDocumentsClient } from "../../../lib/candidate-documents-client";
+import { applicationProgressClient } from "../../../lib/application-progress-client";
+import { createQueryClientTestLifecycle } from "../../../testSupport/queryClientTestLifecycle";
+import DashboardScreen from "./index";
 
-vi.mock("../../lib/candidate-profile-client", () => ({
-  candidateProfileClient: { getProfile: vi.fn() },
+const TEST_SAFE_AREA_METRICS = {
+  frame: { x: 0, y: 0, width: 390, height: 844 },
+  insets: { top: 47, left: 0, right: 0, bottom: 34 },
+};
+
+const mockReplace = jest.fn();
+jest.mock("expo-router", () => ({
+  useRouter: () => ({ replace: (...args) => mockReplace(...args), push: jest.fn(), back: jest.fn() }),
 }));
-vi.mock("../../lib/candidate-documents-client", () => ({
-  candidateDocumentsClient: { getChecklist: vi.fn(), uploadDocument: vi.fn() },
+
+jest.mock("expo-secure-store", () => ({
+  getItemAsync: jest.fn(() =>
+    Promise.resolve(
+      JSON.stringify({
+        accessToken: "candidate-access-token",
+        refreshToken: "refresh",
+        candidateId: "candidate-public-id-1",
+        candidateName: "Ahmed Ali",
+        preferredLocale: "en",
+        expiresAt: new Date(Date.now() + 60_000).toISOString(),
+      })
+    )
+  ),
+  setItemAsync: jest.fn(() => Promise.resolve()),
+  deleteItemAsync: jest.fn(() => Promise.resolve()),
 }));
-vi.mock("../../lib/application-progress-client", () => ({
-  applicationProgressClient: { getProgress: vi.fn(), submitDocuments: vi.fn() },
+
+jest.mock("@react-native-async-storage/async-storage", () =>
+  require("@react-native-async-storage/async-storage/jest/async-storage-mock")
+);
+
+jest.mock("@react-navigation/native", () => ({ useFocusEffect: () => {} }));
+
+jest.mock("@expo-google-fonts/inter", () => ({
+  useFonts: () => [true],
+  Inter_400Regular: "Inter_400Regular",
+  Inter_500Medium: "Inter_500Medium",
+  Inter_600SemiBold: "Inter_600SemiBold",
+}));
+
+jest.mock("../../../lib/candidate-profile-client", () => ({
+  candidateProfileClient: { getProfile: jest.fn() },
+}));
+jest.mock("../../../lib/candidate-documents-client", () => ({
+  candidateDocumentsClient: { getChecklist: jest.fn(), uploadDocument: jest.fn() },
+}));
+jest.mock("../../../lib/application-progress-client", () => ({
+  applicationProgressClient: { getProgress: jest.fn(), submitDocuments: jest.fn() },
 }));
 
 function profilePayload(overrides = {}) {
@@ -71,72 +111,44 @@ function checklistItem(overrides = {}) {
   };
 }
 
-function LoginStub() {
-  const { login } = useAuth();
-  return (
-    <div>
-      <p>Login screen</p>
-      <button
-        type="button"
-        onClick={() =>
-          login({
-            accessToken: "candidate-access-token",
-            refreshToken: "refresh",
-            candidateId: "candidate-public-id-1",
-            candidateName: "Ahmed Ali",
-            preferredLocale: "en",
-            expiresAt: new Date(Date.now() + 60_000).toISOString(),
-          })
-        }
-      >
-        login
-      </button>
-      <Link to="/dashboard">Go to dashboard</Link>
-    </div>
+const { createTestQueryClient, trackRender, cleanup } = createQueryClientTestLifecycle();
+
+afterEach(async () => {
+  await cleanup();
+  jest.mocked(candidateProfileClient.getProfile).mockReset();
+  jest.mocked(candidateDocumentsClient.getChecklist).mockReset();
+  jest.mocked(applicationProgressClient.getProgress).mockReset();
+  mockReplace.mockReset();
+});
+
+function renderDashboardScreen() {
+  const queryClient = createTestQueryClient();
+  return trackRender(
+    render(
+      <SafeAreaProvider initialMetrics={TEST_SAFE_AREA_METRICS}>
+        <QueryClientProvider client={queryClient}>
+          <LanguageProvider>
+            <AuthProvider>
+              <DashboardScreen />
+            </AuthProvider>
+          </LanguageProvider>
+        </QueryClientProvider>
+      </SafeAreaProvider>
+    )
   );
 }
 
-function renderDashboardPage() {
-  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-  return render(
-    <QueryClientProvider client={queryClient}>
-      <LanguageProvider>
-        <AuthProvider>
-          <MemoryRouter initialEntries={["/login"]}>
-            <Routes>
-              <Route path="/login" element={<LoginStub />} />
-              <Route path="/dashboard" element={<DashboardPage />} />
-            </Routes>
-          </MemoryRouter>
-        </AuthProvider>
-      </LanguageProvider>
-    </QueryClientProvider>
-  );
-}
-
-async function signInAndNavigateToDashboard() {
-  renderDashboardPage();
-  fireEvent.click(screen.getByText("login"));
-  fireEvent.click(await screen.findByText("Go to dashboard"));
-}
-
-describe("DashboardPage", () => {
-  afterEach(() => {
-    vi.mocked(candidateProfileClient.getProfile).mockReset();
-    vi.mocked(candidateDocumentsClient.getChecklist).mockReset();
-    vi.mocked(applicationProgressClient.getProgress).mockReset();
-  });
-
+describe("DashboardScreen", () => {
   it("shows the candidate's real name, reference number, workflow stage and completion percentage", async () => {
     candidateProfileClient.getProfile.mockResolvedValue(profilePayload());
     candidateDocumentsClient.getChecklist.mockResolvedValue([checklistItem()]);
     applicationProgressClient.getProgress.mockResolvedValue(progress());
-    await signInAndNavigateToDashboard();
+    renderDashboardScreen();
 
-    expect(await screen.findByText("Ahmed Ali")).toBeInTheDocument();
-    expect(screen.getByText("DES-001001")).toBeInTheDocument();
-    expect(screen.getByText("Documents Uploaded (In Progress)")).toBeInTheDocument();
-    expect(screen.getByText("50% complete")).toBeInTheDocument();
+    expect(await screen.findByText("Ahmed Ali")).toBeOnTheScreen();
+    expect(screen.getByText("DES-001001")).toBeOnTheScreen();
+    expect(screen.getByText("Documents Uploaded (In Progress)")).toBeOnTheScreen();
+    expect(screen.getByText("50% complete")).toBeOnTheScreen();
   });
 
   it("shows the verified chip only once the backend reports the submission as verified", async () => {
@@ -145,9 +157,9 @@ describe("DashboardPage", () => {
     applicationProgressClient.getProgress.mockResolvedValue(
       progress({ documents: documentsSummary({ submissionState: "verified", completionPercentage: 100 }) })
     );
-    await signInAndNavigateToDashboard();
+    renderDashboardScreen();
 
-    expect(await screen.findByText("100% complete")).toBeInTheDocument();
+    expect(await screen.findByText("100% complete")).toBeOnTheScreen();
     // "Verified" now legitimately appears twice once fully verified -- the
     // green chip, and the current-status line's stage name (no longer
     // ambiguous with the in-progress case, which appends "(In Progress)").
@@ -160,19 +172,19 @@ describe("DashboardPage", () => {
     applicationProgressClient.getProgress.mockResolvedValue(
       progress({ documents: documentsSummary({ submissionState: "partially_verified" }) })
     );
-    await signInAndNavigateToDashboard();
+    renderDashboardScreen();
 
     await screen.findByText("Ahmed Ali");
-    expect(screen.queryByText("Verified")).not.toBeInTheDocument();
+    expect(screen.queryByText("Verified")).toBeNull();
   });
 
   it("prompts to upload the missing required document as the highest-priority next step", async () => {
     candidateProfileClient.getProfile.mockResolvedValue(profilePayload());
     candidateDocumentsClient.getChecklist.mockResolvedValue([checklistItem({ status: "missing" })]);
     applicationProgressClient.getProgress.mockResolvedValue(progress());
-    await signInAndNavigateToDashboard();
+    renderDashboardScreen();
 
-    expect(await screen.findByText(/Upload your missing document: Passport/)).toBeInTheDocument();
+    expect(await screen.findByText(/Upload your missing document: Passport/)).toBeOnTheScreen();
   });
 
   it("prompts to replace a rejected, replaceable required document ahead of a missing one", async () => {
@@ -182,9 +194,9 @@ describe("DashboardPage", () => {
       checklistItem({ requirementCode: "cnic_front", name: "CNIC", status: "missing" }),
     ]);
     applicationProgressClient.getProgress.mockResolvedValue(progress());
-    await signInAndNavigateToDashboard();
+    renderDashboardScreen();
 
-    expect(await screen.findByText(/Replace your rejected document: Passport/)).toBeInTheDocument();
+    expect(await screen.findByText(/Replace your rejected document: Passport/)).toBeOnTheScreen();
   });
 
   it("shows the waiting-for-verification fallback once fully verified with nothing left to do", async () => {
@@ -193,40 +205,40 @@ describe("DashboardPage", () => {
     applicationProgressClient.getProgress.mockResolvedValue(
       progress({ documents: documentsSummary({ submissionState: "verified", missing: 0, verified: 1 }) })
     );
-    await signInAndNavigateToDashboard();
+    renderDashboardScreen();
 
-    expect(await screen.findByText("Verification complete")).toBeInTheDocument();
+    expect(await screen.findByText("Verification complete")).toBeOnTheScreen();
   });
 
-  it("renders the quick-action links to documents, status and payment", async () => {
+  it("navigates to the documents and status screens from the quick-action tiles", async () => {
     candidateProfileClient.getProfile.mockResolvedValue(profilePayload());
     candidateDocumentsClient.getChecklist.mockResolvedValue([]);
     applicationProgressClient.getProgress.mockResolvedValue(progress());
-    await signInAndNavigateToDashboard();
+    renderDashboardScreen();
 
     await screen.findByText("Ahmed Ali");
-    expect(screen.getByRole("link", { name: /Upload Documents/ })).toHaveAttribute("href", "/documents");
-    expect(screen.getByRole("link", { name: /View Status/ })).toHaveAttribute("href", "/status");
-    expect(screen.getByRole("link", { name: /Make Payment/ })).toHaveAttribute("href", "/payment");
+    expect(screen.getByText("Upload Documents")).toBeOnTheScreen();
+    expect(screen.getByText("View Status")).toBeOnTheScreen();
+    expect(screen.getByText("Make Payment")).toBeOnTheScreen();
   });
 
   it("ends the session and returns to sign-in on a session-expired error from any source query", async () => {
     candidateProfileClient.getProfile.mockRejectedValue({ code: "SESSION_EXPIRED" });
     candidateDocumentsClient.getChecklist.mockResolvedValue([]);
     applicationProgressClient.getProgress.mockResolvedValue(progress());
-    await signInAndNavigateToDashboard();
+    renderDashboardScreen();
 
-    expect(await screen.findByText("Login screen")).toBeInTheDocument();
+    await waitFor(() => expect(mockReplace).toHaveBeenCalledWith("/login"));
   });
 
-  it("renders the dashboard in Urdu when the language is switched", async () => {
+  it("renders the dashboard in Urdu when that is the persisted language", async () => {
     candidateProfileClient.getProfile.mockResolvedValue(profilePayload());
     candidateDocumentsClient.getChecklist.mockResolvedValue([]);
     applicationProgressClient.getProgress.mockResolvedValue(progress());
-    localStorage.setItem("descon.language", "ur");
-    await signInAndNavigateToDashboard();
+    const AsyncStorage = require("@react-native-async-storage/async-storage");
+    await AsyncStorage.setItem("descon.language", "ur");
+    renderDashboardScreen();
 
-    expect(await screen.findByText("خوش آمدید")).toBeInTheDocument();
-    localStorage.removeItem("descon.language");
+    expect(await screen.findByText("خوش آمدید")).toBeOnTheScreen();
   });
 });

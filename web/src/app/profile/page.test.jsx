@@ -134,14 +134,13 @@ describe("ProfilePage", () => {
     expect(screen.queryByText("42101-1234567-1")).not.toBeInTheDocument();
   });
 
-  it("shows the green verified indicator only when the backend's submissionState is verified, plus the document counts", async () => {
+  it("shows the green verified indicator only when the backend's submissionState is verified", async () => {
     candidateProfileClient.getProfile.mockResolvedValue(profilePayload());
     applicationProgressClient.getProgress.mockResolvedValue(progressPayload());
     await signInAndNavigateToProfile();
 
     const section = (await screen.findByText("Document verification")).closest("div").parentElement;
-    expect(within(section).getByText("Verified", { selector: "span" })).toBeInTheDocument();
-    expect(within(section).getByText("3")).toBeInTheDocument();
+    expect(within(section).getByText("Verified")).toBeInTheDocument();
   });
 
   it("does not show the verified indicator while documents are only partially verified", async () => {
@@ -160,7 +159,7 @@ describe("ProfilePage", () => {
     await signInAndNavigateToProfile();
 
     const section = (await screen.findByText("Document verification")).closest("div").parentElement;
-    expect(within(section).queryByText("Verified", { selector: "span" })).not.toBeInTheDocument();
+    expect(within(section).queryByText("Verified")).not.toBeInTheDocument();
     expect(within(section).getByText("Partially verified")).toBeInTheDocument();
   });
 

@@ -19,9 +19,9 @@ import { profileQueries } from '../../../../../../shared/queryKeys/profileQuerie
  * silently bouncing them to login the instant the error resolves.
  *
  * No automatic retry -- every state this hook can be in maps to a distinct,
- * visible UI state with its own explicit "Retry" action (CandidateProfileView),
- * so a silent background retry would just delay that state reaching the
- * screen without the candidate ever seeing or controlling it.
+ * visible UI state on the profile screen with its own explicit "Retry"
+ * action, so a silent background retry would just delay that state reaching
+ * the screen without the candidate ever seeing or controlling it.
  *
  * `refetchOnWindowFocus` covers the ticket's "Refetch candidate profile
  * when Profile gains focus" for web -- see useCandidateDocuments.ts for why
