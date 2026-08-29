@@ -101,6 +101,10 @@ export function DocumentChecklistView({
             validationError={upload.validationError}
             uploadError={upload.mutation.error}
             isUploading={upload.mutation.isPending}
+            isPccRequirement={upload.isPccRequirement}
+            issuedOn={upload.issuedOn}
+            onIssuedOnChange={upload.setIssuedOn}
+            issuedOnError={upload.issuedOnError}
             onStartUpload={upload.startUpload}
             onCancel={upload.cancelUpload}
             onPickDocument={upload.pickDocument}

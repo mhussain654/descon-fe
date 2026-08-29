@@ -14,6 +14,7 @@ import {
   type IdempotencyKeyState,
 } from '../../../../../../shared/candidateDocuments/idempotency';
 import { validateSelectedFile, type FileValidationError } from '../../../../../../shared/candidateDocuments/fileValidation';
+import { PCC_REQUIREMENT_CODE, validatePccIssueDate, type PccIssueDateError } from '../../../../../../shared/candidateDocuments/pccIssueDate';
 import { CANDIDATE_DOCUMENTS_QUERY_KEY } from './useCandidateDocuments';
 
 /** iOS/Android both report `size`/`mimeType` on a picked asset, but neither is guaranteed on every device/provider -- validation and the idempotency signature both tolerate either being absent, matching web's handling of a platform that doesn't report a MIME type. */
@@ -22,14 +23,23 @@ export type PickedDocument = DocumentPicker.DocumentPickerAsset;
 interface UploadVariables {
   requirementCode: string;
   document: PickedDocument;
+  issuedOn: string;
   idempotencyKey: string;
   accessTokenAtCallTime: string;
 }
 
 const ALLOWED_MIME_TYPES = ['application/pdf', 'image/jpeg', 'image/png'];
 
-function documentSignature(document: PickedDocument): string {
-  return `${document.uri}:${document.size ?? 'unknown'}:${document.lastModified}`;
+/**
+ * Includes `issuedOn` so a candidate editing the PCC issue date between
+ * attempts is treated the same as picking a different file -- the backend's
+ * own idempotency fingerprint (Candidates::Documents::UploadFingerprint)
+ * hashes `issued_on` alongside the file, so reusing a key across a changed
+ * date would otherwise surface as a confusing idempotency_conflict instead
+ * of just starting a fresh attempt.
+ */
+function documentSignature(document: PickedDocument, issuedOn: string): string {
+  return `${document.uri}:${document.size ?? 'unknown'}:${document.lastModified}:${issuedOn}`;
 }
 
 /**
@@ -39,8 +49,13 @@ function documentSignature(document: PickedDocument): string {
  * web's real `File` object, and is never used outside this mobile module
  * (ticket: "React Native document-picker file objects belong in mobile
  * code.").
+ *
+ * `issuedOn` is only appended for the police_character requirement -- the
+ * backend rejects the request entirely if `expires_on` is ever supplied by
+ * the client (PccExpiryNotEditableError), so that field is never sent here
+ * at all; expiry is always server-calculated.
  */
-function buildFormData(requirementCode: string, document: PickedDocument): FormData {
+function buildFormData(requirementCode: string, document: PickedDocument, issuedOn: string): FormData {
   const formData = new FormData();
   formData.append('candidate_document[requirement_code]', requirementCode);
   formData.append(
@@ -52,6 +67,9 @@ function buildFormData(requirementCode: string, document: PickedDocument): FormD
       type: document.mimeType || 'application/octet-stream',
     } as any
   );
+  if (requirementCode === PCC_REQUIREMENT_CODE && issuedOn.trim()) {
+    formData.append('candidate_document[issued_on]', issuedOn.trim());
+  }
   return formData;
 }
 
@@ -59,7 +77,8 @@ function buildFormData(requirementCode: string, document: PickedDocument): FormD
  * Owns the single active "upload or replace" flow across the whole
  * checklist -- mirrors web/src/features/candidate/documents/hooks/useDocumentUpload.ts's
  * design and every idempotency/race-safety rule it documents, swapping the
- * browser `File` for an `expo-document-picker` asset.
+ * browser `File` for an `expo-document-picker` asset, and additionally
+ * collects the PCC issue date the police_character requirement now requires.
  */
 export function useDocumentUpload() {
   const { session } = useAuth();
@@ -69,16 +88,20 @@ export function useDocumentUpload() {
   const [activeRequirementCode, setActiveRequirementCode] = useState<string | null>(null);
   const [document, setDocument] = useState<PickedDocument | null>(null);
   const [validationError, setValidationError] = useState<FileValidationError | null>(null);
+  const [issuedOn, setIssuedOnState] = useState('');
+  const [issuedOnError, setIssuedOnError] = useState<PccIssueDateError | null>(null);
   const [idempotencyState, setIdempotencyState] = useState<IdempotencyKeyState>(EMPTY_IDEMPOTENCY_KEY_STATE);
 
   const activeRequirementCodeRef = useRef<string | null>(null);
   activeRequirementCodeRef.current = activeRequirementCode;
 
+  const isPccRequirement = activeRequirementCode === PCC_REQUIREMENT_CODE;
+
   const mutation = useMutation<CandidateDocumentChecklistItem, CandidateDocumentsError, UploadVariables>({
-    mutationFn: async ({ requirementCode, document, idempotencyKey, accessTokenAtCallTime }) => {
+    mutationFn: async ({ requirementCode, document, issuedOn, idempotencyKey, accessTokenAtCallTime }) => {
       let formData: FormData;
       try {
-        formData = buildFormData(requirementCode, document);
+        formData = buildFormData(requirementCode, document, issuedOn);
       } catch {
         // The picked file (or its cached copy) is no longer accessible on
         // disk -- caught here rather than left to crash the app (ticket:
@@ -104,6 +127,8 @@ export function useDocumentUpload() {
         setActiveRequirementCode(null);
         setDocument(null);
         setValidationError(null);
+        setIssuedOnState('');
+        setIssuedOnError(null);
         setIdempotencyState(clearIdempotencyKey());
       }
     },
@@ -114,6 +139,12 @@ export function useDocumentUpload() {
       if (error.code === 'REPLACEMENT_NOT_ALLOWED') {
         queryClient.invalidateQueries({ queryKey: CANDIDATE_DOCUMENTS_QUERY_KEY });
       }
+      // VALIDATION_ERROR (a bad/missing PCC issue date): the panel stays
+      // open with the typed date preserved so the candidate can fix it --
+      // resolveIdempotencyKey below already mints a fresh key on the next
+      // submit if they change the date, and reuses the same one if they
+      // don't, matching the backend's own fingerprint (which hashes
+      // issued_on alongside the file).
     },
   });
 
@@ -122,6 +153,8 @@ export function useDocumentUpload() {
       setActiveRequirementCode(requirementCode);
       setDocument(null);
       setValidationError(null);
+      setIssuedOnState('');
+      setIssuedOnError(null);
       setIdempotencyState(EMPTY_IDEMPOTENCY_KEY_STATE);
       mutation.reset();
     },
@@ -132,6 +165,8 @@ export function useDocumentUpload() {
     setActiveRequirementCode(null);
     setDocument(null);
     setValidationError(null);
+    setIssuedOnState('');
+    setIssuedOnError(null);
     setIdempotencyState(EMPTY_IDEMPOTENCY_KEY_STATE);
     mutation.reset();
   }, [mutation]);
@@ -158,15 +193,26 @@ export function useDocumentUpload() {
     mutation.reset();
   }, [mutation]);
 
+  const setIssuedOn = useCallback((value: string) => {
+    setIssuedOnState(value);
+    setIssuedOnError(null);
+  }, []);
+
   const submit = useCallback(() => {
     if (!document || !activeRequirementCode || !session || mutation.isPending) return;
-    const error = validateSelectedFile({ name: document.name, size: document.size, type: document.mimeType });
-    setValidationError(error);
-    if (error) return;
+    const fileError = validateSelectedFile({ name: document.name, size: document.size, type: document.mimeType });
+    setValidationError(fileError);
+    if (fileError) return;
+
+    if (isPccRequirement) {
+      const dateError = validatePccIssueDate(issuedOn);
+      setIssuedOnError(dateError);
+      if (dateError) return;
+    }
 
     const resolved = resolveIdempotencyKey(
       idempotencyState,
-      { requirementCode: activeRequirementCode, fileSignature: documentSignature(document) },
+      { requirementCode: activeRequirementCode, fileSignature: documentSignature(document, issuedOn) },
       randomIdempotencyKey
     );
     setIdempotencyState(resolved);
@@ -174,15 +220,20 @@ export function useDocumentUpload() {
     mutation.mutate({
       requirementCode: activeRequirementCode,
       document,
+      issuedOn,
       idempotencyKey: resolved.key as string,
       accessTokenAtCallTime: session.accessToken,
     });
-  }, [document, activeRequirementCode, session, idempotencyState, mutation]);
+  }, [document, activeRequirementCode, session, idempotencyState, mutation, isPccRequirement, issuedOn]);
 
   return {
     activeRequirementCode,
     document,
     validationError,
+    isPccRequirement,
+    issuedOn,
+    setIssuedOn,
+    issuedOnError,
     startUpload,
     cancelUpload,
     pickDocument,

@@ -23,6 +23,11 @@ export type CandidateDocumentDisplayStatus = CandidateDocumentStatus | 'unknown'
 
 export type CandidateDocumentContentType = 'application/pdf' | 'image/jpeg' | 'image/png';
 
+/** Only present for the `police_character` (PCC) requirement -- see PccComplianceDisplayStatus for the 'unknown' fallback used for any value this build doesn't recognize. */
+export type PccComplianceStatus = 'current' | 'near_expiry' | 'expired' | 'not_applicable';
+
+export type PccComplianceDisplayStatus = PccComplianceStatus | 'unknown';
+
 export interface CandidateDocumentMetadata {
   id: string;
   fileName: string;
@@ -30,6 +35,14 @@ export interface CandidateDocumentMetadata {
   fileSize: number;
   /** ISO 8601 timestamp. */
   uploadedAt: string;
+  /** Present only for the `police_character` requirement (ISO 8601 date). */
+  issuedOn?: string;
+  /** Present only for the `police_character` requirement -- calculated by the backend as exactly six calendar months after `issuedOn` (ISO 8601 date). */
+  expiresOn?: string;
+  /** Present only for the `police_character` requirement. */
+  complianceStatus?: PccComplianceDisplayStatus;
+  /** Present only when this document's current status is 'rejected'. */
+  rejectionReason?: string;
 }
 
 export interface CandidateDocumentChecklistItem {
@@ -56,6 +69,15 @@ export type CandidateDocumentsErrorCode =
   | 'EMPTY_FILE'
   /** 422 `replacement_not_allowed` -- the checklist must be refreshed, since the item's status (and therefore its replacement eligibility) may have changed since it was loaded. */
   | 'REPLACEMENT_NOT_ALLOWED'
+  /**
+   * 422 `validation_failed` (a candidate-entered PCC issue date that's
+   * missing, malformed, or in the future) or `pcc_expiry_not_editable` (the
+   * client attempted to supply `expires_on`, which the backend always
+   * computes itself). Both carry a backend-localized `message` specific to
+   * the actual problem, and a `field` identifying which form field it
+   * applies to -- always prefer the message over this generic code.
+   */
+  | 'VALIDATION_ERROR'
   | 'RATE_LIMITED'
   | 'NETWORK_ERROR'
   | 'OFFLINE'
@@ -66,6 +88,8 @@ export interface CandidateDocumentsError {
   code: CandidateDocumentsErrorCode;
   /** Already-localized server message, when the backend provided one (every 422 code does). */
   message?: string;
+  /** The request field this error applies to (e.g. 'candidate_document.issued_on'), when the backend supplied one -- present for VALIDATION_ERROR. */
+  field?: string;
   retryAfterSeconds?: number;
 }
 
