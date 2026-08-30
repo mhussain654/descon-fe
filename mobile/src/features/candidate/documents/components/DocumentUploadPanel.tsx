@@ -50,6 +50,8 @@ export interface DocumentUploadPanelProps {
   onIssuedOnChange: (value: string) => void;
   issuedOnError: PccIssueDateError | null;
   permissionNotice: CapturePermissionNotice | null;
+  /** False for formal, institution-issued requirements (CV, experience letter, certificates) where a phone camera capture is a poor fit -- see shared/candidateDocuments/captureEligibility.ts. Only "Choose file" is offered in that case. */
+  showCameraCapture: boolean;
   onPickDocument: () => void;
   onPickFromCamera: () => void;
   onPickFromGallery: () => void;
@@ -72,6 +74,7 @@ export function DocumentUploadPanel({
   onIssuedOnChange,
   issuedOnError,
   permissionNotice,
+  showCameraCapture,
   onPickDocument,
   onPickFromCamera,
   onPickFromGallery,
@@ -106,20 +109,25 @@ export function DocumentUploadPanel({
       {/* Capture guidance, not automated validation -- the app never analyzes
           the image itself, this is just plain instruction text (ticket: "Do
           not claim to analyze image quality ... Provide capture guidance ...
-          without presenting it as automated validation."). */}
-      <HelperText>{t('candidateDocumentsCaptureGuidance')}</HelperText>
+          without presenting it as automated validation."). Only shown
+          alongside the camera/gallery buttons themselves. */}
+      {showCameraCapture ? <HelperText>{t('candidateDocumentsCaptureGuidance')}</HelperText> : null}
       <View style={styles.row}>
-        <Button variant="outline" size="sm" onPress={onPickFromCamera}>
-          {t('candidateDocumentsTakePhoto')}
-        </Button>
-        <Button variant="outline" size="sm" onPress={onPickFromGallery}>
-          {t('candidateDocumentsChooseFromGallery')}
-        </Button>
+        {showCameraCapture ? (
+          <>
+            <Button variant="outline" size="sm" onPress={onPickFromCamera}>
+              {t('candidateDocumentsTakePhoto')}
+            </Button>
+            <Button variant="outline" size="sm" onPress={onPickFromGallery}>
+              {t('candidateDocumentsChooseFromGallery')}
+            </Button>
+          </>
+        ) : null}
         <Button variant="outline" size="sm" onPress={onPickDocument}>
           {t('candidateDocumentsChooseFile')}
         </Button>
       </View>
-      {permissionNotice ? (
+      {showCameraCapture && permissionNotice ? (
         <View style={styles.permissionNotice}>
           <ValidationMessage tone="error">{t(PERMISSION_NOTICE_KEYS[`${permissionNotice.source}:${permissionNotice.blocked ? 'blocked' : 'denied'}`])}</ValidationMessage>
           {permissionNotice.blocked ? (

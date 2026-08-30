@@ -601,6 +601,37 @@ describe("DocumentsScreen", () => {
     await screen.findByText(/Selected file: passport\.pdf/);
   });
 
+  it.each(["cv", "experience_letter", "certificates"])(
+    "hides camera/gallery capture for the %s requirement, offering only Choose file",
+    async (requirementCode) => {
+      candidateDocumentsClient.getChecklist.mockResolvedValue([
+        item({ requirementCode, name: "CV / Resume", status: "missing" }),
+      ]);
+      applicationProgressClient.getProgress.mockResolvedValue(progress());
+      renderDocumentsScreen();
+
+      fireEvent.press(await screen.findByRole("button", { name: "Upload" }));
+
+      expect(screen.queryByRole("button", { name: "Take photo" })).toBeNull();
+      expect(screen.queryByRole("button", { name: "Choose from gallery" })).toBeNull();
+      expect(screen.queryByText("Make sure the whole document is visible, right-side up and not cropped.")).toBeNull();
+      expect(screen.getByRole("button", { name: "Choose file" })).toBeOnTheScreen();
+    }
+  );
+
+  it("still shows camera/gallery capture for a physical document like the police character certificate", async () => {
+    candidateDocumentsClient.getChecklist.mockResolvedValue([
+      item({ requirementCode: "police_character", name: "Police Character Certificate", status: "missing" }),
+    ]);
+    applicationProgressClient.getProgress.mockResolvedValue(progress());
+    renderDocumentsScreen();
+
+    fireEvent.press(await screen.findByRole("button", { name: "Upload" }));
+
+    expect(screen.getByRole("button", { name: "Take photo" })).toBeOnTheScreen();
+    expect(screen.getByRole("button", { name: "Choose from gallery" })).toBeOnTheScreen();
+  });
+
   it("does not show the PCC issue-date field for a non-PCC requirement", async () => {
     candidateDocumentsClient.getChecklist.mockResolvedValue([item({ status: "missing" })]);
     applicationProgressClient.getProgress.mockResolvedValue(progress());

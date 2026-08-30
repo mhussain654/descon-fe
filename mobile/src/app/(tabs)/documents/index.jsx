@@ -33,6 +33,7 @@ import { CANDIDATE_DOCUMENTS_ERROR_KEYS } from "../../../../../shared/candidateD
 import { APPLICATION_PROGRESS_ERROR_KEYS } from "../../../../../shared/applicationProgress/errorMessages";
 import { PCC_COMPLIANCE_STATUS_KEYS } from "../../../../../shared/candidateDocuments/statusLabels";
 import { sortByPrototypeOrder } from "../../../../../shared/candidateDocuments/checklistOrder";
+import { isCameraCaptureEligible } from "../../../../../shared/candidateDocuments/captureEligibility";
 
 const STATUS_CONFIG = {
   verified: { icon: CheckCircle, color: "#10B981", bgLight: "#E6F9F0", bgDark: "#1A2E1A", labelKey: "verified" },
@@ -379,6 +380,7 @@ function DocumentRow({ item, isDark, language, t, isActive, isAnyUploadPending, 
           onIssuedOnChange={upload.setIssuedOn}
           issuedOnError={upload.issuedOnError}
           permissionNotice={upload.permissionNotice}
+          showCameraCapture={isCameraCaptureEligible(item.requirementCode)}
           onPickDocument={upload.pickDocument}
           onPickFromCamera={upload.pickFromCamera}
           onPickFromGallery={upload.pickFromGallery}
