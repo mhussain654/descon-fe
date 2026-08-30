@@ -41,6 +41,8 @@ export interface CandidateDocumentMetadata {
   expiresOn?: string;
   /** Present only for the `police_character` requirement. */
   complianceStatus?: PccComplianceDisplayStatus;
+  /** Present only once the document has been reviewed (verified or rejected). ISO 8601 timestamp. */
+  reviewedAt?: string;
   /** Present only when this document's current status is 'rejected'. */
   rejectionReason?: string;
 }

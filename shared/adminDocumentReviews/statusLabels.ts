@@ -1,4 +1,4 @@
-import type { DocumentDisplayStatus, ReviewDisplayState, ReviewState } from './types';
+import type { DocumentDisplayStatus, QueueStatusFilter, ReviewDisplayState, ReviewerDisplayRole, ReviewState } from './types';
 
 export type StatusTone = 'neutral' | 'info' | 'warning' | 'success' | 'danger';
 
@@ -51,3 +51,36 @@ export const FILTERABLE_REVIEW_STATES: readonly ReviewState[] = [
   'changes_required',
   'verified',
 ];
+
+/** Labels/tones for the 3 filter-only queue statuses that never appear as a `review.reviewState` value on a returned item -- reuses the same vocabulary as the per-document 'rejected' status and the candidate-facing PCC compliance labels rather than duplicating them. */
+type QueueStatusFilterOnly = Exclude<QueueStatusFilter, ReviewState>;
+
+export const QUEUE_STATUS_FILTER_ONLY_KEYS: Record<QueueStatusFilterOnly, string> = {
+  rejected: 'rejected',
+  expired_pcc: 'candidateDocumentsPccExpired',
+  near_expiry_pcc: 'candidateDocumentsPccNearExpiry',
+};
+
+export const QUEUE_STATUS_FILTER_ONLY_TONES: Record<QueueStatusFilterOnly, StatusTone> = {
+  rejected: 'danger',
+  expired_pcc: 'danger',
+  near_expiry_pcc: 'warning',
+};
+
+/** The staff compliance-summary chip row filters by every queue status, including the 3 filter-only ones the review-state badge itself never shows (ticket: "Filter chips for these states"). */
+export const FILTERABLE_QUEUE_STATUSES: readonly QueueStatusFilter[] = [
+  ...FILTERABLE_REVIEW_STATES,
+  'rejected',
+  'expired_pcc',
+  'near_expiry_pcc',
+];
+
+/** Known staff role codes -> translated label key, plus 'unknown' for a future role this build doesn't recognize yet. Never render the raw role code or a personal name -- the backend has no name field for reviewers at all. */
+export const ADMIN_REVIEWER_ROLE_KEYS: Record<ReviewerDisplayRole, string> = {
+  admin: 'adminReviewerRoleAdmin',
+  hr: 'adminReviewerRoleHr',
+  mps: 'adminReviewerRoleMps',
+  finance: 'adminReviewerRoleFinance',
+  management: 'adminReviewerRoleManagement',
+  unknown: 'adminReviewerRoleUnknown',
+};

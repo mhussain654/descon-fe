@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { MemoryRouter, Route, Routes } from "react-router";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -46,8 +46,8 @@ function queueItem(overrides = {}) {
   };
 }
 
-function queueResult(items, pagination = { page: 1, perPage: 20, totalCount: items.length, totalPages: 1 }) {
-  return { items, pagination };
+function queueResult(items, pagination = { page: 1, perPage: 20, totalCount: items.length, totalPages: 1 }, summary) {
+  return { items, pagination, summary };
 }
 
 function renderAt(path, client) {
@@ -305,6 +305,56 @@ describe("DocumentReviewsPage", () => {
       fireEvent.click(clearButton);
 
       await waitFor(() => expect(screen.getByLabelText("Candidate ID")).toHaveValue(""));
+    });
+
+    it("offers rejected, expired PCC, and near-expiry PCC as filter chips alongside the 4 review states", async () => {
+      adminDocumentReviewsClient.getQueue.mockResolvedValue(queueResult([]));
+      const client = await signInAs(ADMIN);
+      renderAt("/admin/document-reviews", client);
+
+      expect(await screen.findByRole("button", { name: "Rejected" })).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "Expired" })).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "Expiring soon" })).toBeInTheDocument();
+    });
+
+    it("toggling the expired-PCC chip requests it from the backend", async () => {
+      adminDocumentReviewsClient.getQueue.mockResolvedValue(queueResult([]));
+      const client = await signInAs(ADMIN);
+      renderAt("/admin/document-reviews", client);
+
+      fireEvent.click(await screen.findByRole("button", { name: "Expired" }));
+
+      await waitFor(() => {
+        const [filters] = adminDocumentReviewsClient.getQueue.mock.calls.at(-1);
+        expect(filters.status).toEqual(expect.arrayContaining(["expired_pcc"]));
+      });
+    });
+  });
+
+  describe("staff compliance summary", () => {
+    it("shows aggregate counts reconciling with the queue when the backend returns a summary", async () => {
+      adminDocumentReviewsClient.getQueue.mockResolvedValue(
+        queueResult([queueItem()], undefined, { pendingReview: 3, verified: 5, rejected: 2, expiredPcc: 1, nearExpiryPcc: 4 })
+      );
+      const client = await signInAs(ADMIN);
+      renderAt("/admin/document-reviews", client);
+
+      await screen.findByText("Ahmed Ali");
+      const summary = screen.getByText("Queue summary").closest("div");
+      expect(within(summary).getByText("3")).toBeInTheDocument();
+      expect(within(summary).getByText("2")).toBeInTheDocument();
+      expect(within(summary).getByText("1")).toBeInTheDocument();
+      expect(within(summary).getByText("4")).toBeInTheDocument();
+      expect(within(summary).getByText("5")).toBeInTheDocument();
+    });
+
+    it("does not render the summary strip when the backend did not return one", async () => {
+      adminDocumentReviewsClient.getQueue.mockResolvedValue(queueResult([]));
+      const client = await signInAs(ADMIN);
+      renderAt("/admin/document-reviews", client);
+
+      await waitFor(() => expect(adminDocumentReviewsClient.getQueue).toHaveBeenCalled());
+      expect(screen.queryByText("Queue summary")).not.toBeInTheDocument();
     });
   });
 

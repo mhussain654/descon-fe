@@ -1,5 +1,6 @@
 import { useCallback, useEffect } from "react";
 import { useNavigate } from "react-router";
+import { Shield } from "lucide-react";
 import { useAuth } from "../../contexts/AuthContext";
 import { useLanguage } from "../../contexts/LanguageContext";
 import { Button, CnicField, OtpField, RetryBanner, ValidationMessage, toast } from "../../design-system";
@@ -93,6 +94,9 @@ export default function LoginPage() {
         </div>
 
         <div className="mb-10">
+          <div className="mb-6 flex h-16 w-16 items-center justify-center rounded-2xl bg-[#0066CC]">
+            <Shield size={32} color="#FFFFFF" strokeWidth={2} />
+          </div>
           <h1 className="mb-2 text-3xl font-semibold text-text-primary">
             {step === "cnic" ? t("login") : t("verifyOTP")}
           </h1>

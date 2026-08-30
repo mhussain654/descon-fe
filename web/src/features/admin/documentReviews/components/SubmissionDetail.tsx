@@ -18,7 +18,7 @@ import {
 import { formatDate } from '../../../../../../shared/i18n/locale';
 import { ADMIN_DOCUMENT_REVIEW_ERROR_KEYS } from '../../../../../../shared/adminDocumentReviews/errorMessages';
 import { formatFileSize, referenceDisplayName } from '../../../../../../shared/adminDocumentReviews/formatting';
-import { DOCUMENT_STATUS_KEYS, DOCUMENT_STATUS_TONES } from '../../../../../../shared/adminDocumentReviews/statusLabels';
+import { ADMIN_REVIEWER_ROLE_KEYS, DOCUMENT_STATUS_KEYS, DOCUMENT_STATUS_TONES } from '../../../../../../shared/adminDocumentReviews/statusLabels';
 import type { SubmissionDocument } from '../../../../../../shared/adminDocumentReviews/types';
 import type { TranslationKey } from '../../../../../../shared/i18n/translations';
 import { useDocumentAccess } from '../hooks/useDocumentAccess';
@@ -35,7 +35,7 @@ export function SubmissionDetail({ submissionId }: SubmissionDetailProps) {
   const { t, language } = useLanguage();
   const { signOut } = useStaffAuth();
   const query = useDocumentSubmission(submissionId);
-  const decision = useReviewDecision(submissionId);
+  const decision = useReviewDecision(submissionId, query.data?.candidate.id);
   const documentAccess = useDocumentAccess();
   const [previewDocumentId, setPreviewDocumentId] = useState<string | null>(null);
 
@@ -274,16 +274,19 @@ function DocumentRow({ document, onPreview, onVerify, onReject }: DocumentRowPro
               <dt className="text-text-tertiary">{t('adminDocumentReviewUploadedAtLabel')}</dt>
               <dd className="text-text-primary">{formatDate(document.uploadedAt, language, { dateStyle: 'medium', timeStyle: 'short' })}</dd>
             </div>
+            {document.reviewer ? (
+              <div>
+                {/* "Approved by" for a verified document, "Reviewed by" for a rejected one -- the raw reviewer id is never rendered, only the translated role label (AGENTS.md/ticket: "Never expose raw reviewer public IDs as names."). */}
+                <dt className="text-text-tertiary">
+                  {t(document.status === 'verified' ? 'adminDocumentReviewApprovedByLabel' : 'adminDocumentReviewReviewerLabel')}
+                </dt>
+                <dd className="text-text-primary">{t(ADMIN_REVIEWER_ROLE_KEYS[document.reviewer.role] as TranslationKey)}</dd>
+              </div>
+            ) : null}
             {document.verifiedAt ? (
               <div>
                 <dt className="text-text-tertiary">{t('adminDocumentReviewDecidedAtLabel')}</dt>
                 <dd className="text-text-primary">{formatDate(document.verifiedAt, language, { dateStyle: 'medium', timeStyle: 'short' })}</dd>
-              </div>
-            ) : null}
-            {document.reviewerId ? (
-              <div>
-                <dt className="text-text-tertiary">{t('adminDocumentReviewReviewerLabel')}</dt>
-                <dd className="text-text-primary">{document.reviewerId}</dd>
               </div>
             ) : null}
           </dl>

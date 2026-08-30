@@ -3,7 +3,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useLanguage } from '../../../../contexts/LanguageContext';
 import { toast } from '../../../../design-system';
 import { adminDocumentReviewsClient } from '../../../../lib/admin-document-reviews-client';
-import type { AdminDocumentReviewError, ReviewDecisionResult } from '../../../../lib/admin-document-reviews-client';
+import type { AdminDocumentReviewError, DocumentSubmissionDetail, ReviewDecisionResult } from '../../../../lib/admin-document-reviews-client';
 import {
   clearDecisionIdempotencyKey,
   EMPTY_DECISION_IDEMPOTENCY_KEY_STATE,
@@ -12,8 +12,7 @@ import {
   type DecisionIdempotencyKeyState,
   type ReviewDecisionAction,
 } from '../../../../../../shared/adminDocumentReviews/decisionIdempotency';
-import { DOCUMENT_REVIEW_QUEUE_QUERY_KEY } from './useDocumentReviewQueue';
-import { DOCUMENT_REVIEW_SUBMISSION_QUERY_KEY } from './useDocumentSubmission';
+import { documentQueries } from '../../../../../../shared/queryKeys/documentQueries';
 
 /**
  * Error codes meaning the document's review state has already moved on
@@ -46,9 +45,14 @@ interface DecisionVariables {
  * (rather than a documentId fixed at hook-call time) tracks *which* document
  * the open dialog applies to, since a submission detail page renders a
  * verify/reject action per document row.
+ *
+ * `candidateId` (the submission's own candidate, already known to the
+ * caller from the loaded detail) is used only to invalidate
+ * `staffCandidateSummary` after a decision -- optional because a caller
+ * that hasn't loaded the detail yet simply skips that invalidation.
  */
-export function useReviewDecision(submissionId: string) {
-  const { t } = useLanguage();
+export function useReviewDecision(submissionId: string, candidateId?: string) {
+  const { t, language } = useLanguage();
   const queryClient = useQueryClient();
   const [confirmTarget, setConfirmTarget] = useState<ConfirmTarget | null>(null);
   const [reason, setReason] = useState('');
@@ -57,16 +61,49 @@ export function useReviewDecision(submissionId: string) {
   );
 
   const invalidateReviewData = useCallback(() => {
-    queryClient.invalidateQueries({ queryKey: [DOCUMENT_REVIEW_SUBMISSION_QUERY_KEY, submissionId] });
-    queryClient.invalidateQueries({ queryKey: [DOCUMENT_REVIEW_QUEUE_QUERY_KEY] });
-  }, [queryClient, submissionId]);
+    queryClient.invalidateQueries({ queryKey: documentQueries.staffSubmission(submissionId, language) });
+    queryClient.invalidateQueries({ queryKey: documentQueries.staffQueueAll() });
+    if (candidateId) {
+      queryClient.invalidateQueries({ queryKey: documentQueries.staffCandidateSummary(candidateId, language) });
+    }
+  }, [queryClient, submissionId, language, candidateId]);
+
+  /**
+   * Seeds the submission-detail cache with the mutation's own response --
+   * the immediate source of truth (ticket: "Use the mutation response as
+   * the immediate source of truth" / "Update the affected document in the
+   * open submission detail"). The decision endpoint returns only the one
+   * updated document plus the submission's review summary, not the full
+   * documents array, so this merges that one document into the existing
+   * cached list by id rather than replacing it wholesale.
+   */
+  const seedSubmissionCache = useCallback(
+    (result: ReviewDecisionResult) => {
+      queryClient.setQueryData<DocumentSubmissionDetail>(documentQueries.staffSubmission(submissionId, language), (old) =>
+        old
+          ? {
+              ...old,
+              review: result.submission.review,
+              documents: old.documents.map((document) => (document.id === result.document.id ? result.document : document)),
+            }
+          : old
+      );
+    },
+    [queryClient, submissionId, language]
+  );
 
   const mutation = useMutation<ReviewDecisionResult, AdminDocumentReviewError, DecisionVariables>({
     mutationFn: ({ documentId, action, reason: rejectionReason, idempotencyKey }) =>
       action === 'verified'
         ? adminDocumentReviewsClient.verifyDocument(documentId, idempotencyKey)
         : adminDocumentReviewsClient.rejectDocument(documentId, rejectionReason, idempotencyKey),
-    onSuccess: (_result, variables) => {
+    onSuccess: (result, variables) => {
+      seedSubmissionCache(result);
+      // Background reconciliation on top of the immediate cache seed above
+      // (ticket: "If the decision endpoint returns only the updated
+      // document rather than the full submission, update that document
+      // immediately and refetch the full submission.") -- non-blocking, so
+      // it never re-introduces the flicker the seed just avoided.
       invalidateReviewData();
       toast.success(
         variables.action === 'verified'

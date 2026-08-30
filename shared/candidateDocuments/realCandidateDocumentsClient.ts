@@ -24,6 +24,7 @@ interface CandidateDocumentMetadataResponse {
   issued_on?: string | null;
   expires_on?: string | null;
   compliance_status?: string | null;
+  reviewed_at?: string | null;
   rejection_reason?: string | null;
 }
 
@@ -86,6 +87,7 @@ function toDocumentMetadata(raw: unknown): CandidateDocumentMetadata | null {
     issuedOn: typeof value.issued_on === 'string' ? value.issued_on : undefined,
     expiresOn: typeof value.expires_on === 'string' ? value.expires_on : undefined,
     complianceStatus: toComplianceStatus(value.compliance_status),
+    reviewedAt: typeof value.reviewed_at === 'string' ? value.reviewed_at : undefined,
     rejectionReason: typeof value.rejection_reason === 'string' ? value.rejection_reason : undefined,
   };
 }

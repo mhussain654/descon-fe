@@ -2,14 +2,14 @@
 // filter/page state -- kept separate from the component so "does a refresh/
 // back/forward preserve filters" is directly unit-testable without mounting
 // a router.
-import { FILTERABLE_REVIEW_STATES } from '../../../../../shared/adminDocumentReviews/statusLabels';
-import type { DocumentReviewQueueFilters, DocumentReviewQueuePage, ReviewState } from '../../../../../shared/adminDocumentReviews/types';
+import { FILTERABLE_QUEUE_STATUSES } from '../../../../../shared/adminDocumentReviews/statusLabels';
+import type { DocumentReviewQueueFilters, DocumentReviewQueuePage, QueueStatusFilter, ReviewState } from '../../../../../shared/adminDocumentReviews/types';
 
 export const DEFAULT_STATUS_FILTER: ReviewState[] = ['pending_review', 'partially_reviewed'];
 export const DEFAULT_PAGE_SIZE = 20;
 
-function isReviewState(value: string): value is ReviewState {
-  return (FILTERABLE_REVIEW_STATES as readonly string[]).includes(value);
+function isQueueStatusFilter(value: string): value is QueueStatusFilter {
+  return (FILTERABLE_QUEUE_STATUSES as readonly string[]).includes(value);
 }
 
 export interface QueueUrlState {
@@ -20,7 +20,7 @@ export interface QueueUrlState {
 /** Reads the queue's filters/page from URL search params, falling back to the backend's own default statuses (never a client-invented default) when `status` isn't present. */
 export function readQueueStateFromSearchParams(searchParams: URLSearchParams): QueueUrlState {
   const statusParam = searchParams.get('status');
-  const parsedStatuses = statusParam ? statusParam.split(',').filter(isReviewState) : [];
+  const parsedStatuses = statusParam ? statusParam.split(',').filter(isQueueStatusFilter) : [];
   const status = parsedStatuses.length > 0 ? parsedStatuses : DEFAULT_STATUS_FILTER;
 
   const pageNumber = Number(searchParams.get('page'));

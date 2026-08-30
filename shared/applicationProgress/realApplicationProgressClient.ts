@@ -9,17 +9,37 @@ import type {
   ApplicationProgressDocuments,
   ApplicationProgressError,
   ApplicationProgressErrorCode,
+  ApplicationProgressWorkflow,
   ApplicationSubmissionDisplayState,
   BlockingRequirement,
   BlockingRequirementDisplayReason,
   DocumentSubmissionResult,
   SubmitDocumentsParams,
   WorkflowStage,
+  WorkflowTimelineStage,
+  WorkflowTimelineStageStatus,
 } from './types';
 
 interface WorkflowStageResponse {
   code: string;
   name: string;
+}
+
+interface WorkflowTimelineStageResponse {
+  code: string;
+  name: string;
+  position: number;
+  status: string;
+  started_at: string | null;
+  completed_at: string | null;
+}
+
+interface ApplicationProgressWorkflowResponse {
+  timeline: WorkflowTimelineStageResponse[];
+  completed_count: number;
+  total_count: number;
+  progress_percentage: number;
+  updated_at: string | null;
 }
 
 interface BlockingRequirementResponse {
@@ -45,6 +65,7 @@ interface ApplicationProgressDocumentsResponse {
 interface ApplicationProgressResponse {
   candidate_status: string;
   current_workflow_stage: WorkflowStageResponse | null;
+  workflow: ApplicationProgressWorkflowResponse;
   documents: ApplicationProgressDocumentsResponse;
 }
 
@@ -118,6 +139,50 @@ function toWorkflowStage(raw: unknown): WorkflowStage | null {
   };
 }
 
+const KNOWN_TIMELINE_STAGE_STATUSES = new Set<string>(['completed', 'current', 'pending']);
+
+/** An unrecognized future status safely falls back to `'pending'` -- never crashes, never shows a raw code, and never mis-renders an unknown status as reached. */
+function toWorkflowTimelineStageStatus(raw: unknown): WorkflowTimelineStageStatus {
+  return typeof raw === 'string' && KNOWN_TIMELINE_STAGE_STATUSES.has(raw) ? (raw as WorkflowTimelineStageStatus) : 'pending';
+}
+
+function toIsoStringOrNull(raw: unknown): string | null {
+  return typeof raw === 'string' && raw ? raw : null;
+}
+
+function toWorkflowTimelineStage(raw: unknown): WorkflowTimelineStage | null {
+  if (!raw || typeof raw !== 'object') return null;
+  const value = raw as Partial<WorkflowTimelineStageResponse>;
+  if (typeof value.code !== 'string' || !value.code) return null;
+
+  return {
+    code: value.code,
+    name: typeof value.name === 'string' && value.name ? value.name : value.code,
+    position: toNumber(value.position),
+    status: toWorkflowTimelineStageStatus(value.status),
+    startedAt: toIsoStringOrNull(value.started_at),
+    completedAt: toIsoStringOrNull(value.completed_at),
+  };
+}
+
+function toWorkflowTimeline(raw: unknown): WorkflowTimelineStage[] {
+  if (!Array.isArray(raw)) return [];
+  return raw.map(toWorkflowTimelineStage).filter((stage): stage is WorkflowTimelineStage => stage !== null);
+}
+
+/** Defensively maps the real, backend-authoritative 15-stage workflow snapshot (MPS-501) -- a malformed field falls back to a safe default (an empty timeline, zero counts) rather than throwing or fabricating stages. */
+function toApplicationProgressWorkflow(raw: unknown): ApplicationProgressWorkflow {
+  const value = (raw && typeof raw === 'object' ? raw : {}) as Partial<ApplicationProgressWorkflowResponse>;
+
+  return {
+    timeline: toWorkflowTimeline(value.timeline),
+    completedCount: toNumber(value.completed_count),
+    totalCount: toNumber(value.total_count),
+    progressPercentage: toNumber(value.progress_percentage),
+    updatedAt: toIsoStringOrNull(value.updated_at),
+  };
+}
+
 /** Defensively maps the documents summary -- a malformed field falls back to a safe default rather than throwing (ticket-wide pattern: never crash on an unexpected backend shape). */
 function toDocuments(raw: unknown): ApplicationProgressDocuments {
   const value = (raw && typeof raw === 'object' ? raw : {}) as Partial<ApplicationProgressDocumentsResponse>;
@@ -143,6 +208,7 @@ function toApplicationProgress(raw: unknown): ApplicationProgress {
   return {
     candidateStatus: typeof value.candidate_status === 'string' ? value.candidate_status : '',
     currentWorkflowStage: toWorkflowStage(value.current_workflow_stage),
+    workflow: toApplicationProgressWorkflow(value.workflow),
     documents: toDocuments(value.documents),
   };
 }

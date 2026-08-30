@@ -20,8 +20,30 @@ import {
 import { formatDate } from '../../../../../../shared/i18n/locale';
 import { ADMIN_DOCUMENT_REVIEW_ERROR_KEYS } from '../../../../../../shared/adminDocumentReviews/errorMessages';
 import { referenceDisplayName } from '../../../../../../shared/adminDocumentReviews/formatting';
-import { FILTERABLE_REVIEW_STATES, REVIEW_STATE_KEYS, REVIEW_STATE_TONES } from '../../../../../../shared/adminDocumentReviews/statusLabels';
-import type { DocumentReviewQueueItem, ReviewState } from '../../../../../../shared/adminDocumentReviews/types';
+import {
+  FILTERABLE_QUEUE_STATUSES,
+  QUEUE_STATUS_FILTER_ONLY_KEYS,
+  QUEUE_STATUS_FILTER_ONLY_TONES,
+  REVIEW_STATE_KEYS,
+  REVIEW_STATE_TONES,
+} from '../../../../../../shared/adminDocumentReviews/statusLabels';
+import type { DocumentReviewQueueItem, DocumentReviewQueueSummary, QueueStatusFilter } from '../../../../../../shared/adminDocumentReviews/types';
+
+/** Merges the 4 review-state labels/tones with the 3 filter-only ones (rejected/expired_pcc/near_expiry_pcc) so every chip in FILTERABLE_QUEUE_STATUSES has a label and tone. */
+const QUEUE_STATUS_KEYS = { ...REVIEW_STATE_KEYS, ...QUEUE_STATUS_FILTER_ONLY_KEYS } as Record<QueueStatusFilter, string>;
+const QUEUE_STATUS_TONES = { ...REVIEW_STATE_TONES, ...QUEUE_STATUS_FILTER_ONLY_TONES } as Record<
+  QueueStatusFilter,
+  (typeof REVIEW_STATE_TONES)[keyof typeof REVIEW_STATE_TONES]
+>;
+
+/** Summary chip order/labels -- ticket: "Total submissions awaiting review, Candidates with rejected documents, Candidates with expired PCC, Candidates with near-expiry PCC, Fully verified submissions." */
+const SUMMARY_ROWS: { key: keyof DocumentReviewQueueSummary; labelKey: string }[] = [
+  { key: 'pendingReview', labelKey: 'candidateDocumentsStatusPendingReview' },
+  { key: 'rejected', labelKey: 'rejected' },
+  { key: 'expiredPcc', labelKey: 'candidateDocumentsPccExpired' },
+  { key: 'nearExpiryPcc', labelKey: 'candidateDocumentsPccNearExpiry' },
+  { key: 'verified', labelKey: 'verified' },
+];
 import type { TranslationKey } from '../../../../../../shared/i18n/translations';
 import { datetimeLocalValueToIso, isoToDatetimeLocalValue } from '../dateTimeLocalInput';
 import { useDebouncedUrlFilter } from '../hooks/useDebouncedUrlFilter';
@@ -68,7 +90,7 @@ export function DocumentReviewQueue() {
     updateFilters({ countryCode: value || undefined })
   );
 
-  const toggleStatus = (status: ReviewState) => {
+  const toggleStatus = (status: QueueStatusFilter) => {
     const current = filters.status ?? [];
     const next = current.includes(status) ? current.filter((s) => s !== status) : [...current, status];
     updateFilters({ status: next });
@@ -147,12 +169,26 @@ export function DocumentReviewQueue() {
         <h1 className="text-2xl font-semibold text-text-primary">{t('adminDocumentReviewQueueTitle')}</h1>
       </div>
 
+      {query.data?.summary ? (
+        <Card className="mb-4">
+          <h2 className="mb-3 text-sm font-semibold text-text-primary">{t('adminDocumentReviewSummaryTitle')}</h2>
+          <dl className="flex flex-wrap gap-6">
+            {SUMMARY_ROWS.map((row) => (
+              <div key={row.key}>
+                <dt className="text-xs text-text-tertiary">{t(row.labelKey as TranslationKey)}</dt>
+                <dd className="text-xl font-semibold text-text-primary">{query.data?.summary[row.key] ?? 0}</dd>
+              </div>
+            ))}
+          </dl>
+        </Card>
+      ) : null}
+
       <Card className="mb-4">
         <div className="flex flex-wrap items-end gap-4">
           <div className="flex flex-wrap gap-2">
-            {FILTERABLE_REVIEW_STATES.map((status) => (
+            {FILTERABLE_QUEUE_STATUSES.map((status) => (
               <FilterChip key={status} selected={(filters.status ?? []).includes(status)} onClick={() => toggleStatus(status)}>
-                {t(REVIEW_STATE_KEYS[status])}
+                {t(QUEUE_STATUS_KEYS[status] as TranslationKey)}
               </FilterChip>
             ))}
           </div>

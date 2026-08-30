@@ -142,7 +142,7 @@ describe("DocumentReviewDetailPage", () => {
       expect(screen.queryByText("passport", { exact: true })).not.toBeInTheDocument();
     });
 
-    it("shows reviewer, decision date and rejection reason only when the backend returned them", async () => {
+    it("shows a safe role-based reviewer label, decision date and rejection reason for a rejected document -- never the raw reviewer id", async () => {
       adminDocumentReviewsClient.getSubmission.mockResolvedValue(
         submissionDetail({
           documents: [
@@ -150,7 +150,7 @@ describe("DocumentReviewDetailPage", () => {
               status: "rejected",
               verifiedAt: "2026-08-21T09:00:00Z",
               rejectionReason: "Document is unreadable.",
-              reviewerId: "staff-public-id-1",
+              reviewer: { id: "staff-public-id-1", role: "admin" },
             }),
           ],
         })
@@ -159,7 +159,48 @@ describe("DocumentReviewDetailPage", () => {
       renderAt("/admin/document-reviews/submission-1", client);
 
       expect(await screen.findByText("Document is unreadable.")).toBeInTheDocument();
-      expect(screen.getByText("staff-public-id-1")).toBeInTheDocument();
+      expect(screen.getByText("Reviewed by")).toBeInTheDocument();
+      expect(screen.getByText("Admin", { selector: "dd" })).toBeInTheDocument();
+      expect(screen.queryByText("staff-public-id-1")).not.toBeInTheDocument();
+    });
+
+    it("shows 'Approved by' rather than 'Reviewed by' for a verified document", async () => {
+      adminDocumentReviewsClient.getSubmission.mockResolvedValue(
+        submissionDetail({
+          documents: [
+            passportDocument({
+              status: "verified",
+              verifiedAt: "2026-08-21T09:00:00Z",
+              reviewer: { id: "staff-public-id-2", role: "hr" },
+            }),
+          ],
+        })
+      );
+      const client = await signInAs(ADMIN);
+      renderAt("/admin/document-reviews/submission-1", client);
+
+      expect(await screen.findByText("Approved by")).toBeInTheDocument();
+      expect(screen.getByText("HR")).toBeInTheDocument();
+      expect(screen.queryByText("Reviewed by")).not.toBeInTheDocument();
+    });
+
+    it("falls back to a safe generic label for an unrecognized reviewer role, never the raw code", async () => {
+      adminDocumentReviewsClient.getSubmission.mockResolvedValue(
+        submissionDetail({
+          documents: [
+            passportDocument({
+              status: "verified",
+              verifiedAt: "2026-08-21T09:00:00Z",
+              reviewer: { id: "staff-public-id-3", role: "unknown" },
+            }),
+          ],
+        })
+      );
+      const client = await signInAs(ADMIN);
+      renderAt("/admin/document-reviews/submission-1", client);
+
+      expect(await screen.findByText("Staff reviewer")).toBeInTheDocument();
+      expect(screen.queryByText("unknown")).not.toBeInTheDocument();
     });
 
     it("does not render a decision date, reviewer or rejection reason for a document with none", async () => {
@@ -168,8 +209,9 @@ describe("DocumentReviewDetailPage", () => {
       renderAt("/admin/document-reviews/submission-1", client);
 
       await screen.findByText("Passport");
-      expect(screen.queryByText("Decision date")).not.toBeInTheDocument();
+      expect(screen.queryByText("Reviewed on")).not.toBeInTheDocument();
       expect(screen.queryByText("Reviewed by")).not.toBeInTheDocument();
+      expect(screen.queryByText("Approved by")).not.toBeInTheDocument();
       expect(screen.queryByText("Rejection reason")).not.toBeInTheDocument();
     });
 
@@ -518,6 +560,47 @@ describe("DocumentReviewDetailPage", () => {
       expect(typeof idempotencyKey).toBe("string");
       expect(idempotencyKey.length).toBeGreaterThan(0);
       expect(screen.queryByText("Verify this document?")).not.toBeInTheDocument();
+    });
+
+    it("shows the document as verified immediately from the mutation response, before any background refetch resolves", async () => {
+      // The second (background reconciliation) getSubmission call also
+      // resolves to the now-verified state, matching what a real backend
+      // would return -- isolates "does the immediate seed show the right
+      // thing" from "does invalidateQueries' own refetch eventually agree",
+      // which are two separate concerns.
+      adminDocumentReviewsClient.getSubmission
+        .mockResolvedValueOnce(submissionDetail())
+        .mockResolvedValue(
+          submissionDetail({
+            review: { pendingReview: 0, verified: 1, rejected: 0, requiredTotal: 1, reviewState: "verified" },
+            documents: [passportDocument({ status: "verified", verifiedAt: "2026-08-21T09:00:00Z", reviewer: { id: "staff-1", role: "admin" } })],
+          })
+        );
+      let resolveVerify;
+      adminDocumentReviewsClient.verifyDocument.mockReturnValue(
+        new Promise((resolve) => {
+          resolveVerify = resolve;
+        })
+      );
+      const client = await signInAs(ADMIN);
+      renderAt("/admin/document-reviews/submission-1", client);
+
+      fireEvent.click(await screen.findByRole("button", { name: "Verify" }));
+      fireEvent.click(await screen.findByRole("button", { name: "Verify", exact: false }));
+      expect(screen.getByText("Pending review")).toBeInTheDocument();
+
+      resolveVerify({
+        document: passportDocument({ status: "verified", verifiedAt: "2026-08-21T09:00:00Z", reviewer: { id: "staff-1", role: "admin" } }),
+        submission: { id: "submission-1", review: { pendingReview: 0, verified: 1, rejected: 0, requiredTotal: 1, reviewState: "verified" } },
+      });
+
+      // The seeded cache shows "Verified" immediately -- it does not wait
+      // for the background getSubmission refetch this same success also
+      // triggers (ticket: "Use the mutation response as the immediate
+      // source of truth").
+      expect(await screen.findByText("Verified")).toBeInTheDocument();
+      expect(screen.queryByText("Pending review")).not.toBeInTheDocument();
+      await waitFor(() => expect(adminDocumentReviewsClient.getSubmission).toHaveBeenCalledTimes(2));
     });
 
     it("prevents duplicate submission while verification is pending", async () => {

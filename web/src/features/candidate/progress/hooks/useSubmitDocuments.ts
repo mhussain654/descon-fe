@@ -13,8 +13,7 @@ import {
   retrySubmissionAttempt,
   type SubmissionIdempotencyKeyState,
 } from '../../../../../../shared/applicationProgress/submissionIdempotency';
-import { CANDIDATE_DOCUMENTS_QUERY_KEY } from '../../documents/hooks/useCandidateDocuments';
-import { APPLICATION_PROGRESS_QUERY_KEY } from './useApplicationProgress';
+import { documentQueries } from '../../../../../../shared/queryKeys/documentQueries';
 
 /** Error codes the candidate resolves by *changing something* (uploading, replacing, waiting for the state to settle elsewhere) rather than by pressing "Submit" again -- a stale confirmation dialog showing outdated blockers would be misleading, so these close it and refresh progress instead of offering a retry. */
 const TERMINAL_ERROR_CODES = new Set<ApplicationProgressError['code']>([
@@ -33,8 +32,9 @@ interface SubmitVariables {
 
 export function useSubmitDocuments() {
   const { session } = useAuth();
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
   const queryClient = useQueryClient();
+  const candidateId = session?.candidateId ?? 'anonymous';
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [idempotencyState, setIdempotencyState] = useState<SubmissionIdempotencyKeyState>(EMPTY_SUBMISSION_IDEMPOTENCY_KEY_STATE);
 
@@ -44,8 +44,8 @@ export function useSubmitDocuments() {
     onSuccess: (result, variables) => {
       if (session?.accessToken !== variables.accessTokenAtCallTime) return;
 
-      queryClient.invalidateQueries({ queryKey: APPLICATION_PROGRESS_QUERY_KEY });
-      queryClient.invalidateQueries({ queryKey: CANDIDATE_DOCUMENTS_QUERY_KEY });
+      queryClient.invalidateQueries({ queryKey: documentQueries.applicationProgress(candidateId, language) });
+      queryClient.invalidateQueries({ queryKey: documentQueries.candidateChecklist(candidateId, language) });
       toast.success(result.message || t('applicationProgressSubmitSuccessFallback'));
       setConfirmOpen(false);
       setIdempotencyState(clearSubmissionIdempotencyKey());
@@ -58,7 +58,7 @@ export function useSubmitDocuments() {
       if (TERMINAL_ERROR_CODES.has(error.code)) {
         setIdempotencyState(clearSubmissionIdempotencyKey());
         setConfirmOpen(false);
-        queryClient.invalidateQueries({ queryKey: APPLICATION_PROGRESS_QUERY_KEY });
+        queryClient.invalidateQueries({ queryKey: documentQueries.applicationProgress(candidateId, language) });
       }
       // RATE_LIMITED/NETWORK_ERROR/OFFLINE/SERVER_ERROR/IN_PROGRESS: keep the
       // dialog open and the same key so a manual retry replays safely
