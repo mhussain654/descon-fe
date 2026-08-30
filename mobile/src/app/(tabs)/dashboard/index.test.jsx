@@ -1,5 +1,6 @@
 import { QueryClientProvider } from "@tanstack/react-query";
-import { render, screen, waitFor } from "@testing-library/react-native";
+import { RefreshControl } from "react-native";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react-native";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { AuthProvider } from "../../../contexts/AuthContext";
 import { LanguageProvider } from "../../../contexts/LanguageContext";
@@ -260,7 +261,7 @@ describe("DashboardScreen", () => {
     expect(await screen.findByText("Verification complete")).toBeOnTheScreen();
   });
 
-  it("navigates to the documents and status screens from the quick-action tiles", async () => {
+  it("navigates to the documents and status screens from the quick-action tiles, and shows Make Payment as visibly disabled with no handler", async () => {
     candidateProfileClient.getProfile.mockResolvedValue(profilePayload());
     candidateDocumentsClient.getChecklist.mockResolvedValue([]);
     applicationProgressClient.getProgress.mockResolvedValue(progress());
@@ -270,15 +271,83 @@ describe("DashboardScreen", () => {
     expect(screen.getByText("Upload Documents")).toBeOnTheScreen();
     expect(screen.getByText("View Status")).toBeOnTheScreen();
     expect(screen.getByText("Make Payment")).toBeOnTheScreen();
+    expect(screen.getByText("Coming soon")).toBeOnTheScreen();
+    const makePaymentTile = screen.getByRole("button", { name: "Make Payment" });
+    expect(makePaymentTile.props.accessibilityState).toMatchObject({ disabled: true });
   });
 
-  it("ends the session and returns to sign-in on a session-expired error from any source query", async () => {
+  it("shows a dedicated session-expired state (not a silent redirect) and returns to sign-in only once confirmed", async () => {
     candidateProfileClient.getProfile.mockRejectedValue({ code: "SESSION_EXPIRED" });
     candidateDocumentsClient.getChecklist.mockResolvedValue([]);
     applicationProgressClient.getProgress.mockResolvedValue(progress());
     renderDashboardScreen();
 
+    expect(await screen.findByText("Session expired")).toBeOnTheScreen();
+    expect(mockReplace).not.toHaveBeenCalled();
+    fireEvent.press(screen.getByRole("button", { name: "Sign in again" }));
+
     await waitFor(() => expect(mockReplace).toHaveBeenCalledWith("/login"));
+  });
+
+  it("shows a distinct inactive-account state", async () => {
+    candidateProfileClient.getProfile.mockRejectedValue({ code: "INACTIVE_ACCOUNT" });
+    candidateDocumentsClient.getChecklist.mockResolvedValue([]);
+    applicationProgressClient.getProgress.mockResolvedValue(progress());
+    renderDashboardScreen();
+
+    expect(await screen.findByText("Account inactive")).toBeOnTheScreen();
+  });
+
+  it("shows an offline state with a retry action", async () => {
+    candidateProfileClient.getProfile.mockRejectedValueOnce({ code: "OFFLINE" }).mockResolvedValueOnce(profilePayload());
+    candidateDocumentsClient.getChecklist.mockResolvedValue([]);
+    applicationProgressClient.getProgress.mockResolvedValue(progress());
+    renderDashboardScreen();
+
+    expect(await screen.findByText("You are offline")).toBeOnTheScreen();
+    fireEvent.press(screen.getByRole("button", { name: "Retry" }));
+
+    await screen.findByText("Ahmed Ali");
+  });
+
+  it("refreshes profile, checklist and progress together on pull-to-refresh, keeping one indicator active until all requests settle and ignoring a duplicate trigger while in flight", async () => {
+    candidateProfileClient.getProfile.mockResolvedValue(profilePayload());
+    candidateDocumentsClient.getChecklist.mockResolvedValue([]);
+    applicationProgressClient.getProgress.mockResolvedValue(progress());
+    renderDashboardScreen();
+
+    await screen.findByText("Ahmed Ali");
+    jest.mocked(candidateProfileClient.getProfile).mockClear();
+    jest.mocked(candidateDocumentsClient.getChecklist).mockClear();
+    jest.mocked(applicationProgressClient.getProgress).mockClear();
+
+    let resolveProfile;
+    candidateProfileClient.getProfile.mockReturnValue(
+      new Promise((resolve) => {
+        resolveProfile = resolve;
+      })
+    );
+
+    const refreshControl = screen.UNSAFE_getByType(RefreshControl);
+    act(() => {
+      refreshControl.props.onRefresh();
+    });
+    // A second pull while the first is still in flight must not trigger a
+    // duplicate refetch of any of the three queries.
+    act(() => {
+      refreshControl.props.onRefresh();
+    });
+
+    await waitFor(() => expect(screen.UNSAFE_getByType(RefreshControl).props.refreshing).toBe(true));
+    expect(candidateProfileClient.getProfile).toHaveBeenCalledTimes(1);
+    expect(candidateDocumentsClient.getChecklist).toHaveBeenCalledTimes(1);
+    expect(applicationProgressClient.getProgress).toHaveBeenCalledTimes(1);
+
+    await act(async () => {
+      resolveProfile(profilePayload());
+    });
+
+    await waitFor(() => expect(screen.UNSAFE_getByType(RefreshControl).props.refreshing).toBe(false));
   });
 
   it("renders the dashboard in Urdu when that is the persisted language", async () => {

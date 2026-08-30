@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useCallback, useState } from "react";
 import { Link, useNavigate } from "react-router";
 import { FileText, CreditCard, Clock } from "lucide-react";
 import UserShell from "../components/user-shell";
@@ -9,6 +9,10 @@ import { useCandidateDocuments } from "../../features/candidate/documents/hooks/
 import { useApplicationProgress } from "../../features/candidate/progress/hooks/useApplicationProgress";
 import { resolveNextAction, NEXT_ACTION_KEYS } from "../../../../shared/applicationProgress/nextAction";
 import { currentDashboardStage } from "../../../../shared/applicationProgress/currentDashboardStage";
+import { LoadingState, ErrorState, OfflineState, SessionExpiredState, ForbiddenState } from "../../design-system";
+import { CANDIDATE_PROFILE_ERROR_KEYS } from "../../../../shared/candidateProfile/errorMessages";
+import { CANDIDATE_DOCUMENTS_ERROR_KEYS } from "../../../../shared/candidateDocuments/errorMessages";
+import { APPLICATION_PROGRESS_ERROR_KEYS } from "../../../../shared/applicationProgress/errorMessages";
 
 const quickActions = [
   {
@@ -27,10 +31,11 @@ const quickActions = [
   },
   {
     titleKey: "makePayment",
+    subLabelKey: "makePaymentComingSoon",
     icon: CreditCard,
     color: "#10B981",
     bgColor: "#E6F9F0",
-    href: "/payment",
+    disabled: true,
   },
 ];
 
@@ -50,19 +55,102 @@ export default function DashboardPage() {
     navigate("/login", { replace: true });
   };
 
-  // Dashboard composes 3 independent queries with no dedicated error layout
-  // of its own (the prototype has none) -- a session-ending error from any
-  // of them still has to end the session, matching every other candidate
-  // screen's behavior, even though a transient network/server error here
-  // just leaves that section showing its loading fallback rather than a
-  // full error card (Documents/Status/Profile each already own that).
-  useEffect(() => {
-    const code = profileQuery.error?.code ?? checklistQuery.error?.code ?? progressQuery.error?.code;
-    if (code === "SESSION_EXPIRED" || code === "INACTIVE_ACCOUNT") {
-      returnToSignIn();
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const handleRefresh = useCallback(async () => {
+    if (isRefreshing) return;
+    setIsRefreshing(true);
+    try {
+      await Promise.all([profileQuery.refetch(), checklistQuery.refetch(), progressQuery.refetch()]);
+    } finally {
+      setIsRefreshing(false);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [profileQuery.error, checklistQuery.error, progressQuery.error]);
+  }, [isRefreshing, profileQuery.refetch, checklistQuery.refetch, progressQuery.refetch]);
+
+  // Dashboard composes 3 independent queries (profile, checklist, progress)
+  // -- pick the first real error in this priority order (profile identity
+  // first, since nothing else can render meaningfully without it) so a
+  // transient failure gets its own dedicated Session/Forbidden/Offline/Error
+  // state, matching Documents/Status/Profile, instead of silently leaving the
+  // header blank or the status card stuck at "0%" (indistinguishable from
+  // valid empty data).
+  const primaryError = profileQuery.error ?? checklistQuery.error ?? progressQuery.error;
+  const primaryErrorKeys = profileQuery.error
+    ? CANDIDATE_PROFILE_ERROR_KEYS
+    : checklistQuery.error
+      ? CANDIDATE_DOCUMENTS_ERROR_KEYS
+      : APPLICATION_PROGRESS_ERROR_KEYS;
+  const isLoading = profileQuery.isLoading || checklistQuery.isLoading || progressQuery.isLoading;
+
+  if (isLoading) {
+    return (
+      <UserShell activeTab="/dashboard">
+        <div className="mx-auto max-w-5xl px-6 py-8">
+          <LoadingState message={t("loading")} />
+        </div>
+      </UserShell>
+    );
+  }
+  if (primaryError?.code === "SESSION_EXPIRED") {
+    return (
+      <UserShell activeTab="/dashboard">
+        <div className="mx-auto max-w-5xl px-6 py-8">
+          <SessionExpiredState
+            title={t("dsSessionExpiredTitle")}
+            description={t("dsSessionExpiredDescription")}
+            actionLabel={t("dsSessionExpiredAction")}
+            onAction={returnToSignIn}
+          />
+        </div>
+      </UserShell>
+    );
+  }
+  if (primaryError?.code === "INACTIVE_ACCOUNT") {
+    return (
+      <UserShell activeTab="/dashboard">
+        <div className="mx-auto max-w-5xl px-6 py-8">
+          <ForbiddenState
+            title={t("candidateProfileInactiveAccountTitle")}
+            description={t("candidateProfileInactiveAccountDescription")}
+            actionLabel={t("candidateProfileInactiveAccountAction")}
+            onAction={returnToSignIn}
+          />
+        </div>
+      </UserShell>
+    );
+  }
+  if (primaryError?.code === "OFFLINE") {
+    return (
+      <UserShell activeTab="/dashboard">
+        <div className="mx-auto max-w-5xl px-6 py-8">
+          <OfflineState
+            title={t("dsOfflineTitle")}
+            description={t("dsOfflineDescription")}
+            retryLabel={t("retry")}
+            onRetry={handleRefresh}
+          />
+        </div>
+      </UserShell>
+    );
+  }
+  if (primaryError) {
+    return (
+      <UserShell activeTab="/dashboard">
+        <div className="mx-auto max-w-5xl px-6 py-8">
+          <ErrorState message={t(primaryErrorKeys[primaryError.code])} retryLabel={t("retry")} onRetry={handleRefresh} />
+        </div>
+      </UserShell>
+    );
+  }
+  if (!profileQuery.data || !progressQuery.data) {
+    return (
+      <UserShell activeTab="/dashboard">
+        <div className="mx-auto max-w-5xl px-6 py-8">
+          <ErrorState message={t("somethingWentWrong")} retryLabel={t("retry")} onRetry={handleRefresh} />
+        </div>
+      </UserShell>
+    );
+  }
 
   const documents = progressQuery.data?.documents;
   const workflow = progressQuery.data?.workflow;
@@ -86,8 +174,8 @@ export default function DashboardPage() {
       <div className="border-b border-gray-200 bg-white">
         <div className="mx-auto max-w-5xl px-6 py-8">
           <p className="mb-1 text-sm text-gray-500">{t("welcome")}</p>
-          <h1 className="text-3xl font-semibold text-black">{profileQuery.data?.fullName ?? " "}</h1>
-          <p className="mt-1 text-sm text-gray-500">{profileQuery.data?.referenceNumber ?? ""}</p>
+          <h1 className="text-3xl font-semibold text-black">{profileQuery.data.fullName}</h1>
+          <p className="mt-1 text-sm text-gray-500">{profileQuery.data.referenceNumber ?? t("candidateProfileNotAssignedYet")}</p>
         </div>
       </div>
 
@@ -126,13 +214,8 @@ export default function DashboardPage() {
           <div className="flex flex-wrap gap-4">
             {quickActions.map((action) => {
               const Icon = action.icon;
-              return (
-                <Link
-                  key={action.titleKey}
-                  to={action.href}
-                  className="flex w-[calc(50%-0.5rem)] flex-col items-center rounded-xl p-5 transition hover:-translate-y-0.5"
-                  style={{ backgroundColor: action.bgColor }}
-                >
+              const content = (
+                <>
                   <div
                     className="mb-3 flex h-12 w-12 items-center justify-center rounded-full"
                     style={{ backgroundColor: action.color }}
@@ -140,6 +223,33 @@ export default function DashboardPage() {
                     <Icon size={24} color="#FFFFFF" />
                   </div>
                   <span className="text-center text-[13px] font-medium text-black">{t(action.titleKey)}</span>
+                  {action.subLabelKey ? (
+                    <span className="mt-0.5 text-center text-[11px] text-gray-500">{t(action.subLabelKey)}</span>
+                  ) : null}
+                </>
+              );
+
+              if (action.disabled) {
+                return (
+                  <div
+                    key={action.titleKey}
+                    aria-disabled="true"
+                    className="flex w-[calc(50%-0.5rem)] cursor-not-allowed flex-col items-center rounded-xl p-5 opacity-50"
+                    style={{ backgroundColor: action.bgColor }}
+                  >
+                    {content}
+                  </div>
+                );
+              }
+
+              return (
+                <Link
+                  key={action.titleKey}
+                  to={action.href}
+                  className="flex w-[calc(50%-0.5rem)] flex-col items-center rounded-xl p-5 transition hover:-translate-y-0.5"
+                  style={{ backgroundColor: action.bgColor }}
+                >
+                  {content}
                 </Link>
               );
             })}
