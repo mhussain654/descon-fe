@@ -1,4 +1,4 @@
-import { View, Text, ScrollView, RefreshControl, useColorScheme } from "react-native";
+import { View, Text, ScrollView, RefreshControl, TouchableOpacity, useColorScheme } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
 import { CheckCircle, Circle, Clock } from "lucide-react-native";
@@ -13,19 +13,36 @@ import { useAuth } from "../../../contexts/AuthContext";
 import { useLanguage } from "../../../contexts/LanguageContext";
 import { useRefetchOnFocus } from "../../../hooks/useRefetchOnFocus";
 import { useApplicationProgress } from "../../../features/candidate/progress/hooks/useApplicationProgress";
+import { useCandidateWorkflowHistory } from "../../../features/candidate/workflow/hooks/useCandidateWorkflowHistory";
 import { LoadingState, ErrorState, OfflineState, SessionExpiredState, ForbiddenState } from "../../../design-system";
-import { buildStatusTimeline } from "../../../../../shared/applicationProgress/statusTimeline";
 import { APPLICATION_PROGRESS_ERROR_KEYS } from "../../../../../shared/applicationProgress/errorMessages";
+import { WORKFLOW_HISTORY_ERROR_KEYS } from "../../../../../shared/candidateWorkflow/errorMessages";
+import { findLatestQvcOutcome, QVC_OUTCOME_KEYS, QVC_OUTCOME_TONES } from "../../../../../shared/candidateWorkflow/qvcOutcome";
+
+const QVC_OUTCOME_STAGE_CODE = "qvc_completed_outcome_received";
+
+const QVC_TONE_COLORS = {
+  success: { bg: "#E6F9F0", text: "#10B981" },
+  warning: { bg: "#FFF7E6", text: "#F59E0B" },
+  danger: { bg: "#FEF2F2", text: "#EF4444" },
+};
+
+function formatStageDate(iso, language) {
+  if (!iso) return null;
+  return new Date(iso).toLocaleDateString(language === "ur" ? "ur-PK" : "en-GB");
+}
 
 export default function StatusScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const colorScheme = useColorScheme();
   const isDark = colorScheme === "dark";
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
   const { logout } = useAuth();
   const progressQuery = useApplicationProgress();
+  const historyQuery = useCandidateWorkflowHistory();
   useRefetchOnFocus(progressQuery.refetch, progressQuery.isFetching);
+  useRefetchOnFocus(historyQuery.refetch, historyQuery.isFetching);
 
   const [fontsLoaded] = useFonts({
     Inter_400Regular,
@@ -68,7 +85,11 @@ export default function StatusScreen() {
     }
   };
 
-  const timeline = progressQuery.data ? buildStatusTimeline(progressQuery.data) : null;
+  const workflow = progressQuery.data?.workflow;
+  const timeline = workflow?.timeline ?? [];
+  const qvcOutcome = findLatestQvcOutcome(historyQuery.data?.items ?? []);
+  const historyItems = historyQuery.data?.items ?? [];
+  const lastUpdatedLabel = workflow ? formatStageDate(workflow.updatedAt, language) : null;
 
   return (
     <View style={{ flex: 1, backgroundColor: isDark ? "#121212" : "#F8F9FA" }}>
@@ -155,16 +176,32 @@ export default function StatusScreen() {
           />
         ) : null}
 
+        {!progressQuery.isLoading && !progressQuery.error && timeline.length > 0 ? (
+          <View style={{ flexDirection: "row", flexWrap: "wrap", justifyContent: "space-between", marginBottom: 16 }}>
+            <Text style={{ fontSize: 13, fontFamily: "Inter_400Regular", color: isDark ? "#9CA3AF" : "#6B7280" }}>
+              {t("workflowStagesCompletedPrefix")}: {workflow.completedCount}/{workflow.totalCount}
+            </Text>
+            {lastUpdatedLabel ? (
+              <Text style={{ fontSize: 13, fontFamily: "Inter_400Regular", color: isDark ? "#9CA3AF" : "#6B7280" }}>
+                {t("workflowLastUpdatedPrefix")}: {lastUpdatedLabel}
+              </Text>
+            ) : null}
+          </View>
+        ) : null}
+
         {/* Timeline */}
-        {timeline ? (
+        {!progressQuery.isLoading && !progressQuery.error && timeline.length > 0 ? (
           <View>
-            {timeline.map((item, index) => {
-              const config = getStatusConfig(item.status);
+            {timeline.map((stage, index) => {
+              const config = getStatusConfig(stage.status);
               const StatusIcon = config.icon;
               const isLast = index === timeline.length - 1;
+              const startedLabel = formatStageDate(stage.startedAt, language);
+              const completedLabel = formatStageDate(stage.completedAt, language);
+              const outcomeTone = qvcOutcome ? QVC_TONE_COLORS[QVC_OUTCOME_TONES[qvcOutcome.code]] : null;
 
               return (
-                <View key={item.labelKey} style={{ flexDirection: "row" }}>
+                <View key={stage.code} style={{ flexDirection: "row" }}>
                   {/* Icon Column */}
                   <View style={{ alignItems: "center", marginRight: 16 }}>
                     <View
@@ -173,23 +210,23 @@ export default function StatusScreen() {
                         height: 32,
                         borderRadius: 16,
                         backgroundColor:
-                          item.status === "current"
+                          stage.status === "current"
                             ? isDark
                               ? "#1A2B3D"
                               : "#E6F2FF"
                             : isDark
                               ? "#1E1E1E"
                               : "#FFFFFF",
-                        borderWidth: item.status === "pending" ? 2 : 0,
+                        borderWidth: stage.status === "pending" ? 2 : 0,
                         borderColor: isDark ? "#333333" : "#E5E7EB",
                         justifyContent: "center",
                         alignItems: "center",
                       }}
                     >
                       <StatusIcon
-                        size={item.status === "pending" ? 12 : 18}
+                        size={stage.status === "pending" ? 12 : 18}
                         color={config.iconColor}
-                        fill={item.status === "completed" ? config.iconColor : "none"}
+                        fill={stage.status === "completed" ? config.iconColor : "none"}
                       />
                     </View>
 
@@ -216,14 +253,23 @@ export default function StatusScreen() {
                     <Text
                       style={{
                         fontSize: 15,
-                        fontFamily: item.status === "current" ? "Inter_600SemiBold" : "Inter_500Medium",
+                        fontFamily: stage.status === "current" ? "Inter_600SemiBold" : "Inter_500Medium",
                         color: config.textColor,
                         marginBottom: 2,
                       }}
                     >
-                      {t(item.labelKey)}
+                      {stage.name}
                     </Text>
-                    {item.status === "current" && (
+                    {completedLabel ? (
+                      <Text style={{ fontSize: 12, fontFamily: "Inter_400Regular", color: isDark ? "#9CA3AF" : "#6B7280" }}>
+                        {t("workflowStageCompletedPrefix")} {completedLabel}
+                      </Text>
+                    ) : startedLabel ? (
+                      <Text style={{ fontSize: 12, fontFamily: "Inter_400Regular", color: isDark ? "#9CA3AF" : "#6B7280" }}>
+                        {t("workflowStageStartedPrefix")} {startedLabel}
+                      </Text>
+                    ) : null}
+                    {stage.status === "current" && (
                       <View
                         style={{
                           backgroundColor: isDark ? "#1A2B3D" : "#E6F2FF",
@@ -234,21 +280,78 @@ export default function StatusScreen() {
                           alignSelf: "flex-start",
                         }}
                       >
-                        <Text
-                          style={{
-                            fontSize: 12,
-                            fontFamily: "Inter_500Medium",
-                            color: "#0066CC",
-                          }}
-                        >
-                          {t("inProgress")}
-                        </Text>
+                        <Text style={{ fontSize: 12, fontFamily: "Inter_500Medium", color: "#0066CC" }}>{t("inProgress")}</Text>
                       </View>
                     )}
+                    {stage.code === QVC_OUTCOME_STAGE_CODE && qvcOutcome ? (
+                      <View
+                        style={{
+                          backgroundColor: outcomeTone.bg,
+                          borderRadius: 8,
+                          paddingHorizontal: 12,
+                          paddingVertical: 8,
+                          marginTop: 8,
+                          alignSelf: "flex-start",
+                        }}
+                      >
+                        <Text style={{ fontSize: 12, fontFamily: "Inter_500Medium", color: outcomeTone.text }}>
+                          {t("qvcOutcome")}: {t(QVC_OUTCOME_KEYS[qvcOutcome.code])}
+                          {formatStageDate(qvcOutcome.date, language) ? ` • ${formatStageDate(qvcOutcome.date, language)}` : ""}
+                        </Text>
+                      </View>
+                    ) : null}
                   </View>
                 </View>
               );
             })}
+          </View>
+        ) : null}
+
+        {/* Recent updates */}
+        {!progressQuery.isLoading && !progressQuery.error && timeline.length > 0 ? (
+          <View
+            style={{
+              marginTop: 24,
+              backgroundColor: isDark ? "#1E1E1E" : "#FFFFFF",
+              borderRadius: 16,
+              padding: 20,
+              borderWidth: 1,
+              borderColor: isDark ? "#333333" : "#E5E7EB",
+            }}
+          >
+            <Text style={{ fontSize: 16, fontFamily: "Inter_600SemiBold", color: isDark ? "#FFFFFF" : "#000000", marginBottom: 16 }}>
+              {t("workflowHistoryTitle")}
+            </Text>
+            {historyQuery.isLoading ? (
+              <Text style={{ fontSize: 14, fontFamily: "Inter_400Regular", color: isDark ? "#9CA3AF" : "#6B7280" }}>{t("loading")}</Text>
+            ) : historyQuery.error ? (
+              <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
+                <Text style={{ fontSize: 14, fontFamily: "Inter_400Regular", color: isDark ? "#9CA3AF" : "#6B7280" }}>
+                  {t(WORKFLOW_HISTORY_ERROR_KEYS[historyQuery.error.code])}
+                </Text>
+                <TouchableOpacity onPress={() => historyQuery.refetch()}>
+                  <Text style={{ fontSize: 14, fontFamily: "Inter_500Medium", color: "#0066CC" }}>{t("retry")}</Text>
+                </TouchableOpacity>
+              </View>
+            ) : historyItems.length === 0 ? (
+              <Text style={{ fontSize: 14, fontFamily: "Inter_400Regular", color: isDark ? "#9CA3AF" : "#6B7280" }}>
+                {t("workflowHistoryEmpty")}
+              </Text>
+            ) : (
+              [...historyItems].reverse().map((item) => (
+                <View
+                  key={`${item.toStage.code}-${item.occurredAt}`}
+                  style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingVertical: 6 }}
+                >
+                  <Text style={{ fontSize: 14, fontFamily: "Inter_400Regular", color: isDark ? "#FFFFFF" : "#000000" }}>
+                    {item.toStage.name}
+                  </Text>
+                  <Text style={{ fontSize: 13, fontFamily: "Inter_400Regular", color: isDark ? "#9CA3AF" : "#6B7280" }}>
+                    {formatStageDate(item.occurredAt, language)}
+                  </Text>
+                </View>
+              ))
+            )}
           </View>
         ) : null}
       </ScrollView>

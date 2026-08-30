@@ -31,7 +31,7 @@ const STATUS_CONFIG = {
   pending_review: { icon: Clock, className: "bg-[#FFF7E6] text-[#F59E0B]", labelKey: "candidateDocumentsStatusPendingReview" },
   uploaded: { icon: Upload, className: "bg-[#E6F2FF] text-[#0066CC]", labelKey: "uploaded" },
   rejected: { icon: XCircle, className: "bg-[#FEF2F2] text-[#EF4444]", labelKey: "rejected" },
-  missing: { icon: Upload, className: "bg-[#F6F6F6] text-[#6B7280]", labelKey: "candidateDocumentsStatusMissing" },
+  missing: { icon: Upload, className: "bg-[#F6F6F6] text-[#6B7280]", labelKey: "pending" },
   unknown: { icon: Upload, className: "bg-[#F6F6F6] text-[#6B7280]", labelKey: "candidateDocumentsStatusUnknown" },
 };
 
@@ -121,9 +121,19 @@ export default function DocumentsPage() {
     return (
       <>
         <div className="mb-5 flex gap-2">
-          <StatTile value={stats.verified} labelKey="verified" className="bg-[#E6F9F0] text-[#10B981]" />
-          <StatTile value={stats.pendingReview} labelKey="candidateDocumentsStatusPendingReview" className="bg-[#FFF7E6] text-[#F59E0B]" />
-          <StatTile value={stats.missing} labelKey="candidateDocumentsStatusMissing" className="bg-[#F6F6F6] text-[#6B7280]" />
+          <StatTile
+            value={stats.verified}
+            labelKey="verified"
+            className="bg-[#E6F9F0] text-[#10B981]"
+            labelClassName="text-[#10B981]"
+          />
+          <StatTile
+            value={stats.pendingReview}
+            labelKey="candidateDocumentsStatusPendingReview"
+            className="bg-[#FFF7E6] text-[#F59E0B]"
+            labelClassName="text-[#F59E0B]"
+          />
+          <StatTile value={stats.missing} labelKey="pending" className="bg-[#F6F6F6] text-[#6B7280]" />
         </div>
 
         {documents?.canSubmit ? (
@@ -181,12 +191,12 @@ export default function DocumentsPage() {
   );
 }
 
-function StatTile({ value, labelKey, className }) {
+function StatTile({ value, labelKey, className, labelClassName = "text-black" }) {
   const { t } = useLanguage();
   return (
     <div className={`flex-1 rounded-xl p-3 text-center ${className}`}>
       <div className="text-2xl font-semibold">{value}</div>
-      <div className="text-[11px] text-black">{t(labelKey)}</div>
+      <div className={`text-[11px] ${labelClassName}`}>{t(labelKey)}</div>
     </div>
   );
 }
@@ -257,6 +267,10 @@ function DocumentRow({ item, language, t, isActive, isAnyUploadPending, upload }
           validationError={upload.validationError}
           uploadError={upload.mutation.error ?? null}
           isUploading={upload.mutation.isPending}
+          isPccRequirement={upload.isPccRequirement}
+          issuedOn={upload.issuedOn}
+          onIssuedOnChange={upload.setIssuedOn}
+          issuedOnError={upload.issuedOnError}
           onSelect={upload.selectFile}
           onCancel={upload.cancelUpload}
           onSubmit={upload.submit}

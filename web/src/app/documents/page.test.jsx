@@ -169,7 +169,7 @@ describe("DocumentsPage", () => {
     await signInAndNavigateToDocuments();
 
     expect(await screen.findByText("Passport")).toBeInTheDocument();
-    expect(screen.getByText("Missing • Required")).toBeInTheDocument();
+    expect(screen.getByText("Pending • Required")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Upload" })).toBeInTheDocument();
   });
 
@@ -485,6 +485,115 @@ describe("DocumentsPage", () => {
       resolveUpload(item({ status: "uploaded", document: uploadedDocument() }));
       await waitFor(() => expect(screen.getByText(/Uploaded/)).toBeInTheDocument());
       expect(screen.queryByText("Submit")).not.toBeInTheDocument();
+    });
+
+    it("does not show the PCC issue-date field for a non-PCC requirement", async () => {
+      candidateDocumentsClient.getChecklist.mockResolvedValue([item({ status: "missing" })]);
+      applicationProgressClient.getProgress.mockResolvedValue(progress());
+      await signInAndNavigateToDocuments();
+
+      fireEvent.click(await screen.findByRole("button", { name: "Upload" }));
+      expect(screen.queryByLabelText("Police Character Certificate issue date")).not.toBeInTheDocument();
+    });
+
+    it("requires the PCC issue date before submitting, without calling the API", async () => {
+      candidateDocumentsClient.getChecklist.mockResolvedValue([
+        item({ requirementCode: "police_character", name: "Police Character Certificate", status: "missing" }),
+      ]);
+      applicationProgressClient.getProgress.mockResolvedValue(progress());
+      await signInAndNavigateToDocuments();
+
+      fireEvent.click(await screen.findByRole("button", { name: "Upload" }));
+      expect(screen.getByLabelText("Police Character Certificate issue date")).toBeInTheDocument();
+      selectFileOnActiveRow(pdfFile());
+      fireEvent.click(screen.getByRole("button", { name: "Submit" }));
+
+      expect(await screen.findByText("Enter the Police Character Certificate issue date.")).toBeInTheDocument();
+      expect(candidateDocumentsClient.uploadDocument).not.toHaveBeenCalled();
+    });
+
+    it("shows a validation error for a PCC issue date in an invalid format, without calling the API", async () => {
+      candidateDocumentsClient.getChecklist.mockResolvedValue([
+        item({ requirementCode: "police_character", name: "Police Character Certificate", status: "missing" }),
+      ]);
+      applicationProgressClient.getProgress.mockResolvedValue(progress());
+      await signInAndNavigateToDocuments();
+
+      fireEvent.click(await screen.findByRole("button", { name: "Upload" }));
+      fireEvent.change(screen.getByLabelText("Police Character Certificate issue date"), { target: { value: "26-08-2026" } });
+      selectFileOnActiveRow(pdfFile());
+      fireEvent.click(screen.getByRole("button", { name: "Submit" }));
+
+      expect(
+        await screen.findByText("Enter a valid Police Character Certificate issue date in YYYY-MM-DD format.")
+      ).toBeInTheDocument();
+      expect(candidateDocumentsClient.uploadDocument).not.toHaveBeenCalled();
+    });
+
+    it("shows a validation error for a future PCC issue date, without calling the API", async () => {
+      candidateDocumentsClient.getChecklist.mockResolvedValue([
+        item({ requirementCode: "police_character", name: "Police Character Certificate", status: "missing" }),
+      ]);
+      applicationProgressClient.getProgress.mockResolvedValue(progress());
+      await signInAndNavigateToDocuments();
+
+      fireEvent.click(await screen.findByRole("button", { name: "Upload" }));
+      fireEvent.change(screen.getByLabelText("Police Character Certificate issue date"), { target: { value: "2099-01-01" } });
+      selectFileOnActiveRow(pdfFile());
+      fireEvent.click(screen.getByRole("button", { name: "Submit" }));
+
+      expect(await screen.findByText("The Police Character Certificate issue date cannot be in the future.")).toBeInTheDocument();
+      expect(candidateDocumentsClient.uploadDocument).not.toHaveBeenCalled();
+    });
+
+    it("sends the PCC issue date as issued_on once it's valid", async () => {
+      candidateDocumentsClient.getChecklist.mockResolvedValue([
+        item({ requirementCode: "police_character", name: "Police Character Certificate", status: "missing" }),
+      ]);
+      applicationProgressClient.getProgress.mockResolvedValue(progress());
+      candidateDocumentsClient.uploadDocument.mockResolvedValue(
+        item({ requirementCode: "police_character", status: "uploaded", document: uploadedDocument() })
+      );
+      await signInAndNavigateToDocuments();
+
+      fireEvent.click(await screen.findByRole("button", { name: "Upload" }));
+      fireEvent.change(screen.getByLabelText("Police Character Certificate issue date"), { target: { value: "2026-01-15" } });
+      selectFileOnActiveRow(pdfFile());
+      fireEvent.click(screen.getByRole("button", { name: "Submit" }));
+
+      await waitFor(() => expect(candidateDocumentsClient.uploadDocument).toHaveBeenCalledTimes(1));
+      const [call] = candidateDocumentsClient.uploadDocument.mock.calls[0];
+      expect(call.formData.get("candidate_document[issued_on]")).toBe("2026-01-15");
+    });
+
+    it("recalculates PCC compliance from the server's response after a successful replace", async () => {
+      candidateDocumentsClient.getChecklist.mockResolvedValue([
+        item({
+          requirementCode: "police_character",
+          name: "Police Character Certificate",
+          status: "verified",
+          document: uploadedDocument({ complianceStatus: "near_expiry" }),
+        }),
+      ]);
+      applicationProgressClient.getProgress.mockResolvedValue(progress());
+      candidateDocumentsClient.uploadDocument.mockResolvedValue(
+        item({
+          requirementCode: "police_character",
+          name: "Police Character Certificate",
+          status: "uploaded",
+          document: uploadedDocument({ complianceStatus: "current" }),
+        })
+      );
+      await signInAndNavigateToDocuments();
+
+      expect(await screen.findByText(/Expiring soon/)).toBeInTheDocument();
+
+      fireEvent.click(screen.getByRole("button", { name: "Replace" }));
+      fireEvent.change(screen.getByLabelText("Police Character Certificate issue date"), { target: { value: "2026-08-01" } });
+      selectFileOnActiveRow(pdfFile());
+      fireEvent.click(screen.getByRole("button", { name: "Submit" }));
+
+      await waitFor(() => expect(screen.queryByText(/Expiring soon/)).not.toBeInTheDocument());
     });
 
     it("prevents duplicate submission while an upload is already in flight", async () => {

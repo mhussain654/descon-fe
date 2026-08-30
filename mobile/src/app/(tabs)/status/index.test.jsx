@@ -4,6 +4,7 @@ import { SafeAreaProvider } from "react-native-safe-area-context";
 import { AuthProvider } from "../../../contexts/AuthContext";
 import { LanguageProvider } from "../../../contexts/LanguageContext";
 import { applicationProgressClient } from "../../../lib/application-progress-client";
+import { candidateWorkflowClient } from "../../../lib/candidate-workflow-client";
 import { createQueryClientTestLifecycle } from "../../../testSupport/queryClientTestLifecycle";
 import StatusScreen from "./index";
 
@@ -43,11 +44,52 @@ jest.mock("@react-navigation/native", () => ({ useFocusEffect: () => {} }));
 jest.mock("../../../lib/application-progress-client", () => ({
   applicationProgressClient: { getProgress: jest.fn(), submitDocuments: jest.fn() },
 }));
+jest.mock("../../../lib/candidate-workflow-client", () => ({
+  candidateWorkflowClient: { getWorkflowHistory: jest.fn() },
+}));
+
+const CANONICAL_STAGES = [
+  { code: "registered", name: "Registered", position: 1 },
+  { code: "documents_pending", name: "Documents Pending", position: 2 },
+  { code: "documents_uploaded", name: "Documents Uploaded", position: 3 },
+  { code: "under_verification", name: "Under Verification", position: 4 },
+  { code: "verified", name: "Verified", position: 5 },
+  { code: "fee_pending", name: "Fee Pending", position: 6 },
+  { code: "fee_paid", name: "Fee Paid", position: 7 },
+  { code: "documents_shared_with_qatar_bu", name: "Documents Shared with Qatar BU", position: 8 },
+  { code: "qvc_appointment_booked", name: "QVC Appointment Booked", position: 9 },
+  { code: "qvc_completed_outcome_received", name: "QVC Completed / Outcome Received", position: 10 },
+  { code: "visa_issued_or_rejected", name: "Visa Issued / Visa Rejected", position: 11 },
+  { code: "appeared_for_protection", name: "Appeared for Protection", position: 12 },
+  { code: "protected_ready_to_fly", name: "Protected — Ready to Fly", position: 13 },
+  { code: "flight_details_uploaded", name: "Flight Details Uploaded", position: 14 },
+  { code: "mobilized", name: "Mobilized", position: 15 },
+];
+
+function timelineThrough(currentPosition, { startedAt = "2026-08-01", completedAt = "2026-08-01" } = {}) {
+  return CANONICAL_STAGES.map((stage) => {
+    if (stage.position < currentPosition) return { ...stage, status: "completed", startedAt: null, completedAt };
+    if (stage.position === currentPosition) return { ...stage, status: "current", startedAt, completedAt: null };
+    return { ...stage, status: "pending", startedAt: null, completedAt: null };
+  });
+}
+
+function workflowPayload(overrides = {}) {
+  return {
+    timeline: timelineThrough(2),
+    completedCount: 1,
+    totalCount: 15,
+    progressPercentage: 6,
+    updatedAt: "2026-08-01T00:00:00Z",
+    ...overrides,
+  };
+}
 
 function progressPayload(overrides = {}) {
   return {
     candidateStatus: "documents_pending",
     currentWorkflowStage: { code: "documents_pending", name: "Documents pending" },
+    workflow: workflowPayload(),
     documents: {
       requiredTotal: 2,
       missing: 1,
@@ -60,8 +102,16 @@ function progressPayload(overrides = {}) {
       canSubmit: false,
       submissionState: "incomplete",
       blockingRequirements: [],
-      ...overrides,
     },
+    ...overrides,
+  };
+}
+
+function historyPayload(overrides = {}) {
+  return {
+    items: [{ fromStage: null, toStage: CANONICAL_STAGES[0], occurredAt: "2026-08-01T00:00:00Z", reasonCode: null, details: null }],
+    updatedAt: "2026-08-01T00:00:00Z",
+    ...overrides,
   };
 }
 
@@ -70,6 +120,7 @@ const { createTestQueryClient, trackRender, cleanup } = createQueryClientTestLif
 afterEach(async () => {
   await cleanup();
   jest.mocked(applicationProgressClient.getProgress).mockReset();
+  jest.mocked(candidateWorkflowClient.getWorkflowHistory).mockReset();
   mockReplace.mockReset();
 });
 
@@ -90,37 +141,37 @@ function renderStatusScreen() {
   );
 }
 
+/** The timeline's own row for a stage name -- picks the first match, since the same stage name can legitimately also appear in the "Recent Updates" history section below the timeline. */
 function stageRow(labelText) {
   // getByText returns the host Text node; its own `.parent` is Text's
   // composite wrapper, so the JSX content-column View that also holds the
   // sibling "In Progress" badge is one level further up.
-  return screen.getByText(labelText).parent.parent;
+  return screen.getAllByText(labelText)[0].parent.parent;
 }
 
 describe("StatusScreen", () => {
   it("shows a loading state before progress resolves", async () => {
     applicationProgressClient.getProgress.mockReturnValue(new Promise(() => {}));
+    candidateWorkflowClient.getWorkflowHistory.mockResolvedValue(historyPayload());
     renderStatusScreen();
 
     expect(await screen.findByText("Loading…")).toBeOnTheScreen();
   });
 
-  it("renders the full approved-prototype timeline, including the downstream stages that have no backend data yet", async () => {
+  it("renders the real, backend-authoritative 15-stage workflow timeline exactly as returned, never fabricating or reordering a stage", async () => {
     applicationProgressClient.getProgress.mockResolvedValue(progressPayload());
+    candidateWorkflowClient.getWorkflowHistory.mockResolvedValue(historyPayload());
     renderStatusScreen();
 
-    expect(await screen.findByText("Registered")).toBeOnTheScreen();
-    expect(screen.getByText("Documents Pending")).toBeOnTheScreen();
-    expect(screen.getByText("Documents Uploaded")).toBeOnTheScreen();
-    expect(screen.getByText("Verified")).toBeOnTheScreen();
-    expect(screen.getByText("Fee Pending")).toBeOnTheScreen();
-    expect(screen.getByText("QVC Appointment Booked")).toBeOnTheScreen();
-    expect(screen.getByText("Visa Issued")).toBeOnTheScreen();
-    expect(screen.getByText("Mobilized")).toBeOnTheScreen();
+    await screen.findByText("Documents Pending");
+    for (const stage of CANONICAL_STAGES) {
+      expect(screen.getAllByText(stage.name).length).toBeGreaterThan(0);
+    }
   });
 
-  it("marks documents-uploaded as the in-progress stage while documents are incomplete", async () => {
-    applicationProgressClient.getProgress.mockResolvedValue(progressPayload({ submissionState: "incomplete" }));
+  it("marks only the timeline's own current stage as in progress, per the backend's status field", async () => {
+    applicationProgressClient.getProgress.mockResolvedValue(progressPayload({ workflow: workflowPayload({ timeline: timelineThrough(3) }) }));
+    candidateWorkflowClient.getWorkflowHistory.mockResolvedValue(historyPayload());
     renderStatusScreen();
 
     await screen.findByText("Documents Uploaded");
@@ -128,24 +179,81 @@ describe("StatusScreen", () => {
     expect(within(stageRow("Verified")).queryByText("In Progress")).toBeNull();
   });
 
-  it("marks verified as the in-progress stage once documents are submitted but not yet fully verified", async () => {
-    applicationProgressClient.getProgress.mockResolvedValue(progressPayload({ submissionState: "partially_verified" }));
+  it("shows the started/completed date the backend reports for each stage", async () => {
+    applicationProgressClient.getProgress.mockResolvedValue(
+      progressPayload({
+        workflow: workflowPayload({
+          timeline: timelineThrough(2, { startedAt: "2026-08-05T00:00:00Z", completedAt: "2026-08-01T00:00:00Z" }),
+        }),
+      })
+    );
+    candidateWorkflowClient.getWorkflowHistory.mockResolvedValue(historyPayload());
     renderStatusScreen();
 
-    await screen.findByText("Verified");
-    expect(within(stageRow("Verified")).getByText("In Progress")).toBeOnTheScreen();
+    await screen.findByText("Documents Pending");
+    expect(within(stageRow("Registered")).getByText(/Completed 01\/08\/2026/)).toBeOnTheScreen();
+    expect(within(stageRow("Documents Pending")).getByText(/Started 05\/08\/2026/)).toBeOnTheScreen();
   });
 
-  it("shows no in-progress stage and never fabricates downstream progress once fully verified", async () => {
-    applicationProgressClient.getProgress.mockResolvedValue(progressPayload({ submissionState: "verified" }));
+  it("shows no in-progress stage once fully mobilized, and never fabricates downstream progress", async () => {
+    applicationProgressClient.getProgress.mockResolvedValue(
+      progressPayload({ workflow: workflowPayload({ timeline: timelineThrough(16), completedCount: 15, progressPercentage: 100 }) })
+    );
+    candidateWorkflowClient.getWorkflowHistory.mockResolvedValue(historyPayload());
     renderStatusScreen();
 
-    await screen.findByText("Verified");
+    await screen.findByText("Mobilized");
     expect(screen.queryByText("In Progress")).toBeNull();
+  });
+
+  it("shows the QVC outcome on the QVC stage once the backend has recorded one, sourced from workflow history", async () => {
+    applicationProgressClient.getProgress.mockResolvedValue(progressPayload({ workflow: workflowPayload({ timeline: timelineThrough(11) }) }));
+    candidateWorkflowClient.getWorkflowHistory.mockResolvedValue(
+      historyPayload({
+        items: [
+          {
+            fromStage: CANONICAL_STAGES[8],
+            toStage: CANONICAL_STAGES[9],
+            occurredAt: "2026-08-09T00:00:00Z",
+            reasonCode: null,
+            details: { qvcOutcomeCode: "approved", qvcOutcomeDate: "2026-08-09" },
+          },
+        ],
+      })
+    );
+    renderStatusScreen();
+
+    await screen.findAllByText("QVC Completed / Outcome Received");
+    expect(within(stageRow("QVC Completed / Outcome Received")).getByText(/Approved/)).toBeOnTheScreen();
+  });
+
+  it("shows the workflow history list", async () => {
+    applicationProgressClient.getProgress.mockResolvedValue(progressPayload());
+    candidateWorkflowClient.getWorkflowHistory.mockResolvedValue(
+      historyPayload({
+        items: [
+          { fromStage: null, toStage: CANONICAL_STAGES[0], occurredAt: "2026-08-01T00:00:00Z", reasonCode: null, details: null },
+          { fromStage: CANONICAL_STAGES[0], toStage: CANONICAL_STAGES[1], occurredAt: "2026-08-03T00:00:00Z", reasonCode: null, details: null },
+        ],
+      })
+    );
+    renderStatusScreen();
+
+    await screen.findByText("Recent Updates");
+    expect(screen.getAllByText("Documents Pending").length).toBeGreaterThan(0);
+  });
+
+  it("shows an empty state for workflow history when there is none yet", async () => {
+    applicationProgressClient.getProgress.mockResolvedValue(progressPayload());
+    candidateWorkflowClient.getWorkflowHistory.mockResolvedValue(historyPayload({ items: [] }));
+    renderStatusScreen();
+
+    expect(await screen.findByText("No updates yet.")).toBeOnTheScreen();
   });
 
   it("shows a session-expired state and returns to sign-in on the confirming action", async () => {
     applicationProgressClient.getProgress.mockRejectedValue({ code: "SESSION_EXPIRED" });
+    candidateWorkflowClient.getWorkflowHistory.mockResolvedValue(historyPayload());
     renderStatusScreen();
 
     expect(await screen.findByText("Session expired")).toBeOnTheScreen();
@@ -156,6 +264,7 @@ describe("StatusScreen", () => {
 
   it("shows a distinct inactive-account state and returns to sign-in on the confirming action", async () => {
     applicationProgressClient.getProgress.mockRejectedValue({ code: "INACTIVE_ACCOUNT" });
+    candidateWorkflowClient.getWorkflowHistory.mockResolvedValue(historyPayload());
     renderStatusScreen();
 
     expect(await screen.findByText("Account inactive")).toBeOnTheScreen();
@@ -166,26 +275,35 @@ describe("StatusScreen", () => {
 
   it("shows an offline state with a retry action for a network failure", async () => {
     applicationProgressClient.getProgress.mockRejectedValueOnce({ code: "OFFLINE" }).mockResolvedValueOnce(progressPayload());
+    candidateWorkflowClient.getWorkflowHistory.mockResolvedValue(historyPayload());
     renderStatusScreen();
 
     expect(await screen.findByText("You are offline")).toBeOnTheScreen();
     fireEvent.press(screen.getByRole("button", { name: "Retry" }));
 
-    await screen.findByText("Registered");
+    await screen.findAllByText("Registered");
   });
 
   it("retries the query when the retry action is used after a server error", async () => {
     applicationProgressClient.getProgress.mockRejectedValueOnce({ code: "SERVER_ERROR" }).mockResolvedValueOnce(progressPayload());
+    candidateWorkflowClient.getWorkflowHistory.mockResolvedValue(historyPayload());
     renderStatusScreen();
 
     expect(await screen.findByText("Something went wrong.")).toBeOnTheScreen();
     fireEvent.press(screen.getByRole("button", { name: "Retry" }));
 
-    await screen.findByText("Registered");
+    await screen.findAllByText("Registered");
   });
 
-  it("renders the timeline in Urdu when that is the persisted language", async () => {
-    applicationProgressClient.getProgress.mockResolvedValue(progressPayload());
+  it("renders the timeline using the server-localized Urdu stage names when that is the persisted language", async () => {
+    applicationProgressClient.getProgress.mockResolvedValue(
+      progressPayload({
+        workflow: workflowPayload({
+          timeline: timelineThrough(2).map((stage) => (stage.code === "registered" ? { ...stage, name: "رجسٹرڈ" } : stage)),
+        }),
+      })
+    );
+    candidateWorkflowClient.getWorkflowHistory.mockResolvedValue(historyPayload());
     const AsyncStorage = require("@react-native-async-storage/async-storage");
     await AsyncStorage.setItem("descon.language", "ur");
     renderStatusScreen();

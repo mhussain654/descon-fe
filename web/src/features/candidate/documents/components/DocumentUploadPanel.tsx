@@ -3,6 +3,7 @@ import {
   Button,
   ErrorState,
   HelperText,
+  Input,
   Label,
   LoadingState,
   OfflineState,
@@ -10,6 +11,7 @@ import {
 } from '../../../../design-system';
 import { CANDIDATE_DOCUMENTS_ERROR_KEYS } from '../../../../../../shared/candidateDocuments/errorMessages';
 import type { FileValidationError } from '../../../../../../shared/candidateDocuments/fileValidation';
+import type { PccIssueDateError } from '../../../../../../shared/candidateDocuments/pccIssueDate';
 import type { CandidateDocumentsError } from '../../../../lib/candidate-documents-client';
 import type { TranslationKey } from '../../../../../../shared/i18n/translations';
 
@@ -20,12 +22,22 @@ const FILE_VALIDATION_ERROR_KEYS: Record<FileValidationError, TranslationKey> = 
   INVALID_TYPE: 'candidateDocumentsInvalidFileTypeError',
 };
 
+const PCC_ISSUE_DATE_ERROR_KEYS: Record<PccIssueDateError, TranslationKey> = {
+  REQUIRED: 'candidateDocumentsPccIssueDateRequiredError',
+  INVALID_FORMAT: 'candidateDocumentsPccIssueDateInvalidError',
+  IN_FUTURE: 'candidateDocumentsPccIssueDateInFutureError',
+};
+
 export interface DocumentUploadPanelProps {
   labelText: string;
   file: File | null;
   validationError: FileValidationError | null;
   uploadError: CandidateDocumentsError | null;
   isUploading: boolean;
+  isPccRequirement: boolean;
+  issuedOn: string;
+  onIssuedOnChange: (value: string) => void;
+  issuedOnError: PccIssueDateError | null;
   onSelect: (file: File | null) => void;
   onCancel: () => void;
   onSubmit: () => void;
@@ -44,6 +56,10 @@ export function DocumentUploadPanel({
   validationError,
   uploadError,
   isUploading,
+  isPccRequirement,
+  issuedOn,
+  onIssuedOnChange,
+  issuedOnError,
   onSelect,
   onCancel,
   onSubmit,
@@ -61,6 +77,19 @@ export function DocumentUploadPanel({
   return (
     <div className="mt-3 rounded-xl border border-border bg-surface-sunken p-4">
       <Label htmlFor={fieldId}>{labelText}</Label>
+      {isPccRequirement ? (
+        <div className="mb-3">
+          <Input
+            label={t('candidateDocumentsPccIssueDateFieldLabel')}
+            helperText={issuedOnError ? undefined : t('candidateDocumentsPccIssueDateFieldHelper')}
+            errorMessage={issuedOnError ? t(PCC_ISSUE_DATE_ERROR_KEYS[issuedOnError]) : undefined}
+            value={issuedOn}
+            onChange={(event) => onIssuedOnChange(event.currentTarget.value)}
+            placeholder="YYYY-MM-DD"
+            inputMode="numeric"
+          />
+        </div>
+      ) : null}
       <input
         ref={inputRef}
         id={fieldId}

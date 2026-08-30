@@ -109,6 +109,15 @@ export const translations = {
     flightDetailsUploaded: 'Flight Details Uploaded',
     mobilized: 'Mobilized',
     inProgress: 'In Progress',
+    workflowStageStartedPrefix: 'Started',
+    workflowStageCompletedPrefix: 'Completed',
+    qvcOutcomeApproved: 'Approved',
+    qvcOutcomeReMedicalRequired: 'Re-medical required',
+    qvcOutcomeRejected: 'Rejected',
+    workflowHistoryTitle: 'Recent Updates',
+    workflowHistoryEmpty: 'No updates yet.',
+    workflowStagesCompletedPrefix: 'Stages completed',
+    workflowLastUpdatedPrefix: 'Last updated',
 
     // Profile
     profile: 'Profile',
@@ -598,6 +607,15 @@ export const translations = {
     flightDetailsUploaded: 'پرواز کی تفصیلات اپ لوڈ',
     mobilized: 'متحرک',
     inProgress: 'جاری ہے',
+    workflowStageStartedPrefix: 'شروع',
+    workflowStageCompletedPrefix: 'مکمل',
+    qvcOutcomeApproved: 'منظور شدہ',
+    qvcOutcomeReMedicalRequired: 'دوبارہ طبی معائنہ درکار',
+    qvcOutcomeRejected: 'مسترد',
+    workflowHistoryTitle: 'حالیہ اپڈیٹس',
+    workflowHistoryEmpty: 'ابھی تک کوئی اپڈیٹ نہیں۔',
+    workflowStagesCompletedPrefix: 'مکمل مراحل',
+    workflowLastUpdatedPrefix: 'آخری تازہ کاری',
 
     // Profile
     profile: 'پروفائل',

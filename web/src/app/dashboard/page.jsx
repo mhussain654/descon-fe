@@ -8,7 +8,7 @@ import { useCandidateProfile } from "../../features/candidate/profile/hooks/useC
 import { useCandidateDocuments } from "../../features/candidate/documents/hooks/useCandidateDocuments";
 import { useApplicationProgress } from "../../features/candidate/progress/hooks/useApplicationProgress";
 import { resolveNextAction, NEXT_ACTION_KEYS } from "../../../../shared/applicationProgress/nextAction";
-import { buildStatusTimeline, currentDashboardStage } from "../../../../shared/applicationProgress/statusTimeline";
+import { currentDashboardStage } from "../../../../shared/applicationProgress/currentDashboardStage";
 
 const quickActions = [
   {
@@ -65,15 +65,15 @@ export default function DashboardPage() {
   }, [profileQuery.error, checklistQuery.error, progressQuery.error]);
 
   const documents = progressQuery.data?.documents;
+  const workflow = progressQuery.data?.workflow;
   const isVerified = documents?.submissionState === "verified";
-  // Mirrors the Status screen's own timeline computation -- the backend's
-  // `currentWorkflowStage` is a separate, HR-advanced pipeline position that
-  // can legitimately lag behind real document activity, so summarizing
-  // "current status" here from the same document-progress signal Status
-  // uses keeps the two screens telling the same story.
-  const currentStage = progressQuery.data ? currentDashboardStage(buildStatusTimeline(progressQuery.data)) : null;
+  // The real, backend-authoritative workflow (MPS-501) -- `currentWorkflowStage`
+  // is a separate, HR-advanced pipeline position that can legitimately lag
+  // behind it, so summarizing "current status" here from the same timeline
+  // Status renders keeps the two screens telling the same story.
+  const currentStage = workflow ? currentDashboardStage(workflow.timeline) : null;
   const currentStageName = currentStage
-    ? `${t(currentStage.labelKey)}${currentStage.inProgress ? ` (${t("inProgress")})` : ""}`
+    ? `${currentStage.name}${currentStage.inProgress ? ` (${t("inProgress")})` : ""}`
     : null;
   const nextAction =
     progressQuery.data && checklistQuery.data ? resolveNextAction(progressQuery.data, checklistQuery.data) : null;
@@ -108,11 +108,11 @@ export default function DashboardPage() {
           <div className="mb-2 h-2 overflow-hidden rounded-full bg-gray-200">
             <div
               className="h-full rounded-full bg-[#0066CC]"
-              style={{ width: `${documents?.completionPercentage ?? 0}%` }}
+              style={{ width: `${workflow?.progressPercentage ?? 0}%` }}
             />
           </div>
           <p className="text-sm text-gray-500">
-            {documents?.completionPercentage ?? 0}% {t("complete")}
+            {workflow?.progressPercentage ?? 0}% {t("complete")}
           </p>
         </section>
 

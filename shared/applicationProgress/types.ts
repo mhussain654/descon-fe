@@ -44,6 +44,39 @@ export interface WorkflowStage {
   name: string;
 }
 
+export type WorkflowTimelineStageStatus = 'completed' | 'current' | 'pending';
+
+/**
+ * One of the 15 canonical stages of the real, backend-authoritative
+ * candidate workflow (registered -> ... -> mobilized), from
+ * `CandidateWorkflowTimelineStage` (openapi.yaml). This is the single
+ * source of truth for the candidate's progress through the whole
+ * onboarding/mobilization pipeline -- never inferred or re-derived on the
+ * frontend from document-submission state (ticket MPS-501: "Do not infer
+ * downstream workflow stages from document submission state").
+ */
+export interface WorkflowTimelineStage {
+  code: string;
+  /** Already localized server-side. */
+  name: string;
+  /** 1-15, matching the canonical stage order. */
+  position: number;
+  status: WorkflowTimelineStageStatus;
+  /** ISO 8601. Present only when `status` is `'current'` (or, for a terminal/completed workflow, may also be absent -- always render conditionally, never assume presence from `status` alone). */
+  startedAt: string | null;
+  /** ISO 8601. Present only when `status` is `'completed'`. */
+  completedAt: string | null;
+}
+
+export interface ApplicationProgressWorkflow {
+  timeline: WorkflowTimelineStage[];
+  completedCount: number;
+  totalCount: number;
+  progressPercentage: number;
+  /** ISO 8601, or null when the candidate has no current assignment yet. */
+  updatedAt: string | null;
+}
+
 export interface ApplicationProgressDocuments {
   requiredTotal: number;
   missing: number;
@@ -64,6 +97,8 @@ export interface ApplicationProgress {
   candidateStatus: string;
   /** Null when the candidate has no current assignment. */
   currentWorkflowStage: WorkflowStage | null;
+  /** The real, backend-computed 15-stage workflow snapshot (MPS-501) -- the sole source for rendering the Status screen's timeline and the Dashboard's current-stage summary. */
+  workflow: ApplicationProgressWorkflow;
   documents: ApplicationProgressDocuments;
 }
 

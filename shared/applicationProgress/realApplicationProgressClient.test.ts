@@ -27,10 +27,44 @@ function errorEnvelope(errors: Array<{ code: string; message: string; details?: 
   return { errors, request_id: 'req-1', timestamp: '2026-08-26T09:00:00Z' };
 }
 
+function workflowTimelineStagePayload(overrides: Record<string, unknown> = {}) {
+  return {
+    code: 'registered',
+    name: 'Registered',
+    position: 1,
+    status: 'completed',
+    started_at: '2026-08-01T00:00:00Z',
+    completed_at: '2026-08-01T00:00:00Z',
+    ...overrides,
+  };
+}
+
+function workflowPayload(overrides: Record<string, unknown> = {}) {
+  return {
+    timeline: [
+      workflowTimelineStagePayload(),
+      workflowTimelineStagePayload({
+        code: 'documents_pending',
+        name: 'Documents Pending',
+        position: 2,
+        status: 'current',
+        started_at: '2026-08-02T00:00:00Z',
+        completed_at: null,
+      }),
+    ],
+    completed_count: 1,
+    total_count: 15,
+    progress_percentage: 6,
+    updated_at: '2026-08-02T00:00:00Z',
+    ...overrides,
+  };
+}
+
 function progressPayload(overrides: Record<string, unknown> = {}) {
   return {
     candidate_status: 'registered',
     current_workflow_stage: { code: 'registered', name: 'Registered' },
+    workflow: workflowPayload(),
     documents: {
       required_total: 1,
       missing: 0,
@@ -108,6 +142,16 @@ describe('createApplicationProgressClient (real) -- getProgress', () => {
     expect(progress).toEqual({
       candidateStatus: 'registered',
       currentWorkflowStage: { code: 'registered', name: 'Registered' },
+      workflow: {
+        timeline: [
+          { code: 'registered', name: 'Registered', position: 1, status: 'completed', startedAt: '2026-08-01T00:00:00Z', completedAt: '2026-08-01T00:00:00Z' },
+          { code: 'documents_pending', name: 'Documents Pending', position: 2, status: 'current', startedAt: '2026-08-02T00:00:00Z', completedAt: null },
+        ],
+        completedCount: 1,
+        totalCount: 15,
+        progressPercentage: 6,
+        updatedAt: '2026-08-02T00:00:00Z',
+      },
       documents: {
         requiredTotal: 1,
         missing: 0,
@@ -122,6 +166,45 @@ describe('createApplicationProgressClient (real) -- getProgress', () => {
         blockingRequirements: [],
       },
     });
+  });
+
+  it('maps a malformed workflow object to an empty timeline and zero counts, never crashing', async () => {
+    stubFetch(async () => jsonResponse(successEnvelope(progressPayload({ workflow: null }))));
+    const client = buildClient();
+    const progress = await client.getProgress('token');
+
+    expect(progress.workflow).toEqual({ timeline: [], completedCount: 0, totalCount: 0, progressPercentage: 0, updatedAt: null });
+  });
+
+  it('drops a malformed workflow timeline stage (missing code) rather than crashing or fabricating one', async () => {
+    stubFetch(async () =>
+      jsonResponse(
+        successEnvelope(
+          progressPayload({ workflow: workflowPayload({ timeline: [workflowTimelineStagePayload(), { name: 'No code' }] }) })
+        )
+      )
+    );
+    const client = buildClient();
+    const progress = await client.getProgress('token');
+
+    expect(progress.workflow.timeline).toHaveLength(1);
+    expect(progress.workflow.timeline[0].code).toBe('registered');
+  });
+
+  it('falls back an unrecognized future timeline stage status to pending, never a raw code', async () => {
+    stubFetch(async () =>
+      jsonResponse(
+        successEnvelope(
+          progressPayload({
+            workflow: workflowPayload({ timeline: [workflowTimelineStagePayload({ status: 'some_future_status' })] }),
+          })
+        )
+      )
+    );
+    const client = buildClient();
+    const progress = await client.getProgress('token');
+
+    expect(progress.workflow.timeline[0].status).toBe('pending');
   });
 
   it('maps a null current_workflow_stage (no assignment) to null', async () => {

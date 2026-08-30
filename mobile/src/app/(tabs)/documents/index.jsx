@@ -38,7 +38,7 @@ const STATUS_CONFIG = {
   pending_review: { icon: Clock, color: "#F59E0B", bgLight: "#FFF7E6", bgDark: "#2E2416", labelKey: "candidateDocumentsStatusPendingReview" },
   uploaded: { icon: Upload, color: "#0066CC", bgLight: "#E6F2FF", bgDark: "#1A2B3D", labelKey: "uploaded" },
   rejected: { icon: XCircle, color: "#EF4444", bgLight: "#FEF2F2", bgDark: "#2D1B1B", labelKey: "rejected" },
-  missing: { icon: Upload, color: "#6B7280", bgLight: "#F6F6F6", bgDark: "#1E1E1E", labelKey: "candidateDocumentsStatusMissing" },
+  missing: { icon: Upload, color: "#6B7280", bgLight: "#F6F6F6", bgDark: "#1E1E1E", labelKey: "pending" },
   unknown: { icon: Upload, color: "#6B7280", bgLight: "#F6F6F6", bgDark: "#1E1E1E", labelKey: "candidateDocumentsStatusUnknown" },
 };
 
@@ -148,18 +148,27 @@ export default function DocumentsScreen() {
       <>
         {/* Stats */}
         <View style={{ flexDirection: "row", marginBottom: 20, marginHorizontal: -4 }}>
-          <StatTile value={stats.verified} labelKey="verified" color="#10B981" bg={isDark ? "#1A2E1A" : "#E6F9F0"} isDark={isDark} t={t} />
+          <StatTile
+            value={stats.verified}
+            labelKey="verified"
+            color="#10B981"
+            labelColor="#10B981"
+            bg={isDark ? "#1A2E1A" : "#E6F9F0"}
+            isDark={isDark}
+            t={t}
+          />
           <StatTile
             value={stats.pendingReview}
             labelKey="candidateDocumentsStatusPendingReview"
             color="#F59E0B"
+            labelColor="#F59E0B"
             bg={isDark ? "#2E2416" : "#FFF7E6"}
             isDark={isDark}
             t={t}
           />
           <StatTile
             value={stats.missing}
-            labelKey="candidateDocumentsStatusMissing"
+            labelKey="pending"
             color="#6B7280"
             bg={isDark ? "#1E1E1E" : "#F6F6F6"}
             isDark={isDark}
@@ -256,12 +265,14 @@ export default function DocumentsScreen() {
   );
 }
 
-function StatTile({ value, labelKey, color, bg, isDark, t }) {
+function StatTile({ value, labelKey, color, labelColor, bg, isDark, t }) {
   return (
     <View style={{ flex: 1, paddingHorizontal: 4 }}>
       <View style={{ backgroundColor: bg, borderRadius: 12, padding: 12, alignItems: "center" }}>
         <Text style={{ fontSize: 24, fontFamily: "Inter_600SemiBold", color, marginBottom: 2 }}>{value}</Text>
-        <Text style={{ fontSize: 11, fontFamily: "Inter_400Regular", color: isDark ? "#FFFFFF" : "#000000" }}>{t(labelKey)}</Text>
+        <Text style={{ fontSize: 11, fontFamily: "Inter_400Regular", color: labelColor ?? (isDark ? "#FFFFFF" : "#000000") }}>
+          {t(labelKey)}
+        </Text>
       </View>
     </View>
   );
