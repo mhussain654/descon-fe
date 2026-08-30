@@ -1,8 +1,10 @@
 import { QueryClientProvider } from "@tanstack/react-query";
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react-native";
 import { SafeAreaProvider } from "react-native-safe-area-context";
+import { Image, Linking, Text } from "react-native";
 import * as DocumentPicker from "expo-document-picker";
-import { AuthProvider } from "../../../contexts/AuthContext";
+import * as ImagePicker from "expo-image-picker";
+import { AuthProvider, useAuth } from "../../../contexts/AuthContext";
 import { LanguageProvider } from "../../../contexts/LanguageContext";
 import { candidateDocumentsClient } from "../../../lib/candidate-documents-client";
 import { applicationProgressClient } from "../../../lib/application-progress-client";
@@ -52,6 +54,12 @@ jest.mock("@react-native-async-storage/async-storage", () =>
 jest.mock("@react-navigation/native", () => ({ useFocusEffect: () => {} }));
 
 jest.mock("expo-document-picker", () => ({ getDocumentAsync: jest.fn() }));
+jest.mock("expo-image-picker", () => ({
+  requestCameraPermissionsAsync: jest.fn(),
+  requestMediaLibraryPermissionsAsync: jest.fn(),
+  launchCameraAsync: jest.fn(),
+  launchImageLibraryAsync: jest.fn(),
+}));
 
 jest.mock("../../../lib/candidate-documents-client", () => ({
   candidateDocumentsClient: { getChecklist: jest.fn(), uploadDocument: jest.fn() },
@@ -131,6 +139,24 @@ function pdfAsset(name = "passport.pdf", size = 1024) {
   };
 }
 
+function imagePickerAsset(overrides = {}) {
+  return {
+    uri: "file:///tmp/photo.jpg",
+    fileName: "photo.jpg",
+    fileSize: 2048,
+    mimeType: "image/jpeg",
+    ...overrides,
+  };
+}
+
+function grantedPermission() {
+  return { status: "granted", granted: true, canAskAgain: true, expires: "never" };
+}
+
+function deniedPermission(canAskAgain) {
+  return { status: "denied", granted: false, canAskAgain, expires: "never" };
+}
+
 const { createTestQueryClient, trackRender, cleanup } = createQueryClientTestLifecycle();
 
 afterEach(async () => {
@@ -140,8 +166,18 @@ afterEach(async () => {
   jest.mocked(applicationProgressClient.getProgress).mockReset();
   jest.mocked(applicationProgressClient.submitDocuments).mockReset();
   jest.mocked(DocumentPicker.getDocumentAsync).mockReset();
+  jest.mocked(ImagePicker.requestCameraPermissionsAsync).mockReset();
+  jest.mocked(ImagePicker.requestMediaLibraryPermissionsAsync).mockReset();
+  jest.mocked(ImagePicker.launchCameraAsync).mockReset();
+  jest.mocked(ImagePicker.launchImageLibraryAsync).mockReset();
   mockReplace.mockReset();
 });
+
+/** Test-only harness: mounted alongside DocumentsScreen inside the same AuthProvider so a test can end the session mid-flight, mirroring how a real logout could race an in-flight upload's response. */
+function LogoutTrigger() {
+  const { logout } = useAuth();
+  return <Text onPress={() => logout()}>test-logout-trigger</Text>;
+}
 
 function renderDocumentsScreen() {
   const queryClient = createTestQueryClient();
@@ -167,6 +203,16 @@ describe("DocumentsScreen", () => {
     renderDocumentsScreen();
 
     expect(await screen.findByText("Loading…")).toBeOnTheScreen();
+  });
+
+  it("shows an empty state, not zeroed stat tiles, when the checklist has no requirements", async () => {
+    candidateDocumentsClient.getChecklist.mockResolvedValue([]);
+    applicationProgressClient.getProgress.mockResolvedValue(progress({ documents: documentsSummary({ requiredTotal: 0 }) }));
+    renderDocumentsScreen();
+
+    expect(await screen.findByText("No documents required")).toBeOnTheScreen();
+    expect(screen.getByText("There is nothing to upload right now.")).toBeOnTheScreen();
+    expect(screen.queryByRole("button", { name: "Upload" })).toBeNull();
   });
 
   it("shows the verified/pending/missing stat tiles from real progress counts", async () => {
@@ -212,6 +258,41 @@ describe("DocumentsScreen", () => {
     renderDocumentsScreen();
 
     expect(await screen.findByText("Photo is blurry.")).toBeOnTheScreen();
+  });
+
+  it("shows the PCC compliance state for a police-character document nearing expiry", async () => {
+    candidateDocumentsClient.getChecklist.mockResolvedValue([
+      item({
+        requirementCode: "police_character",
+        name: "Police Character Certificate",
+        status: "verified",
+        replacementAllowed: false,
+        document: uploadedDocument({ complianceStatus: "near_expiry" }),
+      }),
+    ]);
+    applicationProgressClient.getProgress.mockResolvedValue(progress());
+    renderDocumentsScreen();
+
+    expect(await screen.findByText(/Expiring soon/)).toBeOnTheScreen();
+  });
+
+  it("clearly requests a new PCC and issue date once the current one has expired and replacement is allowed", async () => {
+    candidateDocumentsClient.getChecklist.mockResolvedValue([
+      item({
+        requirementCode: "police_character",
+        name: "Police Character Certificate",
+        status: "verified",
+        replacementAllowed: true,
+        document: uploadedDocument({ complianceStatus: "expired" }),
+      }),
+    ]);
+    applicationProgressClient.getProgress.mockResolvedValue(progress());
+    renderDocumentsScreen();
+
+    expect(await screen.findByText(/Expired/)).toBeOnTheScreen();
+    fireEvent.press(screen.getByRole("button", { name: "Replace" }));
+
+    expect(await screen.findByLabelText("Police Character Certificate issue date")).toBeOnTheScreen();
   });
 
   it("shows a submit-for-review button only when the backend reports canSubmit", async () => {
@@ -292,6 +373,232 @@ describe("DocumentsScreen", () => {
     resolveUpload(item({ status: "uploaded", document: uploadedDocument() }));
     await waitFor(() => expect(screen.getByText(/Uploaded/)).toBeOnTheScreen());
     expect(screen.queryByText("Submit")).toBeNull();
+  });
+
+  it("refreshes application progress after a successful upload, so Dashboard/Status next-action and counts don't go stale", async () => {
+    candidateDocumentsClient.getChecklist.mockResolvedValue([item({ status: "missing" })]);
+    applicationProgressClient.getProgress.mockResolvedValue(progress());
+    DocumentPicker.getDocumentAsync.mockResolvedValue({ canceled: false, assets: [pdfAsset()] });
+    candidateDocumentsClient.uploadDocument.mockResolvedValue(item({ status: "uploaded", document: uploadedDocument() }));
+    renderDocumentsScreen();
+
+    await screen.findByText("Passport");
+    const progressCallsBeforeUpload = applicationProgressClient.getProgress.mock.calls.length;
+
+    fireEvent.press(await screen.findByRole("button", { name: "Upload" }));
+    fireEvent.press(await screen.findByRole("button", { name: "Choose file" }));
+    await screen.findByText(/Selected file: passport\.pdf/);
+    await act(async () => {
+      fireEvent.press(screen.getByRole("button", { name: "Submit" }));
+    });
+
+    await waitFor(() =>
+      expect(applicationProgressClient.getProgress.mock.calls.length).toBeGreaterThan(progressCallsBeforeUpload)
+    );
+  });
+
+  it("does not show a stale success toast or update the cache when the candidate logs out while an upload is still in flight", async () => {
+    candidateDocumentsClient.getChecklist.mockResolvedValue([item({ status: "missing" })]);
+    applicationProgressClient.getProgress.mockResolvedValue(progress());
+    DocumentPicker.getDocumentAsync.mockResolvedValue({ canceled: false, assets: [pdfAsset()] });
+    let resolveUpload;
+    candidateDocumentsClient.uploadDocument.mockReturnValue(
+      new Promise((resolve) => {
+        resolveUpload = resolve;
+      })
+    );
+    const queryClient = createTestQueryClient();
+    trackRender(
+      render(
+        <SafeAreaProvider initialMetrics={TEST_SAFE_AREA_METRICS}>
+          <QueryClientProvider client={queryClient}>
+            <LanguageProvider>
+              <AuthProvider>
+                <DocumentsScreen />
+                <LogoutTrigger />
+              </AuthProvider>
+            </LanguageProvider>
+          </QueryClientProvider>
+        </SafeAreaProvider>
+      )
+    );
+
+    fireEvent.press(await screen.findByRole("button", { name: "Upload" }));
+    fireEvent.press(await screen.findByRole("button", { name: "Choose file" }));
+    await screen.findByText(/Selected file: passport\.pdf/);
+    fireEvent.press(screen.getByRole("button", { name: "Submit" }));
+    await screen.findByText("Uploading…");
+
+    const { toast } = require("sonner-native");
+    jest.mocked(toast.success).mockClear();
+
+    await act(async () => {
+      fireEvent.press(screen.getByText("test-logout-trigger"));
+    });
+
+    await act(async () => {
+      resolveUpload(item({ status: "uploaded", document: uploadedDocument() }));
+    });
+
+    expect(toast.success).not.toHaveBeenCalled();
+  });
+
+  it("shows the selected file's type and size alongside its name", async () => {
+    candidateDocumentsClient.getChecklist.mockResolvedValue([item({ status: "missing" })]);
+    applicationProgressClient.getProgress.mockResolvedValue(progress());
+    DocumentPicker.getDocumentAsync.mockResolvedValue({ canceled: false, assets: [pdfAsset("passport.pdf", 1536)] });
+    renderDocumentsScreen();
+
+    fireEvent.press(await screen.findByRole("button", { name: "Upload" }));
+    fireEvent.press(await screen.findByRole("button", { name: "Choose file" }));
+
+    expect(await screen.findByText("Selected file: passport.pdf • PDF • 1.5 KB")).toBeOnTheScreen();
+  });
+
+  it("takes a photo with the camera once permission is granted, showing a local preview before upload", async () => {
+    candidateDocumentsClient.getChecklist.mockResolvedValue([item({ status: "missing" })]);
+    applicationProgressClient.getProgress.mockResolvedValue(progress());
+    ImagePicker.requestCameraPermissionsAsync.mockResolvedValue(grantedPermission());
+    ImagePicker.launchCameraAsync.mockResolvedValue({ canceled: false, assets: [imagePickerAsset()] });
+    renderDocumentsScreen();
+
+    fireEvent.press(await screen.findByRole("button", { name: "Upload" }));
+    await act(async () => {
+      fireEvent.press(screen.getByRole("button", { name: "Take photo" }));
+    });
+
+    expect(await screen.findByText(/Selected file: photo\.jpg • JPEG/)).toBeOnTheScreen();
+    expect(screen.UNSAFE_getByType(Image).props.source).toEqual({ uri: "file:///tmp/photo.jpg" });
+  });
+
+  it("chooses an image from the gallery once permission is granted", async () => {
+    candidateDocumentsClient.getChecklist.mockResolvedValue([item({ status: "missing" })]);
+    applicationProgressClient.getProgress.mockResolvedValue(progress());
+    ImagePicker.requestMediaLibraryPermissionsAsync.mockResolvedValue(grantedPermission());
+    ImagePicker.launchImageLibraryAsync.mockResolvedValue({ canceled: false, assets: [imagePickerAsset({ fileName: "gallery.png", mimeType: "image/png" })] });
+    renderDocumentsScreen();
+
+    fireEvent.press(await screen.findByRole("button", { name: "Upload" }));
+    await act(async () => {
+      fireEvent.press(screen.getByRole("button", { name: "Choose from gallery" }));
+    });
+
+    expect(await screen.findByText(/Selected file: gallery\.png • PNG/)).toBeOnTheScreen();
+  });
+
+  it("silently ignores a cancelled document/file pick, showing no error", async () => {
+    candidateDocumentsClient.getChecklist.mockResolvedValue([item({ status: "missing" })]);
+    applicationProgressClient.getProgress.mockResolvedValue(progress());
+    DocumentPicker.getDocumentAsync.mockResolvedValue({ canceled: true, assets: null });
+    renderDocumentsScreen();
+
+    fireEvent.press(await screen.findByRole("button", { name: "Upload" }));
+    await act(async () => {
+      fireEvent.press(screen.getByRole("button", { name: "Choose file" }));
+    });
+
+    expect(screen.getByText("No file chosen")).toBeOnTheScreen();
+    expect(screen.queryByRole("alert")).toBeNull();
+  });
+
+  it("silently ignores a cancelled camera capture, showing no error", async () => {
+    candidateDocumentsClient.getChecklist.mockResolvedValue([item({ status: "missing" })]);
+    applicationProgressClient.getProgress.mockResolvedValue(progress());
+    ImagePicker.requestCameraPermissionsAsync.mockResolvedValue(grantedPermission());
+    ImagePicker.launchCameraAsync.mockResolvedValue({ canceled: true, assets: null });
+    renderDocumentsScreen();
+
+    fireEvent.press(await screen.findByRole("button", { name: "Upload" }));
+    await act(async () => {
+      fireEvent.press(screen.getByRole("button", { name: "Take photo" }));
+    });
+
+    expect(screen.getByText("No file chosen")).toBeOnTheScreen();
+    expect(screen.queryByRole("alert")).toBeNull();
+  });
+
+  it("silently ignores a cancelled gallery pick, showing no error", async () => {
+    candidateDocumentsClient.getChecklist.mockResolvedValue([item({ status: "missing" })]);
+    applicationProgressClient.getProgress.mockResolvedValue(progress());
+    ImagePicker.requestMediaLibraryPermissionsAsync.mockResolvedValue(grantedPermission());
+    ImagePicker.launchImageLibraryAsync.mockResolvedValue({ canceled: true, assets: null });
+    renderDocumentsScreen();
+
+    fireEvent.press(await screen.findByRole("button", { name: "Upload" }));
+    await act(async () => {
+      fireEvent.press(screen.getByRole("button", { name: "Choose from gallery" }));
+    });
+
+    expect(screen.getByText("No file chosen")).toBeOnTheScreen();
+    expect(screen.queryByRole("alert")).toBeNull();
+  });
+
+  it("shows recoverable guidance when camera permission is denied but can be asked again, never launching the camera", async () => {
+    candidateDocumentsClient.getChecklist.mockResolvedValue([item({ status: "missing" })]);
+    applicationProgressClient.getProgress.mockResolvedValue(progress());
+    ImagePicker.requestCameraPermissionsAsync.mockResolvedValue(deniedPermission(true));
+    renderDocumentsScreen();
+
+    fireEvent.press(await screen.findByRole("button", { name: "Upload" }));
+    await act(async () => {
+      fireEvent.press(screen.getByRole("button", { name: "Take photo" }));
+    });
+
+    expect(await screen.findByText("Allow camera access to take a photo, or choose a file instead.")).toBeOnTheScreen();
+    expect(screen.queryByRole("button", { name: "Open Settings" })).toBeNull();
+    expect(ImagePicker.launchCameraAsync).not.toHaveBeenCalled();
+  });
+
+  it("shows an Open Settings action when camera permission is permanently blocked, and opens device settings", async () => {
+    candidateDocumentsClient.getChecklist.mockResolvedValue([item({ status: "missing" })]);
+    applicationProgressClient.getProgress.mockResolvedValue(progress());
+    ImagePicker.requestCameraPermissionsAsync.mockResolvedValue(deniedPermission(false));
+    const openSettings = jest.spyOn(Linking, "openSettings").mockResolvedValue();
+    renderDocumentsScreen();
+
+    fireEvent.press(await screen.findByRole("button", { name: "Upload" }));
+    await act(async () => {
+      fireEvent.press(screen.getByRole("button", { name: "Take photo" }));
+    });
+
+    expect(await screen.findByText("Camera access is turned off for this app. Open Settings to allow it, or choose a file instead.")).toBeOnTheScreen();
+    fireEvent.press(screen.getByRole("button", { name: "Open Settings" }));
+    expect(openSettings).toHaveBeenCalled();
+    openSettings.mockRestore();
+  });
+
+  it("shows an Open Settings action when photo library permission is permanently blocked", async () => {
+    candidateDocumentsClient.getChecklist.mockResolvedValue([item({ status: "missing" })]);
+    applicationProgressClient.getProgress.mockResolvedValue(progress());
+    ImagePicker.requestMediaLibraryPermissionsAsync.mockResolvedValue(deniedPermission(false));
+    renderDocumentsScreen();
+
+    fireEvent.press(await screen.findByRole("button", { name: "Upload" }));
+    await act(async () => {
+      fireEvent.press(screen.getByRole("button", { name: "Choose from gallery" }));
+    });
+
+    expect(
+      await screen.findByText("Photo access is turned off for this app. Open Settings to allow it, or choose a file instead.")
+    ).toBeOnTheScreen();
+    expect(ImagePicker.launchImageLibraryAsync).not.toHaveBeenCalled();
+  });
+
+  it("still allows choosing a file from the document picker when camera access is unavailable", async () => {
+    candidateDocumentsClient.getChecklist.mockResolvedValue([item({ status: "missing" })]);
+    applicationProgressClient.getProgress.mockResolvedValue(progress());
+    ImagePicker.requestCameraPermissionsAsync.mockResolvedValue(deniedPermission(false));
+    DocumentPicker.getDocumentAsync.mockResolvedValue({ canceled: false, assets: [pdfAsset()] });
+    renderDocumentsScreen();
+
+    fireEvent.press(await screen.findByRole("button", { name: "Upload" }));
+    await act(async () => {
+      fireEvent.press(screen.getByRole("button", { name: "Take photo" }));
+    });
+    await screen.findByText("Camera access is turned off for this app. Open Settings to allow it, or choose a file instead.");
+
+    fireEvent.press(screen.getByRole("button", { name: "Choose file" }));
+    await screen.findByText(/Selected file: passport\.pdf/);
   });
 
   it("does not show the PCC issue-date field for a non-PCC requirement", async () => {
@@ -461,5 +768,28 @@ describe("DocumentsScreen", () => {
     renderDocumentsScreen();
 
     expect(await screen.findByText("زیر التواء • لازمی")).toBeOnTheScreen();
+  });
+
+  it("renders the capture buttons, guidance and a permission-blocked notice in Urdu", async () => {
+    candidateDocumentsClient.getChecklist.mockResolvedValue([item({ status: "missing" })]);
+    applicationProgressClient.getProgress.mockResolvedValue(progress());
+    ImagePicker.requestCameraPermissionsAsync.mockResolvedValue(deniedPermission(false));
+    const AsyncStorage = require("@react-native-async-storage/async-storage");
+    await AsyncStorage.setItem("descon.language", "ur");
+    renderDocumentsScreen();
+
+    fireEvent.press(await screen.findByRole("button", { name: "اپ لوڈ کریں" }));
+    expect(screen.getByRole("button", { name: "تصویر لیں" })).toBeOnTheScreen();
+    expect(screen.getByRole("button", { name: "گیلری سے منتخب کریں" })).toBeOnTheScreen();
+    expect(screen.getByText("یقینی بنائیں کہ پوری دستاویز نظر آ رہی ہے، سیدھی ہے اور کٹی ہوئی نہیں۔")).toBeOnTheScreen();
+
+    await act(async () => {
+      fireEvent.press(screen.getByRole("button", { name: "تصویر لیں" }));
+    });
+
+    expect(
+      await screen.findByText("اس ایپ کے لیے کیمرے تک رسائی بند ہے۔ اسے اجازت دینے کے لیے ترتیبات کھولیں، یا اس کے بجائے فائل منتخب کریں۔")
+    ).toBeOnTheScreen();
+    expect(screen.getByRole("button", { name: "ترتیبات کھولیں" })).toBeOnTheScreen();
   });
 });

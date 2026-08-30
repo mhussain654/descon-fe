@@ -12,6 +12,7 @@ import { DocumentUploadPanel } from "../../features/candidate/documents/componen
 import {
   Button,
   ConfirmDialog,
+  EmptyState,
   LoadingState,
   ErrorState,
   OfflineState,
@@ -117,6 +118,10 @@ export default function DocumentsPage() {
     }
 
     const checklist = sortByPrototypeOrder(checklistQuery.data ?? []);
+
+    if (checklist.length === 0) {
+      return <EmptyState title={t("candidateDocumentsEmptyTitle")} description={t("candidateDocumentsEmptyDescription")} />;
+    }
 
     return (
       <>
@@ -275,6 +280,7 @@ function DocumentRow({ item, language, t, isActive, isAnyUploadPending, upload }
           onCancel={upload.cancelUpload}
           onSubmit={upload.submit}
           t={t}
+          language={language}
         />
       ) : null}
     </div>

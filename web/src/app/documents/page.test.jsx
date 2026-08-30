@@ -4,6 +4,7 @@ import { Link, MemoryRouter, Route, Routes } from "react-router";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { AuthProvider, useAuth } from "../../contexts/AuthContext";
 import { LanguageProvider } from "../../contexts/LanguageContext";
+import { toast } from "../../design-system";
 import { candidateDocumentsClient } from "../../lib/candidate-documents-client";
 import { applicationProgressClient } from "../../lib/application-progress-client";
 import DocumentsPage from "./page";
@@ -101,6 +102,44 @@ async function signInAndNavigateToDocuments() {
   fireEvent.click(await screen.findByText("Go to documents"));
 }
 
+/** Test-only harness: mounted alongside DocumentsPage inside the same AuthProvider so a test can end the session mid-flight, mirroring how a real logout could race an in-flight upload's response. */
+function LogoutTrigger() {
+  const { logout } = useAuth();
+  return (
+    <button type="button" onClick={() => logout()}>
+      test-logout-trigger
+    </button>
+  );
+}
+
+async function signInAndNavigateToDocumentsWithLogoutTrigger() {
+  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  render(
+    <QueryClientProvider client={queryClient}>
+      <LanguageProvider>
+        <AuthProvider>
+          <MemoryRouter initialEntries={["/login"]}>
+            <Routes>
+              <Route path="/login" element={<LoginStub />} />
+              <Route
+                path="/documents"
+                element={
+                  <>
+                    <DocumentsPage />
+                    <LogoutTrigger />
+                  </>
+                }
+              />
+            </Routes>
+          </MemoryRouter>
+        </AuthProvider>
+      </LanguageProvider>
+    </QueryClientProvider>
+  );
+  fireEvent.click(screen.getByText("login"));
+  fireEvent.click(await screen.findByText("Go to documents"));
+}
+
 function item(overrides = {}) {
   return {
     requirementCode: "passport",
@@ -128,10 +167,20 @@ function pdfFile(name = "passport.pdf", size = 1024) {
   return new File([new Uint8Array(size)], name, { type: "application/pdf" });
 }
 
+function imageFile(name = "photo.jpg", size = 1024, type = "image/jpeg") {
+  return new File([new Uint8Array(size)], name, { type });
+}
+
 function selectFileOnActiveRow(file) {
   const input = document.querySelector('input[type="file"]');
   fireEvent.change(input, { target: { files: [file] } });
 }
+
+// jsdom does not implement createObjectURL/revokeObjectURL at all -- stubbed
+// here (not globally) since only this file's new image-preview tests need
+// them; every other test in this suite only ever selects a PDF.
+window.URL.createObjectURL = vi.fn(() => "blob:mock-preview-url");
+window.URL.revokeObjectURL = vi.fn();
 
 describe("DocumentsPage", () => {
   afterEach(() => {
@@ -148,6 +197,16 @@ describe("DocumentsPage", () => {
     await signInAndNavigateToDocuments();
 
     expect(await screen.findByText("Loading…")).toBeInTheDocument();
+  });
+
+  it("shows an empty state, not zeroed stat tiles, when the checklist has no requirements", async () => {
+    candidateDocumentsClient.getChecklist.mockResolvedValue([]);
+    applicationProgressClient.getProgress.mockResolvedValue(progress({ documents: documentsSummary({ requiredTotal: 0 }) }));
+    await signInAndNavigateToDocuments();
+
+    expect(await screen.findByText("No documents required")).toBeInTheDocument();
+    expect(screen.queryByText("There is nothing to upload right now.")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Upload" })).not.toBeInTheDocument();
   });
 
   it("shows the real stat tile counts, not the old prototype's mock numbers", async () => {
@@ -257,6 +316,25 @@ describe("DocumentsPage", () => {
     await signInAndNavigateToDocuments();
 
     expect(await screen.findByText(/Expiring soon/)).toBeInTheDocument();
+  });
+
+  it("clearly requests a new PCC and issue date once the current one has expired and replacement is allowed", async () => {
+    candidateDocumentsClient.getChecklist.mockResolvedValue([
+      item({
+        requirementCode: "police_character",
+        name: "Police Character Certificate",
+        status: "verified",
+        replacementAllowed: true,
+        document: uploadedDocument({ issuedOn: "2025-01-01", expiresOn: "2025-07-01", complianceStatus: "expired" }),
+      }),
+    ]);
+    applicationProgressClient.getProgress.mockResolvedValue(progress());
+    await signInAndNavigateToDocuments();
+
+    expect(await screen.findByText(/Expired/)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Replace" }));
+
+    expect(await screen.findByLabelText("Police Character Certificate issue date")).toBeInTheDocument();
   });
 
   it("never renders a raw status or requirement code as text", async () => {
@@ -485,6 +563,106 @@ describe("DocumentsPage", () => {
       resolveUpload(item({ status: "uploaded", document: uploadedDocument() }));
       await waitFor(() => expect(screen.getByText(/Uploaded/)).toBeInTheDocument());
       expect(screen.queryByText("Submit")).not.toBeInTheDocument();
+    });
+
+    it("does not show a stale success toast or update the cache when the candidate logs out while an upload is still in flight", async () => {
+      candidateDocumentsClient.getChecklist.mockResolvedValue([item({ status: "missing" })]);
+      applicationProgressClient.getProgress.mockResolvedValue(progress());
+      let resolveUpload;
+      candidateDocumentsClient.uploadDocument.mockReturnValue(
+        new Promise((resolve) => {
+          resolveUpload = resolve;
+        })
+      );
+      await signInAndNavigateToDocumentsWithLogoutTrigger();
+
+      fireEvent.click(await screen.findByRole("button", { name: "Upload" }));
+      selectFileOnActiveRow(pdfFile());
+      fireEvent.click(screen.getByRole("button", { name: "Submit" }));
+      await screen.findByText("Uploading…");
+
+      const successSpy = vi.spyOn(toast, "success").mockClear();
+
+      fireEvent.click(screen.getByText("test-logout-trigger"));
+      resolveUpload(item({ status: "uploaded", document: uploadedDocument() }));
+      await new Promise((resolve) => setTimeout(resolve, 0));
+
+      expect(successSpy).not.toHaveBeenCalled();
+      successSpy.mockRestore();
+    });
+
+    it("refreshes application progress after a successful upload, so Dashboard/Status next-action and counts don't go stale", async () => {
+      candidateDocumentsClient.getChecklist.mockResolvedValue([item({ status: "missing" })]);
+      applicationProgressClient.getProgress.mockResolvedValue(progress());
+      candidateDocumentsClient.uploadDocument.mockResolvedValue(item({ status: "uploaded", document: uploadedDocument() }));
+      await signInAndNavigateToDocuments();
+
+      await screen.findByText("Passport");
+      const progressCallsBeforeUpload = applicationProgressClient.getProgress.mock.calls.length;
+
+      fireEvent.click(await screen.findByRole("button", { name: "Upload" }));
+      selectFileOnActiveRow(pdfFile());
+      fireEvent.click(screen.getByRole("button", { name: "Submit" }));
+
+      await waitFor(() =>
+        expect(applicationProgressClient.getProgress.mock.calls.length).toBeGreaterThan(progressCallsBeforeUpload)
+      );
+    });
+
+    it("shows the selected file's type and size in Urdu when that is the persisted language", async () => {
+      candidateDocumentsClient.getChecklist.mockResolvedValue([item({ status: "missing" })]);
+      applicationProgressClient.getProgress.mockResolvedValue(progress());
+      window.localStorage.setItem("descon.language", "ur");
+      await signInAndNavigateToDocuments();
+
+      fireEvent.click(await screen.findByRole("button", { name: "اپ لوڈ کریں" }));
+      selectFileOnActiveRow(pdfFile("passport.pdf", 1536));
+
+      expect(await screen.findByText("منتخب فائل: passport.pdf • PDF • 1.5 KB")).toBeInTheDocument();
+    });
+
+    it("shows the selected file's type and size alongside its name", async () => {
+      candidateDocumentsClient.getChecklist.mockResolvedValue([item({ status: "missing" })]);
+      applicationProgressClient.getProgress.mockResolvedValue(progress());
+      await signInAndNavigateToDocuments();
+
+      fireEvent.click(await screen.findByRole("button", { name: "Upload" }));
+      selectFileOnActiveRow(pdfFile("passport.pdf", 1536));
+
+      expect(await screen.findByText("Selected file: passport.pdf • PDF • 1.5 KB")).toBeInTheDocument();
+    });
+
+    it("shows a local preview for a selected image and revokes it when the file is replaced", async () => {
+      candidateDocumentsClient.getChecklist.mockResolvedValue([item({ status: "missing" })]);
+      applicationProgressClient.getProgress.mockResolvedValue(progress());
+      await signInAndNavigateToDocuments();
+
+      vi.mocked(window.URL.createObjectURL).mockClear();
+      vi.mocked(window.URL.revokeObjectURL).mockClear();
+
+      fireEvent.click(await screen.findByRole("button", { name: "Upload" }));
+      selectFileOnActiveRow(imageFile("photo.jpg"));
+
+      const preview = await screen.findByAltText("photo.jpg");
+      expect(preview).toHaveAttribute("src", "blob:mock-preview-url");
+      expect(window.URL.createObjectURL).toHaveBeenCalledTimes(1);
+
+      selectFileOnActiveRow(pdfFile("passport.pdf"));
+
+      await waitFor(() => expect(window.URL.revokeObjectURL).toHaveBeenCalledWith("blob:mock-preview-url"));
+      expect(screen.queryByAltText("photo.jpg")).not.toBeInTheDocument();
+    });
+
+    it("shows no preview for a non-image file", async () => {
+      candidateDocumentsClient.getChecklist.mockResolvedValue([item({ status: "missing" })]);
+      applicationProgressClient.getProgress.mockResolvedValue(progress());
+      await signInAndNavigateToDocuments();
+
+      fireEvent.click(await screen.findByRole("button", { name: "Upload" }));
+      selectFileOnActiveRow(pdfFile());
+
+      await screen.findByText(/Selected file: passport\.pdf/);
+      expect(document.querySelector("img")).not.toBeInTheDocument();
     });
 
     it("does not show the PCC issue-date field for a non-PCC requirement", async () => {

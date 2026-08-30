@@ -47,6 +47,13 @@
         "expo-video",
         { "supportsBackgroundPlayback": true, "supportsPictureInPicture": true }
       ],
+      [
+        "expo-image-picker",
+        {
+          "cameraPermission": "Allow $(PRODUCT_NAME) to use the camera to photograph your documents.",
+          "photosPermission": "Allow $(PRODUCT_NAME) to access your photos to select a document image."
+        }
+      ],
       "expo-font",
       "expo-secure-store",
       "expo-web-browser"

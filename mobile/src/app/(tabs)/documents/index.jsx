@@ -21,6 +21,7 @@ import { DocumentUploadPanel } from "../../../features/candidate/documents/compo
 import {
   Button,
   ConfirmDialog,
+  EmptyState,
   LoadingState,
   ErrorState,
   OfflineState,
@@ -143,6 +144,10 @@ export default function DocumentsScreen() {
     }
 
     const checklist = sortByPrototypeOrder(checklistQuery.data ?? []);
+
+    if (checklist.length === 0) {
+      return <EmptyState title={t("candidateDocumentsEmptyTitle")} description={t("candidateDocumentsEmptyDescription")} />;
+    }
 
     return (
       <>
@@ -373,11 +378,15 @@ function DocumentRow({ item, isDark, language, t, isActive, isAnyUploadPending, 
           issuedOn={upload.issuedOn}
           onIssuedOnChange={upload.setIssuedOn}
           issuedOnError={upload.issuedOnError}
+          permissionNotice={upload.permissionNotice}
           onPickDocument={upload.pickDocument}
+          onPickFromCamera={upload.pickFromCamera}
+          onPickFromGallery={upload.pickFromGallery}
           onRemoveDocument={upload.removeDocument}
           onCancel={upload.cancelUpload}
           onSubmit={upload.submit}
           t={t}
+          language={language}
         />
       ) : null}
     </View>
