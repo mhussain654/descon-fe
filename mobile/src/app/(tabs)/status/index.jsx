@@ -136,7 +136,14 @@ export default function StatusScreen() {
         }}
         showsVerticalScrollIndicator={false}
         refreshControl={
-          <RefreshControl refreshing={progressQuery.isRefetching} onRefresh={() => progressQuery.refetch()} title={t("pullToRefresh")} />
+          <RefreshControl
+            refreshing={progressQuery.isRefetching || historyQuery.isRefetching}
+            onRefresh={() => {
+              progressQuery.refetch();
+              historyQuery.refetch();
+            }}
+            title={t("pullToRefresh")}
+          />
         }
       >
         {progressQuery.isLoading ? <LoadingState message={t("loading")} /> : null}

@@ -1,5 +1,6 @@
 import { QueryClientProvider } from "@tanstack/react-query";
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react-native";
+import { RefreshControl } from "react-native";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { AuthProvider } from "../../../contexts/AuthContext";
 import { LanguageProvider } from "../../../contexts/LanguageContext";
@@ -309,5 +310,19 @@ describe("StatusScreen", () => {
     renderStatusScreen();
 
     expect(await screen.findByText("رجسٹرڈ")).toBeOnTheScreen();
+  });
+
+  it("refreshes both the workflow timeline and the workflow history on pull-to-refresh, so QVC outcomes and Recent Updates cannot go stale", async () => {
+    applicationProgressClient.getProgress.mockResolvedValue(progressPayload());
+    candidateWorkflowClient.getWorkflowHistory.mockResolvedValue(historyPayload());
+    renderStatusScreen();
+    await screen.findByText("Documents Pending");
+    applicationProgressClient.getProgress.mockClear();
+    candidateWorkflowClient.getWorkflowHistory.mockClear();
+
+    screen.UNSAFE_getByType(RefreshControl).props.onRefresh();
+
+    await waitFor(() => expect(applicationProgressClient.getProgress).toHaveBeenCalledTimes(1));
+    expect(candidateWorkflowClient.getWorkflowHistory).toHaveBeenCalledTimes(1);
   });
 });
