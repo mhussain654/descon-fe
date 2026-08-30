@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useCallback, useRef, useState } from "react";
 import {
   View,
   Text,
@@ -31,6 +31,10 @@ import { useCandidateDocuments } from "../../../features/candidate/documents/hoo
 import { useApplicationProgress } from "../../../features/candidate/progress/hooks/useApplicationProgress";
 import { resolveNextAction, NEXT_ACTION_KEYS } from "../../../../../shared/applicationProgress/nextAction";
 import { currentDashboardStage } from "../../../../../shared/applicationProgress/currentDashboardStage";
+import { LoadingState, ErrorState, OfflineState, SessionExpiredState, ForbiddenState } from "../../../design-system";
+import { CANDIDATE_PROFILE_ERROR_KEYS } from "../../../../../shared/candidateProfile/errorMessages";
+import { CANDIDATE_DOCUMENTS_ERROR_KEYS } from "../../../../../shared/candidateDocuments/errorMessages";
+import { APPLICATION_PROGRESS_ERROR_KEYS } from "../../../../../shared/applicationProgress/errorMessages";
 
 export default function DashboardScreen() {
   const insets = useSafeAreaInsets();
@@ -51,23 +55,24 @@ export default function DashboardScreen() {
     router.replace("/login");
   };
 
-  // Dashboard composes 3 independent queries with no dedicated error layout
-  // of its own (the prototype has none) -- a session-ending error from any
-  // of them still has to end the session, matching every other candidate
-  // screen's behavior, even though a transient network/server error here
-  // just leaves that section showing its loading fallback rather than a
-  // full error card (Documents/Status/Profile each already own that).
-  // Placed above the `fontsLoaded` early return below -- every hook here
-  // must run on every render regardless of that gate, or React sees a
-  // different hook order between the "still loading fonts" render and every
-  // render after it (Rules of Hooks).
-  useEffect(() => {
-    const code = profileQuery.error?.code ?? checklistQuery.error?.code ?? progressQuery.error?.code;
-    if (code === "SESSION_EXPIRED" || code === "INACTIVE_ACCOUNT") {
-      returnToSignIn();
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  // `isRefreshing` state alone isn't a reliable re-entry guard: two calls to
+  // `handleRefresh` that both start before React commits the first
+  // `setIsRefreshing(true)` would both close over the same stale `false` and
+  // both proceed. A ref is read/written synchronously, so the second call
+  // always sees the first call's lock regardless of render timing.
+  const isRefreshingRef = useRef(false);
+  const handleRefresh = useCallback(async () => {
+    if (isRefreshingRef.current) return;
+    isRefreshingRef.current = true;
+    setIsRefreshing(true);
+    try {
+      await Promise.all([profileQuery.refetch(), checklistQuery.refetch(), progressQuery.refetch()]);
+    } finally {
+      isRefreshingRef.current = false;
+      setIsRefreshing(false);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [profileQuery.error, checklistQuery.error, progressQuery.error]);
+  }, [profileQuery.refetch, checklistQuery.refetch, progressQuery.refetch]);
 
   const [fontsLoaded] = useFonts({
     Inter_400Regular,
@@ -77,6 +82,93 @@ export default function DashboardScreen() {
 
   if (!fontsLoaded) {
     return null;
+  }
+
+  // Dashboard composes 3 independent queries (profile, checklist, progress)
+  // -- a SESSION_EXPIRED/INACTIVE_ACCOUNT from *any* of them must win over a
+  // merely transient error (offline/network/server) from another, or the
+  // candidate would see a "Retry" button instead of the screen that actually
+  // ends/protects an invalid session. Only once no source query reports a
+  // session-ending error do we fall back to picking the first real error in
+  // priority order (profile identity first, since nothing else can render
+  // meaningfully without it), matching Documents/Status/Profile's own
+  // per-query dedicated states instead of silently leaving the header blank
+  // or the status card stuck at "0%" (indistinguishable from valid empty
+  // data).
+  const errorSources = [
+    { error: profileQuery.error, keys: CANDIDATE_PROFILE_ERROR_KEYS },
+    { error: checklistQuery.error, keys: CANDIDATE_DOCUMENTS_ERROR_KEYS },
+    { error: progressQuery.error, keys: APPLICATION_PROGRESS_ERROR_KEYS },
+  ];
+  const primarySource =
+    errorSources.find((source) => source.error?.code === "SESSION_EXPIRED" || source.error?.code === "INACTIVE_ACCOUNT") ??
+    errorSources.find((source) => source.error);
+  const primaryError = primarySource?.error ?? null;
+  const primaryErrorKeys = primarySource?.keys ?? CANDIDATE_PROFILE_ERROR_KEYS;
+  const isLoading = profileQuery.isLoading || checklistQuery.isLoading || progressQuery.isLoading;
+
+  if (isLoading) {
+    return (
+      <View style={{ flex: 1, backgroundColor: isDark ? "#121212" : "#F8F9FA" }}>
+        <StatusBar style={isDark ? "light" : "dark"} />
+        <LoadingState message={t("loading")} />
+      </View>
+    );
+  }
+  if (primaryError?.code === "SESSION_EXPIRED") {
+    return (
+      <View style={{ flex: 1, backgroundColor: isDark ? "#121212" : "#F8F9FA" }}>
+        <StatusBar style={isDark ? "light" : "dark"} />
+        <SessionExpiredState
+          title={t("dsSessionExpiredTitle")}
+          description={t("dsSessionExpiredDescription")}
+          actionLabel={t("dsSessionExpiredAction")}
+          onAction={returnToSignIn}
+        />
+      </View>
+    );
+  }
+  if (primaryError?.code === "INACTIVE_ACCOUNT") {
+    return (
+      <View style={{ flex: 1, backgroundColor: isDark ? "#121212" : "#F8F9FA" }}>
+        <StatusBar style={isDark ? "light" : "dark"} />
+        <ForbiddenState
+          title={t("candidateProfileInactiveAccountTitle")}
+          description={t("candidateProfileInactiveAccountDescription")}
+          actionLabel={t("candidateProfileInactiveAccountAction")}
+          onAction={returnToSignIn}
+        />
+      </View>
+    );
+  }
+  if (primaryError?.code === "OFFLINE") {
+    return (
+      <View style={{ flex: 1, backgroundColor: isDark ? "#121212" : "#F8F9FA" }}>
+        <StatusBar style={isDark ? "light" : "dark"} />
+        <OfflineState
+          title={t("dsOfflineTitle")}
+          description={t("dsOfflineDescription")}
+          retryLabel={t("retry")}
+          onRetry={handleRefresh}
+        />
+      </View>
+    );
+  }
+  if (primaryError) {
+    return (
+      <View style={{ flex: 1, backgroundColor: isDark ? "#121212" : "#F8F9FA" }}>
+        <StatusBar style={isDark ? "light" : "dark"} />
+        <ErrorState message={t(primaryErrorKeys[primaryError.code])} retryLabel={t("retry")} onRetry={handleRefresh} />
+      </View>
+    );
+  }
+  if (!profileQuery.data || !progressQuery.data) {
+    return (
+      <View style={{ flex: 1, backgroundColor: isDark ? "#121212" : "#F8F9FA" }}>
+        <StatusBar style={isDark ? "light" : "dark"} />
+        <ErrorState message={t("somethingWentWrong")} retryLabel={t("retry")} onRetry={handleRefresh} />
+      </View>
+    );
   }
 
   const documents = progressQuery.data?.documents;
@@ -107,9 +199,11 @@ export default function DashboardScreen() {
     {
       icon: CreditCard,
       label: t("makePayment"),
+      subLabel: t("makePaymentComingSoon"),
       color: "#10B981",
       bgColor: isDark ? "#1A2E1A" : "#E6F9F0",
-      onPress: () => {},
+      disabled: true,
+      onPress: undefined,
     },
     {
       icon: Clock,
@@ -152,7 +246,7 @@ export default function DashboardScreen() {
             color: isDark ? "#FFFFFF" : "#000000",
           }}
         >
-          {profileQuery.data?.fullName ?? " "}
+          {profileQuery.data.fullName}
         </Text>
         <Text
           style={{
@@ -162,7 +256,7 @@ export default function DashboardScreen() {
             marginTop: 2,
           }}
         >
-          {profileQuery.data?.referenceNumber ?? ""}
+          {profileQuery.data.referenceNumber ?? t("candidateProfileNotAssignedYet")}
         </Text>
       </View>
 
@@ -175,15 +269,7 @@ export default function DashboardScreen() {
         }}
         showsVerticalScrollIndicator={false}
         refreshControl={
-          <RefreshControl
-            refreshing={profileQuery.isRefetching || checklistQuery.isRefetching || progressQuery.isRefetching}
-            onRefresh={() => {
-              profileQuery.refetch();
-              checklistQuery.refetch();
-              progressQuery.refetch();
-            }}
-            title={t("pullToRefresh")}
-          />
+          <RefreshControl refreshing={isRefreshing} onRefresh={handleRefresh} title={t("pullToRefresh")} />
         }
       >
         {/* Current Status Card */}
@@ -329,6 +415,8 @@ export default function DashboardScreen() {
                 key={index}
                 onPress={action.onPress}
                 disabled={action.disabled}
+                accessibilityRole="button"
+                accessibilityState={{ disabled: !!action.disabled }}
                 style={{
                   width: "50%",
                   paddingHorizontal: 6,
@@ -367,6 +455,19 @@ export default function DashboardScreen() {
                   >
                     {action.label}
                   </Text>
+                  {action.subLabel ? (
+                    <Text
+                      style={{
+                        fontSize: 11,
+                        fontFamily: "Inter_400Regular",
+                        color: isDark ? "#9CA3AF" : "#6B7280",
+                        textAlign: "center",
+                        marginTop: 2,
+                      }}
+                    >
+                      {action.subLabel}
+                    </Text>
+                  ) : null}
                 </View>
               </TouchableOpacity>
             ))}
