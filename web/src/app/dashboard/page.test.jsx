@@ -272,6 +272,20 @@ describe("DashboardPage", () => {
     expect(await screen.findByText("Login screen")).toBeInTheDocument();
   });
 
+  it("shows the session-expired screen even when a different, lower-priority source query fails first with a non-session error", async () => {
+    // profileQuery is checked first in source-priority order, but its error
+    // here is merely transient (NETWORK_ERROR) -- the SESSION_EXPIRED from
+    // progressQuery must still win and show the dedicated screen, not a
+    // generic Retry button that would leave an invalid session unprotected.
+    candidateProfileClient.getProfile.mockRejectedValue({ code: "NETWORK_ERROR" });
+    candidateDocumentsClient.getChecklist.mockResolvedValue([]);
+    applicationProgressClient.getProgress.mockRejectedValue({ code: "SESSION_EXPIRED" });
+    await signInAndNavigateToDashboard();
+
+    expect(await screen.findByText("Session expired")).toBeInTheDocument();
+    expect(screen.queryByText("Retry")).not.toBeInTheDocument();
+  });
+
   it("renders the dashboard in Urdu when the language is switched", async () => {
     candidateProfileClient.getProfile.mockResolvedValue(profilePayload());
     candidateDocumentsClient.getChecklist.mockResolvedValue([]);

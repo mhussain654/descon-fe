@@ -1,4 +1,4 @@
-import { useCallback, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router";
 import { FileText, CreditCard, Clock } from "lucide-react";
 import UserShell from "../components/user-shell";
@@ -56,30 +56,46 @@ export default function DashboardPage() {
   };
 
   const [isRefreshing, setIsRefreshing] = useState(false);
+  // `isRefreshing` state alone isn't a reliable re-entry guard: two calls to
+  // `handleRefresh` that both start before React commits the first
+  // `setIsRefreshing(true)` (e.g. a fast double-click on Retry) would both
+  // close over the same stale `false` and both proceed. A ref is read/
+  // written synchronously, so the second call always sees the first call's
+  // lock regardless of render timing.
+  const isRefreshingRef = useRef(false);
   const handleRefresh = useCallback(async () => {
-    if (isRefreshing) return;
+    if (isRefreshingRef.current) return;
+    isRefreshingRef.current = true;
     setIsRefreshing(true);
     try {
       await Promise.all([profileQuery.refetch(), checklistQuery.refetch(), progressQuery.refetch()]);
     } finally {
+      isRefreshingRef.current = false;
       setIsRefreshing(false);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isRefreshing, profileQuery.refetch, checklistQuery.refetch, progressQuery.refetch]);
+  }, [profileQuery.refetch, checklistQuery.refetch, progressQuery.refetch]);
 
   // Dashboard composes 3 independent queries (profile, checklist, progress)
-  // -- pick the first real error in this priority order (profile identity
-  // first, since nothing else can render meaningfully without it) so a
-  // transient failure gets its own dedicated Session/Forbidden/Offline/Error
-  // state, matching Documents/Status/Profile, instead of silently leaving the
-  // header blank or the status card stuck at "0%" (indistinguishable from
-  // valid empty data).
-  const primaryError = profileQuery.error ?? checklistQuery.error ?? progressQuery.error;
-  const primaryErrorKeys = profileQuery.error
-    ? CANDIDATE_PROFILE_ERROR_KEYS
-    : checklistQuery.error
-      ? CANDIDATE_DOCUMENTS_ERROR_KEYS
-      : APPLICATION_PROGRESS_ERROR_KEYS;
+  // -- a SESSION_EXPIRED/INACTIVE_ACCOUNT from *any* of them must win over a
+  // merely transient error (offline/network/server) from another, or the
+  // candidate would see a "Retry" button instead of the screen that actually
+  // ends/protects an invalid session. Only once no source query reports a
+  // session-ending error do we fall back to picking the first real error in
+  // priority order (profile identity first, since nothing else can render
+  // meaningfully without it), matching Documents/Status/Profile's own
+  // per-query dedicated states instead of silently leaving the header blank
+  // or the status card stuck at "0%" (indistinguishable from valid empty
+  // data).
+  const errorSources = [
+    { error: profileQuery.error, keys: CANDIDATE_PROFILE_ERROR_KEYS },
+    { error: checklistQuery.error, keys: CANDIDATE_DOCUMENTS_ERROR_KEYS },
+    { error: progressQuery.error, keys: APPLICATION_PROGRESS_ERROR_KEYS },
+  ];
+  const primarySource =
+    errorSources.find((source) => source.error?.code === "SESSION_EXPIRED" || source.error?.code === "INACTIVE_ACCOUNT") ??
+    errorSources.find((source) => source.error);
+  const primaryError = primarySource?.error ?? null;
+  const primaryErrorKeys = primarySource?.keys ?? CANDIDATE_PROFILE_ERROR_KEYS;
   const isLoading = profileQuery.isLoading || checklistQuery.isLoading || progressQuery.isLoading;
 
   if (isLoading) {

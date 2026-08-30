@@ -289,6 +289,20 @@ describe("DashboardScreen", () => {
     await waitFor(() => expect(mockReplace).toHaveBeenCalledWith("/login"));
   });
 
+  it("shows the session-expired state even when a different, lower-priority source query fails first with a non-session error", async () => {
+    // profileQuery is checked first in source-priority order, but its error
+    // here is merely transient (NETWORK_ERROR) -- the SESSION_EXPIRED from
+    // progressQuery must still win and show the dedicated screen, not a
+    // generic Retry button that would leave an invalid session unprotected.
+    candidateProfileClient.getProfile.mockRejectedValue({ code: "NETWORK_ERROR" });
+    candidateDocumentsClient.getChecklist.mockResolvedValue([]);
+    applicationProgressClient.getProgress.mockRejectedValue({ code: "SESSION_EXPIRED" });
+    renderDashboardScreen();
+
+    expect(await screen.findByText("Session expired")).toBeOnTheScreen();
+    expect(screen.queryByText("Retry")).toBeNull();
+  });
+
   it("shows a distinct inactive-account state", async () => {
     candidateProfileClient.getProfile.mockRejectedValue({ code: "INACTIVE_ACCOUNT" });
     candidateDocumentsClient.getChecklist.mockResolvedValue([]);
@@ -328,13 +342,14 @@ describe("DashboardScreen", () => {
       })
     );
 
+    // Both calls fire synchronously inside the same `act()`, before React
+    // commits the first call's `setIsRefreshing(true)` -- only a ref-based
+    // lock (checked and set synchronously) can catch this; a `useState`
+    // guard alone would let both calls read the same stale `false` and both
+    // proceed.
     const refreshControl = screen.UNSAFE_getByType(RefreshControl);
     act(() => {
       refreshControl.props.onRefresh();
-    });
-    // A second pull while the first is still in flight must not trigger a
-    // duplicate refetch of any of the three queries.
-    act(() => {
       refreshControl.props.onRefresh();
     });
 
