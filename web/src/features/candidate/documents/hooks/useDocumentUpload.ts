@@ -100,6 +100,16 @@ export function useDocumentUpload() {
       queryClient.setQueryData<CandidateDocumentChecklistItem[]>(documentQueries.candidateChecklist(candidateId, language), (old) =>
         old ? old.map((item) => (item.requirementCode === result.requirementCode ? result : item)) : old
       );
+      // A new/replaced document changes required-document counts, submission
+      // state, compliance and the next recommended action -- all served by
+      // the same application-progress response that Dashboard, Status and
+      // Profile already read. Without this, those screens would keep
+      // showing stale counts/next-action until their own query happened to
+      // refetch on its own (focus/pull-to-refresh), even though the
+      // checklist row above already updated (ticket: "refresh/invalidate
+      // ... Application progress, Dashboard next action, Relevant
+      // profile/document summaries").
+      queryClient.invalidateQueries({ queryKey: documentQueries.applicationProgress(candidateId, language) });
       toast.success(t('candidateDocumentsUploadSuccessToast'));
 
       // Collapse the panel back to the row's normal display -- the

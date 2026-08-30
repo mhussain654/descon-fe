@@ -21,6 +21,7 @@ import { DocumentUploadPanel } from "../../../features/candidate/documents/compo
 import {
   Button,
   ConfirmDialog,
+  EmptyState,
   LoadingState,
   ErrorState,
   OfflineState,
@@ -32,6 +33,7 @@ import { CANDIDATE_DOCUMENTS_ERROR_KEYS } from "../../../../../shared/candidateD
 import { APPLICATION_PROGRESS_ERROR_KEYS } from "../../../../../shared/applicationProgress/errorMessages";
 import { PCC_COMPLIANCE_STATUS_KEYS } from "../../../../../shared/candidateDocuments/statusLabels";
 import { sortByPrototypeOrder } from "../../../../../shared/candidateDocuments/checklistOrder";
+import { isCameraCaptureEligible } from "../../../../../shared/candidateDocuments/captureEligibility";
 
 const STATUS_CONFIG = {
   verified: { icon: CheckCircle, color: "#10B981", bgLight: "#E6F9F0", bgDark: "#1A2E1A", labelKey: "verified" },
@@ -143,6 +145,10 @@ export default function DocumentsScreen() {
     }
 
     const checklist = sortByPrototypeOrder(checklistQuery.data ?? []);
+
+    if (checklist.length === 0) {
+      return <EmptyState title={t("candidateDocumentsEmptyTitle")} description={t("candidateDocumentsEmptyDescription")} />;
+    }
 
     return (
       <>
@@ -373,11 +379,16 @@ function DocumentRow({ item, isDark, language, t, isActive, isAnyUploadPending, 
           issuedOn={upload.issuedOn}
           onIssuedOnChange={upload.setIssuedOn}
           issuedOnError={upload.issuedOnError}
+          permissionNotice={upload.permissionNotice}
+          showCameraCapture={isCameraCaptureEligible(item.requirementCode)}
           onPickDocument={upload.pickDocument}
+          onPickFromCamera={upload.pickFromCamera}
+          onPickFromGallery={upload.pickFromGallery}
           onRemoveDocument={upload.removeDocument}
           onCancel={upload.cancelUpload}
           onSubmit={upload.submit}
           t={t}
+          language={language}
         />
       ) : null}
     </View>

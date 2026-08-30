@@ -299,6 +299,16 @@ export const translations = {
     candidateDocumentsNoActionAvailable: 'No action available',
     candidateDocumentsFileFieldHelper: 'PDF, JPEG or PNG, up to 5 MB.',
     candidateDocumentsChooseFile: 'Choose file',
+    candidateDocumentsTakePhoto: 'Take photo',
+    candidateDocumentsChooseFromGallery: 'Choose from gallery',
+    candidateDocumentsCaptureGuidance: 'Make sure the whole document is visible, right-side up and not cropped.',
+    candidateDocumentsCameraPermissionDeniedError: 'Allow camera access to take a photo, or choose a file instead.',
+    candidateDocumentsCameraPermissionBlockedError:
+      'Camera access is turned off for this app. Open Settings to allow it, or choose a file instead.',
+    candidateDocumentsGalleryPermissionDeniedError: 'Allow photo access to choose an image, or choose a file instead.',
+    candidateDocumentsGalleryPermissionBlockedError:
+      'Photo access is turned off for this app. Open Settings to allow it, or choose a file instead.',
+    candidateDocumentsOpenSettings: 'Open Settings',
     candidateDocumentsNoFileChosen: 'No file chosen',
     candidateDocumentsSelectedFilePrefix: 'Selected file',
     candidateDocumentsRemoveFile: 'Remove file',
@@ -798,6 +808,16 @@ export const translations = {
     candidateDocumentsNoActionAvailable: 'کوئی اقدام دستیاب نہیں',
     candidateDocumentsFileFieldHelper: 'PDF، JPEG یا PNG، زیادہ سے زیادہ 5 MB۔',
     candidateDocumentsChooseFile: 'فائل منتخب کریں',
+    candidateDocumentsTakePhoto: 'تصویر لیں',
+    candidateDocumentsChooseFromGallery: 'گیلری سے منتخب کریں',
+    candidateDocumentsCaptureGuidance: 'یقینی بنائیں کہ پوری دستاویز نظر آ رہی ہے، سیدھی ہے اور کٹی ہوئی نہیں۔',
+    candidateDocumentsCameraPermissionDeniedError: 'تصویر لینے کے لیے کیمرے تک رسائی کی اجازت دیں، یا اس کے بجائے فائل منتخب کریں۔',
+    candidateDocumentsCameraPermissionBlockedError:
+      'اس ایپ کے لیے کیمرے تک رسائی بند ہے۔ اسے اجازت دینے کے لیے ترتیبات کھولیں، یا اس کے بجائے فائل منتخب کریں۔',
+    candidateDocumentsGalleryPermissionDeniedError: 'تصویر منتخب کرنے کے لیے فوٹو تک رسائی کی اجازت دیں، یا اس کے بجائے فائل منتخب کریں۔',
+    candidateDocumentsGalleryPermissionBlockedError:
+      'اس ایپ کے لیے فوٹو تک رسائی بند ہے۔ اسے اجازت دینے کے لیے ترتیبات کھولیں، یا اس کے بجائے فائل منتخب کریں۔',
+    candidateDocumentsOpenSettings: 'ترتیبات کھولیں',
     candidateDocumentsNoFileChosen: 'کوئی فائل منتخب نہیں',
     candidateDocumentsSelectedFilePrefix: 'منتخب فائل',
     candidateDocumentsRemoveFile: 'فائل ہٹائیں',

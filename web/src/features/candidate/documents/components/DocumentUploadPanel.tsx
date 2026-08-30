@@ -1,4 +1,4 @@
-import { useId, useRef } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 import {
   Button,
   ErrorState,
@@ -10,10 +10,12 @@ import {
   ValidationMessage,
 } from '../../../../design-system';
 import { CANDIDATE_DOCUMENTS_ERROR_KEYS } from '../../../../../../shared/candidateDocuments/errorMessages';
+import { describeFileType, isPreviewableImageType } from '../../../../../../shared/candidateDocuments/fileDescription';
 import type { FileValidationError } from '../../../../../../shared/candidateDocuments/fileValidation';
+import { formatFileSize } from '../../../../../../shared/candidateDocuments/formatting';
 import type { PccIssueDateError } from '../../../../../../shared/candidateDocuments/pccIssueDate';
 import type { CandidateDocumentsError } from '../../../../lib/candidate-documents-client';
-import type { TranslationKey } from '../../../../../../shared/i18n/translations';
+import type { Language, TranslationKey } from '../../../../../../shared/i18n/translations';
 
 const FILE_VALIDATION_ERROR_KEYS: Record<FileValidationError, TranslationKey> = {
   FILE_REQUIRED: 'candidateDocumentsFileRequiredError',
@@ -42,13 +44,15 @@ export interface DocumentUploadPanelProps {
   onCancel: () => void;
   onSubmit: () => void;
   t: (key: TranslationKey) => string;
+  language: Language;
 }
 
 /**
- * Inline upload/replace panel for one checklist requirement. Never builds a
- * blob URL for the selected file -- ticket: "Preview is not required", and
- * the filename/size shown below come straight off the `File` object, no
- * object URL needed at all.
+ * Inline upload/replace panel for one checklist requirement. Builds a local
+ * object URL to preview the selected file only when it's an image (a PDF
+ * has no safe inline preview here) -- always revoked below when the file
+ * changes or the panel unmounts, so a stale blob URL is never left pointing
+ * at memory the browser can't reclaim.
  */
 export function DocumentUploadPanel({
   labelText,
@@ -64,11 +68,23 @@ export function DocumentUploadPanel({
   onCancel,
   onSubmit,
   t,
+  language,
 }: DocumentUploadPanelProps) {
   const inputRef = useRef<HTMLInputElement>(null);
   const fieldId = useId();
   const helperId = `${fieldId}-helper`;
   const errorId = `${fieldId}-error`;
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!file || !isPreviewableImageType({ name: file.name, size: file.size, type: file.type })) {
+      setPreviewUrl(null);
+      return;
+    }
+    const url = URL.createObjectURL(file);
+    setPreviewUrl(url);
+    return () => URL.revokeObjectURL(url);
+  }, [file]);
 
   if (isUploading) {
     return <LoadingState message={t('candidateDocumentsUploading')} />;
@@ -105,9 +121,18 @@ export function DocumentUploadPanel({
           {t('candidateDocumentsChooseFile')}
         </Button>
         <span className="text-sm text-text-secondary">
-          {file ? `${t('candidateDocumentsSelectedFilePrefix')}: ${file.name}` : t('candidateDocumentsNoFileChosen')}
+          {file
+            ? `${t('candidateDocumentsSelectedFilePrefix')}: ${file.name} • ${describeFileType({ name: file.name, size: file.size, type: file.type })} • ${formatFileSize(file.size, language)}`
+            : t('candidateDocumentsNoFileChosen')}
         </span>
       </div>
+      {previewUrl ? (
+        <img
+          src={previewUrl}
+          alt={file?.name ?? ''}
+          className="mt-2 h-24 w-24 rounded-lg border border-border object-cover"
+        />
+      ) : null}
       <HelperText id={helperId}>{t('candidateDocumentsFileFieldHelper')}</HelperText>
       {validationError ? (
         <ValidationMessage id={errorId} tone="error">
