@@ -24,11 +24,15 @@ const EXPIRY_CHECK_INTERVAL_MS = 5000;
 /**
  * Candidate session state. The token lives in memory only -- never
  * localStorage/sessionStorage -- so it can't be read back by an XSS'd
- * script later and doesn't survive a reload. This is a deliberate
- * placeholder: AGENTS.md prefers secure, httpOnly cookie sessions for web,
- * which the not-yet-built MPS-201 backend will set directly (invisible to
- * this client entirely). Once that lands, `session` collapses to "ask the
- * server whether the cookie is still valid" rather than holding a token.
+ * script later and doesn't survive a reload (a hard refresh always logs
+ * the candidate out on web). This is a deliberate placeholder: the real
+ * MPS-201 backend (OTP request/verify, already wired -- see
+ * web/src/lib/auth-client.ts) returns the access token in the JSON
+ * response body, not a Set-Cookie header. AGENTS.md prefers secure,
+ * httpOnly cookie sessions for web; adopting that here needs a backend
+ * change (the OTP-verify endpoint setting an httpOnly cookie) that hasn't
+ * landed yet. Once that lands, `session` collapses to "ask the server
+ * whether the cookie is still valid" rather than holding a token.
  */
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<AuthSession | null>(null);

@@ -95,7 +95,7 @@ export default function ProfileScreen() {
           backgroundColor: isDark ? "#1E1E1E" : "#F6F6F6",
           justifyContent: "center",
           alignItems: "center",
-          marginRight: 12,
+          marginEnd: 12,
         }}
       >
         <Icon size={20} color={iconColor ?? (isDark ? "#9CA3AF" : "#6B7280")} />
@@ -321,7 +321,7 @@ export default function ProfileScreen() {
                 backgroundColor: isDark ? "#1A2B3D" : "#E6F2FF",
                 justifyContent: "center",
                 alignItems: "center",
-                marginRight: 12,
+                marginEnd: 12,
               }}
             >
               <Globe size={20} color="#0066CC" />
@@ -355,7 +355,7 @@ export default function ProfileScreen() {
           }}
         >
           <LogOut size={20} color="#EF4444" />
-          <Text style={{ fontSize: 16, fontFamily: "Inter_600SemiBold", color: "#EF4444", marginLeft: 8 }}>
+          <Text style={{ fontSize: 16, fontFamily: "Inter_600SemiBold", color: "#EF4444", marginStart: 8 }}>
             {t("logout")}
           </Text>
         </TouchableOpacity>

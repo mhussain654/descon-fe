@@ -13,11 +13,18 @@ they both import.
   wraps these with its own platform configuration (env-based base URL,
   storage-backed language persistence) rather than importing UI from here.
 
-Both apps currently run on mock/in-memory data for their candidate and admin
-prototype screens. A centralized API client exists in each app
-(`src/lib/api-client.ts`, thin wrappers around `shared/api-client.ts`) as a
-foundation for the upcoming Rails API integration, but it is not wired into
-any screen yet.
+The candidate-facing flow (login/OTP, dashboard, documents, status, profile)
+and most staff/admin screens (staff login, staff user management, candidate
+CSV import, document-review queue and detail) are wired to the real Rails
+API via a centralized client in each app (`src/lib/api-client.ts`, thin
+wrappers around `shared/api-client.ts`). Two admin screens are still
+prototype/mock-only, calling an in-memory mock API
+(`web/src/app/api/*`/`mock-db.js`) instead of the real backend: the admin
+dashboard candidate list (`web/src/app/admin/page.jsx`) and the candidate
+detail/document-verification screen
+(`web/src/app/admin/candidates/[id]/page.jsx`) — see the MPS-F001 UX
+inventory (`docs/mps-f001-ux-inventory.md`) for the exact gap and its
+recommended follow-up ticket.
 
 ## Prerequisites
 
@@ -78,18 +85,31 @@ through these variables.
 
 ## Project structure notes
 
-- Candidate and admin prototype routes (web: `/`, `/login`, `/dashboard`,
-  `/documents`, `/payment`, `/profile`, `/status`, `/admin`,
-  `/admin/candidates/:id`; mobile: welcome → language select → login/OTP →
-  dashboard/documents/status/profile tabs) are preserved as approved —
-  don't restructure them without a product decision.
-- The admin dashboard's data (`web/src/app/api/*`) is backed by an
-  in-memory mock store (`web/src/app/api/utils/mock-db.js`), not a
-  database. The frontend does not connect to a database directly.
+- Candidate and admin routes (web: `/`, `/login`, `/dashboard`,
+  `/documents`, `/profile`, `/status`, `/admin`, `/admin/login`,
+  `/admin/forbidden`, `/admin/users`, `/admin/candidates/:id`,
+  `/admin/candidates/import`, `/admin/document-reviews`,
+  `/admin/document-reviews/:id`; mobile: welcome → language select →
+  login/OTP → dashboard/documents/status/profile tabs) are preserved as
+  approved — don't restructure them without a product decision. There is no
+  `/payment` route (removed in MPS-F302 — it was a fully mocked page with no
+  working action); the candidate dashboard shows a visibly-disabled "Coming
+  soon" tile instead. `admin/page.jsx` links to `/admin/candidates/new`,
+  which does not exist (resolves to the catch-all not-found route) — see the
+  UX inventory for the recommended follow-up.
+- Two admin screens (`web/src/app/admin/page.jsx` and
+  `web/src/app/admin/candidates/[id]/page.jsx`) still call an in-memory mock
+  API (`web/src/app/api/*`, backed by `web/src/app/api/utils/mock-db.js`)
+  instead of the real Rails backend — everything else (candidate auth/
+  dashboard/documents/status/profile, staff login, staff user management,
+  candidate CSV import, document-review queue/detail) is wired to real,
+  documented `descon-be` endpoints.
 - `web/src/lib/api-client.ts` and `mobile/src/lib/api-client.ts` both wrap
   `shared/api-client.ts` (the actual request/error-normalization logic,
   including the Rails `ErrorEnvelope` contract) with their own base-URL
-  convention — not yet imported by any screen.
+  convention, and are imported by every real (non-mock) screen's own typed
+  client (e.g. `auth-client.ts`, `candidate-documents-client.ts`,
+  `staff-auth-client.ts`, `admin-document-reviews-client.ts`).
 - `web/src/contexts/LanguageContext.tsx` and
   `mobile/src/contexts/LanguageContext.jsx` both wrap `shared/i18n/` (the
   translation catalog, RTL/locale helpers, and missing-key-warning lookup)

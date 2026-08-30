@@ -1,5 +1,5 @@
 import { useNavigate } from "react-router";
-import { User, FileText, CheckCircle, Flag, Globe, LogOut, ChevronRight } from "lucide-react";
+import { User, FileText, CheckCircle, Flag, Globe, LogOut, ChevronRight, ChevronLeft } from "lucide-react";
 import UserShell from "../components/user-shell";
 import { useAuth } from "../../contexts/AuthContext";
 import { useLanguage } from "../../contexts/LanguageContext";
@@ -21,7 +21,7 @@ const TONE_COLORS = {
 function InfoRow({ icon: Icon, iconClassName, label, value }) {
   return (
     <div className="flex items-center border-b border-[#F0F0F0] py-4 last:border-b-0">
-      <div className="mr-3 flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#F6F6F6]">
+      <div className="me-3 flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#F6F6F6]">
         <Icon size={20} className={iconClassName ?? "text-gray-500"} />
       </div>
       <div className="flex-1">
@@ -150,10 +150,10 @@ export default function ProfilePage() {
           <button
             type="button"
             onClick={toggleLanguage}
-            className="flex w-full items-center justify-between rounded-xl px-4 py-4 text-left transition hover:bg-[#F6F6F6]"
+            className="flex w-full items-center justify-between rounded-xl px-4 py-4 text-start transition hover:bg-[#F6F6F6]"
           >
             <div className="flex items-center">
-              <div className="mr-3 flex h-10 w-10 items-center justify-center rounded-full bg-[#E6F2FF]">
+              <div className="me-3 flex h-10 w-10 items-center justify-center rounded-full bg-[#E6F2FF]">
                 <Globe size={20} className="text-[#0066CC]" />
               </div>
               <div>
@@ -161,7 +161,11 @@ export default function ProfilePage() {
                 <div className="mt-1 text-sm text-gray-500">{language === "en" ? t("englishLabel") : t("urduLabel")}</div>
               </div>
             </div>
-            <ChevronRight size={20} className="text-gray-400" />
+            {language === "ur" ? (
+              <ChevronLeft size={20} className="text-gray-400" />
+            ) : (
+              <ChevronRight size={20} className="text-gray-400" />
+            )}
           </button>
         </section>
 
@@ -171,7 +175,7 @@ export default function ProfilePage() {
           className="flex w-full items-center justify-center rounded-xl border border-[#FEE2E2] bg-[#FEF2F2] px-6 py-4 text-base font-semibold text-[#EF4444] transition hover:bg-[#FEE2E2]"
         >
           <LogOut size={20} />
-          <span className="ml-2">{t("logout")}</span>
+          <span className="ms-2">{t("logout")}</span>
         </button>
       </div>
     </UserShell>
