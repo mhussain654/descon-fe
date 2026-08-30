@@ -313,7 +313,7 @@ export default function DashboardScreen() {
                 fontSize: 15,
                 fontFamily: "Inter_500Medium",
                 color: isDark ? "#FFFFFF" : "#000000",
-                marginLeft: 10,
+                marginStart: 10,
               }}
             >
               {currentStageName ?? t("registered")}
@@ -382,7 +382,7 @@ export default function DashboardScreen() {
                 fontSize: 14,
                 fontFamily: "Inter_400Regular",
                 color: isDark ? "#FFFFFF" : "#000000",
-                marginLeft: 12,
+                marginStart: 12,
               }}
             >
               {nextActionMessage}

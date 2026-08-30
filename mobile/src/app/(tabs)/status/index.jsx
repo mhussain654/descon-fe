@@ -210,7 +210,7 @@ export default function StatusScreen() {
               return (
                 <View key={stage.code} style={{ flexDirection: "row" }}>
                   {/* Icon Column */}
-                  <View style={{ alignItems: "center", marginRight: 16 }}>
+                  <View style={{ alignItems: "center", marginEnd: 16 }}>
                     <View
                       style={{
                         width: 32,
