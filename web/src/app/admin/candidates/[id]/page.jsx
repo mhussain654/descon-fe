@@ -6,6 +6,7 @@ import { formatCurrency } from "../../../../../../shared/i18n/locale";
 import { useLanguage } from "../../../../contexts/LanguageContext";
 import { useStaffAuth } from "../../../../contexts/StaffAuthContext";
 import { StaffShell } from "../../../components/staff-shell";
+import { WorkflowPanel } from "../../../../features/admin/workflow/components/WorkflowPanel";
 
 const documentTypeKeys = {
   passport: "passport",
@@ -137,9 +138,20 @@ function CandidateDetails({ params }) {
   }
 
   if (!data) {
+    // The mock candidate-info fetch (`/api/candidates/:id`) and the real
+    // workflow panel below are independent data sources -- a broken/missing
+    // mock lookup must not hide the real feature (MPS-F501 Phase A), so this
+    // still renders WorkflowPanel using the real `params.id` rather than
+    // stopping here entirely. See the comment on WorkflowPanel below for the
+    // full integration caveat.
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-gray-600">{t("adminCandidateNotFound")}</div>
+      <div className="min-h-screen bg-gray-50">
+        <div className="flex items-center justify-center py-12">
+          <div className="text-gray-600">{t("adminCandidateNotFound")}</div>
+        </div>
+        <div className="max-w-4xl mx-auto px-4 pb-8 sm:px-6">
+          <WorkflowPanel candidateId={params.id} />
+        </div>
       </div>
     );
   }
@@ -376,6 +388,20 @@ function CandidateDetails({ params }) {
               </div>
             </div>
           </div>
+        </div>
+
+        {/* Workflow-transition panel (MPS-F501 Phase A). Calls the real
+            backend directly using this route's `params.id` as the
+            candidate_id -- it does not depend on the mock candidate data
+            (`data`/`candidate`) above at all. That means it only resolves
+            end-to-end when `params.id` is a real backend candidate UUID,
+            which it is NOT when reached via the admin dashboard's own
+            candidate list (still mock-backed -- see the UX inventory,
+            MPS-F304). Verified directly by navigating to this route with a
+            real UUID; wiring the dashboard link to a real ID is that
+            ticket's job, not this one's. */}
+        <div className="mt-6">
+          <WorkflowPanel candidateId={params.id} />
         </div>
       </div>
     </div>

@@ -1,0 +1,436 @@
+// Runs under both web's Vitest and mobile's Jest (this module lives under
+// shared/, which mobile's Jest config also roots into), matching the
+// established adminDocumentReviews precedent -- even though the staff
+// workflow-transition feature itself is web-only in Phase A.
+import { createApiClient } from '../api-client';
+import type { StaffAuthClient, StaffAuthError } from '../auth/staffTypes';
+import { createAdminWorkflowClient } from './realAdminWorkflowClient';
+
+const originalFetch = globalThis.fetch;
+function stubFetch(impl: typeof fetch) {
+  globalThis.fetch = impl as typeof fetch;
+}
+afterEach(() => {
+  globalThis.fetch = originalFetch;
+});
+
+function jsonResponse(body: unknown, init: ResponseInit = {}) {
+  return new Response(JSON.stringify(body), {
+    status: 200,
+    headers: { 'Content-Type': 'application/json' },
+    ...init,
+  });
+}
+
+function successEnvelope(data: unknown, meta: Record<string, unknown> = {}) {
+  return { data, meta: { request_id: 'req-1', timestamp: '2026-08-30T09:00:00Z', ...meta }, errors: [] };
+}
+
+function errorEnvelope(errors: Array<{ code: string; message: string; field?: string; details?: Record<string, unknown> }>) {
+  return { errors, request_id: 'req-1' };
+}
+
+function fakeStaffAuthClient(onFailure?: StaffAuthError): StaffAuthClient {
+  return {
+    signIn: async () => {
+      throw new Error('not used');
+    },
+    restoreSession: async () => null,
+    signOut: async () => undefined,
+    authenticatedRequest: async () => {
+      throw new Error('not used');
+    },
+    authenticatedDataRequest: async (makeRequest) => {
+      if (onFailure) throw onFailure;
+      return makeRequest('staff-access-token');
+    },
+  };
+}
+
+function buildClient(locale: 'en' | 'ur' = 'en', onFailure?: StaffAuthError) {
+  const apiClient = createApiClient({ baseUrl: 'http://example.test/api/v1' });
+  const staffAuthClient = fakeStaffAuthClient(onFailure);
+  return createAdminWorkflowClient({ apiClient, staffAuthClient, getLocale: () => locale });
+}
+
+function timelineStageResponse(overrides: Record<string, unknown> = {}) {
+  return { code: 'fee_paid', name: 'Fee Paid', position: 7, status: 'completed', completed_at: '2026-08-30T09:00:00Z', ...overrides };
+}
+
+function workflowStateResponse(overrides: Record<string, unknown> = {}) {
+  return {
+    candidate_id: 'candidate-1',
+    assignment_id: 'assignment-1',
+    candidate_status: 'fee_paid',
+    current_stage: timelineStageResponse({ status: 'current', started_at: '2026-08-30T09:00:00Z', completed_at: null }),
+    timeline: [timelineStageResponse()],
+    completed_count: 7,
+    total_count: 15,
+    progress_percentage: 46,
+    updated_at: '2026-08-30T09:00:00Z',
+    ...overrides,
+  };
+}
+
+function allowedTransitionResponse(overrides: Record<string, unknown> = {}) {
+  return {
+    code: 'documents_shared_with_qatar_bu',
+    name: 'Documents Shared with Qatar BU',
+    position: 8,
+    required_fields: [],
+    allowed: true,
+    blocking_reasons: [],
+    ...overrides,
+  };
+}
+
+function historyItemResponse(overrides: Record<string, unknown> = {}) {
+  return {
+    from_stage: { code: 'fee_paid', name: 'Fee Paid', position: 7 },
+    to_stage: { code: 'documents_shared_with_qatar_bu', name: 'Documents Shared with Qatar BU', position: 8 },
+    occurred_at: '2026-08-30T09:00:00Z',
+    reason_code: 'qatar_bu_shared',
+    details: null,
+    actor: { id: 'staff-1', role: 'mps' },
+    ...overrides,
+  };
+}
+
+describe('createAdminWorkflowClient (real)', () => {
+  describe('getWorkflowState', () => {
+    it('maps the workflow state, including current stage and timeline', async () => {
+      let capturedUrl: string | undefined;
+      let capturedHeaders: Record<string, string> | undefined;
+      stubFetch(async (url, init) => {
+        capturedUrl = String(url);
+        capturedHeaders = init?.headers as Record<string, string>;
+        return jsonResponse(successEnvelope(workflowStateResponse()));
+      });
+      const client = buildClient();
+
+      const result = await client.getWorkflowState('candidate-1');
+
+      expect(capturedUrl).toContain('/admin/candidates/candidate-1/workflow_state');
+      expect(capturedHeaders?.Authorization).toBe('Bearer staff-access-token');
+      expect(result.candidateId).toBe('candidate-1');
+      expect(result.currentStage).toEqual({
+        code: 'fee_paid',
+        name: 'Fee Paid',
+        position: 7,
+        status: 'current',
+        startedAt: '2026-08-30T09:00:00Z',
+        completedAt: undefined,
+      });
+      expect(result.completedCount).toBe(7);
+      expect(result.totalCount).toBe(15);
+      expect(result.progressPercentage).toBe(46);
+    });
+
+    it('maps a null current_stage and empty timeline safely', async () => {
+      stubFetch(async () => jsonResponse(successEnvelope(workflowStateResponse({ current_stage: null, timeline: [] }))));
+      const client = buildClient();
+
+      const result = await client.getWorkflowState('candidate-1');
+
+      expect(result.currentStage).toBeNull();
+      expect(result.timeline).toEqual([]);
+    });
+
+    it('URL-encodes the candidate id', async () => {
+      let capturedUrl: string | undefined;
+      stubFetch(async (url) => {
+        capturedUrl = String(url);
+        return jsonResponse(successEnvelope(workflowStateResponse()));
+      });
+      const client = buildClient();
+
+      await client.getWorkflowState('candidate/needs encoding');
+
+      expect(capturedUrl).toContain(encodeURIComponent('candidate/needs encoding'));
+    });
+  });
+
+  describe('getAllowedTransitions', () => {
+    it('maps allowed and blocked transitions', async () => {
+      stubFetch(async () =>
+        jsonResponse(
+          successEnvelope({
+            candidate_id: 'candidate-1',
+            updated_at: '2026-08-30T09:00:00Z',
+            allowed_next_transitions: [
+              allowedTransitionResponse(),
+              allowedTransitionResponse({
+                code: 'qvc_appointment_booked',
+                position: 9,
+                allowed: false,
+                blocking_reasons: ['payment_required'],
+              }),
+            ],
+          })
+        )
+      );
+      const client = buildClient();
+
+      const result = await client.getAllowedTransitions('candidate-1');
+
+      expect(result.allowedNextTransitions).toHaveLength(2);
+      expect(result.allowedNextTransitions[0]).toEqual({
+        code: 'documents_shared_with_qatar_bu',
+        name: 'Documents Shared with Qatar BU',
+        position: 8,
+        requiredFields: [],
+        allowed: true,
+        blockingReasons: [],
+      });
+      expect(result.allowedNextTransitions[1].blockingReasons).toEqual(['payment_required']);
+    });
+
+    it('falls back to an empty list for a malformed response', async () => {
+      stubFetch(async () => jsonResponse(successEnvelope({ candidate_id: 'candidate-1', updated_at: null })));
+      const client = buildClient();
+
+      const result = await client.getAllowedTransitions('candidate-1');
+
+      expect(result.allowedNextTransitions).toEqual([]);
+    });
+  });
+
+  describe('getWorkflowHistory', () => {
+    it('maps history items including the actor', async () => {
+      stubFetch(async () =>
+        jsonResponse(
+          successEnvelope({
+            candidate_id: 'candidate-1',
+            assignment_id: 'assignment-1',
+            history: [historyItemResponse()],
+            updated_at: '2026-08-30T09:00:00Z',
+          })
+        )
+      );
+      const client = buildClient();
+
+      const result = await client.getWorkflowHistory('candidate-1');
+
+      expect(result.history).toHaveLength(1);
+      expect(result.history[0].actor).toEqual({ id: 'staff-1', role: 'mps' });
+      expect(result.history[0].fromStage).toEqual({ code: 'fee_paid', name: 'Fee Paid', position: 7 });
+      expect(result.history[0].toStage.code).toBe('documents_shared_with_qatar_bu');
+    });
+
+    it('maps an unrecognized actor role to "unknown" rather than displaying the raw code', async () => {
+      stubFetch(async () =>
+        jsonResponse(
+          successEnvelope({
+            candidate_id: 'candidate-1',
+            assignment_id: 'assignment-1',
+            history: [historyItemResponse({ actor: { id: 'staff-1', role: 'some_future_role' } })],
+            updated_at: '2026-08-30T09:00:00Z',
+          })
+        )
+      );
+      const client = buildClient();
+
+      const result = await client.getWorkflowHistory('candidate-1');
+
+      expect(result.history[0].actor).toEqual({ id: 'staff-1', role: 'unknown' });
+    });
+
+    it('never maps an actor name or email -- only id and role', async () => {
+      stubFetch(async () =>
+        jsonResponse(
+          successEnvelope({
+            candidate_id: 'candidate-1',
+            assignment_id: 'assignment-1',
+            history: [historyItemResponse({ actor: { id: 'staff-1', role: 'mps', name: 'Should Not Appear', email: 'nope@example.test' } })],
+            updated_at: '2026-08-30T09:00:00Z',
+          })
+        )
+      );
+      const client = buildClient();
+
+      const result = await client.getWorkflowHistory('candidate-1');
+
+      expect(result.history[0].actor).toEqual({ id: 'staff-1', role: 'mps' });
+    });
+
+    it('drops a malformed history item rather than crashing', async () => {
+      stubFetch(async () =>
+        jsonResponse(
+          successEnvelope({
+            candidate_id: 'candidate-1',
+            assignment_id: 'assignment-1',
+            history: [{ occurred_at: '2026-08-30T09:00:00Z' }, historyItemResponse()],
+            updated_at: '2026-08-30T09:00:00Z',
+          })
+        )
+      );
+      const client = buildClient();
+
+      const result = await client.getWorkflowHistory('candidate-1');
+
+      expect(result.history).toHaveLength(1);
+    });
+  });
+
+  describe('submitTransition', () => {
+    it('sends the documented request body shape and the Idempotency-Key header', async () => {
+      let capturedBody: string | undefined;
+      let capturedHeaders: Record<string, string> | undefined;
+      let capturedUrl: string | undefined;
+      stubFetch(async (url, init) => {
+        capturedUrl = String(url);
+        capturedBody = init?.body as string;
+        capturedHeaders = init?.headers as Record<string, string>;
+        return jsonResponse(
+          successEnvelope({ workflow: workflowStateResponse(), transition: historyItemResponse() }),
+          { status: 201 }
+        );
+      });
+      const client = buildClient();
+
+      const result = await client.submitTransition({
+        candidateId: 'candidate-1',
+        toStageCode: 'documents_shared_with_qatar_bu',
+        expectedCurrentStageCode: 'fee_paid',
+        idempotencyKey: 'idem-key-1',
+      });
+
+      expect(capturedUrl).toContain('/admin/candidates/candidate-1/workflow_transitions');
+      expect(capturedHeaders?.['Idempotency-Key']).toBe('idem-key-1');
+      expect(JSON.parse(capturedBody!)).toEqual({
+        candidate_workflow_transition: {
+          to_stage_code: 'documents_shared_with_qatar_bu',
+          expected_current_stage_code: 'fee_paid',
+        },
+      });
+      expect(result.workflow.candidateId).toBe('candidate-1');
+      expect(result.transition.actor).toEqual({ id: 'staff-1', role: 'mps' });
+    });
+
+    it('omits expected_current_stage_code from the body when not provided', async () => {
+      let capturedBody: string | undefined;
+      stubFetch(async (_url, init) => {
+        capturedBody = init?.body as string;
+        return jsonResponse(successEnvelope({ workflow: workflowStateResponse(), transition: historyItemResponse() }), {
+          status: 201,
+        });
+      });
+      const client = buildClient();
+
+      await client.submitTransition({
+        candidateId: 'candidate-1',
+        toStageCode: 'documents_shared_with_qatar_bu',
+        idempotencyKey: 'idem-key-1',
+      });
+
+      expect(JSON.parse(capturedBody!)).toEqual({
+        candidate_workflow_transition: { to_stage_code: 'documents_shared_with_qatar_bu' },
+      });
+    });
+  });
+
+  describe('error mapping', () => {
+    async function rejectionForServerCode(code: string, status: number, extra: Record<string, unknown> = {}) {
+      stubFetch(async () => jsonResponse(errorEnvelope([{ code, message: 'server message', ...extra }]), { status }));
+      const client = buildClient();
+      try {
+        await client.getWorkflowState('candidate-1');
+        throw new Error('expected rejection');
+      } catch (error) {
+        return error;
+      }
+    }
+
+    it.each([
+      ['validation_failed', 422, 'VALIDATION_ERROR'],
+      ['workflow_transition_stale', 409, 'WORKFLOW_TRANSITION_STALE'],
+      ['idempotency_conflict', 409, 'IDEMPOTENCY_CONFLICT'],
+      ['missing_idempotency_key', 400, 'MISSING_IDEMPOTENCY_KEY'],
+      ['invalid_idempotency_key', 400, 'INVALID_IDEMPOTENCY_KEY'],
+      ['idempotency_in_progress', 409, 'IDEMPOTENCY_IN_PROGRESS'],
+      ['inactive_account', 403, 'INACTIVE_ACCOUNT'],
+    ])('maps server code %s (%i) to %s', async (code, status, expectedCode) => {
+      const error = await rejectionForServerCode(code as string, status as number);
+      expect(error).toMatchObject({ code: expectedCode, message: 'server message' });
+    });
+
+    it('maps workflow_transition_prerequisite_missing with its prerequisite details', async () => {
+      const error = await rejectionForServerCode('workflow_transition_prerequisite_missing', 422, {
+        details: {
+          to_stage_code: 'documents_shared_with_qatar_bu',
+          required_fields: [],
+          blocking_reasons: ['payment_required'],
+        },
+      });
+      expect(error).toMatchObject({
+        code: 'WORKFLOW_TRANSITION_PREREQUISITE_MISSING',
+        prerequisite: {
+          toStageCode: 'documents_shared_with_qatar_bu',
+          requiredFields: [],
+          blockingReasons: ['payment_required'],
+        },
+      });
+    });
+
+    it('maps a 401 (surfaced as StaffAuthError SESSION_EXPIRED by authenticatedDataRequest) to SESSION_EXPIRED', async () => {
+      const client = buildClient('en', { code: 'SESSION_EXPIRED' });
+      await expect(client.getWorkflowState('candidate-1')).rejects.toEqual({ code: 'SESSION_EXPIRED' });
+    });
+
+    it('maps a StaffAuthError NETWORK_ERROR through unchanged', async () => {
+      const client = buildClient('en', { code: 'NETWORK_ERROR' });
+      await expect(client.getWorkflowState('candidate-1')).rejects.toEqual({ code: 'NETWORK_ERROR' });
+    });
+
+    it('maps a StaffAuthError OFFLINE through unchanged', async () => {
+      const client = buildClient('en', { code: 'OFFLINE' });
+      await expect(client.getWorkflowState('candidate-1')).rejects.toEqual({ code: 'OFFLINE' });
+    });
+
+    it('maps any other StaffAuthError to UNKNOWN', async () => {
+      const client = buildClient('en', { code: 'FORBIDDEN' });
+      await expect(client.getWorkflowState('candidate-1')).rejects.toEqual({ code: 'UNKNOWN' });
+    });
+
+    it('maps a 403 without a recognized serverCode to FORBIDDEN', async () => {
+      stubFetch(async () => jsonResponse(errorEnvelope([{ code: 'some_unrecognized_403', message: 'nope' }]), { status: 403 }));
+      const client = buildClient();
+      await expect(client.getWorkflowState('candidate-1')).rejects.toMatchObject({ code: 'FORBIDDEN' });
+    });
+
+    it('maps a 429 to RATE_LIMITED with retryAfterSeconds', async () => {
+      stubFetch(async () =>
+        jsonResponse(errorEnvelope([{ code: 'rate_limited', message: 'slow down' }]), {
+          status: 429,
+          headers: { 'Content-Type': 'application/json', 'Retry-After': '15' },
+        })
+      );
+      const client = buildClient();
+      await expect(client.getWorkflowState('candidate-1')).rejects.toEqual({ code: 'RATE_LIMITED', retryAfterSeconds: 15 });
+    });
+
+    it('maps a 5xx to SERVER_ERROR without inventing an English message', async () => {
+      stubFetch(async () => new Response('Internal Server Error', { status: 500 }));
+      const client = buildClient();
+      await expect(client.getWorkflowState('candidate-1')).rejects.toEqual({ code: 'SERVER_ERROR' });
+    });
+
+    it('maps a network failure to NETWORK_ERROR when online', async () => {
+      stubFetch(async () => {
+        throw new TypeError('Failed to fetch');
+      });
+      const apiClient = createApiClient({ baseUrl: 'http://example.test', isOnline: () => true });
+      const client = createAdminWorkflowClient({ apiClient, staffAuthClient: fakeStaffAuthClient(), getLocale: () => 'en' });
+      await expect(client.getWorkflowState('candidate-1')).rejects.toEqual({ code: 'NETWORK_ERROR' });
+    });
+
+    it('maps offline to OFFLINE', async () => {
+      stubFetch(async () => {
+        throw new TypeError('Failed to fetch');
+      });
+      const apiClient = createApiClient({ baseUrl: 'http://example.test', isOnline: () => false });
+      const client = createAdminWorkflowClient({ apiClient, staffAuthClient: fakeStaffAuthClient(), getLocale: () => 'en' });
+      await expect(client.getWorkflowState('candidate-1')).rejects.toEqual({ code: 'OFFLINE' });
+    });
+  });
+});
