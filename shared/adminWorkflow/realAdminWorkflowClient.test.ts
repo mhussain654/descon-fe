@@ -634,6 +634,333 @@ describe('createAdminWorkflowClient (real)', () => {
     });
   });
 
+  describe('getVisaDecisions', () => {
+    function visaDecisionResponse(overrides: Record<string, unknown> = {}) {
+      return {
+        id: 'visa-decision-1',
+        outcome_code: 'issued',
+        decision_date: '2026-09-10',
+        rejection_reason_code: null,
+        visa_copy_attached: true,
+        created_at: '2026-09-10T09:00:00Z',
+        recorded_by: { id: 'staff-1', role: 'mps' },
+        ...overrides,
+      };
+    }
+
+    it('maps the visa decisions collection', async () => {
+      let capturedUrl: string | undefined;
+      stubFetch(async (url) => {
+        capturedUrl = String(url);
+        return jsonResponse(
+          successEnvelope({
+            candidate_id: 'candidate-1',
+            assignment_id: 'assignment-1',
+            visa_decisions: [visaDecisionResponse()],
+            updated_at: '2026-09-10T09:00:00Z',
+          })
+        );
+      });
+      const client = buildClient();
+
+      const result = await client.getVisaDecisions('candidate-1');
+
+      expect(capturedUrl).toContain('/admin/candidates/candidate-1/visa_decisions');
+      expect(result.visaDecisions).toEqual([
+        {
+          id: 'visa-decision-1',
+          outcomeCode: 'issued',
+          decisionDate: '2026-09-10',
+          rejectionReasonCode: null,
+          visaCopyAttached: true,
+          createdAt: '2026-09-10T09:00:00Z',
+          recordedBy: { id: 'staff-1', role: 'mps' },
+        },
+      ]);
+    });
+
+    it('recognizes a structured rejection reason code, and null for an unrecognized one', async () => {
+      stubFetch(async () =>
+        jsonResponse(
+          successEnvelope({
+            candidate_id: 'candidate-1',
+            assignment_id: 'assignment-1',
+            visa_decisions: [
+              visaDecisionResponse({ outcome_code: 'rejected', rejection_reason_code: 'medical_issue', visa_copy_attached: false }),
+              visaDecisionResponse({ id: 'visa-decision-2', outcome_code: 'rejected', rejection_reason_code: 'not_a_real_code' }),
+            ],
+            updated_at: '2026-09-10T09:00:00Z',
+          })
+        )
+      );
+      const client = buildClient();
+
+      const result = await client.getVisaDecisions('candidate-1');
+
+      expect(result.visaDecisions[0].rejectionReasonCode).toBe('medical_issue');
+      expect(result.visaDecisions[1].rejectionReasonCode).toBeNull();
+    });
+
+    it('falls back to an empty list for a malformed response', async () => {
+      stubFetch(async () => jsonResponse(successEnvelope({ candidate_id: 'candidate-1', assignment_id: null })));
+      const client = buildClient();
+
+      const result = await client.getVisaDecisions('candidate-1');
+
+      expect(result.visaDecisions).toEqual([]);
+    });
+  });
+
+  describe('recordVisaDecision', () => {
+    it('sends the FormData body as-is (never re-serialized) with the Idempotency-Key header, and never sets Content-Type', async () => {
+      let capturedUrl: string | undefined;
+      let capturedBody: unknown;
+      let capturedHeaders: Record<string, string> | undefined;
+      stubFetch(async (url, init) => {
+        capturedUrl = String(url);
+        capturedBody = init?.body;
+        capturedHeaders = init?.headers as Record<string, string>;
+        return jsonResponse(
+          successEnvelope({
+            workflow: workflowStateResponse(),
+            visa_decision: {
+              id: 'visa-decision-1',
+              outcome_code: 'issued',
+              decision_date: '2026-09-10',
+              rejection_reason_code: null,
+              visa_copy_attached: true,
+              created_at: '2026-09-10T09:00:00Z',
+              recorded_by: { id: 'staff-1', role: 'mps' },
+            },
+          }),
+          { status: 201 }
+        );
+      });
+      const client = buildClient();
+      const formData = new FormData();
+      formData.append('candidate_visa_decision[outcome_code]', 'issued');
+      formData.append('candidate_visa_decision[decision_date]', '2026-09-10');
+
+      const result = await client.recordVisaDecision({ candidateId: 'candidate-1', formData, idempotencyKey: 'idem-visa-1' });
+
+      expect(capturedUrl).toContain('/admin/candidates/candidate-1/visa_decisions');
+      expect(capturedBody).toBe(formData);
+      expect(capturedHeaders?.['Idempotency-Key']).toBe('idem-visa-1');
+      expect(capturedHeaders?.['Content-Type']).toBeUndefined();
+      expect(result.visaDecision.id).toBe('visa-decision-1');
+      expect(result.visaDecision.visaCopyAttached).toBe(true);
+    });
+  });
+
+  describe('getVisaCopyAccess', () => {
+    it('POSTs to the visa-copy-access endpoint and maps the short-lived credential', async () => {
+      let capturedUrl: string | undefined;
+      let capturedMethod: string | undefined;
+      stubFetch(async (url, init) => {
+        capturedUrl = String(url);
+        capturedMethod = init?.method;
+        return jsonResponse(
+          successEnvelope({
+            visa_decision_id: 'visa-decision-1',
+            url: '/rails/active_storage/disk/abc/visa-copy.pdf',
+            expires_at: '2026-09-10T09:05:00Z',
+          })
+        );
+      });
+      const client = buildClient();
+
+      const result = await client.getVisaCopyAccess('candidate-1', 'visa-decision-1');
+
+      expect(capturedUrl).toContain('/admin/candidates/candidate-1/visa_decisions/visa-decision-1/visa_copy_access');
+      expect(capturedMethod).toBe('POST');
+      expect(result).toEqual({
+        visaDecisionId: 'visa-decision-1',
+        url: '/rails/active_storage/disk/abc/visa-copy.pdf',
+        expiresAt: '2026-09-10T09:05:00Z',
+      });
+    });
+  });
+
+  describe('getFlightDetail', () => {
+    function flightDetailResponse(overrides: Record<string, unknown> = {}) {
+      return {
+        id: 'flight-detail-1',
+        airline: 'Qatar Airways',
+        flight_number: 'QR-101',
+        sector: 'LHE-DOH',
+        flight_departure_at: '2026-09-20T14:30:00Z',
+        ticket_attached: true,
+        mobilized_on: null,
+        mobilized: false,
+        recorded_by: { id: 'staff-1', role: 'mps' },
+        mobilized_recorded_by: null,
+        ...overrides,
+      };
+    }
+
+    it('maps an existing flight detail', async () => {
+      let capturedUrl: string | undefined;
+      stubFetch(async (url) => {
+        capturedUrl = String(url);
+        return jsonResponse(
+          successEnvelope({
+            candidate_id: 'candidate-1',
+            assignment_id: 'assignment-1',
+            flight_detail: flightDetailResponse(),
+            updated_at: '2026-09-20T14:30:00Z',
+          })
+        );
+      });
+      const client = buildClient();
+
+      const result = await client.getFlightDetail('candidate-1');
+
+      expect(capturedUrl).toContain('/admin/candidates/candidate-1/flight_detail');
+      expect(result.flightDetail).toEqual({
+        id: 'flight-detail-1',
+        airline: 'Qatar Airways',
+        flightNumber: 'QR-101',
+        sector: 'LHE-DOH',
+        flightDepartureAt: '2026-09-20T14:30:00Z',
+        ticketAttached: true,
+        mobilizedOn: null,
+        mobilized: false,
+        recordedBy: { id: 'staff-1', role: 'mps' },
+        mobilizedRecordedBy: null,
+      });
+    });
+
+    it('maps null when no flight detail has been recorded yet', async () => {
+      stubFetch(async () =>
+        jsonResponse(successEnvelope({ candidate_id: 'candidate-1', assignment_id: 'assignment-1', flight_detail: null, updated_at: null }))
+      );
+      const client = buildClient();
+
+      const result = await client.getFlightDetail('candidate-1');
+
+      expect(result.flightDetail).toBeNull();
+    });
+  });
+
+  describe('recordFlightDetail', () => {
+    it('sends the FormData body as-is with the Idempotency-Key header', async () => {
+      let capturedUrl: string | undefined;
+      let capturedBody: unknown;
+      let capturedHeaders: Record<string, string> | undefined;
+      stubFetch(async (url, init) => {
+        capturedUrl = String(url);
+        capturedBody = init?.body;
+        capturedHeaders = init?.headers as Record<string, string>;
+        return jsonResponse(
+          successEnvelope({
+            workflow: workflowStateResponse(),
+            flight_detail: {
+              id: 'flight-detail-1',
+              airline: 'Qatar Airways',
+              flight_number: 'QR-101',
+              sector: 'LHE-DOH',
+              flight_departure_at: '2026-09-20T14:30:00Z',
+              ticket_attached: true,
+              mobilized_on: null,
+              mobilized: false,
+              recorded_by: { id: 'staff-1', role: 'mps' },
+              mobilized_recorded_by: null,
+            },
+          }),
+          { status: 201 }
+        );
+      });
+      const client = buildClient();
+      const formData = new FormData();
+      formData.append('candidate_flight_detail[airline]', 'Qatar Airways');
+
+      const result = await client.recordFlightDetail({ candidateId: 'candidate-1', formData, idempotencyKey: 'idem-flight-1' });
+
+      expect(capturedUrl).toContain('/admin/candidates/candidate-1/flight_detail');
+      expect(capturedBody).toBe(formData);
+      expect(capturedHeaders?.['Idempotency-Key']).toBe('idem-flight-1');
+      expect(result.flightDetail.id).toBe('flight-detail-1');
+    });
+  });
+
+  describe('mobilizeFlightDetail', () => {
+    it('PATCHes the flight-detail endpoint with mobilized_on as JSON and the Idempotency-Key header', async () => {
+      let capturedUrl: string | undefined;
+      let capturedMethod: string | undefined;
+      let capturedBody: string | undefined;
+      let capturedHeaders: Record<string, string> | undefined;
+      stubFetch(async (url, init) => {
+        capturedUrl = String(url);
+        capturedMethod = init?.method;
+        capturedBody = init?.body as string;
+        capturedHeaders = init?.headers as Record<string, string>;
+        return jsonResponse(
+          successEnvelope({
+            workflow: workflowStateResponse({ current_stage: timelineStageResponse({ code: 'mobilized', position: 15 }) }),
+            flight_detail: {
+              id: 'flight-detail-1',
+              airline: 'Qatar Airways',
+              flight_number: 'QR-101',
+              sector: 'LHE-DOH',
+              flight_departure_at: '2026-09-20T14:30:00Z',
+              ticket_attached: true,
+              mobilized_on: '2026-09-21',
+              mobilized: true,
+              recorded_by: { id: 'staff-1', role: 'mps' },
+              mobilized_recorded_by: { id: 'staff-1', role: 'mps' },
+            },
+          })
+        );
+      });
+      const client = buildClient();
+
+      const result = await client.mobilizeFlightDetail({
+        candidateId: 'candidate-1',
+        mobilizedOn: '2026-09-21',
+        expectedCurrentStageCode: 'flight_details_uploaded',
+        idempotencyKey: 'idem-mobilize-1',
+      });
+
+      expect(capturedUrl).toContain('/admin/candidates/candidate-1/flight_detail');
+      expect(capturedMethod).toBe('PATCH');
+      expect(capturedHeaders?.['Idempotency-Key']).toBe('idem-mobilize-1');
+      expect(JSON.parse(capturedBody!)).toEqual({
+        candidate_flight_detail: { mobilized_on: '2026-09-21', expected_current_stage_code: 'flight_details_uploaded' },
+      });
+      expect(result.flightDetail.mobilized).toBe(true);
+      expect(result.flightDetail.mobilizedOn).toBe('2026-09-21');
+    });
+  });
+
+  describe('getFlightTicketAccess', () => {
+    it('POSTs to the ticket-access endpoint and maps the short-lived credential', async () => {
+      let capturedUrl: string | undefined;
+      let capturedMethod: string | undefined;
+      stubFetch(async (url, init) => {
+        capturedUrl = String(url);
+        capturedMethod = init?.method;
+        return jsonResponse(
+          successEnvelope({
+            flight_detail_id: 'flight-detail-1',
+            url: '/rails/active_storage/disk/abc/ticket.pdf',
+            expires_at: '2026-09-10T09:05:00Z',
+          })
+        );
+      });
+      const client = buildClient();
+
+      const result = await client.getFlightTicketAccess('candidate-1');
+
+      expect(capturedUrl).toContain('/admin/candidates/candidate-1/flight_detail/ticket_access');
+      expect(capturedMethod).toBe('POST');
+      expect(result).toEqual({
+        flightDetailId: 'flight-detail-1',
+        url: '/rails/active_storage/disk/abc/ticket.pdf',
+        expiresAt: '2026-09-10T09:05:00Z',
+      });
+    });
+  });
+
   describe('error mapping', () => {
     async function rejectionForServerCode(code: string, status: number, extra: Record<string, unknown> = {}) {
       stubFetch(async () => jsonResponse(errorEnvelope([{ code, message: 'server message', ...extra }]), { status }));

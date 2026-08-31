@@ -16,8 +16,12 @@
 import type { ApiClient, ApiError, ApiErrorItem } from '../api-client';
 import type { StaffAuthClient, StaffAuthError } from '../auth/staffTypes';
 import type {
+  AdminFlightDetail,
+  AdminFlightDetailShow,
   AdminQvcAttempt,
   AdminQvcAttempts,
+  AdminVisaDecision,
+  AdminVisaDecisions,
   AdminWorkflowClient,
   AdminWorkflowError,
   AdminWorkflowErrorCode,
@@ -25,12 +29,21 @@ import type {
   AllowedWorkflowTransition,
   AllowedWorkflowTransitions,
   AdminWorkflowHistory,
+  FlightDetailResult,
+  FlightTicketAccessResult,
+  MobilizeFlightDetailInput,
   QvcActionResult,
   QvcAttemptStatus,
   QvcOutcomeCode,
+  RecordFlightDetailParams,
   RecordQvcOutcomeInput,
+  RecordVisaDecisionParams,
   ScheduleQvcAppointmentInput,
   SubmitWorkflowTransitionInput,
+  VisaCopyAccessResult,
+  VisaDecisionResult,
+  VisaOutcomeCode,
+  VisaRejectionReasonCode,
   WorkflowActor,
   WorkflowActorDisplayRole,
   WorkflowHistoryItem,
@@ -41,6 +54,7 @@ import type {
   WorkflowTransitionPrerequisiteDetails,
   WorkflowTransitionResult,
 } from './types';
+import { VISA_REJECTION_REASON_CODES } from './types';
 
 interface TimelineStageResponse {
   code: string;
@@ -160,6 +174,65 @@ interface QvcActionResponse {
   qvc_attempt?: QvcAttemptResponse;
 }
 
+interface VisaDecisionResponse {
+  id: string;
+  outcome_code: string;
+  decision_date: string;
+  rejection_reason_code: string | null;
+  visa_copy_attached: boolean;
+  created_at: string;
+  recorded_by: ActorResponse | null;
+}
+
+interface VisaDecisionsResponse {
+  candidate_id: string;
+  assignment_id: string | null;
+  visa_decisions: VisaDecisionResponse[];
+  updated_at: string | null;
+}
+
+interface VisaDecisionResultResponse {
+  workflow: WorkflowStateResponse;
+  visa_decision: VisaDecisionResponse;
+}
+
+interface VisaCopyAccessResponse {
+  visa_decision_id: string;
+  url: string;
+  expires_at: string;
+}
+
+interface FlightDetailResponse {
+  id: string;
+  airline: string;
+  flight_number: string;
+  sector: string;
+  flight_departure_at: string;
+  ticket_attached: boolean;
+  mobilized_on: string | null;
+  mobilized: boolean;
+  recorded_by: ActorResponse | null;
+  mobilized_recorded_by: ActorResponse | null;
+}
+
+interface FlightDetailShowResponse {
+  candidate_id: string;
+  assignment_id: string | null;
+  flight_detail: FlightDetailResponse | null;
+  updated_at: string | null;
+}
+
+interface FlightDetailResultResponse {
+  workflow: WorkflowStateResponse;
+  flight_detail: FlightDetailResponse;
+}
+
+interface FlightTicketAccessResponse {
+  flight_detail_id: string;
+  url: string;
+  expires_at: string;
+}
+
 export interface RealAdminWorkflowClientOptions {
   apiClient: ApiClient;
   staffAuthClient: StaffAuthClient;
@@ -175,6 +248,7 @@ const KNOWN_STAGE_STATUSES = new Set<string>(['completed', 'current', 'pending']
 const KNOWN_QVC_OUTCOMES = new Set<string>(['approved', 're_medical', 'rejected']);
 const KNOWN_VISA_OUTCOMES = new Set<string>(['issued', 'rejected']);
 const KNOWN_QVC_ATTEMPT_STATUSES = new Set<string>(['scheduled', 'approved', 're_medical', 'rejected', 'no_show']);
+const KNOWN_VISA_REJECTION_REASONS = new Set<string>(VISA_REJECTION_REASON_CODES);
 
 function toNumber(raw: unknown): number {
   return typeof raw === 'number' && Number.isFinite(raw) ? raw : 0;
@@ -402,6 +476,127 @@ function toQvcActionResult(raw: unknown): QvcActionResult {
   };
 }
 
+function toVisaOutcomeCode(raw: unknown): VisaOutcomeCode {
+  return raw === 'rejected' ? 'rejected' : 'issued';
+}
+
+function toVisaRejectionReasonCode(raw: unknown): VisaRejectionReasonCode | null {
+  return typeof raw === 'string' && KNOWN_VISA_REJECTION_REASONS.has(raw) ? (raw as VisaRejectionReasonCode) : null;
+}
+
+function toVisaDecision(raw: unknown): AdminVisaDecision | null {
+  if (!raw || typeof raw !== 'object') return null;
+  const value = raw as Partial<VisaDecisionResponse>;
+  if (typeof value.id !== 'string' || !value.id) return null;
+
+  return {
+    id: value.id,
+    outcomeCode: toVisaOutcomeCode(value.outcome_code),
+    decisionDate: typeof value.decision_date === 'string' ? value.decision_date : '',
+    rejectionReasonCode: toVisaRejectionReasonCode(value.rejection_reason_code),
+    visaCopyAttached: value.visa_copy_attached === true,
+    createdAt: typeof value.created_at === 'string' ? value.created_at : '',
+    recordedBy: toActor(value.recorded_by),
+  };
+}
+
+function toVisaDecisions(raw: unknown): AdminVisaDecisions {
+  const value = (raw && typeof raw === 'object' ? raw : {}) as Partial<VisaDecisionsResponse>;
+  const decisions = Array.isArray(value.visa_decisions) ? value.visa_decisions : [];
+  return {
+    candidateId: typeof value.candidate_id === 'string' ? value.candidate_id : '',
+    assignmentId: typeof value.assignment_id === 'string' ? value.assignment_id : null,
+    visaDecisions: decisions.map(toVisaDecision).filter((d): d is AdminVisaDecision => d !== null),
+    updatedAt: typeof value.updated_at === 'string' ? value.updated_at : null,
+  };
+}
+
+const EMPTY_VISA_DECISION: AdminVisaDecision = {
+  id: '',
+  outcomeCode: 'issued',
+  decisionDate: '',
+  rejectionReasonCode: null,
+  visaCopyAttached: false,
+  createdAt: '',
+  recordedBy: null,
+};
+
+function toVisaDecisionResult(raw: unknown): VisaDecisionResult {
+  const value = (raw && typeof raw === 'object' ? raw : {}) as Partial<VisaDecisionResultResponse>;
+  return {
+    workflow: toWorkflowState(value.workflow),
+    visaDecision: toVisaDecision(value.visa_decision) ?? EMPTY_VISA_DECISION,
+  };
+}
+
+function toVisaCopyAccessResult(raw: unknown): VisaCopyAccessResult {
+  const value = (raw && typeof raw === 'object' ? raw : {}) as Partial<VisaCopyAccessResponse>;
+  return {
+    visaDecisionId: typeof value.visa_decision_id === 'string' ? value.visa_decision_id : '',
+    url: typeof value.url === 'string' ? value.url : '',
+    expiresAt: typeof value.expires_at === 'string' ? value.expires_at : '',
+  };
+}
+
+function toFlightDetail(raw: unknown): AdminFlightDetail | null {
+  if (!raw || typeof raw !== 'object') return null;
+  const value = raw as Partial<FlightDetailResponse>;
+  if (typeof value.id !== 'string' || !value.id) return null;
+
+  return {
+    id: value.id,
+    airline: typeof value.airline === 'string' ? value.airline : '',
+    flightNumber: typeof value.flight_number === 'string' ? value.flight_number : '',
+    sector: typeof value.sector === 'string' ? value.sector : '',
+    flightDepartureAt: typeof value.flight_departure_at === 'string' ? value.flight_departure_at : '',
+    ticketAttached: value.ticket_attached === true,
+    mobilizedOn: typeof value.mobilized_on === 'string' ? value.mobilized_on : null,
+    mobilized: value.mobilized === true,
+    recordedBy: toActor(value.recorded_by),
+    mobilizedRecordedBy: toActor(value.mobilized_recorded_by),
+  };
+}
+
+function toFlightDetailShow(raw: unknown): AdminFlightDetailShow {
+  const value = (raw && typeof raw === 'object' ? raw : {}) as Partial<FlightDetailShowResponse>;
+  return {
+    candidateId: typeof value.candidate_id === 'string' ? value.candidate_id : '',
+    assignmentId: typeof value.assignment_id === 'string' ? value.assignment_id : null,
+    flightDetail: toFlightDetail(value.flight_detail),
+    updatedAt: typeof value.updated_at === 'string' ? value.updated_at : null,
+  };
+}
+
+const EMPTY_FLIGHT_DETAIL: AdminFlightDetail = {
+  id: '',
+  airline: '',
+  flightNumber: '',
+  sector: '',
+  flightDepartureAt: '',
+  ticketAttached: false,
+  mobilizedOn: null,
+  mobilized: false,
+  recordedBy: null,
+  mobilizedRecordedBy: null,
+};
+
+function toFlightDetailResult(raw: unknown): FlightDetailResult {
+  const value = (raw && typeof raw === 'object' ? raw : {}) as Partial<FlightDetailResultResponse>;
+  return {
+    workflow: toWorkflowState(value.workflow),
+    flightDetail: toFlightDetail(value.flight_detail) ?? EMPTY_FLIGHT_DETAIL,
+  };
+}
+
+function toFlightTicketAccessResult(raw: unknown): FlightTicketAccessResult {
+  const value = (raw && typeof raw === 'object' ? raw : {}) as Partial<FlightTicketAccessResponse>;
+  return {
+    flightDetailId: typeof value.flight_detail_id === 'string' ? value.flight_detail_id : '',
+    url: typeof value.url === 'string' ? value.url : '',
+    expiresAt: typeof value.expires_at === 'string' ? value.expires_at : '',
+  };
+}
+
 /** Maps the backend's ErrorItem.code (see openapi.yaml's workflow_transitions POST 409/422 examples) to the shared error taxonomy. */
 const SERVER_CODE_TO_ERROR: Record<string, AdminWorkflowErrorCode> = {
   validation_failed: 'VALIDATION_ERROR',
@@ -613,6 +808,131 @@ export function createAdminWorkflowClient(options: RealAdminWorkflowClientOption
           )
         );
         return toQvcActionResult(data);
+      } catch (error) {
+        throw toWorkflowError(error);
+      }
+    },
+
+    async getVisaDecisions(candidateId: string): Promise<AdminVisaDecisions> {
+      try {
+        const data = await staffAuthClient.authenticatedDataRequest((token) =>
+          apiClient.get<VisaDecisionsResponse>(`/admin/candidates/${encodeURIComponent(candidateId)}/visa_decisions`, {
+            headers: { Authorization: `Bearer ${token}`, 'X-Locale': getLocale() },
+          })
+        );
+        return toVisaDecisions(data);
+      } catch (error) {
+        throw toWorkflowError(error);
+      }
+    },
+
+    async recordVisaDecision(params: RecordVisaDecisionParams): Promise<VisaDecisionResult> {
+      try {
+        const data = await staffAuthClient.authenticatedDataRequest((token) =>
+          apiClient.post<VisaDecisionResultResponse>(
+            `/admin/candidates/${encodeURIComponent(params.candidateId)}/visa_decisions`,
+            params.formData,
+            {
+              headers: {
+                Authorization: `Bearer ${token}`,
+                'X-Locale': getLocale(),
+                'Idempotency-Key': params.idempotencyKey,
+              },
+            }
+          )
+        );
+        return toVisaDecisionResult(data);
+      } catch (error) {
+        throw toWorkflowError(error);
+      }
+    },
+
+    async getVisaCopyAccess(candidateId: string, visaDecisionId: string): Promise<VisaCopyAccessResult> {
+      try {
+        const data = await staffAuthClient.authenticatedDataRequest((token) =>
+          apiClient.post<VisaCopyAccessResponse>(
+            `/admin/candidates/${encodeURIComponent(candidateId)}/visa_decisions/${encodeURIComponent(visaDecisionId)}/visa_copy_access`,
+            undefined,
+            { headers: { Authorization: `Bearer ${token}`, 'X-Locale': getLocale() } }
+          )
+        );
+        return toVisaCopyAccessResult(data);
+      } catch (error) {
+        throw toWorkflowError(error);
+      }
+    },
+
+    async getFlightDetail(candidateId: string): Promise<AdminFlightDetailShow> {
+      try {
+        const data = await staffAuthClient.authenticatedDataRequest((token) =>
+          apiClient.get<FlightDetailShowResponse>(`/admin/candidates/${encodeURIComponent(candidateId)}/flight_detail`, {
+            headers: { Authorization: `Bearer ${token}`, 'X-Locale': getLocale() },
+          })
+        );
+        return toFlightDetailShow(data);
+      } catch (error) {
+        throw toWorkflowError(error);
+      }
+    },
+
+    async recordFlightDetail(params: RecordFlightDetailParams): Promise<FlightDetailResult> {
+      try {
+        const data = await staffAuthClient.authenticatedDataRequest((token) =>
+          apiClient.post<FlightDetailResultResponse>(
+            `/admin/candidates/${encodeURIComponent(params.candidateId)}/flight_detail`,
+            params.formData,
+            {
+              headers: {
+                Authorization: `Bearer ${token}`,
+                'X-Locale': getLocale(),
+                'Idempotency-Key': params.idempotencyKey,
+              },
+            }
+          )
+        );
+        return toFlightDetailResult(data);
+      } catch (error) {
+        throw toWorkflowError(error);
+      }
+    },
+
+    async mobilizeFlightDetail(input: MobilizeFlightDetailInput): Promise<FlightDetailResult> {
+      try {
+        const data = await staffAuthClient.authenticatedDataRequest((token) =>
+          apiClient.patch<FlightDetailResultResponse>(
+            `/admin/candidates/${encodeURIComponent(input.candidateId)}/flight_detail`,
+            {
+              candidate_flight_detail: {
+                mobilized_on: input.mobilizedOn,
+                ...(input.expectedCurrentStageCode ? { expected_current_stage_code: input.expectedCurrentStageCode } : {}),
+                ...(input.note ? { note: input.note } : {}),
+              },
+            },
+            {
+              headers: {
+                Authorization: `Bearer ${token}`,
+                'X-Locale': getLocale(),
+                'Idempotency-Key': input.idempotencyKey,
+              },
+            }
+          )
+        );
+        return toFlightDetailResult(data);
+      } catch (error) {
+        throw toWorkflowError(error);
+      }
+    },
+
+    async getFlightTicketAccess(candidateId: string): Promise<FlightTicketAccessResult> {
+      try {
+        const data = await staffAuthClient.authenticatedDataRequest((token) =>
+          apiClient.post<FlightTicketAccessResponse>(
+            `/admin/candidates/${encodeURIComponent(candidateId)}/flight_detail/ticket_access`,
+            undefined,
+            { headers: { Authorization: `Bearer ${token}`, 'X-Locale': getLocale() } }
+          )
+        );
+        return toFlightTicketAccessResult(data);
       } catch (error) {
         throw toWorkflowError(error);
       }

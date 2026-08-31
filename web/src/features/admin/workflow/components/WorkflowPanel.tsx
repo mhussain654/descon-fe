@@ -21,12 +21,18 @@ import type { AdminWorkflowError, AllowedWorkflowTransition, WorkflowHistoryItem
 import { ADMIN_REVIEWER_ROLE_KEYS } from '../../../../../../shared/adminDocumentReviews/statusLabels';
 import type { TranslationKey } from '../../../../../../shared/i18n/translations';
 import { useAvailableTransitions } from '../hooks/useAvailableTransitions';
+import { useFlightActions } from '../hooks/useFlightActions';
+import { useFlightDetail } from '../hooks/useFlightDetail';
 import { useQvcActions } from '../hooks/useQvcActions';
 import { useQvcAttempts } from '../hooks/useQvcAttempts';
 import { useSubmitWorkflowTransition } from '../hooks/useSubmitWorkflowTransition';
+import { useVisaActions } from '../hooks/useVisaActions';
+import { useVisaDecisions } from '../hooks/useVisaDecisions';
 import { useWorkflowHistory } from '../hooks/useWorkflowHistory';
 import { useWorkflowState } from '../hooks/useWorkflowState';
+import { FlightDetailPanel } from './FlightDetailPanel';
 import { QvcPanel } from './QvcPanel';
+import { VisaDecisionPanel } from './VisaDecisionPanel';
 
 export interface WorkflowPanelProps {
   candidateId: string;
@@ -39,6 +45,11 @@ const QVC_STAGE_CODES = new Set(['qvc_appointment_booked', 'qvc_completed_outcom
 const PROTECTION_APPEARED_STAGE_CODE = 'appeared_for_protection';
 const PROTECTION_READY_STAGE_CODE = 'protected_ready_to_fly';
 const PROTECTION_STAGE_CODES = new Set([PROTECTION_APPEARED_STAGE_CODE, PROTECTION_READY_STAGE_CODE]);
+/** Visa, flight and mobilization each have their own dedicated backend resource and multipart forms (MPS-F501 Phase C), handled by VisaDecisionPanel/FlightDetailPanel below rather than the generic confirm flow -- excluded from the generic list for the same reason QVC's own stage codes are. */
+const VISA_STAGE_CODE = 'visa_issued_or_rejected';
+const FLIGHT_STAGE_CODE = 'flight_details_uploaded';
+const MOBILIZED_STAGE_CODE = 'mobilized';
+const VISA_FLIGHT_MOBILIZATION_STAGE_CODES = new Set([VISA_STAGE_CODE, FLIGHT_STAGE_CODE, MOBILIZED_STAGE_CODE]);
 
 /** Translation keys for a timeline stage's status -- reuses existing generic keys rather than duplicating them, since a raw backend status code must never render untranslated. */
 const STAGE_STATUS_KEYS: Record<string, TranslationKey> = {
@@ -54,15 +65,14 @@ function stageStatusTone(status: string): 'neutral' | 'success' | 'info' {
 }
 
 /**
- * Shared staff workflow-transition panel foundation (MPS-F501 Phase A/B).
+ * Shared staff workflow-transition panel foundation (MPS-F501 Phases A-C).
  * Loads real workflow state/available-transitions/history for one
- * candidate, plus (Phase B) real QVC attempts and the candidate's
- * protection record. Renders real, interactive confirmation cards for
- * Qatar BU sharing, protection appearance and ready-to-fly, and a dedicated
- * QVC scheduling/outcome sub-panel. Visa/flight/mobilization forms remain
- * out of scope until their own backend contracts (MPS-505/MPS-507) merge --
- * every other transition the backend returns still renders as a plain
- * informational row with no action.
+ * candidate, plus real QVC attempts, the candidate's protection record,
+ * visa decisions and flight/mobilization details. Renders real, interactive
+ * confirmation cards for Qatar BU sharing, protection appearance and
+ * ready-to-fly, plus dedicated sub-panels for QVC, visa decisions and
+ * flight/mobilization -- every other transition the backend returns still
+ * renders as a plain informational row with no action.
  */
 export function WorkflowPanel({ candidateId }: WorkflowPanelProps) {
   const { t, language } = useLanguage();
@@ -75,12 +85,18 @@ export function WorkflowPanel({ candidateId }: WorkflowPanelProps) {
   const submit = useSubmitWorkflowTransition(candidateId);
   const qvcAttemptsQuery = useQvcAttempts(candidateId);
   const qvcActions = useQvcActions(candidateId);
+  const visaDecisionsQuery = useVisaDecisions(candidateId);
+  const visaActions = useVisaActions(candidateId);
+  const flightDetailQuery = useFlightDetail(candidateId);
+  const flightActions = useFlightActions(candidateId);
 
   const refetchAll = () => {
     stateQuery.refetch();
     transitionsQuery.refetch();
     historyQuery.refetch();
     qvcAttemptsQuery.refetch();
+    visaDecisionsQuery.refetch();
+    flightDetailQuery.refetch();
   };
 
   // A confirmed-dead session or a deactivated account can surface from any
@@ -95,7 +111,14 @@ export function WorkflowPanel({ candidateId }: WorkflowPanelProps) {
       submit.mutation.error?.code ??
       qvcAttemptsQuery.error?.code ??
       qvcActions.scheduleMutation.error?.code ??
-      qvcActions.outcomeMutation.error?.code;
+      qvcActions.outcomeMutation.error?.code ??
+      visaDecisionsQuery.error?.code ??
+      visaActions.mutation.error?.code ??
+      visaActions.copyAccess.error?.code ??
+      flightDetailQuery.error?.code ??
+      flightActions.recordMutation.error?.code ??
+      flightActions.mobilizeMutation.error?.code ??
+      flightActions.ticketAccess.error?.code;
     if (code === 'SESSION_EXPIRED' || code === 'INACTIVE_ACCOUNT') {
       submit.closeConfirm();
       signOut(code === 'SESSION_EXPIRED' ? 'expired' : 'manual');
@@ -109,6 +132,13 @@ export function WorkflowPanel({ candidateId }: WorkflowPanelProps) {
     qvcAttemptsQuery.error,
     qvcActions.scheduleMutation.error,
     qvcActions.outcomeMutation.error,
+    visaDecisionsQuery.error,
+    visaActions.mutation.error,
+    visaActions.copyAccess.error,
+    flightDetailQuery.error,
+    flightActions.recordMutation.error,
+    flightActions.mobilizeMutation.error,
+    flightActions.ticketAccess.error,
     signOut,
   ]);
 
@@ -157,8 +187,15 @@ export function WorkflowPanel({ candidateId }: WorkflowPanelProps) {
   const protectionReadyTransition = transitions.allowedNextTransitions.find(
     (item) => item.code === PROTECTION_READY_STAGE_CODE
   );
+  const visaTransition = transitions.allowedNextTransitions.find((item) => item.code === VISA_STAGE_CODE);
+  const flightTransition = transitions.allowedNextTransitions.find((item) => item.code === FLIGHT_STAGE_CODE);
+  const mobilizeTransition = transitions.allowedNextTransitions.find((item) => item.code === MOBILIZED_STAGE_CODE);
   const otherTransitions = transitions.allowedNextTransitions.filter(
-    (item) => item.code !== QATAR_BU_STAGE_CODE && !QVC_STAGE_CODES.has(item.code) && !PROTECTION_STAGE_CODES.has(item.code)
+    (item) =>
+      item.code !== QATAR_BU_STAGE_CODE &&
+      !QVC_STAGE_CODES.has(item.code) &&
+      !PROTECTION_STAGE_CODES.has(item.code) &&
+      !VISA_FLIGHT_MOBILIZATION_STAGE_CODES.has(item.code)
   );
   const latestTransition = history.history.reduce<WorkflowHistoryItem | null>(
     (latest, item) => (!latest || item.occurredAt > latest.occurredAt ? item : latest),
@@ -258,6 +295,23 @@ export function WorkflowPanel({ candidateId }: WorkflowPanelProps) {
         canTransition={canTransition}
         attemptsQuery={qvcAttemptsQuery}
         actions={qvcActions}
+        currentStageCode={state.currentStage?.code}
+      />
+
+      <VisaDecisionPanel
+        canTransition={canTransition}
+        visaTransition={visaTransition}
+        decisionsQuery={visaDecisionsQuery}
+        actions={visaActions}
+        currentStageCode={state.currentStage?.code}
+      />
+
+      <FlightDetailPanel
+        canTransition={canTransition}
+        flightTransition={flightTransition}
+        mobilizeTransition={mobilizeTransition}
+        detailQuery={flightDetailQuery}
+        actions={flightActions}
         currentStageCode={state.currentStage?.code}
       />
 
