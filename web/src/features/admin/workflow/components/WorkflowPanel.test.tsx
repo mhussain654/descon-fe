@@ -1,6 +1,6 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createMockStaffAuthClient, MOCK_STAFF_ACCOUNTS, MOCK_STAFF_PASSWORD } from "../../../../../../shared/auth/staffAuthClient";
 import { LanguageProvider } from "../../../../contexts/LanguageContext";
 import { StaffAuthProvider } from "../../../../contexts/StaffAuthContext";
@@ -13,6 +13,9 @@ vi.mock("../../../../lib/admin-workflow-client", () => ({
     getAllowedTransitions: vi.fn(),
     getWorkflowHistory: vi.fn(),
     submitTransition: vi.fn(),
+    getQvcAttempts: vi.fn(),
+    scheduleQvcAppointment: vi.fn(),
+    recordQvcOutcome: vi.fn(),
   },
 }));
 
@@ -47,7 +50,69 @@ function workflowState(overrides: Record<string, unknown> = {}) {
     completedCount: 7,
     totalCount: 15,
     progressPercentage: 46,
+    protection: null,
     updatedAt: "2026-08-30T09:00:00Z",
+    ...overrides,
+  };
+}
+
+function qvcAttempt(overrides: Record<string, unknown> = {}) {
+  return {
+    id: "qvc-attempt-1",
+    attemptNumber: 1,
+    appointmentDate: "2026-09-01",
+    outcomeCode: null,
+    noShow: false,
+    outcomeRecordedAt: null,
+    status: "scheduled" as const,
+    internalNote: null,
+    scheduledBy: { id: "staff-1", role: "mps" },
+    outcomeRecordedBy: null,
+    ...overrides,
+  };
+}
+
+function qvcAttempts(overrides: Record<string, unknown> = {}) {
+  return {
+    candidateId: "candidate-1",
+    assignmentId: "assignment-1",
+    qvcAttempts: [],
+    updatedAt: "2026-08-30T09:00:00Z",
+    ...overrides,
+  };
+}
+
+function protectionRecord(overrides: Record<string, unknown> = {}) {
+  return {
+    id: "protection-1",
+    appearedOn: null,
+    appearedRecordedAt: null,
+    protectedOn: null,
+    readyToFlyAt: null,
+    ...overrides,
+  };
+}
+
+function appearedForProtectionTransition(overrides: Record<string, unknown> = {}) {
+  return {
+    code: "appeared_for_protection",
+    name: "Appeared for Protection",
+    position: 12,
+    requiredFields: ["appeared_for_protection_on"],
+    allowed: true,
+    blockingReasons: [],
+    ...overrides,
+  };
+}
+
+function protectedReadyToFlyTransition(overrides: Record<string, unknown> = {}) {
+  return {
+    code: "protected_ready_to_fly",
+    name: "Protected / Ready to Fly",
+    position: 13,
+    requiredFields: ["protected_on"],
+    allowed: true,
+    blockingReasons: [],
     ...overrides,
   };
 }
@@ -126,11 +191,21 @@ function renderPanel(client: ReturnType<typeof createMockStaffAuthClient> extend
 }
 
 describe("WorkflowPanel", () => {
+  // Most tests here aren't exercising the QVC panel at all -- default it to
+  // an empty, already-resolved attempts list so they don't need to set this
+  // up themselves; QVC-focused tests below override with their own mock.
+  beforeEach(() => {
+    adminWorkflowClient.getQvcAttempts.mockResolvedValue(qvcAttempts());
+  });
+
   afterEach(() => {
     vi.mocked(adminWorkflowClient.getWorkflowState).mockReset();
     vi.mocked(adminWorkflowClient.getAllowedTransitions).mockReset();
     vi.mocked(adminWorkflowClient.getWorkflowHistory).mockReset();
     vi.mocked(adminWorkflowClient.submitTransition).mockReset();
+    vi.mocked(adminWorkflowClient.getQvcAttempts).mockReset();
+    vi.mocked(adminWorkflowClient.scheduleQvcAppointment).mockReset();
+    vi.mocked(adminWorkflowClient.recordQvcOutcome).mockReset();
     localStorage.removeItem("descon.language");
   });
 
@@ -503,6 +578,380 @@ describe("WorkflowPanel", () => {
       const actorMentions = await screen.findAllByText(/MPS/);
       expect(actorMentions.length).toBeGreaterThan(0);
       expect(screen.queryByText("staff-1")).not.toBeInTheDocument();
+    });
+  });
+
+  describe("QVC panel", () => {
+    it("shows the empty state when no appointments have been scheduled yet", async () => {
+      adminWorkflowClient.getWorkflowState.mockResolvedValue(workflowState());
+      adminWorkflowClient.getAllowedTransitions.mockResolvedValue(allowedTransitions());
+      adminWorkflowClient.getWorkflowHistory.mockResolvedValue(workflowHistory());
+      const client = await signInAs(MPS);
+
+      renderPanel(client);
+
+      expect(await screen.findByText("No QVC appointments have been scheduled yet.")).toBeInTheDocument();
+    });
+
+    it("lists an attempt with a translated status, actor role, and never a raw backend status code", async () => {
+      adminWorkflowClient.getWorkflowState.mockResolvedValue(workflowState());
+      adminWorkflowClient.getAllowedTransitions.mockResolvedValue(allowedTransitions());
+      adminWorkflowClient.getWorkflowHistory.mockResolvedValue(workflowHistory());
+      adminWorkflowClient.getQvcAttempts.mockResolvedValue(
+        qvcAttempts({ qvcAttempts: [qvcAttempt({ status: "re_medical", outcomeCode: "re_medical" })] })
+      );
+      const client = await signInAs(MPS);
+
+      renderPanel(client);
+
+      expect(await screen.findByText("Re-medical required")).toBeInTheDocument();
+      expect(screen.queryByText("re_medical")).not.toBeInTheDocument();
+    });
+
+    it("shows Schedule appointment for a manage_workflow user when there is no open attempt", async () => {
+      adminWorkflowClient.getWorkflowState.mockResolvedValue(workflowState());
+      adminWorkflowClient.getAllowedTransitions.mockResolvedValue(allowedTransitions());
+      adminWorkflowClient.getWorkflowHistory.mockResolvedValue(workflowHistory());
+      const mps = await signInAs(MPS);
+
+      renderPanel(mps);
+
+      expect(await screen.findByRole("button", { name: "Schedule appointment" })).toBeInTheDocument();
+    });
+
+    it("hides Schedule appointment for a view-only staff member even with an open attempt present", async () => {
+      adminWorkflowClient.getWorkflowState.mockResolvedValue(workflowState());
+      adminWorkflowClient.getAllowedTransitions.mockResolvedValue(allowedTransitions());
+      adminWorkflowClient.getWorkflowHistory.mockResolvedValue(workflowHistory());
+      adminWorkflowClient.getQvcAttempts.mockResolvedValue(qvcAttempts({ qvcAttempts: [qvcAttempt()] }));
+      const management = await signInAs(MANAGEMENT);
+
+      renderPanel(management);
+
+      await screen.findByText("Documents Shared with Qatar BU");
+      expect(screen.queryByRole("button", { name: "Schedule appointment" })).not.toBeInTheDocument();
+    });
+
+    it("schedules an appointment, sending the entered date and the current stage code, then closes and shows success", async () => {
+      adminWorkflowClient.getWorkflowState.mockResolvedValue(workflowState());
+      adminWorkflowClient.getAllowedTransitions.mockResolvedValue(allowedTransitions());
+      adminWorkflowClient.getWorkflowHistory.mockResolvedValue(workflowHistory());
+      adminWorkflowClient.scheduleQvcAppointment.mockResolvedValue({
+        workflow: workflowState({ currentStage: timelineStage({ code: "qvc_appointment_booked" }) }),
+        transition: historyItem({ toStage: { code: "qvc_appointment_booked", name: "QVC Appointment Booked", position: 9 } }),
+        qvcAttempt: null,
+      });
+      const client = await signInAs(MPS);
+      renderPanel(client);
+
+      fireEvent.click(await screen.findByRole("button", { name: "Schedule appointment" }));
+      await screen.findByText("Schedule a QVC appointment");
+      fireEvent.change(screen.getByLabelText("Appointment date"), { target: { value: "2026-09-05" } });
+      fireEvent.click(screen.getByRole("button", { name: "Schedule" }));
+
+      await waitFor(() =>
+        expect(adminWorkflowClient.scheduleQvcAppointment).toHaveBeenCalledWith(
+          expect.objectContaining({ candidateId: "candidate-1", appointmentDate: "2026-09-05", expectedCurrentStageCode: "fee_paid" })
+        )
+      );
+      await waitFor(() => expect(screen.queryByText("Schedule a QVC appointment")).not.toBeInTheDocument());
+    });
+
+    it("requires an appointment date client-side before submitting", async () => {
+      adminWorkflowClient.getWorkflowState.mockResolvedValue(workflowState());
+      adminWorkflowClient.getAllowedTransitions.mockResolvedValue(allowedTransitions());
+      adminWorkflowClient.getWorkflowHistory.mockResolvedValue(workflowHistory());
+      const client = await signInAs(MPS);
+      renderPanel(client);
+
+      fireEvent.click(await screen.findByRole("button", { name: "Schedule appointment" }));
+      await screen.findByText("Schedule a QVC appointment");
+      fireEvent.click(screen.getByRole("button", { name: "Schedule" }));
+
+      expect(await screen.findByText("Enter the appointment date.")).toBeInTheDocument();
+      expect(adminWorkflowClient.scheduleQvcAppointment).not.toHaveBeenCalled();
+    });
+
+    it("prevents a duplicate schedule submission while the request is pending", async () => {
+      adminWorkflowClient.getWorkflowState.mockResolvedValue(workflowState());
+      adminWorkflowClient.getAllowedTransitions.mockResolvedValue(allowedTransitions());
+      adminWorkflowClient.getWorkflowHistory.mockResolvedValue(workflowHistory());
+      let resolveSchedule: (value: unknown) => void;
+      adminWorkflowClient.scheduleQvcAppointment.mockReturnValue(
+        new Promise((resolve) => {
+          resolveSchedule = resolve;
+        })
+      );
+      const client = await signInAs(MPS);
+      renderPanel(client);
+
+      fireEvent.click(await screen.findByRole("button", { name: "Schedule appointment" }));
+      await screen.findByText("Schedule a QVC appointment");
+      fireEvent.change(screen.getByLabelText("Appointment date"), { target: { value: "2026-09-05" } });
+      const confirmButton = screen.getByRole("button", { name: "Schedule" });
+      fireEvent.click(confirmButton);
+      fireEvent.click(confirmButton);
+      fireEvent.click(confirmButton);
+
+      await waitFor(() => expect(adminWorkflowClient.scheduleQvcAppointment).toHaveBeenCalledTimes(1));
+      resolveSchedule!({ workflow: workflowState(), transition: null, qvcAttempt: qvcAttempt() });
+    });
+
+    it("closes the dialog and shows the stale-state notice instead of silently resubmitting", async () => {
+      adminWorkflowClient.getWorkflowState.mockResolvedValue(workflowState());
+      adminWorkflowClient.getAllowedTransitions.mockResolvedValue(allowedTransitions());
+      adminWorkflowClient.getWorkflowHistory.mockResolvedValue(workflowHistory());
+      adminWorkflowClient.scheduleQvcAppointment.mockRejectedValue({ code: "WORKFLOW_TRANSITION_STALE" });
+      const client = await signInAs(MPS);
+      renderPanel(client);
+
+      fireEvent.click(await screen.findByRole("button", { name: "Schedule appointment" }));
+      await screen.findByText("Schedule a QVC appointment");
+      fireEvent.change(screen.getByLabelText("Appointment date"), { target: { value: "2026-09-05" } });
+      fireEvent.click(screen.getByRole("button", { name: "Schedule" }));
+
+      await waitFor(() => expect(screen.queryByText("Schedule a QVC appointment")).not.toBeInTheDocument());
+      expect(
+        await screen.findByText("The workflow changed before this could be applied. Review the updated state below before trying again.")
+      ).toBeInTheDocument();
+    });
+
+    it("shows Record outcome only on the open attempt, and records a no-show outcome distinctly from a normal outcome", async () => {
+      adminWorkflowClient.getWorkflowState.mockResolvedValue(workflowState());
+      adminWorkflowClient.getAllowedTransitions.mockResolvedValue(allowedTransitions());
+      adminWorkflowClient.getWorkflowHistory.mockResolvedValue(workflowHistory());
+      adminWorkflowClient.getQvcAttempts.mockResolvedValue(
+        qvcAttempts({ qvcAttempts: [qvcAttempt({ id: "attempt-open", status: "scheduled" })] })
+      );
+      adminWorkflowClient.recordQvcOutcome.mockResolvedValue({
+        workflow: workflowState({ currentStage: timelineStage({ code: "qvc_appointment_booked" }) }),
+        transition: null,
+        qvcAttempt: qvcAttempt({ id: "attempt-open", status: "no_show", noShow: true }),
+      });
+      const client = await signInAs(MPS);
+      renderPanel(client);
+
+      fireEvent.click(await screen.findByRole("button", { name: "Record outcome" }));
+      await screen.findByText("Record QVC outcome");
+      fireEvent.change(screen.getByLabelText("Outcome"), { target: { value: "no_show" } });
+      fireEvent.click(screen.getByRole("button", { name: "Save outcome" }));
+
+      await waitFor(() =>
+        expect(adminWorkflowClient.recordQvcOutcome).toHaveBeenCalledWith(
+          expect.objectContaining({ qvcAttemptId: "attempt-open", outcomeCode: undefined, noShow: true })
+        )
+      );
+    });
+
+    it("requires an outcome selection client-side before submitting", async () => {
+      adminWorkflowClient.getWorkflowState.mockResolvedValue(workflowState());
+      adminWorkflowClient.getAllowedTransitions.mockResolvedValue(allowedTransitions());
+      adminWorkflowClient.getWorkflowHistory.mockResolvedValue(workflowHistory());
+      adminWorkflowClient.getQvcAttempts.mockResolvedValue(qvcAttempts({ qvcAttempts: [qvcAttempt()] }));
+      const client = await signInAs(MPS);
+      renderPanel(client);
+
+      fireEvent.click(await screen.findByRole("button", { name: "Record outcome" }));
+      await screen.findByText("Record QVC outcome");
+      fireEvent.click(screen.getByRole("button", { name: "Save outcome" }));
+
+      expect(await screen.findByText("Select an outcome.")).toBeInTheDocument();
+      expect(adminWorkflowClient.recordQvcOutcome).not.toHaveBeenCalled();
+    });
+
+    it("shows an offline state with retry for the QVC attempts list independent of the rest of the panel", async () => {
+      adminWorkflowClient.getWorkflowState.mockResolvedValue(workflowState());
+      adminWorkflowClient.getAllowedTransitions.mockResolvedValue(allowedTransitions());
+      adminWorkflowClient.getWorkflowHistory.mockResolvedValue(workflowHistory());
+      adminWorkflowClient.getQvcAttempts.mockRejectedValueOnce({ code: "OFFLINE" }).mockResolvedValueOnce(qvcAttempts());
+      const client = await signInAs(MPS);
+
+      renderPanel(client);
+
+      await screen.findByText("Documents Shared with Qatar BU");
+      const offlineMessages = await screen.findAllByText("You are offline");
+      expect(offlineMessages.length).toBeGreaterThan(0);
+      const retryButtons = screen.getAllByRole("button", { name: "Retry" });
+      fireEvent.click(retryButtons[retryButtons.length - 1]);
+
+      await waitFor(() => expect(screen.getByText("No QVC appointments have been scheduled yet.")).toBeInTheDocument());
+    });
+  });
+
+  describe("Protection panel", () => {
+    it("shows existing protection details when present, and a no-details message otherwise", async () => {
+      adminWorkflowClient.getWorkflowState.mockResolvedValue(
+        workflowState({ protection: protectionRecord({ appearedOn: "2026-09-01", protectedOn: "2026-09-05" }) })
+      );
+      adminWorkflowClient.getAllowedTransitions.mockResolvedValue(allowedTransitions());
+      adminWorkflowClient.getWorkflowHistory.mockResolvedValue(workflowHistory());
+      const client = await signInAs(MPS);
+
+      renderPanel(client);
+
+      expect(await screen.findByText("Protection details")).toBeInTheDocument();
+      await waitFor(() => expect(screen.getByText(/01-Sept-2026/)).toBeInTheDocument());
+      await waitFor(() => expect(screen.getByText(/05-Sept-2026/)).toBeInTheDocument());
+    });
+
+    it("shows no protection details recorded yet when the workflow state has none", async () => {
+      adminWorkflowClient.getWorkflowState.mockResolvedValue(workflowState({ protection: null }));
+      adminWorkflowClient.getAllowedTransitions.mockResolvedValue(allowedTransitions());
+      adminWorkflowClient.getWorkflowHistory.mockResolvedValue(workflowHistory());
+      const client = await signInAs(MPS);
+
+      renderPanel(client);
+
+      expect(await screen.findByText("No protection details recorded yet.")).toBeInTheDocument();
+    });
+
+    it("shows the appeared-for-protection card only when the backend returns it as an available transition", async () => {
+      adminWorkflowClient.getWorkflowState.mockResolvedValue(
+        workflowState({ currentStage: timelineStage({ code: "qvc_completed_outcome_received", position: 10 }) })
+      );
+      adminWorkflowClient.getAllowedTransitions.mockResolvedValue(allowedTransitions({ allowedNextTransitions: [appearedForProtectionTransition()] }));
+      adminWorkflowClient.getWorkflowHistory.mockResolvedValue(workflowHistory());
+      const client = await signInAs(MPS);
+
+      renderPanel(client);
+
+      expect(await screen.findByText("Appeared for Protection")).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "Confirm appearance" })).toBeInTheDocument();
+    });
+
+    // Regression test: allowed_next_transitions evaluates prerequisites with
+    // *no* evidence (it can't know what a caller is about to submit), so a
+    // stage whose only requirement is its own evidence field always comes
+    // back allowed:false with exactly one "<field>_required" blocking
+    // reason -- confirmed against the real backend. That must still show
+    // the action (the dialog is where the evidence gets supplied), not hide
+    // it as if genuinely blocked.
+    it("still shows the action when the only blocking reason is the card's own required evidence field", async () => {
+      adminWorkflowClient.getWorkflowState.mockResolvedValue(
+        workflowState({ currentStage: timelineStage({ code: "qvc_completed_outcome_received", position: 10 }) })
+      );
+      adminWorkflowClient.getAllowedTransitions.mockResolvedValue(
+        allowedTransitions({
+          allowedNextTransitions: [
+            appearedForProtectionTransition({ allowed: false, blockingReasons: ["appeared_for_protection_on_required"] }),
+          ],
+        })
+      );
+      adminWorkflowClient.getWorkflowHistory.mockResolvedValue(workflowHistory());
+      const client = await signInAs(MPS);
+
+      renderPanel(client);
+
+      await screen.findByText("Appeared for Protection");
+      expect(screen.getByRole("button", { name: "Confirm appearance" })).toBeInTheDocument();
+      expect(screen.queryByText("This transition is currently blocked.")).not.toBeInTheDocument();
+    });
+
+    it("confirms protection appearance, sending the entered date as appeared_for_protection_on evidence", async () => {
+      adminWorkflowClient.getWorkflowState.mockResolvedValue(
+        workflowState({ currentStage: timelineStage({ code: "qvc_completed_outcome_received", position: 10 }) })
+      );
+      adminWorkflowClient.getAllowedTransitions.mockResolvedValue(allowedTransitions({ allowedNextTransitions: [appearedForProtectionTransition()] }));
+      adminWorkflowClient.getWorkflowHistory.mockResolvedValue(workflowHistory());
+      adminWorkflowClient.submitTransition.mockResolvedValue(
+        transitionResult({ workflow: workflowState({ currentStage: timelineStage({ code: "appeared_for_protection", position: 12 }) }) })
+      );
+      const client = await signInAs(MPS);
+      renderPanel(client);
+      await screen.findByText("Appeared for Protection");
+
+      fireEvent.click(screen.getByRole("button", { name: "Confirm appearance" }));
+      await screen.findByText("Confirm protection appearance");
+      fireEvent.change(screen.getByLabelText("Appearance date"), { target: { value: "2026-09-10" } });
+      const dialogButtons = screen.getAllByRole("button", { name: "Confirm appearance" });
+      fireEvent.click(dialogButtons[dialogButtons.length - 1]);
+
+      await waitFor(() =>
+        expect(adminWorkflowClient.submitTransition).toHaveBeenCalledWith(
+          expect.objectContaining({
+            toStageCode: "appeared_for_protection",
+            expectedCurrentStageCode: "qvc_completed_outcome_received",
+            evidence: { appeared_for_protection_on: "2026-09-10" },
+          })
+        )
+      );
+    });
+
+    it("requires the appearance date client-side before submitting", async () => {
+      adminWorkflowClient.getWorkflowState.mockResolvedValue(
+        workflowState({ currentStage: timelineStage({ code: "qvc_completed_outcome_received", position: 10 }) })
+      );
+      adminWorkflowClient.getAllowedTransitions.mockResolvedValue(allowedTransitions({ allowedNextTransitions: [appearedForProtectionTransition()] }));
+      adminWorkflowClient.getWorkflowHistory.mockResolvedValue(workflowHistory());
+      const client = await signInAs(MPS);
+      renderPanel(client);
+      await screen.findByText("Appeared for Protection");
+
+      fireEvent.click(screen.getByRole("button", { name: "Confirm appearance" }));
+      await screen.findByText("Confirm protection appearance");
+      const dialogButtons = screen.getAllByRole("button", { name: "Confirm appearance" });
+      fireEvent.click(dialogButtons[dialogButtons.length - 1]);
+
+      expect(await screen.findByText("Enter the date.")).toBeInTheDocument();
+      expect(adminWorkflowClient.submitTransition).not.toHaveBeenCalled();
+    });
+
+    it("shows the protected/ready-to-fly card with its own date field and evidence key", async () => {
+      adminWorkflowClient.getWorkflowState.mockResolvedValue(
+        workflowState({ currentStage: timelineStage({ code: "appeared_for_protection", position: 12 }) })
+      );
+      adminWorkflowClient.getAllowedTransitions.mockResolvedValue(allowedTransitions({ allowedNextTransitions: [protectedReadyToFlyTransition()] }));
+      adminWorkflowClient.getWorkflowHistory.mockResolvedValue(workflowHistory());
+      adminWorkflowClient.submitTransition.mockResolvedValue(transitionResult());
+      const client = await signInAs(MPS);
+      renderPanel(client);
+      await screen.findByText("Protected / Ready to Fly");
+
+      fireEvent.click(screen.getByRole("button", { name: "Confirm ready to fly" }));
+      await screen.findByText("Confirm protected / ready to fly");
+      fireEvent.change(screen.getByLabelText("Protected date"), { target: { value: "2026-09-12" } });
+      const dialogButtons = screen.getAllByRole("button", { name: "Confirm ready to fly" });
+      fireEvent.click(dialogButtons[dialogButtons.length - 1]);
+
+      await waitFor(() =>
+        expect(adminWorkflowClient.submitTransition).toHaveBeenCalledWith(
+          expect.objectContaining({ toStageCode: "protected_ready_to_fly", evidence: { protected_on: "2026-09-12" } })
+        )
+      );
+    });
+
+    it("hides the action and shows the view-only notice for a staff member without manage_workflow", async () => {
+      adminWorkflowClient.getWorkflowState.mockResolvedValue(
+        workflowState({ currentStage: timelineStage({ code: "qvc_completed_outcome_received", position: 10 }) })
+      );
+      adminWorkflowClient.getAllowedTransitions.mockResolvedValue(allowedTransitions({ allowedNextTransitions: [appearedForProtectionTransition()] }));
+      adminWorkflowClient.getWorkflowHistory.mockResolvedValue(workflowHistory());
+      const client = await signInAs(MANAGEMENT);
+
+      renderPanel(client);
+
+      await screen.findByText("Appeared for Protection");
+      expect(screen.queryByRole("button", { name: "Confirm appearance" })).not.toBeInTheDocument();
+      expect(screen.getByText("You don't have permission to perform this transition.")).toBeInTheDocument();
+    });
+
+    it("shows the exact blocking reasons and no action when the backend disallows the transition", async () => {
+      adminWorkflowClient.getWorkflowState.mockResolvedValue(
+        workflowState({ currentStage: timelineStage({ code: "qvc_completed_outcome_received", position: 10 }) })
+      );
+      adminWorkflowClient.getAllowedTransitions.mockResolvedValue(
+        allowedTransitions({
+          allowedNextTransitions: [appearedForProtectionTransition({ allowed: false, blockingReasons: ["qvc_approval_required"] })],
+        })
+      );
+      adminWorkflowClient.getWorkflowHistory.mockResolvedValue(workflowHistory());
+      const client = await signInAs(MPS);
+
+      renderPanel(client);
+
+      await screen.findByText("Appeared for Protection");
+      expect(screen.queryByRole("button", { name: "Confirm appearance" })).not.toBeInTheDocument();
+      expect(screen.getByText("This transition is currently blocked.")).toBeInTheDocument();
     });
   });
 });

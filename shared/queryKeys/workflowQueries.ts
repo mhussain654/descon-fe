@@ -12,4 +12,6 @@ export const workflowQueries = {
   adminState: (candidateId: string, locale: Language) => ['workflow', 'adminState', candidateId, locale] as const,
   adminTransitions: (candidateId: string, locale: Language) => ['workflow', 'adminTransitions', candidateId, locale] as const,
   adminHistory: (candidateId: string, locale: Language) => ['workflow', 'adminHistory', candidateId, locale] as const,
+  /** QVC attempts have their own dedicated backend resource (unlike protection, read from adminState's `protection` field) -- MPS-F501 Phase B. */
+  adminQvcAttempts: (candidateId: string, locale: Language) => ['workflow', 'adminQvcAttempts', candidateId, locale] as const,
 };

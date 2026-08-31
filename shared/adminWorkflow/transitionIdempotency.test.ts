@@ -5,7 +5,14 @@ import {
   type TransitionIdempotencyKeyState,
 } from './transitionIdempotency';
 
-function selection(overrides: Partial<{ candidateId: string; toStageCode: string; expectedCurrentStageCode: string | undefined }> = {}) {
+function selection(
+  overrides: Partial<{
+    candidateId: string;
+    toStageCode: string;
+    expectedCurrentStageCode: string | undefined;
+    evidence: Record<string, string> | undefined;
+  }> = {}
+) {
   return {
     candidateId: 'candidate-1',
     toStageCode: 'documents_shared_with_qatar_bu',
@@ -43,6 +50,45 @@ describe('resolveTransitionIdempotencyKey', () => {
     const first = resolveTransitionIdempotencyKey(EMPTY_TRANSITION_IDEMPOTENCY_KEY_STATE, selection(), () => 'key-1');
     const next = resolveTransitionIdempotencyKey(first, selection({ expectedCurrentStageCode: 'verified' }), () => 'key-2');
     expect(next.key).toBe('key-2');
+  });
+
+  it('reuses the same key when evidence is identical', () => {
+    const first = resolveTransitionIdempotencyKey(
+      EMPTY_TRANSITION_IDEMPOTENCY_KEY_STATE,
+      selection({ evidence: { appeared_for_protection_on: '2026-09-01' } }),
+      () => 'key-1'
+    );
+    const retry = resolveTransitionIdempotencyKey(
+      first,
+      selection({ evidence: { appeared_for_protection_on: '2026-09-01' } }),
+      () => 'key-2'
+    );
+    expect(retry).toBe(first);
+    expect(retry.key).toBe('key-1');
+  });
+
+  it('mints a new key when an evidence value changes (e.g. the candidate edits the date after a failed attempt)', () => {
+    const first = resolveTransitionIdempotencyKey(
+      EMPTY_TRANSITION_IDEMPOTENCY_KEY_STATE,
+      selection({ evidence: { appeared_for_protection_on: '2026-09-01' } }),
+      () => 'key-1'
+    );
+    const next = resolveTransitionIdempotencyKey(
+      first,
+      selection({ evidence: { appeared_for_protection_on: '2026-09-02' } }),
+      () => 'key-2'
+    );
+    expect(next.key).toBe('key-2');
+  });
+
+  it('mints a new key when evidence goes from present to absent, or vice versa', () => {
+    const withoutEvidence = resolveTransitionIdempotencyKey(EMPTY_TRANSITION_IDEMPOTENCY_KEY_STATE, selection(), () => 'key-1');
+    const withEvidence = resolveTransitionIdempotencyKey(
+      withoutEvidence,
+      selection({ evidence: { protected_on: '2026-09-05' } }),
+      () => 'key-2'
+    );
+    expect(withEvidence.key).toBe('key-2');
   });
 
   it('never carries one candidate key over into another candidate key', () => {

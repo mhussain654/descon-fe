@@ -5,6 +5,8 @@
 // admin-document-reviews-client.ts precedent.
 import { createAdminWorkflowClient } from '../../../shared/adminWorkflow/realAdminWorkflowClient';
 import type {
+  AdminQvcAttempt,
+  AdminQvcAttempts,
   AdminWorkflowClient,
   AdminWorkflowError,
   AdminWorkflowErrorCode,
@@ -12,9 +14,15 @@ import type {
   AllowedWorkflowTransition,
   AllowedWorkflowTransitions,
   AdminWorkflowHistory,
+  QvcActionResult,
+  QvcAttemptStatus,
+  QvcOutcomeCode,
+  RecordQvcOutcomeInput,
+  ScheduleQvcAppointmentInput,
   SubmitWorkflowTransitionInput,
   WorkflowActor,
   WorkflowHistoryItem,
+  WorkflowProtectionRecord,
   WorkflowTimelineStage,
   WorkflowTransitionResult,
 } from '../../../shared/adminWorkflow/types';
@@ -22,6 +30,8 @@ import { apiClient } from './api-client';
 import { staffAuthClient } from './staff-auth-client';
 
 export type {
+  AdminQvcAttempt,
+  AdminQvcAttempts,
   AdminWorkflowClient,
   AdminWorkflowError,
   AdminWorkflowErrorCode,
@@ -29,9 +39,15 @@ export type {
   AllowedWorkflowTransition,
   AllowedWorkflowTransitions,
   AdminWorkflowHistory,
+  QvcActionResult,
+  QvcAttemptStatus,
+  QvcOutcomeCode,
+  RecordQvcOutcomeInput,
+  ScheduleQvcAppointmentInput,
   SubmitWorkflowTransitionInput,
   WorkflowActor,
   WorkflowHistoryItem,
+  WorkflowProtectionRecord,
   WorkflowTimelineStage,
   WorkflowTransitionResult,
 };
