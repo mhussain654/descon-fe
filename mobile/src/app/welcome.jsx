@@ -7,6 +7,7 @@ import { useRouter } from "expo-router";
 import { useLanguage } from "../contexts/LanguageContext";
 import { Button } from "../design-system";
 import { colors, fontWeights, radii, spacing } from "../design-system/tokens";
+import { RequireGuest } from "../features/auth/RequireGuest";
 
 function LanguageOptionCard({ active, flag, label, hint, onPress }) {
   return (
@@ -44,62 +45,64 @@ export default function WelcomeScreen() {
   };
 
   return (
-    <View style={styles.screen}>
-      <StatusBar style="dark" />
+    <RequireGuest>
+      <View style={styles.screen}>
+        <StatusBar style="dark" />
 
-      {/* Small phones, landscape orientation and larger font scales can push
-          this content taller than the viewport -- a ScrollView (rather than
-          the previous fixed View) keeps the language options and Continue
-          button reachable instead of clipping them off-screen. */}
-      <ScrollView
-        contentContainerStyle={[
-          styles.content,
-          { paddingTop: insets.top + 60, paddingBottom: insets.bottom + spacing[6] },
-        ]}
-        keyboardShouldPersistTaps="handled"
-      >
-        <View style={styles.logoWrap}>
-          <Image
-            source={{ uri: "https://ucarecdn.com/26b1d36a-12cf-4efa-853d-08da75f95d7e/-/format/auto/" }}
-            style={styles.logo}
-            contentFit="contain"
-          />
-        </View>
-
-        <View style={styles.titleBlock}>
-          <Text style={styles.title}>{t("welcomeTitle")}</Text>
-          <Text style={styles.message}>{t("welcomeMessage")}</Text>
-        </View>
-
-        <View style={styles.languageBlock}>
-          <Text style={styles.selectLabel}>{t("selectLanguage")}</Text>
-          <View style={styles.languageList}>
-            <LanguageOptionCard
-              active={language === "en"}
-              flag="🇬🇧"
-              label={t("englishLabel")}
-              hint={t("englishHint")}
-              onPress={() => setLanguage("en")}
-            />
-            <LanguageOptionCard
-              active={language === "ur"}
-              flag="🇵🇰"
-              label={t("urduLabel")}
-              hint={t("urduHint")}
-              onPress={() => setLanguage("ur")}
+        {/* Small phones, landscape orientation and larger font scales can push
+            this content taller than the viewport -- a ScrollView (rather than
+            the previous fixed View) keeps the language options and Continue
+            button reachable instead of clipping them off-screen. */}
+        <ScrollView
+          contentContainerStyle={[
+            styles.content,
+            { paddingTop: insets.top + 60, paddingBottom: insets.bottom + spacing[6] },
+          ]}
+          keyboardShouldPersistTaps="handled"
+        >
+          <View style={styles.logoWrap}>
+            <Image
+              source={{ uri: "https://ucarecdn.com/26b1d36a-12cf-4efa-853d-08da75f95d7e/-/format/auto/" }}
+              style={styles.logo}
+              contentFit="contain"
             />
           </View>
-        </View>
 
-        <View style={{ flex: 1 }} />
+          <View style={styles.titleBlock}>
+            <Text style={styles.title}>{t("welcomeTitle")}</Text>
+            <Text style={styles.message}>{t("welcomeMessage")}</Text>
+          </View>
 
-        <Button variant="primary" size="lg" fullWidth onPress={handleContinue}>
-          {t("continue")}
-        </Button>
+          <View style={styles.languageBlock}>
+            <Text style={styles.selectLabel}>{t("selectLanguage")}</Text>
+            <View style={styles.languageList}>
+              <LanguageOptionCard
+                active={language === "en"}
+                flag="🇬🇧"
+                label={t("englishLabel")}
+                hint={t("englishHint")}
+                onPress={() => setLanguage("en")}
+              />
+              <LanguageOptionCard
+                active={language === "ur"}
+                flag="🇵🇰"
+                label={t("urduLabel")}
+                hint={t("urduHint")}
+                onPress={() => setLanguage("ur")}
+              />
+            </View>
+          </View>
 
-        <Text style={styles.footer}>{t("companyFooter")}</Text>
-      </ScrollView>
-    </View>
+          <View style={{ flex: 1 }} />
+
+          <Button variant="primary" size="lg" fullWidth onPress={handleContinue}>
+            {t("continue")}
+          </Button>
+
+          <Text style={styles.footer}>{t("companyFooter")}</Text>
+        </ScrollView>
+      </View>
+    </RequireGuest>
   );
 }
 

@@ -1,4 +1,4 @@
-import { useCallback, useEffect } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
@@ -6,10 +6,12 @@ import { useRouter } from "expo-router";
 import { Shield } from "lucide-react-native";
 import { useAuth } from "../contexts/AuthContext";
 import { useLanguage } from "../contexts/LanguageContext";
+import { RequireGuest } from "../features/auth/RequireGuest";
 import KeyboardAvoidingAnimatedView from "@/components/KeyboardAvoidingAnimatedView";
 import {
   Button,
   CnicField,
+  OfflineState,
   OtpField,
   RetryBanner,
   ValidationMessage,
@@ -65,6 +67,25 @@ export default function LoginScreen() {
     backToCnic,
   } = flow;
 
+  // Which OTP-step action to re-run when the candidate taps "Retry" on the
+  // offline state -- otpError alone doesn't say whether verification or a
+  // resend was what actually failed, and re-running the wrong one would
+  // either resubmit a stale/incomplete code or silently ask for a new OTP
+  // the candidate didn't ask for.
+  const [lastOtpAction, setLastOtpAction] = useState("submit");
+  const submitOtpAndTrack = useCallback(
+    (codeOverride) => {
+      setLastOtpAction("submit");
+      return submitOtp(codeOverride);
+    },
+    [submitOtp]
+  );
+  const resendOtpAndTrack = useCallback(() => {
+    setLastOtpAction("resend");
+    return resendOtp();
+  }, [resendOtp]);
+  const retryOtpAction = lastOtpAction === "resend" ? resendOtpAndTrack : () => submitOtpAndTrack();
+
   useEffect(() => {
     if (sessionExpired) {
       toast.info(t("dsSessionExpiredTitle"), { description: t("dsSessionExpiredDescription") });
@@ -79,6 +100,8 @@ export default function LoginScreen() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [issuedAt]);
 
+  const isCnicOffline = cnicError === null && otpError?.code === "OFFLINE" && step === "cnic";
+  const isOtpOffline = otpError?.code === "OFFLINE" && step === "otp";
   const isExpired = otpError?.code === "OTP_EXPIRED" || secondsUntilExpiry === 0;
   const isLockedOut = otpError?.code === "OTP_MAX_ATTEMPTS";
   const isCnicRateLimited = rateLimitedAction === "cnic" && (secondsUntilRateLimitCleared ?? 0) > 0;
@@ -87,7 +110,7 @@ export default function LoginScreen() {
   const otpFieldDisabled = isSubmittingOtp || isExpired || isLockedOut || isOtpRateLimited;
 
   const genericOtpErrorMessage =
-    otpError && !isExpired && !isLockedOut
+    otpError && !isExpired && !isLockedOut && !isOtpOffline
       ? otpError.code === "RESEND_COOLDOWN" && typeof otpError.retryAfterSeconds === "number"
         ? `${t("authResendAvailableInPrefix")} ${formatCountdown(otpError.retryAfterSeconds)}`
         : otpError.code === "RATE_LIMITED" && isResendRateLimited
@@ -98,131 +121,159 @@ export default function LoginScreen() {
       : null;
 
   return (
-    <KeyboardAvoidingAnimatedView style={styles.screen} behavior="padding">
-      <StatusBar style="dark" />
+    <RequireGuest>
+      <KeyboardAvoidingAnimatedView style={styles.screen} behavior="padding">
+        <StatusBar style="dark" />
 
-      {/* Small phones, landscape orientation and larger font scales can push
-          this content taller than the viewport -- a ScrollView (rather than
-          the previous fixed View) keeps the OTP field and Verify button
-          reachable instead of clipping them off-screen. */}
-      <ScrollView
-        contentContainerStyle={[
-          styles.content,
-          { paddingTop: insets.top + 32, paddingBottom: insets.bottom + spacing[6] },
-        ]}
-        keyboardShouldPersistTaps="handled"
-      >
-        <TouchableOpacity
-          onPress={() => (step === "otp" ? backToCnic() : router.back())}
-          style={styles.backButton}
+        {/* Small phones, landscape orientation and larger font scales can push
+            this content taller than the viewport -- a ScrollView (rather than
+            the previous fixed View) keeps the OTP field and Verify button
+            reachable instead of clipping them off-screen. */}
+        <ScrollView
+          contentContainerStyle={[
+            styles.content,
+            { paddingTop: insets.top + 32, paddingBottom: insets.bottom + spacing[6] },
+          ]}
+          keyboardShouldPersistTaps="handled"
         >
-          <Text style={styles.backText}>{t("back")}</Text>
-        </TouchableOpacity>
+          <TouchableOpacity
+            onPress={() => (step === "otp" ? backToCnic() : router.back())}
+            style={styles.backButton}
+          >
+            <Text style={styles.backText}>{t("back")}</Text>
+          </TouchableOpacity>
 
-        <View style={styles.titleBlock}>
-          <View style={styles.logoBadge}>
-            <Shield size={32} color={colors.brand.on} strokeWidth={2} />
+          <View style={styles.titleBlock}>
+            <View style={styles.logoBadge}>
+              <Shield size={32} color={colors.brand.on} strokeWidth={2} />
+            </View>
+            <Text style={styles.title}>{step === "cnic" ? t("login") : t("verifyOTP")}</Text>
+            <Text style={styles.message}>
+              {step === "cnic"
+                ? t("loginMessage")
+                : `${t("otpSentMessage")}${challenge?.maskedDestination ? ` ${challenge.maskedDestination}` : ""}`}
+            </Text>
           </View>
-          <Text style={styles.title}>{step === "cnic" ? t("login") : t("verifyOTP")}</Text>
-          <Text style={styles.message}>
-            {step === "cnic"
-              ? t("loginMessage")
-              : `${t("otpSentMessage")}${challenge?.maskedDestination ? ` ${challenge.maskedDestination}` : ""}`}
-          </Text>
-        </View>
 
-        {step === "cnic" ? (
-          <View style={styles.fieldStack}>
-            <CnicField
-              label={t("cnic")}
-              placeholder={t("enterCNIC")}
-              value={cnic}
-              onValueChange={setCnic}
-              errorMessage={cnicError ? t(CNIC_FIELD_ERROR_KEYS[cnicError]) : undefined}
-              editable={!isSubmittingCnic}
-              autoFocus
-            />
-            {!cnicError && otpError ? (
-              <ValidationMessage tone="error">
-                {isCnicRateLimited
-                  ? `${t("authRetryAvailableInPrefix")} ${formatCountdown(secondsUntilRateLimitCleared ?? 0)}`
-                  : t(AUTH_ERROR_KEYS[otpError.code])}
-              </ValidationMessage>
-            ) : null}
-            <Button
-              variant="primary"
-              size="lg"
-              fullWidth
-              loading={isSubmittingCnic}
-              disabled={isCnicRateLimited}
-              onPress={submitCnic}
-            >
-              {t("sendOTP")}
-            </Button>
-          </View>
-        ) : (
-          <View style={styles.fieldStack}>
-            <OtpField
-              label={t("enterOTP")}
-              value={otp}
-              onValueChange={setOtp}
-              onComplete={(code) => submitOtp(code)}
-              editable={!otpFieldDisabled}
-              errorMessage={genericOtpErrorMessage ?? undefined}
-              autoFocus
-            />
-
-            {!isExpired && !isLockedOut ? (
-              <Text style={styles.countdown}>
-                {t("authCodeExpiresInPrefix")} {formatCountdown(secondsUntilExpiry ?? 0)}
-              </Text>
-            ) : null}
-
-            {isExpired ? (
-              <RetryBanner message={t("authOtpExpiredDescription")} retryLabel={t("resendOTP")} onRetry={resendOtp} />
-            ) : null}
-            {isLockedOut ? (
-              <RetryBanner
-                message={t("authOtpMaxAttemptsDescription")}
-                retryLabel={t("resendOTP")}
-                onRetry={resendOtp}
+          {step === "cnic" ? (
+            <View style={styles.fieldStack}>
+              <CnicField
+                label={t("cnic")}
+                placeholder={t("enterCNIC")}
+                value={cnic}
+                onValueChange={setCnic}
+                errorMessage={cnicError ? t(CNIC_FIELD_ERROR_KEYS[cnicError]) : undefined}
+                editable={!isSubmittingCnic}
+                autoFocus
               />
-            ) : null}
-
-            <Button
-              variant="primary"
-              size="lg"
-              fullWidth
-              loading={isSubmittingOtp}
-              disabled={otpFieldDisabled || otp.length !== OTP_LENGTH}
-              onPress={() => submitOtp()}
-            >
-              {t("verifyAndLogin")}
-            </Button>
-
-            {!isExpired && !isLockedOut ? (
-              isResendRateLimited ? (
-                <Text style={styles.resendCountdown}>
-                  {t("authResendAvailableInPrefix")} {formatCountdown(secondsUntilRateLimitCleared ?? 0)}
-                </Text>
-              ) : secondsUntilResendAvailable > 0 ? (
-                <Text style={styles.resendCountdown}>
-                  {t("authResendAvailableInPrefix")} {formatCountdown(secondsUntilResendAvailable)}
-                </Text>
+              {isCnicOffline ? (
+                <OfflineState
+                  title={t("dsOfflineTitle")}
+                  description={t("dsOfflineDescription")}
+                  retryLabel={t("retry")}
+                  onRetry={submitCnic}
+                />
               ) : (
-                <Button variant="outline" size="lg" fullWidth loading={isResending} onPress={resendOtp}>
-                  {t("resendOTP")}
-                </Button>
-              )
-            ) : null}
+                <>
+                  {!cnicError && otpError ? (
+                    <ValidationMessage tone="error">
+                      {isCnicRateLimited
+                        ? `${t("authRetryAvailableInPrefix")} ${formatCountdown(secondsUntilRateLimitCleared ?? 0)}`
+                        : t(AUTH_ERROR_KEYS[otpError.code])}
+                    </ValidationMessage>
+                  ) : null}
+                  <Button
+                    variant="primary"
+                    size="lg"
+                    fullWidth
+                    loading={isSubmittingCnic}
+                    disabled={isCnicRateLimited}
+                    onPress={submitCnic}
+                  >
+                    {t("sendOTP")}
+                  </Button>
+                </>
+              )}
+            </View>
+          ) : (
+            <View style={styles.fieldStack}>
+              <OtpField
+                label={t("enterOTP")}
+                value={otp}
+                onValueChange={setOtp}
+                onComplete={(code) => submitOtpAndTrack(code)}
+                editable={!otpFieldDisabled}
+                errorMessage={genericOtpErrorMessage ?? undefined}
+                autoFocus
+              />
 
-            <Button variant="text" size="sm" fullWidth onPress={backToCnic}>
-              {t("authChangeCnic")}
-            </Button>
-          </View>
-        )}
-      </ScrollView>
-    </KeyboardAvoidingAnimatedView>
+              {!isExpired && !isLockedOut && !isOtpOffline ? (
+                <Text style={styles.countdown}>
+                  {t("authCodeExpiresInPrefix")} {formatCountdown(secondsUntilExpiry ?? 0)}
+                </Text>
+              ) : null}
+
+              {isOtpOffline ? (
+                <OfflineState
+                  title={t("dsOfflineTitle")}
+                  description={t("dsOfflineDescription")}
+                  retryLabel={t("retry")}
+                  onRetry={retryOtpAction}
+                />
+              ) : (
+                <>
+                  {isExpired ? (
+                    <RetryBanner
+                      message={t("authOtpExpiredDescription")}
+                      retryLabel={t("resendOTP")}
+                      onRetry={resendOtpAndTrack}
+                    />
+                  ) : null}
+                  {isLockedOut ? (
+                    <RetryBanner
+                      message={t("authOtpMaxAttemptsDescription")}
+                      retryLabel={t("resendOTP")}
+                      onRetry={resendOtpAndTrack}
+                    />
+                  ) : null}
+
+                  <Button
+                    variant="primary"
+                    size="lg"
+                    fullWidth
+                    loading={isSubmittingOtp}
+                    disabled={otpFieldDisabled || otp.length !== OTP_LENGTH}
+                    onPress={() => submitOtpAndTrack()}
+                  >
+                    {t("verifyAndLogin")}
+                  </Button>
+
+                  {!isExpired && !isLockedOut ? (
+                    isResendRateLimited ? (
+                      <Text style={styles.resendCountdown}>
+                        {t("authResendAvailableInPrefix")} {formatCountdown(secondsUntilRateLimitCleared ?? 0)}
+                      </Text>
+                    ) : secondsUntilResendAvailable > 0 ? (
+                      <Text style={styles.resendCountdown}>
+                        {t("authResendAvailableInPrefix")} {formatCountdown(secondsUntilResendAvailable)}
+                      </Text>
+                    ) : (
+                      <Button variant="outline" size="lg" fullWidth loading={isResending} onPress={resendOtpAndTrack}>
+                        {t("resendOTP")}
+                      </Button>
+                    )
+                  ) : null}
+                </>
+              )}
+
+              <Button variant="text" size="sm" fullWidth onPress={backToCnic}>
+                {t("authChangeCnic")}
+              </Button>
+            </View>
+          )}
+        </ScrollView>
+      </KeyboardAvoidingAnimatedView>
+    </RequireGuest>
   );
 }
 

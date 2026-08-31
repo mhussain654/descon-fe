@@ -1,10 +1,7 @@
 import { Redirect } from "expo-router";
 import type { ReactNode } from "react";
-import { View } from "react-native";
 import { useAuth } from "../../contexts/AuthContext";
-import { useLanguage } from "../../contexts/LanguageContext";
-import { LoadingState } from "../../design-system";
-import { colors } from "../../design-system/tokens";
+import { RestoringScreen } from "./RestoringScreen";
 
 /**
  * Guards candidate-only screens. `status` starts as `'restoring'` while the
@@ -15,14 +12,9 @@ import { colors } from "../../design-system/tokens";
  */
 export function RequireAuth({ children }: { children: ReactNode }) {
   const { status } = useAuth();
-  const { t } = useLanguage();
 
   if (status === "restoring") {
-    return (
-      <View style={{ flex: 1, justifyContent: "center", backgroundColor: colors.surface.background }}>
-        <LoadingState message={t("loading")} />
-      </View>
-    );
+    return <RestoringScreen />;
   }
 
   if (status !== "authenticated") {

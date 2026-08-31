@@ -2,7 +2,7 @@
 // testing library. Mobile has an equivalent test using React Native Testing
 // Library's renderHook -- the hook implementation itself lives once in
 // shared/, only the render harness differs per platform.
-import { act, renderHook, waitFor } from '@testing-library/react';
+import { act, renderHook } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import { createMockCandidateAuthClient, MOCK_VALID_OTP } from '../../../../shared/auth/candidateAuthClient';
 import { useCnicOtpFlow } from '../../../../shared/auth/useCnicOtpFlow';
@@ -112,20 +112,31 @@ describe('useCnicOtpFlow', () => {
   });
 
   it('exposes a live expiry countdown once a challenge exists', async () => {
-    const { result } = setUp();
-    act(() => result.current.setCnic(CNIC));
-    await act(async () => {
-      await result.current.submitCnic();
-    });
+    // Fake timers make this deterministic -- the hook's countdown only
+    // advances on a real 1000ms `setInterval` tick (shared/auth/useCnicOtpFlow.ts),
+    // so waiting on real wall-clock time here was flaky under CI load (a
+    // slow/throttled runner can miss the single tick inside a fixed budget).
+    // Mirrors the equivalent, already-fixed mobile test in
+    // mobile/src/features/auth/useCnicOtpFlow.test.ts.
+    vi.useFakeTimers();
+    try {
+      const { result } = setUp();
+      act(() => result.current.setCnic(CNIC));
+      await act(async () => {
+        await result.current.submitCnic();
+      });
 
-    expect(result.current.secondsUntilExpiry).toBeGreaterThan(0);
+      expect(result.current.secondsUntilExpiry).toBeGreaterThan(0);
+      const expiresInSeconds = result.current.challenge!.expiresInSeconds;
 
-    await waitFor(
-      () => {
-        expect(result.current.secondsUntilExpiry).toBeLessThan(result.current.challenge!.expiresInSeconds);
-      },
-      { timeout: 2000 }
-    );
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(1000);
+      });
+
+      expect(result.current.secondsUntilExpiry).toBeLessThan(expiresInSeconds);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it('resets to the CNIC step, keeping the entered CNIC, when going back', async () => {
