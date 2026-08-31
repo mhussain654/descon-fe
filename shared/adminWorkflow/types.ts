@@ -228,6 +228,114 @@ export interface QvcActionResult {
   qvcAttempt: AdminQvcAttempt | null;
 }
 
+// Visa decisions -- a dedicated resource (candidate_visa_decisions_controller.rb,
+// merged backend PR #25, MPS-505). Unlike QVC, there is at most one
+// meaningful decision per assignment (recording it is itself the
+// visa_issued_or_rejected transition), but the backend still models it as a
+// list (index/create) for a consistent shape and future audit visibility.
+
+export type VisaOutcomeCode = 'issued' | 'rejected';
+
+/** Exact list CandidateVisaDecision::REJECTION_REASON_CODES declares -- keep in lockstep with the backend constant, never invent additional values. */
+export const VISA_REJECTION_REASON_CODES = [
+  'document_discrepancy',
+  'medical_issue',
+  'security_clearance',
+  'embassy_rejection',
+  'incomplete_application',
+  'other',
+] as const;
+export type VisaRejectionReasonCode = (typeof VISA_REJECTION_REASON_CODES)[number];
+
+export interface AdminVisaDecision {
+  id: string;
+  outcomeCode: VisaOutcomeCode;
+  decisionDate: string;
+  rejectionReasonCode: VisaRejectionReasonCode | null;
+  visaCopyAttached: boolean;
+  createdAt: string;
+  recordedBy: WorkflowActor | null;
+}
+
+export interface AdminVisaDecisions {
+  candidateId: string;
+  assignmentId: string | null;
+  visaDecisions: AdminVisaDecision[];
+  updatedAt: string | null;
+}
+
+export interface RecordVisaDecisionParams {
+  candidateId: string;
+  /** Pre-built by web code: outcome_code, decision_date, visa_copy (file, issued only), rejection_reason_code (rejected only), expected_current_stage_code, note -- see the candidate_visa_decision multipart contract. This module never inspects its contents. */
+  formData: FormData;
+  idempotencyKey: string;
+}
+
+export interface VisaDecisionResult {
+  workflow: AdminWorkflowState;
+  visaDecision: AdminVisaDecision;
+}
+
+export interface VisaCopyAccessResult {
+  visaDecisionId: string;
+  /** A relative, short-lived signed Active Storage proxy path -- never a permanent or public URL, never a raw storage key. */
+  url: string;
+  expiresAt: string;
+}
+
+// Flight details and mobilization -- a dedicated singular resource
+// (candidate_flight_details_controller.rb, merged backend PR #25, MPS-507).
+// Exactly one record per assignment: `create` records flight details
+// (transitions to flight_details_uploaded), `update` records the final
+// mobilization date (transitions to mobilized, terminal).
+
+export interface AdminFlightDetail {
+  id: string;
+  airline: string;
+  flightNumber: string;
+  sector: string;
+  /** Full ISO 8601 date-time, e.g. `2026-09-20T14:30:00Z` -- never truncated to a bare date. */
+  flightDepartureAt: string;
+  ticketAttached: boolean;
+  mobilizedOn: string | null;
+  mobilized: boolean;
+  recordedBy: WorkflowActor | null;
+  mobilizedRecordedBy: WorkflowActor | null;
+}
+
+export interface AdminFlightDetailShow {
+  candidateId: string;
+  assignmentId: string | null;
+  flightDetail: AdminFlightDetail | null;
+  updatedAt: string | null;
+}
+
+export interface RecordFlightDetailParams {
+  candidateId: string;
+  /** Pre-built by web code: airline, flight_number, sector, flight_date (ISO datetime), ticket (file), expected_current_stage_code, note. */
+  formData: FormData;
+  idempotencyKey: string;
+}
+
+export interface MobilizeFlightDetailInput {
+  candidateId: string;
+  mobilizedOn: string;
+  expectedCurrentStageCode?: string;
+  note?: string;
+  idempotencyKey: string;
+}
+
+export interface FlightDetailResult {
+  workflow: AdminWorkflowState;
+  flightDetail: AdminFlightDetail;
+}
+
+export interface FlightTicketAccessResult {
+  flightDetailId: string;
+  url: string;
+  expiresAt: string;
+}
+
 export interface AdminWorkflowClient {
   getWorkflowState(candidateId: string): Promise<AdminWorkflowState>;
   getAllowedTransitions(candidateId: string): Promise<AllowedWorkflowTransitions>;
@@ -236,4 +344,11 @@ export interface AdminWorkflowClient {
   getQvcAttempts(candidateId: string): Promise<AdminQvcAttempts>;
   scheduleQvcAppointment(input: ScheduleQvcAppointmentInput): Promise<QvcActionResult>;
   recordQvcOutcome(input: RecordQvcOutcomeInput): Promise<QvcActionResult>;
+  getVisaDecisions(candidateId: string): Promise<AdminVisaDecisions>;
+  recordVisaDecision(params: RecordVisaDecisionParams): Promise<VisaDecisionResult>;
+  getVisaCopyAccess(candidateId: string, visaDecisionId: string): Promise<VisaCopyAccessResult>;
+  getFlightDetail(candidateId: string): Promise<AdminFlightDetailShow>;
+  recordFlightDetail(params: RecordFlightDetailParams): Promise<FlightDetailResult>;
+  mobilizeFlightDetail(input: MobilizeFlightDetailInput): Promise<FlightDetailResult>;
+  getFlightTicketAccess(candidateId: string): Promise<FlightTicketAccessResult>;
 }

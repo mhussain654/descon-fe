@@ -16,6 +16,13 @@ vi.mock("../../../../lib/admin-workflow-client", () => ({
     getQvcAttempts: vi.fn(),
     scheduleQvcAppointment: vi.fn(),
     recordQvcOutcome: vi.fn(),
+    getVisaDecisions: vi.fn(),
+    recordVisaDecision: vi.fn(),
+    getVisaCopyAccess: vi.fn(),
+    getFlightDetail: vi.fn(),
+    recordFlightDetail: vi.fn(),
+    mobilizeFlightDetail: vi.fn(),
+    getFlightTicketAccess: vi.fn(),
   },
 }));
 
@@ -82,6 +89,55 @@ function qvcAttempts(overrides: Record<string, unknown> = {}) {
   };
 }
 
+function visaDecision(overrides: Record<string, unknown> = {}) {
+  return {
+    id: "visa-decision-1",
+    outcomeCode: "issued" as const,
+    decisionDate: "2026-09-10",
+    rejectionReasonCode: null,
+    visaCopyAttached: true,
+    createdAt: "2026-09-10T09:00:00Z",
+    recordedBy: { id: "staff-1", role: "mps" },
+    ...overrides,
+  };
+}
+
+function visaDecisions(overrides: Record<string, unknown> = {}) {
+  return {
+    candidateId: "candidate-1",
+    assignmentId: "assignment-1",
+    visaDecisions: [],
+    updatedAt: "2026-08-30T09:00:00Z",
+    ...overrides,
+  };
+}
+
+function flightDetailRecord(overrides: Record<string, unknown> = {}) {
+  return {
+    id: "flight-detail-1",
+    airline: "Qatar Airways",
+    flightNumber: "QR-101",
+    sector: "LHE-DOH",
+    flightDepartureAt: "2026-09-20T14:30:00Z",
+    ticketAttached: true,
+    mobilizedOn: null,
+    mobilized: false,
+    recordedBy: { id: "staff-1", role: "mps" },
+    mobilizedRecordedBy: null,
+    ...overrides,
+  };
+}
+
+function flightDetailShow(overrides: Record<string, unknown> = {}) {
+  return {
+    candidateId: "candidate-1",
+    assignmentId: "assignment-1",
+    flightDetail: null,
+    updatedAt: "2026-08-30T09:00:00Z",
+    ...overrides,
+  };
+}
+
 function protectionRecord(overrides: Record<string, unknown> = {}) {
   return {
     id: "protection-1",
@@ -111,6 +167,42 @@ function protectedReadyToFlyTransition(overrides: Record<string, unknown> = {}) 
     name: "Protected / Ready to Fly",
     position: 13,
     requiredFields: ["protected_on"],
+    allowed: true,
+    blockingReasons: [],
+    ...overrides,
+  };
+}
+
+function visaTransition(overrides: Record<string, unknown> = {}) {
+  return {
+    code: "visa_issued_or_rejected",
+    name: "Visa Issued or Rejected",
+    position: 11,
+    requiredFields: ["visa_outcome_code", "visa_outcome_date"],
+    allowed: true,
+    blockingReasons: [],
+    ...overrides,
+  };
+}
+
+function flightTransition(overrides: Record<string, unknown> = {}) {
+  return {
+    code: "flight_details_uploaded",
+    name: "Flight Details Uploaded",
+    position: 14,
+    requiredFields: ["airline", "flight_reference", "sector", "flight_date"],
+    allowed: true,
+    blockingReasons: [],
+    ...overrides,
+  };
+}
+
+function mobilizeTransition(overrides: Record<string, unknown> = {}) {
+  return {
+    code: "mobilized",
+    name: "Mobilized",
+    position: 15,
+    requiredFields: ["mobilized_on"],
     allowed: true,
     blockingReasons: [],
     ...overrides,
@@ -191,11 +283,14 @@ function renderPanel(client: ReturnType<typeof createMockStaffAuthClient> extend
 }
 
 describe("WorkflowPanel", () => {
-  // Most tests here aren't exercising the QVC panel at all -- default it to
-  // an empty, already-resolved attempts list so they don't need to set this
-  // up themselves; QVC-focused tests below override with their own mock.
+  // Most tests here aren't exercising the QVC/visa/flight panels at all --
+  // default each to an empty, already-resolved list/record so they don't
+  // need to set this up themselves; panel-focused tests below override with
+  // their own mock.
   beforeEach(() => {
     adminWorkflowClient.getQvcAttempts.mockResolvedValue(qvcAttempts());
+    adminWorkflowClient.getVisaDecisions.mockResolvedValue(visaDecisions());
+    adminWorkflowClient.getFlightDetail.mockResolvedValue(flightDetailShow());
   });
 
   afterEach(() => {
@@ -206,6 +301,13 @@ describe("WorkflowPanel", () => {
     vi.mocked(adminWorkflowClient.getQvcAttempts).mockReset();
     vi.mocked(adminWorkflowClient.scheduleQvcAppointment).mockReset();
     vi.mocked(adminWorkflowClient.recordQvcOutcome).mockReset();
+    vi.mocked(adminWorkflowClient.getVisaDecisions).mockReset();
+    vi.mocked(adminWorkflowClient.recordVisaDecision).mockReset();
+    vi.mocked(adminWorkflowClient.getVisaCopyAccess).mockReset();
+    vi.mocked(adminWorkflowClient.getFlightDetail).mockReset();
+    vi.mocked(adminWorkflowClient.recordFlightDetail).mockReset();
+    vi.mocked(adminWorkflowClient.mobilizeFlightDetail).mockReset();
+    vi.mocked(adminWorkflowClient.getFlightTicketAccess).mockReset();
     localStorage.removeItem("descon.language");
   });
 
@@ -952,6 +1054,377 @@ describe("WorkflowPanel", () => {
       await screen.findByText("Appeared for Protection");
       expect(screen.queryByRole("button", { name: "Confirm appearance" })).not.toBeInTheDocument();
       expect(screen.getByText("This transition is currently blocked.")).toBeInTheDocument();
+    });
+  });
+
+  describe("Visa decision panel", () => {
+    it("shows the issued/rejected actions only when the backend returns visa_issued_or_rejected as available", async () => {
+      adminWorkflowClient.getWorkflowState.mockResolvedValue(
+        workflowState({ currentStage: timelineStage({ code: "protected_ready_to_fly", position: 13 }) })
+      );
+      adminWorkflowClient.getAllowedTransitions.mockResolvedValue(allowedTransitions({ allowedNextTransitions: [visaTransition()] }));
+      adminWorkflowClient.getWorkflowHistory.mockResolvedValue(workflowHistory());
+      const client = await signInAs(MPS);
+
+      renderPanel(client);
+
+      await screen.findByText("Visa decision");
+      expect(screen.getByRole("button", { name: "Visa issued" })).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "Visa rejected" })).toBeInTheDocument();
+    });
+
+    // Same regression class as the Protection panel's own evidence-only-block
+    // test: allowed_next_transitions can't know outcome_code/decision_date
+    // ahead of the actual submission, so it always reports allowed:false
+    // with exactly those two fields' _required reasons.
+    it("still shows the visa actions when the only blocking reasons are the panel's own required evidence fields", async () => {
+      adminWorkflowClient.getWorkflowState.mockResolvedValue(
+        workflowState({ currentStage: timelineStage({ code: "protected_ready_to_fly", position: 13 }) })
+      );
+      adminWorkflowClient.getAllowedTransitions.mockResolvedValue(
+        allowedTransitions({
+          allowedNextTransitions: [visaTransition({ allowed: false, blockingReasons: ["visa_outcome_code_required", "visa_outcome_date_required"] })],
+        })
+      );
+      adminWorkflowClient.getWorkflowHistory.mockResolvedValue(workflowHistory());
+      const client = await signInAs(MPS);
+
+      renderPanel(client);
+
+      await screen.findByText("Visa decision");
+      expect(screen.getByRole("button", { name: "Visa issued" })).toBeInTheDocument();
+    });
+
+    it("hides the visa actions and shows the blocking reason when genuinely blocked", async () => {
+      adminWorkflowClient.getWorkflowState.mockResolvedValue(
+        workflowState({ currentStage: timelineStage({ code: "protected_ready_to_fly", position: 13 }) })
+      );
+      adminWorkflowClient.getAllowedTransitions.mockResolvedValue(
+        allowedTransitions({ allowedNextTransitions: [visaTransition({ allowed: false, blockingReasons: ["qvc_approval_required"] })] })
+      );
+      adminWorkflowClient.getWorkflowHistory.mockResolvedValue(workflowHistory());
+      const client = await signInAs(MPS);
+
+      renderPanel(client);
+
+      await screen.findByText("Visa decision");
+      expect(screen.queryByRole("button", { name: "Visa issued" })).not.toBeInTheDocument();
+      expect(screen.getByText("This transition is currently blocked.")).toBeInTheDocument();
+    });
+
+    it("records a visa-issued decision with the decision date and visa copy file", async () => {
+      adminWorkflowClient.getWorkflowState.mockResolvedValue(
+        workflowState({ currentStage: timelineStage({ code: "protected_ready_to_fly", position: 13 }) })
+      );
+      adminWorkflowClient.getAllowedTransitions.mockResolvedValue(allowedTransitions({ allowedNextTransitions: [visaTransition()] }));
+      adminWorkflowClient.getWorkflowHistory.mockResolvedValue(workflowHistory());
+      adminWorkflowClient.recordVisaDecision.mockResolvedValue({
+        workflow: workflowState({ currentStage: timelineStage({ code: "visa_issued_or_rejected", position: 11 }) }),
+        visaDecision: visaDecision(),
+      });
+      const client = await signInAs(MPS);
+      renderPanel(client);
+      await screen.findByText("Visa decision");
+
+      fireEvent.click(screen.getByRole("button", { name: "Visa issued" }));
+      await screen.findByText("Record visa issued");
+      fireEvent.change(screen.getByLabelText("Decision date"), { target: { value: "2026-09-10" } });
+      const file = new File(["copy"], "visa-copy.pdf", { type: "application/pdf" });
+      fireEvent.change(screen.getByLabelText("Visa copy"), { target: { files: [file] } });
+      fireEvent.click(screen.getByRole("button", { name: "Save decision" }));
+
+      await waitFor(() => expect(adminWorkflowClient.recordVisaDecision).toHaveBeenCalledTimes(1));
+      const call = adminWorkflowClient.recordVisaDecision.mock.calls[0][0];
+      expect(call.candidateId).toBe("candidate-1");
+      expect(call.formData.get("candidate_visa_decision[outcome_code]")).toBe("issued");
+      expect(call.formData.get("candidate_visa_decision[decision_date]")).toBe("2026-09-10");
+      expect(call.formData.get("candidate_visa_decision[visa_copy]")).toBe(file);
+    });
+
+    it("requires the visa copy file before submitting an issued decision", async () => {
+      adminWorkflowClient.getWorkflowState.mockResolvedValue(
+        workflowState({ currentStage: timelineStage({ code: "protected_ready_to_fly", position: 13 }) })
+      );
+      adminWorkflowClient.getAllowedTransitions.mockResolvedValue(allowedTransitions({ allowedNextTransitions: [visaTransition()] }));
+      adminWorkflowClient.getWorkflowHistory.mockResolvedValue(workflowHistory());
+      const client = await signInAs(MPS);
+      renderPanel(client);
+      await screen.findByText("Visa decision");
+
+      fireEvent.click(screen.getByRole("button", { name: "Visa issued" }));
+      await screen.findByText("Record visa issued");
+      fireEvent.change(screen.getByLabelText("Decision date"), { target: { value: "2026-09-10" } });
+      fireEvent.click(screen.getByRole("button", { name: "Save decision" }));
+
+      expect(await screen.findByText("Select the visa copy file.")).toBeInTheDocument();
+      expect(adminWorkflowClient.recordVisaDecision).not.toHaveBeenCalled();
+    });
+
+    it("requires a structured rejection reason before submitting a rejected decision", async () => {
+      adminWorkflowClient.getWorkflowState.mockResolvedValue(
+        workflowState({ currentStage: timelineStage({ code: "protected_ready_to_fly", position: 13 }) })
+      );
+      adminWorkflowClient.getAllowedTransitions.mockResolvedValue(allowedTransitions({ allowedNextTransitions: [visaTransition()] }));
+      adminWorkflowClient.getWorkflowHistory.mockResolvedValue(workflowHistory());
+      const client = await signInAs(MPS);
+      renderPanel(client);
+      await screen.findByText("Visa decision");
+
+      fireEvent.click(screen.getByRole("button", { name: "Visa rejected" }));
+      await screen.findByText("Record visa rejected");
+      fireEvent.change(screen.getByLabelText("Decision date"), { target: { value: "2026-09-10" } });
+      fireEvent.click(screen.getByRole("button", { name: "Save decision" }));
+
+      expect(await screen.findByText("Select a rejection reason.")).toBeInTheDocument();
+      expect(adminWorkflowClient.recordVisaDecision).not.toHaveBeenCalled();
+    });
+
+    it("records a rejected decision with the selected structured reason", async () => {
+      adminWorkflowClient.getWorkflowState.mockResolvedValue(
+        workflowState({ currentStage: timelineStage({ code: "protected_ready_to_fly", position: 13 }) })
+      );
+      adminWorkflowClient.getAllowedTransitions.mockResolvedValue(allowedTransitions({ allowedNextTransitions: [visaTransition()] }));
+      adminWorkflowClient.getWorkflowHistory.mockResolvedValue(workflowHistory());
+      adminWorkflowClient.recordVisaDecision.mockResolvedValue({
+        workflow: workflowState(),
+        visaDecision: visaDecision({ outcomeCode: "rejected", rejectionReasonCode: "medical_issue", visaCopyAttached: false }),
+      });
+      const client = await signInAs(MPS);
+      renderPanel(client);
+      await screen.findByText("Visa decision");
+
+      fireEvent.click(screen.getByRole("button", { name: "Visa rejected" }));
+      await screen.findByText("Record visa rejected");
+      fireEvent.change(screen.getByLabelText("Decision date"), { target: { value: "2026-09-10" } });
+      fireEvent.change(screen.getByLabelText("Rejection reason"), { target: { value: "medical_issue" } });
+      fireEvent.click(screen.getByRole("button", { name: "Save decision" }));
+
+      await waitFor(() => expect(adminWorkflowClient.recordVisaDecision).toHaveBeenCalledTimes(1));
+      const call = adminWorkflowClient.recordVisaDecision.mock.calls[0][0];
+      expect(call.formData.get("candidate_visa_decision[outcome_code]")).toBe("rejected");
+      expect(call.formData.get("candidate_visa_decision[rejection_reason_code]")).toBe("medical_issue");
+    });
+
+    it("lists an existing visa decision with its structured rejection reason translated", async () => {
+      adminWorkflowClient.getWorkflowState.mockResolvedValue(workflowState());
+      adminWorkflowClient.getAllowedTransitions.mockResolvedValue(allowedTransitions({ allowedNextTransitions: [] }));
+      adminWorkflowClient.getWorkflowHistory.mockResolvedValue(workflowHistory());
+      adminWorkflowClient.getVisaDecisions.mockResolvedValue(
+        visaDecisions({
+          visaDecisions: [visaDecision({ outcomeCode: "rejected", rejectionReasonCode: "embassy_rejection", visaCopyAttached: false })],
+        })
+      );
+      const client = await signInAs(MPS);
+
+      renderPanel(client);
+
+      await screen.findByText("Visa decision");
+      expect(await screen.findByText("Embassy rejection")).toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: "View visa copy" })).not.toBeInTheDocument();
+    });
+
+    it("requests short-lived visa-copy access only when staff choose to view it, never eagerly", async () => {
+      adminWorkflowClient.getWorkflowState.mockResolvedValue(workflowState());
+      adminWorkflowClient.getAllowedTransitions.mockResolvedValue(allowedTransitions({ allowedNextTransitions: [] }));
+      adminWorkflowClient.getWorkflowHistory.mockResolvedValue(workflowHistory());
+      adminWorkflowClient.getVisaDecisions.mockResolvedValue(visaDecisions({ visaDecisions: [visaDecision()] }));
+      adminWorkflowClient.getVisaCopyAccess.mockResolvedValue({
+        visaDecisionId: "visa-decision-1",
+        url: "/rails/active_storage/disk/abc/visa-copy.pdf",
+        expiresAt: new Date(Date.now() + 300_000).toISOString(),
+      });
+      const client = await signInAs(MPS);
+
+      renderPanel(client);
+      await screen.findByText("Visa decision");
+
+      expect(adminWorkflowClient.getVisaCopyAccess).not.toHaveBeenCalled();
+      fireEvent.click(await screen.findByRole("button", { name: "View visa copy" }));
+
+      await waitFor(() => expect(adminWorkflowClient.getVisaCopyAccess).toHaveBeenCalledWith("candidate-1", "visa-decision-1"));
+      expect(await screen.findByRole("link", { name: "Open visa copy" })).toBeInTheDocument();
+    });
+  });
+
+  describe("Flight details and mobilization panel", () => {
+    it("shows the add-flight-details action only when the backend returns flight_details_uploaded as available and no detail exists yet", async () => {
+      adminWorkflowClient.getWorkflowState.mockResolvedValue(
+        workflowState({ currentStage: timelineStage({ code: "visa_issued_or_rejected", position: 11 }) })
+      );
+      adminWorkflowClient.getAllowedTransitions.mockResolvedValue(allowedTransitions({ allowedNextTransitions: [flightTransition()] }));
+      adminWorkflowClient.getWorkflowHistory.mockResolvedValue(workflowHistory());
+      const client = await signInAs(MPS);
+
+      renderPanel(client);
+
+      await screen.findByText("Flight details");
+      expect(screen.getByRole("button", { name: "Add flight details" })).toBeInTheDocument();
+    });
+
+    it("records flight details as multipart form data with the exact declared field names", async () => {
+      adminWorkflowClient.getWorkflowState.mockResolvedValue(
+        workflowState({ currentStage: timelineStage({ code: "visa_issued_or_rejected", position: 11 }) })
+      );
+      adminWorkflowClient.getAllowedTransitions.mockResolvedValue(allowedTransitions({ allowedNextTransitions: [flightTransition()] }));
+      adminWorkflowClient.getWorkflowHistory.mockResolvedValue(workflowHistory());
+      adminWorkflowClient.recordFlightDetail.mockResolvedValue({
+        workflow: workflowState({ currentStage: timelineStage({ code: "flight_details_uploaded", position: 14 }) }),
+        flightDetail: flightDetailRecord(),
+      });
+      const client = await signInAs(MPS);
+      renderPanel(client);
+      await screen.findByText("Flight details");
+
+      fireEvent.click(screen.getByRole("button", { name: "Add flight details" }));
+      await screen.findByText("Record flight details");
+      fireEvent.change(screen.getByLabelText("Airline"), { target: { value: "Qatar Airways" } });
+      fireEvent.change(screen.getByLabelText("Flight number"), { target: { value: "QR-101" } });
+      fireEvent.change(screen.getByLabelText("Sector"), { target: { value: "LHE-DOH" } });
+      fireEvent.change(screen.getByLabelText("Departure"), { target: { value: "2026-09-20T14:30" } });
+      const ticket = new File(["ticket"], "ticket.pdf", { type: "application/pdf" });
+      fireEvent.change(screen.getByLabelText("Ticket"), { target: { files: [ticket] } });
+      fireEvent.click(screen.getByRole("button", { name: "Save flight details" }));
+
+      await waitFor(() => expect(adminWorkflowClient.recordFlightDetail).toHaveBeenCalledTimes(1));
+      const call = adminWorkflowClient.recordFlightDetail.mock.calls[0][0];
+      expect(call.formData.get("candidate_flight_detail[airline]")).toBe("Qatar Airways");
+      expect(call.formData.get("candidate_flight_detail[flight_number]")).toBe("QR-101");
+      expect(call.formData.get("candidate_flight_detail[sector]")).toBe("LHE-DOH");
+      expect(call.formData.get("candidate_flight_detail[flight_date]")).toBe("2026-09-20T14:30");
+      expect(call.formData.get("candidate_flight_detail[ticket]")).toBe(ticket);
+    });
+
+    it("requires the ticket file before submitting flight details", async () => {
+      adminWorkflowClient.getWorkflowState.mockResolvedValue(
+        workflowState({ currentStage: timelineStage({ code: "visa_issued_or_rejected", position: 11 }) })
+      );
+      adminWorkflowClient.getAllowedTransitions.mockResolvedValue(allowedTransitions({ allowedNextTransitions: [flightTransition()] }));
+      adminWorkflowClient.getWorkflowHistory.mockResolvedValue(workflowHistory());
+      const client = await signInAs(MPS);
+      renderPanel(client);
+      await screen.findByText("Flight details");
+
+      fireEvent.click(screen.getByRole("button", { name: "Add flight details" }));
+      await screen.findByText("Record flight details");
+      fireEvent.change(screen.getByLabelText("Airline"), { target: { value: "Qatar Airways" } });
+      fireEvent.change(screen.getByLabelText("Flight number"), { target: { value: "QR-101" } });
+      fireEvent.change(screen.getByLabelText("Sector"), { target: { value: "LHE-DOH" } });
+      fireEvent.change(screen.getByLabelText("Departure"), { target: { value: "2026-09-20T14:30" } });
+      fireEvent.click(screen.getByRole("button", { name: "Save flight details" }));
+
+      expect(await screen.findByText("Select the ticket file.")).toBeInTheDocument();
+      expect(adminWorkflowClient.recordFlightDetail).not.toHaveBeenCalled();
+    });
+
+    it("shows the recorded flight details and requests short-lived ticket access only when staff choose to view it", async () => {
+      adminWorkflowClient.getWorkflowState.mockResolvedValue(workflowState());
+      adminWorkflowClient.getAllowedTransitions.mockResolvedValue(allowedTransitions({ allowedNextTransitions: [] }));
+      adminWorkflowClient.getWorkflowHistory.mockResolvedValue(workflowHistory());
+      adminWorkflowClient.getFlightDetail.mockResolvedValue(flightDetailShow({ flightDetail: flightDetailRecord() }));
+      adminWorkflowClient.getFlightTicketAccess.mockResolvedValue({
+        flightDetailId: "flight-detail-1",
+        url: "/rails/active_storage/disk/abc/ticket.pdf",
+        expiresAt: new Date(Date.now() + 300_000).toISOString(),
+      });
+      const client = await signInAs(MPS);
+
+      renderPanel(client);
+
+      expect(await screen.findByText("Qatar Airways QR-101")).toBeInTheDocument();
+      expect(screen.getByText("LHE-DOH")).toBeInTheDocument();
+      expect(adminWorkflowClient.getFlightTicketAccess).not.toHaveBeenCalled();
+
+      fireEvent.click(screen.getByRole("button", { name: "View ticket" }));
+
+      await waitFor(() => expect(adminWorkflowClient.getFlightTicketAccess).toHaveBeenCalledWith("candidate-1"));
+      expect(await screen.findByRole("link", { name: "Open ticket" })).toBeInTheDocument();
+    });
+
+    it("shows the mobilize action only once flight details exist and the backend returns mobilized as available", async () => {
+      adminWorkflowClient.getWorkflowState.mockResolvedValue(
+        workflowState({ currentStage: timelineStage({ code: "flight_details_uploaded", position: 14 }) })
+      );
+      adminWorkflowClient.getAllowedTransitions.mockResolvedValue(allowedTransitions({ allowedNextTransitions: [mobilizeTransition()] }));
+      adminWorkflowClient.getWorkflowHistory.mockResolvedValue(workflowHistory());
+      adminWorkflowClient.getFlightDetail.mockResolvedValue(flightDetailShow({ flightDetail: flightDetailRecord() }));
+      const client = await signInAs(MPS);
+
+      renderPanel(client);
+
+      await screen.findByText("Flight details");
+      expect(await screen.findByRole("button", { name: "Mobilize" })).toBeInTheDocument();
+    });
+
+    it("requires the mobilization date before confirming, and sends it as mobilized_on", async () => {
+      adminWorkflowClient.getWorkflowState.mockResolvedValue(
+        workflowState({ currentStage: timelineStage({ code: "flight_details_uploaded", position: 14 }) })
+      );
+      adminWorkflowClient.getAllowedTransitions.mockResolvedValue(allowedTransitions({ allowedNextTransitions: [mobilizeTransition()] }));
+      adminWorkflowClient.getWorkflowHistory.mockResolvedValue(workflowHistory());
+      adminWorkflowClient.getFlightDetail.mockResolvedValue(flightDetailShow({ flightDetail: flightDetailRecord() }));
+      adminWorkflowClient.mobilizeFlightDetail.mockResolvedValue({
+        workflow: workflowState({ currentStage: timelineStage({ code: "mobilized", position: 15 }) }),
+        flightDetail: flightDetailRecord({ mobilized: true, mobilizedOn: "2026-09-21" }),
+      });
+      const client = await signInAs(MPS);
+      renderPanel(client);
+      await screen.findByRole("button", { name: "Mobilize" });
+
+      fireEvent.click(screen.getByRole("button", { name: "Mobilize" }));
+      await screen.findByRole("heading", { name: "Confirm mobilization" });
+      fireEvent.click(screen.getByRole("button", { name: "Confirm" }));
+
+      expect(await screen.findByText("Enter the mobilization date.")).toBeInTheDocument();
+      expect(adminWorkflowClient.mobilizeFlightDetail).not.toHaveBeenCalled();
+
+      fireEvent.change(screen.getByLabelText("Mobilization date"), { target: { value: "2026-09-21" } });
+      fireEvent.click(screen.getByRole("button", { name: "Confirm" }));
+
+      await waitFor(() =>
+        expect(adminWorkflowClient.mobilizeFlightDetail).toHaveBeenCalledWith(
+          expect.objectContaining({ candidateId: "candidate-1", mobilizedOn: "2026-09-21", expectedCurrentStageCode: "flight_details_uploaded" })
+        )
+      );
+    });
+
+    it("surfaces the backend's invalid-date-sequencing validation message and does not close the dialog", async () => {
+      adminWorkflowClient.getWorkflowState.mockResolvedValue(
+        workflowState({ currentStage: timelineStage({ code: "flight_details_uploaded", position: 14 }) })
+      );
+      adminWorkflowClient.getAllowedTransitions.mockResolvedValue(allowedTransitions({ allowedNextTransitions: [mobilizeTransition()] }));
+      adminWorkflowClient.getWorkflowHistory.mockResolvedValue(workflowHistory());
+      adminWorkflowClient.getFlightDetail.mockResolvedValue(flightDetailShow({ flightDetail: flightDetailRecord() }));
+      adminWorkflowClient.mobilizeFlightDetail.mockRejectedValue({
+        code: "VALIDATION_ERROR",
+        message: "The mobilization date must be on or after the flight departure date.",
+      });
+      const client = await signInAs(MPS);
+      renderPanel(client);
+      await screen.findByRole("button", { name: "Mobilize" });
+
+      fireEvent.click(screen.getByRole("button", { name: "Mobilize" }));
+      await screen.findByRole("heading", { name: "Confirm mobilization" });
+      fireEvent.change(screen.getByLabelText("Mobilization date"), { target: { value: "2026-09-15" } });
+      fireEvent.click(screen.getByRole("button", { name: "Confirm" }));
+
+      expect(await screen.findByText("The mobilization date must be on or after the flight departure date.")).toBeInTheDocument();
+      expect(screen.getByRole("heading", { name: "Confirm mobilization" })).toBeInTheDocument();
+    });
+
+    it("renders the workflow as view-only with no further actions once mobilized", async () => {
+      adminWorkflowClient.getWorkflowState.mockResolvedValue(workflowState({ currentStage: timelineStage({ code: "mobilized", position: 15 }) }));
+      adminWorkflowClient.getAllowedTransitions.mockResolvedValue(allowedTransitions({ allowedNextTransitions: [] }));
+      adminWorkflowClient.getWorkflowHistory.mockResolvedValue(workflowHistory());
+      adminWorkflowClient.getFlightDetail.mockResolvedValue(
+        flightDetailShow({ flightDetail: flightDetailRecord({ mobilized: true, mobilizedOn: "2026-09-21" }) })
+      );
+      const client = await signInAs(MPS);
+
+      renderPanel(client);
+
+      expect(await screen.findByText("Mobilized")).toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: "Add flight details" })).not.toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: "Mobilize" })).not.toBeInTheDocument();
     });
   });
 });
