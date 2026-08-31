@@ -1,9 +1,12 @@
-// Real AdminWorkflowClient implementation (MPS-F501 Phase A), calling the
+// Real AdminWorkflowClient implementation (MPS-F501 Phase A/B), calling the
 // backend documented in descon-be's merged admin workflow contract:
 //   GET  /api/v1/admin/candidates/:candidate_id/workflow_state
 //   GET  /api/v1/admin/candidates/:candidate_id/workflow_history
 //   GET  /api/v1/admin/candidates/:candidate_id/workflow_transitions
 //   POST /api/v1/admin/candidates/:candidate_id/workflow_transitions
+//   GET  /api/v1/admin/candidates/:candidate_id/qvc_attempts
+//   POST /api/v1/admin/candidates/:candidate_id/qvc_attempts
+//   PATCH /api/v1/admin/candidates/:candidate_id/qvc_attempts/:id
 //
 // Authentication goes through StaffAuthClient.authenticatedDataRequest, not
 // authenticatedRequest -- these calls' own success/error shape (a 409 stale-
@@ -13,6 +16,8 @@
 import type { ApiClient, ApiError, ApiErrorItem } from '../api-client';
 import type { StaffAuthClient, StaffAuthError } from '../auth/staffTypes';
 import type {
+  AdminQvcAttempt,
+  AdminQvcAttempts,
   AdminWorkflowClient,
   AdminWorkflowError,
   AdminWorkflowErrorCode,
@@ -20,10 +25,16 @@ import type {
   AllowedWorkflowTransition,
   AllowedWorkflowTransitions,
   AdminWorkflowHistory,
+  QvcActionResult,
+  QvcAttemptStatus,
+  QvcOutcomeCode,
+  RecordQvcOutcomeInput,
+  ScheduleQvcAppointmentInput,
   SubmitWorkflowTransitionInput,
   WorkflowActor,
   WorkflowActorDisplayRole,
   WorkflowHistoryItem,
+  WorkflowProtectionRecord,
   WorkflowStageReference,
   WorkflowTimelineStage,
   WorkflowTransitionDetails,
@@ -40,6 +51,14 @@ interface TimelineStageResponse {
   completed_at?: string | null;
 }
 
+interface ProtectionRecordResponse {
+  id: string;
+  appeared_on: string | null;
+  appeared_recorded_at: string | null;
+  protected_on: string | null;
+  ready_to_fly_at: string | null;
+}
+
 interface WorkflowStateResponse {
   candidate_id: string;
   assignment_id: string | null;
@@ -49,6 +68,7 @@ interface WorkflowStateResponse {
   completed_count: number;
   total_count: number;
   progress_percentage: number;
+  protection: ProtectionRecordResponse | null;
   updated_at: string | null;
 }
 
@@ -113,6 +133,33 @@ interface TransitionResultResponse {
   transition: HistoryItemResponse;
 }
 
+interface QvcAttemptResponse {
+  id: string;
+  attempt_number: number;
+  appointment_date: string;
+  outcome_code: string | null;
+  no_show: boolean;
+  outcome_recorded_at: string | null;
+  status: string;
+  internal_note: string | null;
+  scheduled_by: ActorResponse | null;
+  outcome_recorded_by: ActorResponse | null;
+}
+
+interface QvcAttemptsResponse {
+  candidate_id: string;
+  assignment_id: string | null;
+  qvc_attempts: QvcAttemptResponse[];
+  updated_at: string | null;
+}
+
+/** The backend returns exactly one of `transition` (a stage change happened) or `qvc_attempt` (the attempt/candidate summary changed without a stage change), never both -- see CandidateQvcAttemptsController#serialized_result. */
+interface QvcActionResponse {
+  workflow: WorkflowStateResponse;
+  transition?: HistoryItemResponse;
+  qvc_attempt?: QvcAttemptResponse;
+}
+
 export interface RealAdminWorkflowClientOptions {
   apiClient: ApiClient;
   staffAuthClient: StaffAuthClient;
@@ -122,8 +169,12 @@ export interface RealAdminWorkflowClientOptions {
 
 const KNOWN_ACTOR_ROLES = new Set<string>(['admin', 'hr', 'mps', 'finance', 'management']);
 const KNOWN_STAGE_STATUSES = new Set<string>(['completed', 'current', 'pending']);
-const KNOWN_QVC_OUTCOMES = new Set<string>(['approved', 're_medical_required', 'rejected']);
+// `re_medical` is what the backend actually stores/returns
+// (CandidateQvcAttempt::OUTCOME_CODES) -- `re_medical_required` is accepted
+// only as an *input* alias on write, never a value the API returns.
+const KNOWN_QVC_OUTCOMES = new Set<string>(['approved', 're_medical', 'rejected']);
 const KNOWN_VISA_OUTCOMES = new Set<string>(['issued', 'rejected']);
+const KNOWN_QVC_ATTEMPT_STATUSES = new Set<string>(['scheduled', 'approved', 're_medical', 'rejected', 'no_show']);
 
 function toNumber(raw: unknown): number {
   return typeof raw === 'number' && Number.isFinite(raw) ? raw : 0;
@@ -165,6 +216,20 @@ function toTimeline(raw: unknown): WorkflowTimelineStage[] {
   return raw.map(toTimelineStage);
 }
 
+function toProtectionRecord(raw: unknown): WorkflowProtectionRecord | null {
+  if (!raw || typeof raw !== 'object') return null;
+  const value = raw as Partial<ProtectionRecordResponse>;
+  if (typeof value.id !== 'string' || !value.id) return null;
+
+  return {
+    id: value.id,
+    appearedOn: typeof value.appeared_on === 'string' ? value.appeared_on : null,
+    appearedRecordedAt: typeof value.appeared_recorded_at === 'string' ? value.appeared_recorded_at : null,
+    protectedOn: typeof value.protected_on === 'string' ? value.protected_on : null,
+    readyToFlyAt: typeof value.ready_to_fly_at === 'string' ? value.ready_to_fly_at : null,
+  };
+}
+
 function toWorkflowState(raw: unknown): AdminWorkflowState {
   const value = (raw && typeof raw === 'object' ? raw : {}) as Partial<WorkflowStateResponse>;
   return {
@@ -176,6 +241,7 @@ function toWorkflowState(raw: unknown): AdminWorkflowState {
     completedCount: toNumber(value.completed_count),
     totalCount: toNumber(value.total_count),
     progressPercentage: toNumber(value.progress_percentage),
+    protection: toProtectionRecord(value.protection),
     updatedAt: typeof value.updated_at === 'string' ? value.updated_at : null,
   };
 }
@@ -286,6 +352,53 @@ function toTransitionResult(raw: unknown): WorkflowTransitionResult {
     // never-crash mapping convention elsewhere.
     workflow: toWorkflowState(value.workflow),
     transition: value.transition ? (toHistoryItem(value.transition) ?? EMPTY_HISTORY_ITEM) : EMPTY_HISTORY_ITEM,
+  };
+}
+
+function toQvcOutcomeCode(raw: unknown): QvcOutcomeCode | null {
+  return typeof raw === 'string' && KNOWN_QVC_OUTCOMES.has(raw) ? (raw as QvcOutcomeCode) : null;
+}
+
+function toQvcAttemptStatus(raw: unknown): QvcAttemptStatus {
+  return typeof raw === 'string' && KNOWN_QVC_ATTEMPT_STATUSES.has(raw) ? (raw as QvcAttemptStatus) : 'scheduled';
+}
+
+function toQvcAttempt(raw: unknown): AdminQvcAttempt | null {
+  if (!raw || typeof raw !== 'object') return null;
+  const value = raw as Partial<QvcAttemptResponse>;
+  if (typeof value.id !== 'string' || !value.id) return null;
+
+  return {
+    id: value.id,
+    attemptNumber: toNumber(value.attempt_number),
+    appointmentDate: typeof value.appointment_date === 'string' ? value.appointment_date : '',
+    outcomeCode: toQvcOutcomeCode(value.outcome_code),
+    noShow: value.no_show === true,
+    outcomeRecordedAt: typeof value.outcome_recorded_at === 'string' ? value.outcome_recorded_at : null,
+    status: toQvcAttemptStatus(value.status),
+    internalNote: typeof value.internal_note === 'string' ? value.internal_note : null,
+    scheduledBy: toActor(value.scheduled_by),
+    outcomeRecordedBy: toActor(value.outcome_recorded_by),
+  };
+}
+
+function toQvcAttempts(raw: unknown): AdminQvcAttempts {
+  const value = (raw && typeof raw === 'object' ? raw : {}) as Partial<QvcAttemptsResponse>;
+  const attempts = Array.isArray(value.qvc_attempts) ? value.qvc_attempts : [];
+  return {
+    candidateId: typeof value.candidate_id === 'string' ? value.candidate_id : '',
+    assignmentId: typeof value.assignment_id === 'string' ? value.assignment_id : null,
+    qvcAttempts: attempts.map(toQvcAttempt).filter((attempt): attempt is AdminQvcAttempt => attempt !== null),
+    updatedAt: typeof value.updated_at === 'string' ? value.updated_at : null,
+  };
+}
+
+function toQvcActionResult(raw: unknown): QvcActionResult {
+  const value = (raw && typeof raw === 'object' ? raw : {}) as Partial<QvcActionResponse>;
+  return {
+    workflow: toWorkflowState(value.workflow),
+    transition: value.transition ? toHistoryItem(value.transition) : null,
+    qvcAttempt: value.qvc_attempt ? toQvcAttempt(value.qvc_attempt) : null,
   };
 }
 
@@ -419,6 +532,7 @@ export function createAdminWorkflowClient(options: RealAdminWorkflowClientOption
                 ...(input.expectedCurrentStageCode ? { expected_current_stage_code: input.expectedCurrentStageCode } : {}),
                 ...(input.reasonCode ? { reason_code: input.reasonCode } : {}),
                 ...(input.note ? { note: input.note } : {}),
+                ...(input.evidence && Object.keys(input.evidence).length > 0 ? { evidence: input.evidence } : {}),
               },
             },
             {
@@ -431,6 +545,74 @@ export function createAdminWorkflowClient(options: RealAdminWorkflowClientOption
           )
         );
         return toTransitionResult(data);
+      } catch (error) {
+        throw toWorkflowError(error);
+      }
+    },
+
+    async getQvcAttempts(candidateId: string): Promise<AdminQvcAttempts> {
+      try {
+        const data = await staffAuthClient.authenticatedDataRequest((token) =>
+          apiClient.get<QvcAttemptsResponse>(`/admin/candidates/${encodeURIComponent(candidateId)}/qvc_attempts`, {
+            headers: { Authorization: `Bearer ${token}`, 'X-Locale': getLocale() },
+          })
+        );
+        return toQvcAttempts(data);
+      } catch (error) {
+        throw toWorkflowError(error);
+      }
+    },
+
+    async scheduleQvcAppointment(input: ScheduleQvcAppointmentInput): Promise<QvcActionResult> {
+      try {
+        const data = await staffAuthClient.authenticatedDataRequest((token) =>
+          apiClient.post<QvcActionResponse>(
+            `/admin/candidates/${encodeURIComponent(input.candidateId)}/qvc_attempts`,
+            {
+              candidate_qvc_attempt: {
+                appointment_date: input.appointmentDate,
+                ...(input.expectedCurrentStageCode ? { expected_current_stage_code: input.expectedCurrentStageCode } : {}),
+                ...(input.note ? { note: input.note } : {}),
+              },
+            },
+            {
+              headers: {
+                Authorization: `Bearer ${token}`,
+                'X-Locale': getLocale(),
+                'Idempotency-Key': input.idempotencyKey,
+              },
+            }
+          )
+        );
+        return toQvcActionResult(data);
+      } catch (error) {
+        throw toWorkflowError(error);
+      }
+    },
+
+    async recordQvcOutcome(input: RecordQvcOutcomeInput): Promise<QvcActionResult> {
+      try {
+        const data = await staffAuthClient.authenticatedDataRequest((token) =>
+          apiClient.patch<QvcActionResponse>(
+            `/admin/candidates/${encodeURIComponent(input.candidateId)}/qvc_attempts/${encodeURIComponent(input.qvcAttemptId)}`,
+            {
+              candidate_qvc_attempt: {
+                ...(input.outcomeCode ? { outcome_code: input.outcomeCode } : {}),
+                ...(input.noShow !== undefined ? { no_show: input.noShow } : {}),
+                ...(input.expectedCurrentStageCode ? { expected_current_stage_code: input.expectedCurrentStageCode } : {}),
+                ...(input.note ? { note: input.note } : {}),
+              },
+            },
+            {
+              headers: {
+                Authorization: `Bearer ${token}`,
+                'X-Locale': getLocale(),
+                'Idempotency-Key': input.idempotencyKey,
+              },
+            }
+          )
+        );
+        return toQvcActionResult(data);
       } catch (error) {
         throw toWorkflowError(error);
       }

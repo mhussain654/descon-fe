@@ -13,6 +13,8 @@ export interface TransitionSelection {
   toStageCode: string;
   /** Undefined counts as its own distinct value from any string -- a stale-state refresh that newly discovers/changes the expected stage must mint a fresh key, never reuse one resolved before the refresh. */
   expectedCurrentStageCode: string | undefined;
+  /** Stage-specific evidence (e.g. a protection date field) -- part of the backend's own fingerprint, so editing a field after a failed attempt must mint a fresh key rather than reuse one whose fingerprint no longer matches the new payload. Compared by stable-serialized value, not reference. */
+  evidence?: Record<string, string>;
 }
 
 export interface TransitionIdempotencyKeyState {
@@ -22,11 +24,19 @@ export interface TransitionIdempotencyKeyState {
 
 export const EMPTY_TRANSITION_IDEMPOTENCY_KEY_STATE: TransitionIdempotencyKeyState = { key: null, selection: null };
 
+function sameEvidence(a: Record<string, string> | undefined, b: Record<string, string> | undefined): boolean {
+  const aKeys = Object.keys(a ?? {}).sort();
+  const bKeys = Object.keys(b ?? {}).sort();
+  if (aKeys.length !== bKeys.length) return false;
+  return aKeys.every((key, index) => key === bKeys[index] && a?.[key] === b?.[key]);
+}
+
 function sameSelection(a: TransitionSelection, b: TransitionSelection): boolean {
   return (
     a.candidateId === b.candidateId &&
     a.toStageCode === b.toStageCode &&
-    a.expectedCurrentStageCode === b.expectedCurrentStageCode
+    a.expectedCurrentStageCode === b.expectedCurrentStageCode &&
+    sameEvidence(a.evidence, b.evidence)
   );
 }
 

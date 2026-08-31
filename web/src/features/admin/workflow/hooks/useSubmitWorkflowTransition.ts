@@ -33,14 +33,16 @@ interface SubmitVariables {
   candidateId: string;
   toStageCode: string;
   expectedCurrentStageCode: string | undefined;
+  evidence?: Record<string, string>;
   idempotencyKey: string;
 }
 
 /**
  * One hook instance serves every transition card the workflow panel can
- * render (Phase A has only the Qatar BU card; QVC/protection cards added
- * later reuse this same hook) -- `pendingToStageCode` tracks *which*
- * transition the open confirm dialog applies to.
+ * render (Qatar BU sharing needs no evidence; the Protection panel's
+ * appeared-for-protection/protected-ready-to-fly transitions pass a date
+ * field through `confirm`'s `evidence` argument) -- `pendingToStageCode`
+ * tracks *which* transition the open confirm dialog applies to.
  */
 export function useSubmitWorkflowTransition(candidateId: string | undefined) {
   const { t, language } = useLanguage();
@@ -69,6 +71,7 @@ export function useSubmitWorkflowTransition(candidateId: string | undefined) {
         candidateId: variables.candidateId,
         toStageCode: variables.toStageCode,
         expectedCurrentStageCode: variables.expectedCurrentStageCode,
+        evidence: variables.evidence,
         idempotencyKey: variables.idempotencyKey,
       }),
     onSuccess: () => {
@@ -116,20 +119,21 @@ export function useSubmitWorkflowTransition(candidateId: string | undefined) {
   const dismissStaleNotice = useCallback(() => setStaleNotice(false), []);
 
   const confirm = useCallback(
-    (expectedCurrentStageCode: string | undefined) => {
+    (expectedCurrentStageCode: string | undefined, evidence?: Record<string, string>) => {
       // Guards double-click/concurrent submission (disabling the confirm
       // button while pending covers the UI, this covers a caller bypassing
       // it) -- ticket: "Disable duplicate submissions while the request is
       // pending."
       if (!candidateId || !pendingToStageCode || mutation.isPending) return;
 
-      const selection = { candidateId, toStageCode: pendingToStageCode, expectedCurrentStageCode };
+      const selection = { candidateId, toStageCode: pendingToStageCode, expectedCurrentStageCode, evidence };
       const resolved = resolveTransitionIdempotencyKey(idempotencyState, selection, randomTransitionIdempotencyKey);
       setIdempotencyState(resolved);
       mutation.mutate({
         candidateId,
         toStageCode: pendingToStageCode,
         expectedCurrentStageCode,
+        evidence,
         idempotencyKey: resolved.key as string,
       });
     },

@@ -148,6 +148,44 @@ describe('createAdminWorkflowClient (real)', () => {
 
       expect(capturedUrl).toContain(encodeURIComponent('candidate/needs encoding'));
     });
+
+    it('maps a present protection record', async () => {
+      stubFetch(async () =>
+        jsonResponse(
+          successEnvelope(
+            workflowStateResponse({
+              protection: {
+                id: 'protection-1',
+                appeared_on: '2026-09-01',
+                appeared_recorded_at: '2026-09-01T10:00:00Z',
+                protected_on: null,
+                ready_to_fly_at: null,
+              },
+            })
+          )
+        )
+      );
+      const client = buildClient();
+
+      const result = await client.getWorkflowState('candidate-1');
+
+      expect(result.protection).toEqual({
+        id: 'protection-1',
+        appearedOn: '2026-09-01',
+        appearedRecordedAt: '2026-09-01T10:00:00Z',
+        protectedOn: null,
+        readyToFlyAt: null,
+      });
+    });
+
+    it('maps a missing protection to null rather than crashing', async () => {
+      stubFetch(async () => jsonResponse(successEnvelope(workflowStateResponse({ protection: null }))));
+      const client = buildClient();
+
+      const result = await client.getWorkflowState('candidate-1');
+
+      expect(result.protection).toBeNull();
+    });
   });
 
   describe('getAllowedTransitions', () => {
@@ -326,6 +364,273 @@ describe('createAdminWorkflowClient (real)', () => {
       expect(JSON.parse(capturedBody!)).toEqual({
         candidate_workflow_transition: { to_stage_code: 'documents_shared_with_qatar_bu' },
       });
+    });
+
+    it('includes evidence in the body when provided (e.g. the Protection panel)', async () => {
+      let capturedBody: string | undefined;
+      stubFetch(async (_url, init) => {
+        capturedBody = init?.body as string;
+        return jsonResponse(successEnvelope({ workflow: workflowStateResponse(), transition: historyItemResponse() }), {
+          status: 201,
+        });
+      });
+      const client = buildClient();
+
+      await client.submitTransition({
+        candidateId: 'candidate-1',
+        toStageCode: 'appeared_for_protection',
+        expectedCurrentStageCode: 'qvc_completed_outcome_received',
+        evidence: { appeared_for_protection_on: '2026-09-10' },
+        idempotencyKey: 'idem-key-1',
+      });
+
+      expect(JSON.parse(capturedBody!)).toEqual({
+        candidate_workflow_transition: {
+          to_stage_code: 'appeared_for_protection',
+          expected_current_stage_code: 'qvc_completed_outcome_received',
+          evidence: { appeared_for_protection_on: '2026-09-10' },
+        },
+      });
+    });
+
+    it('omits evidence from the body when empty or undefined', async () => {
+      let capturedBody: string | undefined;
+      stubFetch(async (_url, init) => {
+        capturedBody = init?.body as string;
+        return jsonResponse(successEnvelope({ workflow: workflowStateResponse(), transition: historyItemResponse() }), {
+          status: 201,
+        });
+      });
+      const client = buildClient();
+
+      await client.submitTransition({
+        candidateId: 'candidate-1',
+        toStageCode: 'documents_shared_with_qatar_bu',
+        evidence: {},
+        idempotencyKey: 'idem-key-1',
+      });
+
+      expect(JSON.parse(capturedBody!)).toEqual({
+        candidate_workflow_transition: { to_stage_code: 'documents_shared_with_qatar_bu' },
+      });
+    });
+  });
+
+  describe('getQvcAttempts', () => {
+    function qvcAttemptResponse(overrides: Record<string, unknown> = {}) {
+      return {
+        id: 'qvc-attempt-1',
+        attempt_number: 1,
+        appointment_date: '2026-09-01',
+        outcome_code: null,
+        no_show: false,
+        outcome_recorded_at: null,
+        status: 'scheduled',
+        internal_note: null,
+        scheduled_by: { id: 'staff-1', role: 'mps' },
+        outcome_recorded_by: null,
+        ...overrides,
+      };
+    }
+
+    it('maps the attempts collection, including scheduled_by and outcome_recorded_by', async () => {
+      let capturedUrl: string | undefined;
+      stubFetch(async (url) => {
+        capturedUrl = String(url);
+        return jsonResponse(
+          successEnvelope({
+            candidate_id: 'candidate-1',
+            assignment_id: 'assignment-1',
+            qvc_attempts: [
+              qvcAttemptResponse({
+                status: 'approved',
+                outcome_code: 'approved',
+                outcome_recorded_at: '2026-09-03T10:00:00Z',
+                outcome_recorded_by: { id: 'staff-2', role: 'mps' },
+                internal_note: 'Cleared.',
+              }),
+            ],
+            updated_at: '2026-09-03T10:00:00Z',
+          })
+        );
+      });
+      const client = buildClient();
+
+      const result = await client.getQvcAttempts('candidate-1');
+
+      expect(capturedUrl).toContain('/admin/candidates/candidate-1/qvc_attempts');
+      expect(result.qvcAttempts).toHaveLength(1);
+      expect(result.qvcAttempts[0]).toEqual({
+        id: 'qvc-attempt-1',
+        attemptNumber: 1,
+        appointmentDate: '2026-09-01',
+        outcomeCode: 'approved',
+        noShow: false,
+        outcomeRecordedAt: '2026-09-03T10:00:00Z',
+        status: 'approved',
+        internalNote: 'Cleared.',
+        scheduledBy: { id: 'staff-1', role: 'mps' },
+        outcomeRecordedBy: { id: 'staff-2', role: 'mps' },
+      });
+    });
+
+    // Regression test: the backend actually stores/returns `re_medical`
+    // (CandidateQvcAttempt::OUTCOME_CODES), not `re_medical_required` --
+    // an earlier build recognized only the latter, which would have
+    // silently dropped every real re_medical outcome to undefined.
+    it('recognizes re_medical (not re_medical_required) as a valid outcome code', async () => {
+      stubFetch(async () =>
+        jsonResponse(
+          successEnvelope({
+            candidate_id: 'candidate-1',
+            assignment_id: 'assignment-1',
+            qvc_attempts: [qvcAttemptResponse({ status: 're_medical', outcome_code: 're_medical' })],
+            updated_at: '2026-09-03T10:00:00Z',
+          })
+        )
+      );
+      const client = buildClient();
+
+      const result = await client.getQvcAttempts('candidate-1');
+
+      expect(result.qvcAttempts[0].status).toBe('re_medical');
+      expect(result.qvcAttempts[0].outcomeCode).toBe('re_medical');
+    });
+
+    it('falls back to an empty list for a malformed response', async () => {
+      stubFetch(async () => jsonResponse(successEnvelope({ candidate_id: 'candidate-1', assignment_id: null })));
+      const client = buildClient();
+
+      const result = await client.getQvcAttempts('candidate-1');
+
+      expect(result.qvcAttempts).toEqual([]);
+    });
+  });
+
+  describe('scheduleQvcAppointment', () => {
+    it('sends the documented request body and Idempotency-Key header', async () => {
+      let capturedUrl: string | undefined;
+      let capturedBody: string | undefined;
+      let capturedHeaders: Record<string, string> | undefined;
+      stubFetch(async (url, init) => {
+        capturedUrl = String(url);
+        capturedBody = init?.body as string;
+        capturedHeaders = init?.headers as Record<string, string>;
+        return jsonResponse(
+          successEnvelope({ workflow: workflowStateResponse(), transition: historyItemResponse() }),
+          { status: 201 }
+        );
+      });
+      const client = buildClient();
+
+      const result = await client.scheduleQvcAppointment({
+        candidateId: 'candidate-1',
+        appointmentDate: '2026-09-05',
+        expectedCurrentStageCode: 'documents_shared_with_qatar_bu',
+        note: 'First attempt',
+        idempotencyKey: 'idem-schedule-1',
+      });
+
+      expect(capturedUrl).toContain('/admin/candidates/candidate-1/qvc_attempts');
+      expect(capturedHeaders?.['Idempotency-Key']).toBe('idem-schedule-1');
+      expect(JSON.parse(capturedBody!)).toEqual({
+        candidate_qvc_attempt: {
+          appointment_date: '2026-09-05',
+          expected_current_stage_code: 'documents_shared_with_qatar_bu',
+          note: 'First attempt',
+        },
+      });
+      expect(result.transition).not.toBeNull();
+      expect(result.qvcAttempt).toBeNull();
+    });
+
+    it('maps a qvc_attempt-shaped response (no stage transition) distinctly from a transition-shaped one', async () => {
+      stubFetch(async () =>
+        jsonResponse(
+          successEnvelope({
+            workflow: workflowStateResponse(),
+            qvc_attempt: {
+              id: 'qvc-attempt-2',
+              attempt_number: 2,
+              appointment_date: '2026-09-06',
+              outcome_code: null,
+              no_show: false,
+              outcome_recorded_at: null,
+              status: 'scheduled',
+              internal_note: null,
+              scheduled_by: { id: 'staff-1', role: 'mps' },
+              outcome_recorded_by: null,
+            },
+          }),
+          { status: 201 }
+        )
+      );
+      const client = buildClient();
+
+      const result = await client.scheduleQvcAppointment({
+        candidateId: 'candidate-1',
+        appointmentDate: '2026-09-06',
+        idempotencyKey: 'idem-schedule-2',
+      });
+
+      expect(result.transition).toBeNull();
+      expect(result.qvcAttempt?.id).toBe('qvc-attempt-2');
+      expect(result.qvcAttempt?.attemptNumber).toBe(2);
+    });
+  });
+
+  describe('recordQvcOutcome', () => {
+    it('sends outcome_code, no_show and the Idempotency-Key header to the attempt-scoped PATCH endpoint', async () => {
+      let capturedUrl: string | undefined;
+      let capturedMethod: string | undefined;
+      let capturedBody: string | undefined;
+      let capturedHeaders: Record<string, string> | undefined;
+      stubFetch(async (url, init) => {
+        capturedUrl = String(url);
+        capturedMethod = init?.method;
+        capturedBody = init?.body as string;
+        capturedHeaders = init?.headers as Record<string, string>;
+        return jsonResponse(successEnvelope({ workflow: workflowStateResponse(), transition: historyItemResponse() }));
+      });
+      const client = buildClient();
+
+      await client.recordQvcOutcome({
+        candidateId: 'candidate-1',
+        qvcAttemptId: 'qvc-attempt-1',
+        outcomeCode: 'approved',
+        noShow: false,
+        expectedCurrentStageCode: 'qvc_appointment_booked',
+        idempotencyKey: 'idem-outcome-1',
+      });
+
+      expect(capturedUrl).toContain('/admin/candidates/candidate-1/qvc_attempts/qvc-attempt-1');
+      expect(capturedMethod).toBe('PATCH');
+      expect(capturedHeaders?.['Idempotency-Key']).toBe('idem-outcome-1');
+      expect(JSON.parse(capturedBody!)).toEqual({
+        candidate_qvc_attempt: {
+          outcome_code: 'approved',
+          no_show: false,
+          expected_current_stage_code: 'qvc_appointment_booked',
+        },
+      });
+    });
+
+    it('sends no_show true without an outcome_code for a no-show', async () => {
+      let capturedBody: string | undefined;
+      stubFetch(async (_url, init) => {
+        capturedBody = init?.body as string;
+        return jsonResponse(successEnvelope({ workflow: workflowStateResponse(), transition: historyItemResponse() }));
+      });
+      const client = buildClient();
+
+      await client.recordQvcOutcome({
+        candidateId: 'candidate-1',
+        qvcAttemptId: 'qvc-attempt-1',
+        noShow: true,
+        idempotencyKey: 'idem-outcome-2',
+      });
+
+      expect(JSON.parse(capturedBody!)).toEqual({ candidate_qvc_attempt: { no_show: true } });
     });
   });
 

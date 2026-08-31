@@ -1,12 +1,11 @@
-// Types for the staff/admin workflow-transition feature (MPS-F501 Phase A),
+// Types for the staff/admin workflow-transition feature (MPS-F501 Phase A/B),
 // matching descon-be's merged admin workflow contract field-for-field
 // (camelCased) -- see openapi.yaml's
 // /api/v1/admin/candidates/{candidate_id}/workflow_state|workflow_history|
-// workflow_transitions paths, and app/controllers/api/v1/admin/
-// candidate_workflow_{states,histories,transitions}_controller.rb. Do not
-// add a field here the backend doesn't actually return, and do not invent
-// the QVC/protection evidence shape ahead of the MPS-504/MPS-506 backend
-// contract landing (see WorkflowTransitionDetails's comment below).
+// workflow_transitions|qvc_attempts paths, and app/controllers/api/v1/admin/
+// candidate_workflow_{states,histories,transitions}_controller.rb and
+// candidate_qvc_attempts_controller.rb (merged PR #24, MPS-504/MPS-506). Do
+// not add a field here the backend doesn't actually return.
 
 export type WorkflowStageStatus = 'completed' | 'current' | 'pending';
 
@@ -19,6 +18,15 @@ export interface WorkflowTimelineStage {
   completedAt?: string;
 }
 
+/** The candidate's current protection record, from the workflow-state snapshot's `protection` key -- there is no dedicated protection endpoint (unlike QVC), so this snapshot is the only source of "what's already been recorded" for the Protection panel. */
+export interface WorkflowProtectionRecord {
+  id: string;
+  appearedOn: string | null;
+  appearedRecordedAt: string | null;
+  protectedOn: string | null;
+  readyToFlyAt: string | null;
+}
+
 export interface AdminWorkflowState {
   candidateId: string;
   assignmentId: string | null;
@@ -28,6 +36,8 @@ export interface AdminWorkflowState {
   completedCount: number;
   totalCount: number;
   progressPercentage: number;
+  /** Null until a protection appearance has been recorded. */
+  protection: WorkflowProtectionRecord | null;
   updatedAt: string | null;
 }
 
@@ -58,19 +68,21 @@ export interface WorkflowActor {
 
 /**
  * Every stage-evidence field the backend's WorkflowTransitionEvidence/
- * WorkflowTransitionHistoryDetails schema defines. Phase A never *submits*
- * any of these (the Qatar BU transition carries no evidence at all) -- they
- * exist here only because the same `details` shape is returned on history
- * entries for stages this build doesn't yet have a form for. The QVC/visa/
- * protection/flight fields are read-only display fields until the
- * MPS-504/MPS-506 backend contract is merged and verified; do not build a
- * submission form around them yet (ticket: "Do not invent the QVC or
- * protection payload before that backend contract is merged.").
+ * WorkflowTransitionHistoryDetails schema defines, returned on history
+ * entries for every stage (`details`). Visa/flight/mobilization fields
+ * remain read-only display fields here -- MPS-505/MPS-507 (their own
+ * dedicated backend contracts) aren't merged yet, so this build still
+ * doesn't submit a form for them (ticket: "Do not implement visa, flight or
+ * mobilization forms yet; those remain blocked until MPS-505 + MPS-507
+ * merge."). QVC and protection evidence are now submitted for real -- see
+ * `ScheduleQvcAppointmentInput`/`RecordQvcOutcomeInput` and
+ * `SubmitWorkflowTransitionInput.evidence` below.
  */
 export interface WorkflowTransitionDetails {
   source?: string;
   appointmentDate?: string;
-  qvcOutcomeCode?: 'approved' | 're_medical_required' | 'rejected';
+  /** `re_medical` is the value the backend actually stores/returns (CandidateQvcAttempt::OUTCOME_CODES); `re_medical_required` is only an accepted *input* alias, never a returned value. */
+  qvcOutcomeCode?: 'approved' | 're_medical' | 'rejected';
   qvcOutcomeDate?: string;
   visaOutcomeCode?: 'issued' | 'rejected';
   visaOutcomeDate?: string;
@@ -116,6 +128,8 @@ export interface SubmitWorkflowTransitionInput {
   expectedCurrentStageCode?: string;
   reasonCode?: string;
   note?: string;
+  /** Stage-specific evidence fields (snake_case backend field names as keys, e.g. `appeared_for_protection_on`/`protected_on`), per descon-be's WorkflowTransitionEvidence contract. Empty/omitted for evidence-free transitions like Qatar BU sharing. */
+  evidence?: Record<string, string>;
   idempotencyKey: string;
 }
 
@@ -151,9 +165,75 @@ export interface AdminWorkflowError {
   prerequisite?: WorkflowTransitionPrerequisiteDetails;
 }
 
+// QVC (medical exam) attempts -- a dedicated resource
+// (candidate_qvc_attempts_controller.rb, merged PR #24), unlike protection
+// which has no dedicated endpoint and is read from AdminWorkflowState's
+// `protection` field / recorded via the generic submitTransition above.
+
+/** The value the backend actually stores/returns for a completed attempt; `null` while an attempt is still open (scheduled, no outcome recorded yet) and no-show is handled by the separate `noShow` flag. */
+export type QvcOutcomeCode = 'approved' | 're_medical' | 'rejected';
+export type QvcAttemptStatus = QvcOutcomeCode | 'scheduled' | 'no_show';
+
+export interface AdminQvcAttempt {
+  id: string;
+  attemptNumber: number;
+  appointmentDate: string;
+  outcomeCode: QvcOutcomeCode | null;
+  noShow: boolean;
+  outcomeRecordedAt: string | null;
+  status: QvcAttemptStatus;
+  internalNote: string | null;
+  scheduledBy: WorkflowActor | null;
+  outcomeRecordedBy: WorkflowActor | null;
+}
+
+export interface AdminQvcAttempts {
+  candidateId: string;
+  assignmentId: string | null;
+  qvcAttempts: AdminQvcAttempt[];
+  updatedAt: string | null;
+}
+
+export interface ScheduleQvcAppointmentInput {
+  candidateId: string;
+  appointmentDate: string;
+  expectedCurrentStageCode?: string;
+  note?: string;
+  idempotencyKey: string;
+}
+
+export interface RecordQvcOutcomeInput {
+  candidateId: string;
+  qvcAttemptId: string;
+  /** Omit (leave undefined) when `noShow` is true -- the backend rejects setting both. */
+  outcomeCode?: QvcOutcomeCode;
+  noShow?: boolean;
+  expectedCurrentStageCode?: string;
+  note?: string;
+  idempotencyKey: string;
+}
+
+/**
+ * The backend's schedule/outcome response is a discriminated union
+ * (`AdminTransitionResultSerializer` when the action also advanced the
+ * workflow stage, `AdminQvcAttemptResultSerializer` when it only affected
+ * the attempt without a stage change, e.g. a re_medical follow-up staying
+ * at `qvc_completed_outcome_received`) -- normalized here to one shape with
+ * whichever side actually applied populated and the other null, so callers
+ * don't need to branch on which serializer responded.
+ */
+export interface QvcActionResult {
+  workflow: AdminWorkflowState;
+  transition: WorkflowHistoryItem | null;
+  qvcAttempt: AdminQvcAttempt | null;
+}
+
 export interface AdminWorkflowClient {
   getWorkflowState(candidateId: string): Promise<AdminWorkflowState>;
   getAllowedTransitions(candidateId: string): Promise<AllowedWorkflowTransitions>;
   getWorkflowHistory(candidateId: string): Promise<AdminWorkflowHistory>;
   submitTransition(input: SubmitWorkflowTransitionInput): Promise<WorkflowTransitionResult>;
+  getQvcAttempts(candidateId: string): Promise<AdminQvcAttempts>;
+  scheduleQvcAppointment(input: ScheduleQvcAppointmentInput): Promise<QvcActionResult>;
+  recordQvcOutcome(input: RecordQvcOutcomeInput): Promise<QvcActionResult>;
 }
