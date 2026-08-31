@@ -202,7 +202,14 @@ describe("DocumentsScreen", () => {
     applicationProgressClient.getProgress.mockResolvedValue(progress());
     renderDocumentsScreen();
 
-    expect(await screen.findByText("Loading…")).toBeOnTheScreen();
+    // This is the first test in the file to mount DocumentsScreen, so it's
+    // also the first to pay for useFonts' async load and AuthProvider's
+    // SecureStore restore -- a slower/loaded CI runner can push that past
+    // findByText's default ~1s timeout even though nothing here is
+    // otherwise racy (getChecklist deliberately never resolves). A longer,
+    // explicit timeout only widens the window; it doesn't change what's
+    // being asserted.
+    expect(await screen.findByText("Loading…", {}, { timeout: 5000 })).toBeOnTheScreen();
   });
 
   it("shows an empty state, not zeroed stat tiles, when the checklist has no requirements", async () => {
