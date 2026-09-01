@@ -5,6 +5,7 @@
 //
 // Only the approved fields from that contract are represented here -- see
 // CandidateProfile's doc comments for why each is safe to render.
+import type { PaymentEligibility } from '../payments/types';
 
 export interface CandidateWorkflowStage {
   code: string;
@@ -25,6 +26,8 @@ export interface CandidateProfile {
   /** Null when the candidate has no assignment yet. */
   currentWorkflowStage: CandidateWorkflowStage | null;
   active: boolean;
+  /** Same eligibility/latest-payment shape as GET /candidate/payment (MPS-F601) -- kept in sync here purely so other screens can read it without a second fetch; the dedicated payment page/journey is still the source of truth for acting on it. */
+  payment: PaymentEligibility;
 }
 
 export type CandidateProfileErrorCode =

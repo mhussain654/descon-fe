@@ -7,6 +7,7 @@
 // session must end, never a "refresh and retry" opportunity, matching
 // AuthContext's own expiry handling.
 import type { ApiClient, ApiError } from '../api-client';
+import { toPaymentEligibility, type EligibilityResponse } from '../payments/mapEligibilityResponse';
 import type { CandidateProfile, CandidateProfileClient, CandidateProfileError, CandidateProfileErrorCode } from './types';
 
 interface CandidateProfileResponse {
@@ -18,6 +19,7 @@ interface CandidateProfileResponse {
   candidate_status: string;
   current_workflow_stage: { code: string; name: string } | null;
   active: boolean;
+  payment: EligibilityResponse;
 }
 
 export interface RealCandidateProfileClientOptions {
@@ -41,6 +43,7 @@ function toProfile(data: CandidateProfileResponse): CandidateProfile {
     candidateStatus: data.candidate_status,
     currentWorkflowStage: data.current_workflow_stage,
     active: data.active,
+    payment: toPaymentEligibility(data.payment),
   };
 }
 
