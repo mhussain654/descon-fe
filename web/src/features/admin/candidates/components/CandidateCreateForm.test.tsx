@@ -134,6 +134,57 @@ describe("CandidateCreateForm", () => {
     );
   });
 
+  it("requires every next-of-kin field once any one of them is filled in, without calling the API", async () => {
+    renderForm();
+    await screen.findByRole("option", { name: "Qatar" });
+    fillValidForm();
+    fireEvent.change(screen.getByLabelText(/Next-of-kin's name/), { target: { value: "Ayesha Ali" } });
+
+    fireEvent.click(screen.getByRole("button", { name: "Create candidate" }));
+
+    expect(await screen.findAllByText("Complete all next-of-kin fields or leave them all blank.")).not.toHaveLength(0);
+    expect(adminCandidateClient.createCandidate).not.toHaveBeenCalled();
+  });
+
+  it("submits all four next-of-kin fields together when provided", async () => {
+    adminCandidateClient.createCandidate.mockResolvedValue({
+      id: "candidate-1",
+      fullName: "Jane Applicant",
+      cnic: "42101-1234567-1",
+      mobileNumber: "+923001234567",
+      passportNumber: null,
+      nextOfKin: { name: null, relationship: null, mobileNumber: null, cnic: null },
+      preferredLocale: "en",
+      candidateStatus: "documents_pending",
+      active: true,
+      createdAt: "2026-08-30T09:00:00Z",
+      updatedAt: "2026-08-30T09:00:00Z",
+      assignment: null,
+    });
+    renderForm();
+    await screen.findByRole("option", { name: "Qatar" });
+    fillValidForm();
+    fireEvent.change(screen.getByLabelText(/Next-of-kin's name/), { target: { value: "Ayesha Ali" } });
+    fireEvent.change(screen.getByLabelText(/Relationship/), { target: { value: "Spouse" } });
+    fireEvent.change(screen.getByLabelText(/Next-of-kin's mobile number/), { target: { value: "+923001112222" } });
+    fireEvent.change(screen.getByLabelText(/Next-of-kin's CNIC/), { target: { value: "4210176543212" } });
+
+    fireEvent.click(screen.getByRole("button", { name: "Create candidate" }));
+
+    await waitFor(() =>
+      expect(adminCandidateClient.createCandidate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          nextOfKin: {
+            name: "Ayesha Ali",
+            relationship: "Spouse",
+            mobileNumber: "+923001112222",
+            cnic: "42101-7654321-2",
+          },
+        })
+      )
+    );
+  });
+
   it("prevents a duplicate submission while the request is pending", async () => {
     adminCandidateClient.createCandidate.mockReturnValue(new Promise(() => {}));
     renderForm();

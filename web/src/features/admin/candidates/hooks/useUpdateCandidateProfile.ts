@@ -5,11 +5,13 @@ import { toast } from '../../../../design-system';
 import { adminCandidateClient } from '../../../../lib/admin-candidates-client';
 import type { AdminCandidateDetail, AdminCandidateError } from '../../../../lib/admin-candidates-client';
 import { adminCandidateQueries } from '../../../../../../shared/queryKeys/adminCandidateQueries';
+import type { NextOfKinInput } from '../../../../../../shared/adminCandidates/types';
 
 export interface UpdateCandidateFormValues {
   fullName?: string;
   mobileNumber?: string;
   passportNumber?: string;
+  nextOfKin?: NextOfKinInput;
   preferredLocale?: 'en' | 'ur';
   countryCode?: string;
   projectCode?: string;
@@ -77,5 +79,16 @@ export function useUpdateCandidateProfile(candidateId: string | undefined) {
 
   const dismissStaleNotice = useCallback(() => setStaleNotice(false), []);
 
-  return { submit, mutation, staleNotice, dismissStaleNotice };
+  // The explicit action behind the stale notice's "Refresh" button -- the
+  // detail query is already invalidated automatically in onError above, but
+  // ticket: "handle stale/conflicting updates safely... by showing a clear
+  // refresh/reload action" wants a visible, deliberate control, not just a
+  // silent background refetch the staff member has no way to trigger again.
+  const refresh = useCallback(() => {
+    setStaleNotice(false);
+    if (!candidateId) return;
+    queryClient.refetchQueries({ queryKey: adminCandidateQueries.detail(candidateId, language) });
+  }, [queryClient, candidateId, language]);
+
+  return { submit, mutation, staleNotice, dismissStaleNotice, refresh };
 }

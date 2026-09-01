@@ -17,6 +17,20 @@ export interface AdminCandidateAssignmentSummary {
   craft: ReferenceDataItem;
   currentWorkflowStage: { code: string; name: string };
   createdAt: string;
+  /** Whether country/project/craft may still be changed -- the backend's own lock boundary; never re-derive this from the workflow stage on the frontend. */
+  fieldsEditable: boolean;
+}
+
+/**
+ * Next-of-kin fields are all-or-nothing on the backend -- either every one
+ * of the four is present, or none of them is. A candidate created before
+ * next-of-kin support existed legitimately has all four null.
+ */
+export interface NextOfKinDetail {
+  name: string | null;
+  relationship: string | null;
+  mobileNumber: string | null;
+  cnic: string | null;
 }
 
 export interface AdminCandidateDetail {
@@ -26,6 +40,7 @@ export interface AdminCandidateDetail {
   cnic: string;
   mobileNumber: string;
   passportNumber: string | null;
+  nextOfKin: NextOfKinDetail;
   preferredLocale: 'en' | 'ur';
   candidateStatus: string;
   active: boolean;
@@ -35,12 +50,22 @@ export interface AdminCandidateDetail {
   assignment: AdminCandidateAssignmentSummary | null;
 }
 
+/** Send all four fields together, or none -- matches the backend's all-or-nothing validation. */
+export interface NextOfKinInput {
+  name: string;
+  relationship: string;
+  mobileNumber: string;
+  cnic: string;
+}
+
 export interface CreateCandidateInput {
   fullName: string;
   cnic: string;
   /** Stored as the candidate's own CNIC/OTP login mobile number. */
   mobileNumber: string;
   passportNumber?: string;
+  /** Omit entirely to leave next-of-kin blank -- never send a partially-filled group. */
+  nextOfKin?: NextOfKinInput;
   preferredLocale: 'en' | 'ur';
   countryCode: string;
   projectCode: string;
@@ -65,6 +90,8 @@ export interface UpdateCandidateInput {
   mobileNumber?: string;
   /** Send an empty string to clear a previously recorded passport number. */
   passportNumber?: string;
+  /** Omit to leave next-of-kin untouched -- always send all four fields together when changing any of them. */
+  nextOfKin?: NextOfKinInput;
   preferredLocale?: 'en' | 'ur';
   countryCode?: string;
   projectCode?: string;
@@ -80,6 +107,7 @@ export interface UpdateCandidateInput {
 export type AdminCandidateErrorCode =
   | 'VALIDATION_ERROR'
   | 'DUPLICATE_CNIC'
+  | 'DUPLICATE_MOBILE_NUMBER'
   | 'DUPLICATE_PASSPORT_NUMBER'
   | 'DUPLICATE_REFERENCE_NUMBER'
   | 'ASSIGNMENT_FIELD_LOCKED'

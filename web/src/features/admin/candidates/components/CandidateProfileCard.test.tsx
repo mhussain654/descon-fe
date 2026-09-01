@@ -34,6 +34,7 @@ function candidateDetail(overrides: Record<string, unknown> = {}) {
     cnic: "42101-1234567-1",
     mobileNumber: "+923001234567",
     passportNumber: "AB123456",
+    nextOfKin: { name: null, relationship: null, mobileNumber: null, cnic: null },
     preferredLocale: "en" as const,
     candidateStatus: "documents_pending",
     active: true,
@@ -47,6 +48,7 @@ function candidateDetail(overrides: Record<string, unknown> = {}) {
       craft: { code: "electrician", name: "Electrician" },
       currentWorkflowStage: { code: "documents_pending", name: "Documents Pending" },
       createdAt: "2026-08-30T09:00:00Z",
+      fieldsEditable: true,
     },
     ...overrides,
   };
@@ -213,12 +215,92 @@ describe("CandidateProfileCard", () => {
     expect(screen.getByLabelText(/Passport number/)).toHaveValue("CD999999");
   });
 
-  it("shows the assignment-fields-locked notice once the candidate has moved past documents_pending", async () => {
+  it("maps a duplicate mobile number error to the mobile field, keeping entered values", async () => {
+    adminCandidateClient.getCandidate.mockResolvedValue(candidateDetail());
+    adminCandidateClient.updateCandidate.mockRejectedValue({
+      code: "DUPLICATE_MOBILE_NUMBER",
+      message: "A candidate with this mobile number already exists.",
+      field: "mobile_number",
+    });
+    const client = await signInAs(HR);
+    renderCard(client);
+    fireEvent.click(await screen.findByRole("button", { name: "Edit" }));
+
+    fireEvent.change(screen.getByLabelText(/Mobile number/), { target: { value: "+923009998888" } });
+    fireEvent.click(screen.getByRole("button", { name: "Save" }));
+    await screen.findByText("Confirm mobile number change");
+    const confirmButtons = screen.getAllByRole("button", { name: "Save" });
+    fireEvent.click(confirmButtons[confirmButtons.length - 1]);
+
+    expect(await screen.findByText("A candidate with this mobile number already exists.")).toBeInTheDocument();
+    expect(screen.getByLabelText(/Mobile number/)).toHaveValue("+923009998888");
+  });
+
+  it("renders a populated next-of-kin section, and none at all when it was never recorded", async () => {
+    adminCandidateClient.getCandidate.mockResolvedValue(
+      candidateDetail({
+        nextOfKin: { name: "Ayesha Ali", relationship: "Spouse", mobileNumber: "+923001112222", cnic: "42101-7654321-2" },
+      })
+    );
+    const client = await signInAs(HR);
+    renderCard(client);
+
+    expect(await screen.findByText("Ayesha Ali")).toBeInTheDocument();
+    expect(screen.getByText("Spouse")).toBeInTheDocument();
+    expect(screen.queryByText("Next of kin")).toBeInTheDocument();
+  });
+
+  it("never renders a next-of-kin section when none was recorded", async () => {
+    adminCandidateClient.getCandidate.mockResolvedValue(candidateDetail());
+    const client = await signInAs(HR);
+    renderCard(client);
+
+    await screen.findByText("Jane Applicant");
+    expect(screen.queryByText("Next of kin")).not.toBeInTheDocument();
+  });
+
+  it("requires every next-of-kin field once any one of them is edited, without submitting a partial group", async () => {
+    adminCandidateClient.getCandidate.mockResolvedValue(candidateDetail());
+    const client = await signInAs(HR);
+    renderCard(client);
+    fireEvent.click(await screen.findByRole("button", { name: "Edit" }));
+
+    fireEvent.change(screen.getByLabelText(/Next-of-kin's name/), { target: { value: "Ayesha Ali" } });
+    fireEvent.click(screen.getByRole("button", { name: "Save" }));
+
+    expect(await screen.findAllByText("Complete all next-of-kin fields or leave them all blank.")).not.toHaveLength(0);
+    expect(adminCandidateClient.updateCandidate).not.toHaveBeenCalled();
+  });
+
+  it("submits all four next-of-kin fields together when changed", async () => {
+    adminCandidateClient.getCandidate.mockResolvedValue(candidateDetail());
+    adminCandidateClient.updateCandidate.mockResolvedValue(candidateDetail());
+    const client = await signInAs(HR);
+    renderCard(client);
+    fireEvent.click(await screen.findByRole("button", { name: "Edit" }));
+
+    fireEvent.change(screen.getByLabelText(/Next-of-kin's name/), { target: { value: "Ayesha Ali" } });
+    fireEvent.change(screen.getByLabelText(/Relationship/), { target: { value: "Spouse" } });
+    fireEvent.change(screen.getByLabelText(/Next-of-kin's mobile number/), { target: { value: "+923001112222" } });
+    fireEvent.change(screen.getByLabelText(/Next-of-kin's CNIC/), { target: { value: "4210176543212" } });
+    fireEvent.click(screen.getByRole("button", { name: "Save" }));
+
+    await waitFor(() =>
+      expect(adminCandidateClient.updateCandidate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          nextOfKin: { name: "Ayesha Ali", relationship: "Spouse", mobileNumber: "+923001112222", cnic: "42101-7654321-2" },
+        })
+      )
+    );
+  });
+
+  it("shows the assignment-fields-locked notice once fieldsEditable is false, without inferring it from the workflow stage", async () => {
     adminCandidateClient.getCandidate.mockResolvedValue(
       candidateDetail({
         assignment: {
           ...candidateDetail().assignment,
           currentWorkflowStage: { code: "verified", name: "Verified" },
+          fieldsEditable: false,
         },
       })
     );
@@ -253,6 +335,10 @@ describe("CandidateProfileCard", () => {
     fireEvent.click(screen.getByRole("button", { name: "Save" }));
 
     await waitFor(() => expect(adminCandidateClient.getCandidate).toHaveBeenCalledTimes(2));
+
+    const refreshCallsSoFar = adminCandidateClient.getCandidate.mock.calls.length;
+    fireEvent.click(screen.getByRole("button", { name: "Refresh" }));
+    await waitFor(() => expect(adminCandidateClient.getCandidate.mock.calls.length).toBeGreaterThan(refreshCallsSoFar));
   });
 
   it("shows a forbidden state when the backend reports the staff member cannot view this candidate", async () => {

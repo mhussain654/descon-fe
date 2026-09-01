@@ -59,6 +59,10 @@ function candidateDetailResponse(overrides: Record<string, unknown> = {}) {
     cnic: '42101-1234567-1',
     mobile_number: '+923001234567',
     passport_number: null,
+    next_of_kin_name: null,
+    next_of_kin_relationship: null,
+    next_of_kin_mobile_number: null,
+    next_of_kin_cnic: null,
     preferred_locale: 'en',
     candidate_status: 'documents_pending',
     active: true,
@@ -72,6 +76,7 @@ function candidateDetailResponse(overrides: Record<string, unknown> = {}) {
       craft: { code: 'electrician', name: 'Electrician' },
       current_workflow_stage: { code: 'documents_pending', name: 'Documents Pending' },
       created_at: '2026-08-30T09:00:00Z',
+      fields_editable: true,
     },
     ...overrides,
   };
@@ -99,6 +104,7 @@ describe('createAdminCandidateClient (real)', () => {
         cnic: '42101-1234567-1',
         mobileNumber: '+923001234567',
         passportNumber: null,
+        nextOfKin: { name: null, relationship: null, mobileNumber: null, cnic: null },
         preferredLocale: 'en',
         candidateStatus: 'documents_pending',
         active: true,
@@ -112,8 +118,36 @@ describe('createAdminCandidateClient (real)', () => {
           craft: { code: 'electrician', name: 'Electrician' },
           currentWorkflowStage: { code: 'documents_pending', name: 'Documents Pending' },
           createdAt: '2026-08-30T09:00:00Z',
+          fieldsEditable: true,
         },
       });
+    });
+
+    it('maps a populated next-of-kin group and a locked assignment', async () => {
+      stubFetch(async () =>
+        jsonResponse(
+          successEnvelope(
+            candidateDetailResponse({
+              next_of_kin_name: 'Ayesha Ali',
+              next_of_kin_relationship: 'Spouse',
+              next_of_kin_mobile_number: '+923001112222',
+              next_of_kin_cnic: '42101-7654321-2',
+              assignment: { ...candidateDetailResponse().assignment, fields_editable: false },
+            })
+          )
+        )
+      );
+      const client = buildClient();
+
+      const result = await client.getCandidate('candidate-1');
+
+      expect(result.nextOfKin).toEqual({
+        name: 'Ayesha Ali',
+        relationship: 'Spouse',
+        mobileNumber: '+923001112222',
+        cnic: '42101-7654321-2',
+      });
+      expect(result.assignment?.fieldsEditable).toBe(false);
     });
 
     it('maps a null assignment to null, never a fabricated placeholder', async () => {
@@ -200,6 +234,63 @@ describe('createAdminCandidateClient (real)', () => {
       expect(JSON.parse(capturedBody!).candidate.passport_number).toBe('AB123456');
     });
 
+    it('sends all four next-of-kin fields together', async () => {
+      let capturedBody: string | undefined;
+      stubFetch(async (_url, init) => {
+        capturedBody = init?.body as string;
+        return jsonResponse(successEnvelope(candidateDetailResponse()), { status: 201 });
+      });
+      const client = buildClient();
+
+      await client.createCandidate({
+        fullName: 'Jane Applicant',
+        cnic: '42101-1234567-1',
+        mobileNumber: '+923001234567',
+        nextOfKin: { name: 'Ayesha Ali', relationship: 'Spouse', mobileNumber: '+923001112222', cnic: '42101-7654321-2' },
+        preferredLocale: 'en',
+        countryCode: 'qatar',
+        projectCode: 'qatar_infrastructure',
+        craftCode: 'electrician',
+        referenceNumber: 'DES-000123',
+        idempotencyKey: 'idem-create-nok',
+      });
+
+      expect(JSON.parse(capturedBody!).candidate).toMatchObject({
+        next_of_kin_name: 'Ayesha Ali',
+        next_of_kin_relationship: 'Spouse',
+        next_of_kin_mobile_number: '+923001112222',
+        next_of_kin_cnic: '42101-7654321-2',
+      });
+    });
+
+    it('maps a duplicate mobile number error with its field', async () => {
+      stubFetch(async () =>
+        jsonResponse(
+          errorEnvelope([{ code: 'duplicate_mobile_number', message: 'A candidate with this mobile number already exists.', field: 'mobile_number' }]),
+          { status: 422 }
+        )
+      );
+      const client = buildClient();
+
+      await expect(
+        client.createCandidate({
+          fullName: 'Jane Applicant',
+          cnic: '42101-1234567-1',
+          mobileNumber: '+923001234567',
+          preferredLocale: 'en',
+          countryCode: 'qatar',
+          projectCode: 'qatar_infrastructure',
+          craftCode: 'electrician',
+          referenceNumber: 'DES-000123',
+          idempotencyKey: 'idem-create-4',
+        })
+      ).rejects.toEqual({
+        code: 'DUPLICATE_MOBILE_NUMBER',
+        message: 'A candidate with this mobile number already exists.',
+        field: 'mobile_number',
+      });
+    });
+
     it('maps a duplicate CNIC error with its field', async () => {
       stubFetch(async () =>
         jsonResponse(errorEnvelope([{ code: 'duplicate_cnic', message: 'A candidate with this CNIC already exists.', field: 'cnic' }]), {
@@ -252,6 +343,31 @@ describe('createAdminCandidateClient (real)', () => {
       await client.updateCandidate({ candidateId: 'candidate-1', passportNumber: '' });
 
       expect(JSON.parse(capturedBody!).candidate.passport_number).toBe('');
+    });
+
+    it('sends all four next-of-kin fields together and expected_updated_at', async () => {
+      let capturedBody: string | undefined;
+      stubFetch(async (_url, init) => {
+        capturedBody = init?.body as string;
+        return jsonResponse(successEnvelope(candidateDetailResponse()));
+      });
+      const client = buildClient();
+
+      await client.updateCandidate({
+        candidateId: 'candidate-1',
+        nextOfKin: { name: 'Ayesha Ali', relationship: 'Spouse', mobileNumber: '+923001112222', cnic: '42101-7654321-2' },
+        expectedUpdatedAt: '2026-08-30T09:00:00Z',
+      });
+
+      expect(JSON.parse(capturedBody!)).toEqual({
+        candidate: {
+          next_of_kin_name: 'Ayesha Ali',
+          next_of_kin_relationship: 'Spouse',
+          next_of_kin_mobile_number: '+923001112222',
+          next_of_kin_cnic: '42101-7654321-2',
+          expected_updated_at: '2026-08-30T09:00:00Z',
+        },
+      });
     });
 
     it('maps a stale conflict (409) to STALE_CANDIDATE', async () => {

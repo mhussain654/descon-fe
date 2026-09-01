@@ -21,6 +21,8 @@ import type {
   AdminCandidateError,
   AdminCandidateErrorCode,
   CreateCandidateInput,
+  NextOfKinDetail,
+  NextOfKinInput,
   ReferenceDataItem,
   UpdateCandidateInput,
 } from './types';
@@ -38,6 +40,7 @@ interface AssignmentSummaryResponse {
   craft: ReferenceDataItemResponse;
   current_workflow_stage: { code: string; name: string };
   created_at: string;
+  fields_editable: boolean;
 }
 
 interface CandidateDetailResponse {
@@ -46,6 +49,10 @@ interface CandidateDetailResponse {
   cnic: string;
   mobile_number: string;
   passport_number: string | null;
+  next_of_kin_name: string | null;
+  next_of_kin_relationship: string | null;
+  next_of_kin_mobile_number: string | null;
+  next_of_kin_cnic: string | null;
   preferred_locale: string;
   candidate_status: string;
   active: boolean;
@@ -100,6 +107,16 @@ function toAssignmentSummary(raw: unknown): AdminCandidateAssignmentSummary | nu
       name: typeof stage.name === 'string' ? stage.name : '',
     },
     createdAt: typeof value.created_at === 'string' ? value.created_at : '',
+    fieldsEditable: value.fields_editable === true,
+  };
+}
+
+function toNextOfKin(value: Partial<CandidateDetailResponse>): NextOfKinDetail {
+  return {
+    name: typeof value.next_of_kin_name === 'string' ? value.next_of_kin_name : null,
+    relationship: typeof value.next_of_kin_relationship === 'string' ? value.next_of_kin_relationship : null,
+    mobileNumber: typeof value.next_of_kin_mobile_number === 'string' ? value.next_of_kin_mobile_number : null,
+    cnic: typeof value.next_of_kin_cnic === 'string' ? value.next_of_kin_cnic : null,
   };
 }
 
@@ -111,6 +128,7 @@ function toCandidateDetail(raw: unknown): AdminCandidateDetail {
     cnic: typeof value.cnic === 'string' ? value.cnic : '',
     mobileNumber: typeof value.mobile_number === 'string' ? value.mobile_number : '',
     passportNumber: typeof value.passport_number === 'string' ? value.passport_number : null,
+    nextOfKin: toNextOfKin(value),
     preferredLocale: toLocale(value.preferred_locale),
     candidateStatus: typeof value.candidate_status === 'string' ? value.candidate_status : '',
     active: value.active === true,
@@ -124,6 +142,7 @@ function toCandidateDetail(raw: unknown): AdminCandidateDetail {
 const SERVER_CODE_TO_ERROR: Record<string, AdminCandidateErrorCode> = {
   validation_failed: 'VALIDATION_ERROR',
   duplicate_cnic: 'DUPLICATE_CNIC',
+  duplicate_mobile_number: 'DUPLICATE_MOBILE_NUMBER',
   duplicate_passport_number: 'DUPLICATE_PASSPORT_NUMBER',
   duplicate_reference_number: 'DUPLICATE_REFERENCE_NUMBER',
   candidate_assignment_field_locked: 'ASSIGNMENT_FIELD_LOCKED',
@@ -177,6 +196,17 @@ function compactBody(input: Record<string, unknown>): Record<string, unknown> {
   return Object.fromEntries(Object.entries(input).filter(([, value]) => value !== undefined));
 }
 
+/** All four next-of-kin fields together, or nothing -- never a partial group. */
+function nextOfKinBody(nextOfKin: NextOfKinInput | undefined): Record<string, unknown> {
+  if (!nextOfKin) return {};
+  return {
+    next_of_kin_name: nextOfKin.name,
+    next_of_kin_relationship: nextOfKin.relationship,
+    next_of_kin_mobile_number: nextOfKin.mobileNumber,
+    next_of_kin_cnic: nextOfKin.cnic,
+  };
+}
+
 export function createAdminCandidateClient(options: RealAdminCandidateClientOptions): AdminCandidateClient {
   const { apiClient, staffAuthClient, getLocale } = options;
 
@@ -218,6 +248,7 @@ export function createAdminCandidateClient(options: RealAdminCandidateClientOpti
                 cnic: input.cnic,
                 mobile_number: input.mobileNumber,
                 ...(input.passportNumber ? { passport_number: input.passportNumber } : {}),
+                ...nextOfKinBody(input.nextOfKin),
                 preferred_locale: input.preferredLocale,
                 country_code: input.countryCode,
                 project_code: input.projectCode,
@@ -250,6 +281,7 @@ export function createAdminCandidateClient(options: RealAdminCandidateClientOpti
                 full_name: input.fullName,
                 mobile_number: input.mobileNumber,
                 passport_number: input.passportNumber,
+                ...nextOfKinBody(input.nextOfKin),
                 preferred_locale: input.preferredLocale,
                 country_code: input.countryCode,
                 project_code: input.projectCode,

@@ -13,6 +13,7 @@ import { useLanguage } from '../../../../contexts/LanguageContext';
 import { formatCnic, isValidCnic, toCnicDigits } from '../../../../../../shared/cnic';
 import { normalizeMobileNumber, isValidMobileNumber } from '../../../../../../shared/adminCandidates/mobileNumber';
 import { normalizePassportNumber, isValidPassportNumber } from '../../../../../../shared/adminCandidates/passportNumber';
+import { isNextOfKinStarted } from '../../../../../../shared/adminCandidates/nextOfKin';
 import { ADMIN_CANDIDATE_ERROR_KEYS } from '../../../../../../shared/adminCandidates/errorMessages';
 import type { ReferenceDataItem } from '../../../../lib/admin-candidates-client';
 import type { TranslationKey } from '../../../../../../shared/i18n/translations';
@@ -27,6 +28,10 @@ const FIELD_ERROR_MAP: Record<string, keyof FormState> = {
   cnic: 'cnic',
   mobile_number: 'mobileNumber',
   passport_number: 'passportNumber',
+  next_of_kin_name: 'nextOfKinName',
+  next_of_kin_relationship: 'nextOfKinRelationship',
+  next_of_kin_mobile_number: 'nextOfKinMobileNumber',
+  next_of_kin_cnic: 'nextOfKinCnicDigits',
   preferred_locale: 'preferredLocale',
   country_code: 'countryCode',
   project_code: 'projectCode',
@@ -39,6 +44,10 @@ interface FormState {
   cnicDigits: string;
   mobileNumber: string;
   passportNumber: string;
+  nextOfKinName: string;
+  nextOfKinRelationship: string;
+  nextOfKinMobileNumber: string;
+  nextOfKinCnicDigits: string;
   preferredLocale: 'en' | 'ur';
   countryCode: string;
   projectCode: string;
@@ -51,6 +60,10 @@ const INITIAL_STATE: FormState = {
   cnicDigits: '',
   mobileNumber: '',
   passportNumber: '',
+  nextOfKinName: '',
+  nextOfKinRelationship: '',
+  nextOfKinMobileNumber: '',
+  nextOfKinCnicDigits: '',
   preferredLocale: 'en',
   countryCode: '',
   projectCode: '',
@@ -100,6 +113,21 @@ export function CandidateCreateForm() {
     const normalizedPassport = normalizePassportNumber(form.passportNumber);
     if (!isValidPassportNumber(normalizedPassport)) errors.passportNumber = t('adminCandidatePassportNumberInvalidError');
 
+    if (
+      isNextOfKinStarted({
+        name: form.nextOfKinName,
+        relationship: form.nextOfKinRelationship,
+        mobileNumber: form.nextOfKinMobileNumber,
+        cnic: form.nextOfKinCnicDigits,
+      })
+    ) {
+      if (!form.nextOfKinName.trim()) errors.nextOfKinName = t('adminCandidateNextOfKinFieldRequiredError');
+      if (!form.nextOfKinRelationship.trim()) errors.nextOfKinRelationship = t('adminCandidateNextOfKinFieldRequiredError');
+      const normalizedNextOfKinMobile = normalizeMobileNumber(form.nextOfKinMobileNumber);
+      if (!isValidMobileNumber(normalizedNextOfKinMobile)) errors.nextOfKinMobileNumber = t('adminCandidateNextOfKinMobileNumberInvalidError');
+      if (!isValidCnic(form.nextOfKinCnicDigits)) errors.nextOfKinCnicDigits = t('adminCandidateNextOfKinCnicInvalidError');
+    }
+
     if (!form.countryCode) errors.countryCode = t('adminCandidateCountryRequiredError');
     if (!form.projectCode) errors.projectCode = t('adminCandidateProjectRequiredError');
     if (!form.craftCode) errors.craftCode = t('adminCandidateCraftRequiredError');
@@ -116,11 +144,28 @@ export function CandidateCreateForm() {
     setFieldErrors(errors);
     if (Object.keys(errors).length > 0) return;
 
+    const nextOfKinStarted = isNextOfKinStarted({
+      name: form.nextOfKinName,
+      relationship: form.nextOfKinRelationship,
+      mobileNumber: form.nextOfKinMobileNumber,
+      cnic: form.nextOfKinCnicDigits,
+    });
+
     const values: CreateCandidateFormValues = {
       fullName: form.fullName.trim(),
       cnic: formatCnic(form.cnicDigits),
       mobileNumber: normalizeMobileNumber(form.mobileNumber),
       passportNumber: normalizePassportNumber(form.passportNumber),
+      ...(nextOfKinStarted
+        ? {
+            nextOfKin: {
+              name: form.nextOfKinName.trim(),
+              relationship: form.nextOfKinRelationship.trim(),
+              mobileNumber: normalizeMobileNumber(form.nextOfKinMobileNumber),
+              cnic: formatCnic(form.nextOfKinCnicDigits),
+            },
+          }
+        : {}),
       preferredLocale: form.preferredLocale,
       countryCode: form.countryCode,
       projectCode: form.projectCode,
@@ -168,6 +213,42 @@ export function CandidateCreateForm() {
             onChange={(event) => setField('passportNumber', event.target.value)}
             errorMessage={errorFor('passportNumber')}
           />
+          <div className="border-t border-border pt-4">
+            <h3 className="mb-3 text-sm font-semibold text-text-primary">{t('adminCandidateNextOfKinSectionTitle')}</h3>
+            <div className="space-y-4">
+              <Input
+                label={t('adminCandidateNextOfKinNameLabel')}
+                requirementText={t('dsOptionalField')}
+                value={form.nextOfKinName}
+                onChange={(event) => setField('nextOfKinName', event.target.value)}
+                errorMessage={errorFor('nextOfKinName')}
+              />
+              <Input
+                label={t('adminCandidateNextOfKinRelationshipLabel')}
+                requirementText={t('dsOptionalField')}
+                value={form.nextOfKinRelationship}
+                onChange={(event) => setField('nextOfKinRelationship', event.target.value)}
+                errorMessage={errorFor('nextOfKinRelationship')}
+              />
+              <Input
+                label={t('adminCandidateNextOfKinMobileNumberLabel')}
+                requirementText={t('dsOptionalField')}
+                type="tel"
+                inputMode="tel"
+                dir="ltr"
+                value={form.nextOfKinMobileNumber}
+                onChange={(event) => setField('nextOfKinMobileNumber', event.target.value)}
+                errorMessage={errorFor('nextOfKinMobileNumber')}
+              />
+              <CnicField
+                label={t('adminCandidateNextOfKinCnicLabel')}
+                requirementText={t('dsOptionalField')}
+                value={form.nextOfKinCnicDigits}
+                onValueChange={(digits) => setField('nextOfKinCnicDigits', digits)}
+                errorMessage={errorFor('nextOfKinCnicDigits')}
+              />
+            </div>
+          </div>
           <Select
             label={t('adminCandidatePreferredLocaleLabel')}
             value={form.preferredLocale}
