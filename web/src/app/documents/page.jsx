@@ -28,12 +28,12 @@ import { sortByPrototypeOrder } from "../../../../shared/candidateDocuments/chec
 const RETRYABLE_ERROR_CODES = new Set(["OFFLINE", "NETWORK_ERROR", "SERVER_ERROR", "RATE_LIMITED", "IN_PROGRESS", "CONFLICT"]);
 
 const STATUS_CONFIG = {
-  verified: { icon: CheckCircle, className: "bg-[#E6F9F0] text-[#10B981]", labelKey: "verified" },
-  pending_review: { icon: Clock, className: "bg-[#FFF7E6] text-[#F59E0B]", labelKey: "candidateDocumentsStatusPendingReview" },
-  uploaded: { icon: Upload, className: "bg-[#E6F2FF] text-[#0066CC]", labelKey: "uploaded" },
-  rejected: { icon: XCircle, className: "bg-[#FEF2F2] text-[#EF4444]", labelKey: "rejected" },
-  missing: { icon: Upload, className: "bg-[#F6F6F6] text-[#6B7280]", labelKey: "pending" },
-  unknown: { icon: Upload, className: "bg-[#F6F6F6] text-[#6B7280]", labelKey: "candidateDocumentsStatusUnknown" },
+  verified: { icon: CheckCircle, className: "bg-[#E6F9F0] text-[#10B981]", textClassName: "text-[#10B981]", labelKey: "verified" },
+  pending_review: { icon: Clock, className: "bg-[#FFF7E6] text-[#F59E0B]", textClassName: "text-[#F59E0B]", labelKey: "candidateDocumentsStatusPendingReview" },
+  uploaded: { icon: Upload, className: "bg-[#E6F2FF] text-[#0066CC]", textClassName: "text-[#0066CC]", labelKey: "uploaded" },
+  rejected: { icon: XCircle, className: "bg-[#FEF2F2] text-[#EF4444]", textClassName: "text-[#EF4444]", labelKey: "rejected" },
+  missing: { icon: Upload, className: "bg-[#F6F6F6] text-[#6B7280]", textClassName: "text-[#6B7280]", labelKey: "pending" },
+  unknown: { icon: Upload, className: "bg-[#F6F6F6] text-[#6B7280]", textClassName: "text-[#6B7280]", labelKey: "candidateDocumentsStatusUnknown" },
 };
 
 export default function DocumentsPage() {
@@ -242,7 +242,7 @@ function DocumentRow({ item, language, t, isActive, isAnyUploadPending, upload }
       </div>
       <div className="ms-3 flex-1">
         <div className="mb-0.5 text-[15px] font-medium text-black">{item.name}</div>
-        <div className="text-[13px]">{statusLine}</div>
+        <div className={`text-[13px] ${config.textClassName}`}>{statusLine}</div>
         {item.document?.rejectionReason ? <div className="mt-1 text-xs text-[#EF4444]">{item.document.rejectionReason}</div> : null}
       </div>
     </>

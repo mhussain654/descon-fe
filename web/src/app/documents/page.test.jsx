@@ -258,6 +258,24 @@ describe("DocumentsPage", () => {
     expect(screen.getAllByText(/Pending review/).length).toBeGreaterThan(0);
   });
 
+  it("gives each status's sub-label its own color instead of one shared color for every status", async () => {
+    candidateDocumentsClient.getChecklist.mockResolvedValue([
+      item({ requirementCode: "passport", name: "Passport", status: "verified", document: uploadedDocument() }),
+      item({ requirementCode: "cnic_front", name: "CNIC (Front)", status: "uploaded", document: uploadedDocument() }),
+      item({ requirementCode: "cnic_back", name: "CNIC (Back)", status: "missing" }),
+    ]);
+    applicationProgressClient.getProgress.mockResolvedValue(progress());
+    await signInAndNavigateToDocuments();
+
+    const verifiedLine = (await screen.findByText(/Verified •/)).closest("div");
+    const uploadedLine = screen.getByText(/Uploaded •/).closest("div");
+    const missingLine = screen.getByText("Pending • Required").closest("div");
+
+    expect(verifiedLine).toHaveClass("text-[#10B981]");
+    expect(uploadedLine).toHaveClass("text-[#0066CC]");
+    expect(missingLine).toHaveClass("text-[#6B7280]");
+  });
+
   it("renders a verified document with no action, even though replacementAllowed happens to be true", async () => {
     candidateDocumentsClient.getChecklist.mockResolvedValue([
       item({ status: "verified", document: uploadedDocument(), replacementAllowed: false }),
