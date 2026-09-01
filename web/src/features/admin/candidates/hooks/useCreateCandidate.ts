@@ -5,6 +5,7 @@ import { toast } from '../../../../design-system';
 import { adminCandidateClient } from '../../../../lib/admin-candidates-client';
 import type { AdminCandidateDetail, AdminCandidateError } from '../../../../lib/admin-candidates-client';
 import { adminCandidateQueries } from '../../../../../../shared/queryKeys/adminCandidateQueries';
+import type { NextOfKinInput } from '../../../../../../shared/adminCandidates/types';
 
 export interface CreateCandidateFormValues {
   fullName: string;
@@ -12,6 +13,8 @@ export interface CreateCandidateFormValues {
   mobileNumber: string;
   /** Empty string means "no passport number" -- never sent to the backend. */
   passportNumber: string;
+  /** Omit entirely to leave next-of-kin blank. */
+  nextOfKin?: NextOfKinInput;
   preferredLocale: 'en' | 'ur';
   countryCode: string;
   projectCode: string;
@@ -23,9 +26,18 @@ function randomIdempotencyKey(): string {
   return `admin-candidate-create-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
 }
 
+function sameNextOfKin(a: NextOfKinInput | undefined, b: NextOfKinInput | undefined): boolean {
+  if (!a || !b) return a === b;
+  return a.name === b.name && a.relationship === b.relationship && a.mobileNumber === b.mobileNumber && a.cnic === b.cnic;
+}
+
 function sameValues(a: CreateCandidateFormValues | null, b: CreateCandidateFormValues): boolean {
   if (!a) return false;
-  return (Object.keys(b) as (keyof CreateCandidateFormValues)[]).every((key) => a[key] === b[key]);
+  return (
+    (Object.keys(b) as (keyof CreateCandidateFormValues)[]).every((key) =>
+      key === 'nextOfKin' ? true : a[key] === b[key]
+    ) && sameNextOfKin(a.nextOfKin, b.nextOfKin)
+  );
 }
 
 export interface UseCreateCandidateOptions {
@@ -53,6 +65,7 @@ export function useCreateCandidate(options: UseCreateCandidateOptions = {}) {
         cnic: variables.cnic,
         mobileNumber: variables.mobileNumber,
         passportNumber: variables.passportNumber || undefined,
+        nextOfKin: variables.nextOfKin,
         preferredLocale: variables.preferredLocale,
         countryCode: variables.countryCode,
         projectCode: variables.projectCode,

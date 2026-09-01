@@ -5,11 +5,14 @@ import { toast } from '../../../../design-system';
 import { adminCandidateClient } from '../../../../lib/admin-candidates-client';
 import type { AdminCandidateDetail, AdminCandidateError } from '../../../../lib/admin-candidates-client';
 import { adminCandidateQueries } from '../../../../../../shared/queryKeys/adminCandidateQueries';
+import type { NextOfKinInput } from '../../../../../../shared/adminCandidates/types';
 
 export interface UpdateCandidateFormValues {
   fullName?: string;
   mobileNumber?: string;
   passportNumber?: string;
+  /** Omit to leave next-of-kin completely untouched. Send all four fields as empty strings to intentionally clear it. */
+  nextOfKin?: NextOfKinInput;
   preferredLocale?: 'en' | 'ur';
   countryCode?: string;
   projectCode?: string;

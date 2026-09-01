@@ -34,6 +34,7 @@ function candidateDetail(overrides: Record<string, unknown> = {}) {
     cnic: "42101-1234567-1",
     mobileNumber: "+923001234567",
     passportNumber: "AB123456",
+    nextOfKin: { name: null, relationship: null, mobileNumber: null, cnic: null },
     preferredLocale: "en" as const,
     candidateStatus: "documents_pending",
     active: true,
@@ -211,6 +212,191 @@ describe("CandidateProfileCard", () => {
 
     expect(await screen.findByText("A candidate with this passport number already exists.")).toBeInTheDocument();
     expect(screen.getByLabelText(/Passport number/)).toHaveValue("CD999999");
+  });
+
+  describe("next-of-kin", () => {
+    function populatedNextOfKin() {
+      return { name: "Ayesha Ali", relationship: "Spouse", mobileNumber: "+923001112222", cnic: "42101-7654321-2" };
+    }
+
+    it("renders a populated next-of-kin section, and none at all when it was never recorded", async () => {
+      adminCandidateClient.getCandidate.mockResolvedValue(candidateDetail({ nextOfKin: populatedNextOfKin() }));
+      const client = await signInAs(HR);
+      renderCard(client);
+
+      expect(await screen.findByText("Ayesha Ali")).toBeInTheDocument();
+      expect(screen.getByText("Spouse")).toBeInTheDocument();
+      expect(screen.getByText("+923001112222")).toBeInTheDocument();
+      expect(screen.getByText("42101-7654321-2")).toBeInTheDocument();
+    });
+
+    it("never renders a next-of-kin section when none was recorded", async () => {
+      adminCandidateClient.getCandidate.mockResolvedValue(candidateDetail());
+      const client = await signInAs(HR);
+      renderCard(client);
+
+      await screen.findByText("Jane Applicant");
+      expect(screen.queryByText("Next of kin")).not.toBeInTheDocument();
+    });
+
+    it("pre-populates existing next-of-kin values in the edit form and submits an edited field", async () => {
+      adminCandidateClient.getCandidate.mockResolvedValue(candidateDetail({ nextOfKin: populatedNextOfKin() }));
+      adminCandidateClient.updateCandidate.mockResolvedValue(candidateDetail({ nextOfKin: populatedNextOfKin() }));
+      const client = await signInAs(HR);
+      renderCard(client);
+      fireEvent.click(await screen.findByRole("button", { name: "Edit" }));
+
+      expect(screen.getByLabelText(/Next-of-kin's name/)).toHaveValue("Ayesha Ali");
+      expect(screen.getByLabelText(/Relationship/)).toHaveValue("Spouse");
+      expect(screen.getByLabelText(/Next-of-kin's mobile number/)).toHaveValue("+923001112222");
+
+      fireEvent.change(screen.getByLabelText(/Relationship/), { target: { value: "Mother" } });
+      fireEvent.click(screen.getByRole("button", { name: "Save" }));
+
+      await waitFor(() =>
+        expect(adminCandidateClient.updateCandidate).toHaveBeenCalledWith(
+          expect.objectContaining({
+            nextOfKin: { name: "Ayesha Ali", relationship: "Mother", mobileNumber: "+923001112222", cnic: "42101-7654321-2" },
+          })
+        )
+      );
+    });
+
+    it("requires every next-of-kin field once any one of them is edited, without submitting a partial group", async () => {
+      adminCandidateClient.getCandidate.mockResolvedValue(candidateDetail());
+      const client = await signInAs(HR);
+      renderCard(client);
+      fireEvent.click(await screen.findByRole("button", { name: "Edit" }));
+
+      fireEvent.change(screen.getByLabelText(/Next-of-kin's name/), { target: { value: "Ayesha Ali" } });
+      fireEvent.click(screen.getByRole("button", { name: "Save" }));
+
+      expect(await screen.findAllByText("Complete all next-of-kin fields or leave them all blank.")).not.toHaveLength(0);
+      expect(adminCandidateClient.updateCandidate).not.toHaveBeenCalled();
+    });
+
+    it("rejects an invalid next-of-kin mobile number client-side, without calling the API", async () => {
+      adminCandidateClient.getCandidate.mockResolvedValue(candidateDetail());
+      const client = await signInAs(HR);
+      renderCard(client);
+      fireEvent.click(await screen.findByRole("button", { name: "Edit" }));
+
+      fireEvent.change(screen.getByLabelText(/Next-of-kin's name/), { target: { value: "Ayesha Ali" } });
+      fireEvent.change(screen.getByLabelText(/Relationship/), { target: { value: "Spouse" } });
+      fireEvent.change(screen.getByLabelText(/Next-of-kin's mobile number/), { target: { value: "123" } });
+      fireEvent.change(screen.getByLabelText(/Next-of-kin's CNIC/), { target: { value: "4210176543212" } });
+      fireEvent.click(screen.getByRole("button", { name: "Save" }));
+
+      expect(await screen.findByText("Enter a valid next-of-kin's mobile number.")).toBeInTheDocument();
+      expect(adminCandidateClient.updateCandidate).not.toHaveBeenCalled();
+    });
+
+    it("rejects an invalid next-of-kin CNIC client-side, without calling the API", async () => {
+      adminCandidateClient.getCandidate.mockResolvedValue(candidateDetail());
+      const client = await signInAs(HR);
+      renderCard(client);
+      fireEvent.click(await screen.findByRole("button", { name: "Edit" }));
+
+      fireEvent.change(screen.getByLabelText(/Next-of-kin's name/), { target: { value: "Ayesha Ali" } });
+      fireEvent.change(screen.getByLabelText(/Relationship/), { target: { value: "Spouse" } });
+      fireEvent.change(screen.getByLabelText(/Next-of-kin's mobile number/), { target: { value: "+923001112222" } });
+      fireEvent.change(screen.getByLabelText(/Next-of-kin's CNIC/), { target: { value: "123" } });
+      fireEvent.click(screen.getByRole("button", { name: "Save" }));
+
+      expect(await screen.findByText("Enter a valid next-of-kin CNIC in the format 00000-0000000-0.")).toBeInTheDocument();
+      expect(adminCandidateClient.updateCandidate).not.toHaveBeenCalled();
+    });
+
+    it("allows an authorized user to intentionally clear all four next-of-kin fields", async () => {
+      adminCandidateClient.getCandidate.mockResolvedValue(candidateDetail({ nextOfKin: populatedNextOfKin() }));
+      adminCandidateClient.updateCandidate.mockResolvedValue(candidateDetail());
+      const client = await signInAs(HR);
+      renderCard(client);
+      fireEvent.click(await screen.findByRole("button", { name: "Edit" }));
+
+      fireEvent.change(screen.getByLabelText(/Next-of-kin's name/), { target: { value: "" } });
+      fireEvent.change(screen.getByLabelText(/Relationship/), { target: { value: "" } });
+      fireEvent.change(screen.getByLabelText(/Next-of-kin's mobile number/), { target: { value: "" } });
+      fireEvent.change(screen.getByLabelText(/Next-of-kin's CNIC/), { target: { value: "" } });
+      fireEvent.click(screen.getByRole("button", { name: "Save" }));
+
+      await waitFor(() =>
+        expect(adminCandidateClient.updateCandidate).toHaveBeenCalledWith(
+          expect.objectContaining({ nextOfKin: { name: "", relationship: "", mobileNumber: "", cnic: "" } })
+        )
+      );
+    });
+
+    it("never touches next-of-kin on an unrelated profile update, preserving the existing values", async () => {
+      adminCandidateClient.getCandidate.mockResolvedValue(candidateDetail({ nextOfKin: populatedNextOfKin() }));
+      adminCandidateClient.updateCandidate.mockResolvedValue(
+        candidateDetail({ fullName: "Jane A. Applicant", nextOfKin: populatedNextOfKin() })
+      );
+      const client = await signInAs(HR);
+      renderCard(client);
+      fireEvent.click(await screen.findByRole("button", { name: "Edit" }));
+
+      fireEvent.change(screen.getByLabelText("Full name"), { target: { value: "Jane A. Applicant" } });
+      fireEvent.click(screen.getByRole("button", { name: "Save" }));
+
+      await waitFor(() => expect(adminCandidateClient.updateCandidate).toHaveBeenCalled());
+      const call = adminCandidateClient.updateCandidate.mock.calls[0][0];
+      expect(call).not.toHaveProperty("nextOfKin");
+
+      expect(await screen.findByText("Ayesha Ali")).toBeInTheDocument();
+    });
+
+    it("maps a backend next-of-kin field error to its exact field, keeping entered values", async () => {
+      adminCandidateClient.getCandidate.mockResolvedValue(candidateDetail());
+      adminCandidateClient.updateCandidate.mockRejectedValue({
+        code: "VALIDATION_ERROR",
+        message: "Enter a valid next-of-kin's mobile number.",
+        field: "next_of_kin_mobile_number",
+      });
+      const client = await signInAs(HR);
+      renderCard(client);
+      fireEvent.click(await screen.findByRole("button", { name: "Edit" }));
+
+      fireEvent.change(screen.getByLabelText(/Next-of-kin's name/), { target: { value: "Ayesha Ali" } });
+      fireEvent.change(screen.getByLabelText(/Relationship/), { target: { value: "Spouse" } });
+      fireEvent.change(screen.getByLabelText(/Next-of-kin's mobile number/), { target: { value: "03001112222" } });
+      fireEvent.change(screen.getByLabelText(/Next-of-kin's CNIC/), { target: { value: "4210176543212" } });
+      fireEvent.click(screen.getByRole("button", { name: "Save" }));
+
+      expect(await screen.findByText("Enter a valid next-of-kin's mobile number.")).toBeInTheDocument();
+      expect(screen.getByLabelText(/Next-of-kin's mobile number/)).toHaveValue("03001112222");
+    });
+
+    it("shows a stale-conflict notice instead of silently resubmitting a next-of-kin edit", async () => {
+      adminCandidateClient.getCandidate.mockResolvedValue(candidateDetail());
+      adminCandidateClient.updateCandidate.mockRejectedValue({ code: "STALE_CANDIDATE" });
+      const client = await signInAs(HR);
+      renderCard(client);
+      fireEvent.click(await screen.findByRole("button", { name: "Edit" }));
+
+      fireEvent.change(screen.getByLabelText(/Next-of-kin's name/), { target: { value: "Ayesha Ali" } });
+      fireEvent.change(screen.getByLabelText(/Relationship/), { target: { value: "Spouse" } });
+      fireEvent.change(screen.getByLabelText(/Next-of-kin's mobile number/), { target: { value: "+923001112222" } });
+      fireEvent.change(screen.getByLabelText(/Next-of-kin's CNIC/), { target: { value: "4210176543212" } });
+      fireEvent.click(screen.getByRole("button", { name: "Save" }));
+
+      await waitFor(() => expect(adminCandidateClient.getCandidate).toHaveBeenCalledTimes(2));
+      expect(await screen.findByText("This candidate changed before this update could be applied. Refresh and try again.")).toBeInTheDocument();
+    });
+
+    it("renders a populated next-of-kin section and its edit-form labels in Urdu with RTL", async () => {
+      localStorage.setItem("descon.language", "ur");
+      adminCandidateClient.getCandidate.mockResolvedValue(candidateDetail({ nextOfKin: populatedNextOfKin() }));
+      const client = await signInAs(HR);
+      renderCard(client);
+
+      expect(await screen.findByText("قریبی رشتہ دار")).toBeInTheDocument();
+      expect(screen.getByText("Ayesha Ali")).toBeInTheDocument();
+      expect(document.documentElement).toHaveAttribute("dir", "rtl");
+
+      fireEvent.click(screen.getByRole("button", { name: "ترمیم کریں" }));
+      expect(screen.getByLabelText(/قریبی رشتہ دار کا نام/)).toHaveValue("Ayesha Ali");
+    });
   });
 
   it("shows the assignment-fields-locked notice once the candidate has moved past documents_pending", async () => {
