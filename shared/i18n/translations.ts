@@ -312,6 +312,14 @@ export const translations = {
     adminCandidateConfirmMobileChangeTitle: 'Confirm mobile number change',
     adminCandidateConfirmMobileChangeDescription:
       "This changes where the candidate's own sign-in verification code is sent. Make sure the new number is correct.",
+    adminCandidateNextOfKinSectionTitle: 'Next of kin',
+    adminCandidateNextOfKinNameLabel: "Next-of-kin's name",
+    adminCandidateNextOfKinRelationshipLabel: 'Relationship',
+    adminCandidateNextOfKinMobileNumberLabel: "Next-of-kin's mobile number",
+    adminCandidateNextOfKinCnicLabel: "Next-of-kin's CNIC",
+    adminCandidateNextOfKinFieldRequiredError: 'Complete all next-of-kin fields or leave them all blank.',
+    adminCandidateNextOfKinMobileNumberInvalidError: "Enter a valid next-of-kin's mobile number.",
+    adminCandidateNextOfKinCnicInvalidError: 'Enter a valid next-of-kin CNIC in the format 00000-0000000-0.',
 
     // Candidate profile
     candidateProfileMaskedCnicLabel: 'CNIC',
@@ -1002,6 +1010,14 @@ export const translations = {
     adminCandidateConfirmMobileChangeTitle: 'موبائل نمبر کی تبدیلی کی تصدیق کریں',
     adminCandidateConfirmMobileChangeDescription:
       'اس سے امیدوار کا اپنا سائن ان تصدیقی کوڈ بھیجنے کی جگہ تبدیل ہو جاتی ہے۔ یقینی بنائیں کہ نیا نمبر درست ہے۔',
+    adminCandidateNextOfKinSectionTitle: 'قریبی رشتہ دار',
+    adminCandidateNextOfKinNameLabel: 'قریبی رشتہ دار کا نام',
+    adminCandidateNextOfKinRelationshipLabel: 'رشتہ',
+    adminCandidateNextOfKinMobileNumberLabel: 'قریبی رشتہ دار کا موبائل نمبر',
+    adminCandidateNextOfKinCnicLabel: 'قریبی رشتہ دار کا شناختی کارڈ نمبر',
+    adminCandidateNextOfKinFieldRequiredError: 'قریبی رشتہ دار کی تمام معلومات مکمل کریں یا سب خالی چھوڑ دیں۔',
+    adminCandidateNextOfKinMobileNumberInvalidError: 'قریبی رشتہ دار کا درست موبائل نمبر درج کریں۔',
+    adminCandidateNextOfKinCnicInvalidError: 'قریبی رشتہ دار کا درست شناختی کارڈ نمبر درج کریں، مثلاً 00000-0000000-0۔',
 
     // Candidate profile
     candidateProfileMaskedCnicLabel: 'شناختی کارڈ',

@@ -66,6 +66,7 @@ describe("CandidateDetailsPage", () => {
       cnic: "42101-1234567-1",
       mobileNumber: "+923001234567",
       passportNumber: null,
+      nextOfKin: { name: null, relationship: null, mobileNumber: null, cnic: null },
       preferredLocale: "en",
       candidateStatus: "documents_pending",
       active: true,

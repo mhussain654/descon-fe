@@ -59,6 +59,10 @@ function candidateDetailResponse(overrides: Record<string, unknown> = {}) {
     cnic: '42101-1234567-1',
     mobile_number: '+923001234567',
     passport_number: null,
+    next_of_kin_name: null,
+    next_of_kin_relationship: null,
+    next_of_kin_mobile_number: null,
+    next_of_kin_cnic: null,
     preferred_locale: 'en',
     candidate_status: 'documents_pending',
     active: true,
@@ -99,6 +103,7 @@ describe('createAdminCandidateClient (real)', () => {
         cnic: '42101-1234567-1',
         mobileNumber: '+923001234567',
         passportNumber: null,
+        nextOfKin: { name: null, relationship: null, mobileNumber: null, cnic: null },
         preferredLocale: 'en',
         candidateStatus: 'documents_pending',
         active: true,
@@ -200,6 +205,89 @@ describe('createAdminCandidateClient (real)', () => {
       expect(JSON.parse(capturedBody!).candidate.passport_number).toBe('AB123456');
     });
 
+    it('sends all four next-of-kin fields together when complete information is provided', async () => {
+      let capturedBody: string | undefined;
+      stubFetch(async (_url, init) => {
+        capturedBody = init?.body as string;
+        return jsonResponse(successEnvelope(candidateDetailResponse()), { status: 201 });
+      });
+      const client = buildClient();
+
+      await client.createCandidate({
+        fullName: 'Jane Applicant',
+        cnic: '42101-1234567-1',
+        mobileNumber: '+923001234567',
+        nextOfKin: { name: 'Ayesha Ali', relationship: 'Spouse', mobileNumber: '+923001112222', cnic: '42101-7654321-2' },
+        preferredLocale: 'en',
+        countryCode: 'qatar',
+        projectCode: 'qatar_infrastructure',
+        craftCode: 'electrician',
+        referenceNumber: 'DES-000123',
+        idempotencyKey: 'idem-create-nok',
+      });
+
+      expect(JSON.parse(capturedBody!).candidate).toMatchObject({
+        next_of_kin_name: 'Ayesha Ali',
+        next_of_kin_relationship: 'Spouse',
+        next_of_kin_mobile_number: '+923001112222',
+        next_of_kin_cnic: '42101-7654321-2',
+      });
+    });
+
+    it('omits next-of-kin fields entirely when none is provided', async () => {
+      let capturedBody: string | undefined;
+      stubFetch(async (_url, init) => {
+        capturedBody = init?.body as string;
+        return jsonResponse(successEnvelope(candidateDetailResponse()), { status: 201 });
+      });
+      const client = buildClient();
+
+      await client.createCandidate({
+        fullName: 'Jane Applicant',
+        cnic: '42101-1234567-1',
+        mobileNumber: '+923001234567',
+        preferredLocale: 'en',
+        countryCode: 'qatar',
+        projectCode: 'qatar_infrastructure',
+        craftCode: 'electrician',
+        referenceNumber: 'DES-000123',
+        idempotencyKey: 'idem-create-no-nok',
+      });
+
+      expect(JSON.parse(capturedBody!).candidate).not.toHaveProperty('next_of_kin_name');
+    });
+
+    it('maps a backend next-of-kin field error with its exact field', async () => {
+      stubFetch(async () =>
+        jsonResponse(
+          errorEnvelope([
+            { code: 'validation_failed', message: "Enter a valid next-of-kin's mobile number.", field: 'next_of_kin_mobile_number' },
+          ]),
+          { status: 422 }
+        )
+      );
+      const client = buildClient();
+
+      await expect(
+        client.createCandidate({
+          fullName: 'Jane Applicant',
+          cnic: '42101-1234567-1',
+          mobileNumber: '+923001234567',
+          nextOfKin: { name: 'Ayesha Ali', relationship: 'Spouse', mobileNumber: '123', cnic: '42101-7654321-2' },
+          preferredLocale: 'en',
+          countryCode: 'qatar',
+          projectCode: 'qatar_infrastructure',
+          craftCode: 'electrician',
+          referenceNumber: 'DES-000123',
+          idempotencyKey: 'idem-create-nok-error',
+        })
+      ).rejects.toEqual({
+        code: 'VALIDATION_ERROR',
+        message: "Enter a valid next-of-kin's mobile number.",
+        field: 'next_of_kin_mobile_number',
+      });
+    });
+
     it('maps a duplicate CNIC error with its field', async () => {
       stubFetch(async () =>
         jsonResponse(errorEnvelope([{ code: 'duplicate_cnic', message: 'A candidate with this CNIC already exists.', field: 'cnic' }]), {
@@ -252,6 +340,90 @@ describe('createAdminCandidateClient (real)', () => {
       await client.updateCandidate({ candidateId: 'candidate-1', passportNumber: '' });
 
       expect(JSON.parse(capturedBody!).candidate.passport_number).toBe('');
+    });
+
+    it('sends all four next-of-kin fields together and expected_updated_at when editing an existing group', async () => {
+      let capturedBody: string | undefined;
+      stubFetch(async (_url, init) => {
+        capturedBody = init?.body as string;
+        return jsonResponse(successEnvelope(candidateDetailResponse()));
+      });
+      const client = buildClient();
+
+      await client.updateCandidate({
+        candidateId: 'candidate-1',
+        nextOfKin: { name: 'Ayesha Ali', relationship: 'Spouse', mobileNumber: '+923001112222', cnic: '42101-7654321-2' },
+        expectedUpdatedAt: '2026-08-30T09:00:00Z',
+      });
+
+      expect(JSON.parse(capturedBody!)).toEqual({
+        candidate: {
+          next_of_kin_name: 'Ayesha Ali',
+          next_of_kin_relationship: 'Spouse',
+          next_of_kin_mobile_number: '+923001112222',
+          next_of_kin_cnic: '42101-7654321-2',
+          expected_updated_at: '2026-08-30T09:00:00Z',
+        },
+      });
+    });
+
+    it('sends all four next-of-kin fields as empty strings to intentionally clear an existing group', async () => {
+      let capturedBody: string | undefined;
+      stubFetch(async (_url, init) => {
+        capturedBody = init?.body as string;
+        return jsonResponse(successEnvelope(candidateDetailResponse()));
+      });
+      const client = buildClient();
+
+      await client.updateCandidate({
+        candidateId: 'candidate-1',
+        nextOfKin: { name: '', relationship: '', mobileNumber: '', cnic: '' },
+      });
+
+      expect(JSON.parse(capturedBody!).candidate).toMatchObject({
+        next_of_kin_name: '',
+        next_of_kin_relationship: '',
+        next_of_kin_mobile_number: '',
+        next_of_kin_cnic: '',
+      });
+    });
+
+    it('omits next-of-kin fields entirely on an unrelated update, never silently clearing them', async () => {
+      let capturedBody: string | undefined;
+      stubFetch(async (_url, init) => {
+        capturedBody = init?.body as string;
+        return jsonResponse(successEnvelope(candidateDetailResponse({ full_name: 'Updated Name' })));
+      });
+      const client = buildClient();
+
+      await client.updateCandidate({ candidateId: 'candidate-1', fullName: 'Updated Name' });
+
+      expect(JSON.parse(capturedBody!).candidate).not.toHaveProperty('next_of_kin_name');
+    });
+
+    it('maps a populated next-of-kin group in the response', async () => {
+      stubFetch(async () =>
+        jsonResponse(
+          successEnvelope(
+            candidateDetailResponse({
+              next_of_kin_name: 'Ayesha Ali',
+              next_of_kin_relationship: 'Spouse',
+              next_of_kin_mobile_number: '+923001112222',
+              next_of_kin_cnic: '42101-7654321-2',
+            })
+          )
+        )
+      );
+      const client = buildClient();
+
+      const result = await client.updateCandidate({ candidateId: 'candidate-1', fullName: 'X' });
+
+      expect(result.nextOfKin).toEqual({
+        name: 'Ayesha Ali',
+        relationship: 'Spouse',
+        mobileNumber: '+923001112222',
+        cnic: '42101-7654321-2',
+      });
     });
 
     it('maps a stale conflict (409) to STALE_CANDIDATE', async () => {

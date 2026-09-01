@@ -134,6 +134,110 @@ describe("CandidateCreateForm", () => {
     );
   });
 
+  describe("next-of-kin", () => {
+    function fillNextOfKin({ name = "Ayesha Ali", relationship = "Spouse", mobileNumber = "+923001112222", cnic = "4210176543212" } = {}) {
+      fireEvent.change(screen.getByLabelText(/Next-of-kin's name/), { target: { value: name } });
+      fireEvent.change(screen.getByLabelText(/Relationship/), { target: { value: relationship } });
+      fireEvent.change(screen.getByLabelText(/Next-of-kin's mobile number/), { target: { value: mobileNumber } });
+      fireEvent.change(screen.getByLabelText(/Next-of-kin's CNIC/), { target: { value: cnic } });
+    }
+
+    it("submits all four fields together when complete valid information is provided", async () => {
+      adminCandidateClient.createCandidate.mockResolvedValue({
+        id: "candidate-1",
+        fullName: "Jane Applicant",
+        cnic: "42101-1234567-1",
+        mobileNumber: "+923001234567",
+        passportNumber: null,
+        nextOfKin: { name: null, relationship: null, mobileNumber: null, cnic: null },
+        preferredLocale: "en",
+        candidateStatus: "documents_pending",
+        active: true,
+        createdAt: "2026-08-30T09:00:00Z",
+        updatedAt: "2026-08-30T09:00:00Z",
+        assignment: null,
+      });
+      renderForm();
+      await screen.findByRole("option", { name: "Qatar" });
+      fillValidForm();
+      fillNextOfKin();
+
+      fireEvent.click(screen.getByRole("button", { name: "Create candidate" }));
+
+      await waitFor(() =>
+        expect(adminCandidateClient.createCandidate).toHaveBeenCalledWith(
+          expect.objectContaining({
+            nextOfKin: { name: "Ayesha Ali", relationship: "Spouse", mobileNumber: "+923001112222", cnic: "42101-7654321-2" },
+          })
+        )
+      );
+    });
+
+    it("rejects partial next-of-kin information without calling the API", async () => {
+      renderForm();
+      await screen.findByRole("option", { name: "Qatar" });
+      fillValidForm();
+      fireEvent.change(screen.getByLabelText(/Next-of-kin's name/), { target: { value: "Ayesha Ali" } });
+
+      fireEvent.click(screen.getByRole("button", { name: "Create candidate" }));
+
+      expect(await screen.findAllByText("Complete all next-of-kin fields or leave them all blank.")).not.toHaveLength(0);
+      expect(adminCandidateClient.createCandidate).not.toHaveBeenCalled();
+    });
+
+    it("rejects an invalid next-of-kin mobile number without calling the API", async () => {
+      renderForm();
+      await screen.findByRole("option", { name: "Qatar" });
+      fillValidForm();
+      fillNextOfKin({ mobileNumber: "123" });
+
+      fireEvent.click(screen.getByRole("button", { name: "Create candidate" }));
+
+      expect(await screen.findByText("Enter a valid next-of-kin's mobile number.")).toBeInTheDocument();
+      expect(adminCandidateClient.createCandidate).not.toHaveBeenCalled();
+    });
+
+    it("rejects an invalid next-of-kin CNIC without calling the API", async () => {
+      renderForm();
+      await screen.findByRole("option", { name: "Qatar" });
+      fillValidForm();
+      fillNextOfKin({ cnic: "123" });
+
+      fireEvent.click(screen.getByRole("button", { name: "Create candidate" }));
+
+      expect(await screen.findByText("Enter a valid next-of-kin CNIC in the format 00000-0000000-0.")).toBeInTheDocument();
+      expect(adminCandidateClient.createCandidate).not.toHaveBeenCalled();
+    });
+
+    it("maps a backend next-of-kin field error to its exact field", async () => {
+      adminCandidateClient.createCandidate.mockRejectedValue({
+        code: "VALIDATION_ERROR",
+        message: "Enter a valid next-of-kin CNIC in the format 00000-0000000-0.",
+        field: "next_of_kin_cnic",
+      });
+      renderForm();
+      await screen.findByRole("option", { name: "Qatar" });
+      fillValidForm();
+      fillNextOfKin();
+
+      fireEvent.click(screen.getByRole("button", { name: "Create candidate" }));
+
+      expect(await screen.findByText("Enter a valid next-of-kin CNIC in the format 00000-0000000-0.")).toBeInTheDocument();
+    });
+
+    it("renders next-of-kin fields and their error in Urdu with RTL", async () => {
+      localStorage.setItem("descon.language", "ur");
+      renderForm();
+      await screen.findByText("امیدوار شامل کریں");
+      fireEvent.change(screen.getByLabelText(/قریبی رشتہ دار کا نام/), { target: { value: "عائشہ علی" } });
+
+      fireEvent.click(screen.getByRole("button", { name: "امیدوار بنائیں" }));
+
+      expect(await screen.findAllByText("قریبی رشتہ دار کی تمام معلومات مکمل کریں یا سب خالی چھوڑ دیں۔")).not.toHaveLength(0);
+      expect(document.documentElement).toHaveAttribute("dir", "rtl");
+    });
+  });
+
   it("prevents a duplicate submission while the request is pending", async () => {
     adminCandidateClient.createCandidate.mockReturnValue(new Promise(() => {}));
     renderForm();
