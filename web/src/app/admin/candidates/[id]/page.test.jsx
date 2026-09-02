@@ -7,14 +7,16 @@ import { LanguageProvider } from "../../../../contexts/LanguageContext";
 import { StaffAuthProvider } from "../../../../contexts/StaffAuthContext";
 import { adminCandidateClient } from "../../../../lib/admin-candidates-client";
 import { adminWorkflowClient } from "../../../../lib/admin-workflow-client";
+import { adminDocumentReviewsClient } from "../../../../lib/admin-document-reviews-client";
 import CandidateDetailsPage from "./page";
 
 // Document verification's own role-gating (previously tested against this
 // page's mock "Documents" card) now lives entirely at its real feature --
 // /admin/document-reviews/[id] -- which already has its own dedicated
-// coverage. This page composes the real CandidateProfileCard (its own
-// dedicated test file) and the real WorkflowPanel (its own dedicated test
-// file); this file only proves the composition itself works end to end.
+// coverage. This page composes the real CandidateProfileCard,
+// CandidatePaymentStatusCard, CandidateDocumentsSummaryCard and
+// WorkflowPanel (each with its own dedicated test file); this file only
+// proves the composition itself works end to end.
 vi.mock("../../../../lib/admin-candidates-client", () => ({
   adminCandidateClient: {
     getCandidate: vi.fn(),
@@ -36,6 +38,10 @@ vi.mock("../../../../lib/admin-workflow-client", () => ({
     scheduleQvcAppointment: vi.fn(),
     recordQvcOutcome: vi.fn(),
   },
+}));
+
+vi.mock("../../../../lib/admin-document-reviews-client", () => ({
+  adminDocumentReviewsClient: { getQueue: vi.fn(), getSubmission: vi.fn(), requestDocumentAccess: vi.fn(), verifyDocument: vi.fn(), rejectDocument: vi.fn() },
 }));
 
 const HR = MOCK_STAFF_ACCOUNTS.find((account) => account.role === "hr");
@@ -103,6 +109,11 @@ describe("CandidateDetailsPage", () => {
       qvcAttempts: [],
       updatedAt: "2026-08-30T09:00:00Z",
     });
+    adminDocumentReviewsClient.getQueue.mockResolvedValue({
+      items: [],
+      pagination: { page: 1, perPage: 5, totalCount: 0, totalPages: 0 },
+      summary: undefined,
+    });
   });
 
   afterEach(() => {
@@ -111,14 +122,19 @@ describe("CandidateDetailsPage", () => {
     vi.mocked(adminWorkflowClient.getAllowedTransitions).mockReset();
     vi.mocked(adminWorkflowClient.getWorkflowHistory).mockReset();
     vi.mocked(adminWorkflowClient.getQvcAttempts).mockReset();
+    vi.mocked(adminDocumentReviewsClient.getQueue).mockReset();
     sessionStorage.clear();
   });
 
-  it("renders both the real candidate profile and the real workflow panel for the same candidate id", async () => {
+  it("renders the real candidate profile, payment status, documents summary and workflow panel for the same candidate id", async () => {
     await renderPage();
 
     expect(await screen.findByText("Jane Applicant")).toBeInTheDocument();
     expect(await screen.findByText("Workflow")).toBeInTheDocument();
-    expect(screen.getByText("Documents Pending")).toBeInTheDocument();
+    expect(screen.getAllByText("Documents Pending").length).toBeGreaterThan(0);
+    expect(screen.getByText("Payment")).toBeInTheDocument();
+    expect(screen.getByText("Documents")).toBeInTheDocument();
+    expect(screen.getByText("No document submissions yet.")).toBeInTheDocument();
+    expect(adminDocumentReviewsClient.getQueue).toHaveBeenCalledWith({ candidatePublicId: "candidate-1" }, { number: 1, size: 5 });
   });
 });

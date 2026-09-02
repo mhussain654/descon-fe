@@ -138,6 +138,82 @@ describe('createAdminCandidateClient (real)', () => {
     });
   });
 
+  describe('listCandidates', () => {
+    it('sends search, filters, sort and page as query params, and maps items/pagination/appliedFilters', async () => {
+      let capturedUrl: string | undefined;
+      let capturedHeaders: Record<string, string> | undefined;
+      stubFetch(async (url, init) => {
+        capturedUrl = String(url);
+        capturedHeaders = init?.headers as Record<string, string>;
+        return jsonResponse(
+          successEnvelope([candidateDetailResponse()], {
+            pagination: { page: 2, per_page: 20, total_count: 45, total_pages: 3 },
+            applied_filters: { status: 'fee_pending' },
+          })
+        );
+      });
+      const client = buildClient('ur');
+
+      const result = await client.listCandidates({ search: 'Jane', status: 'fee_pending' }, '-created_at', { number: 2, size: 20 });
+
+      expect(capturedUrl).toContain('/admin/candidates?');
+      expect(capturedUrl).toContain('search=Jane');
+      expect(capturedUrl).toContain('filter%5Bstatus%5D=fee_pending');
+      expect(capturedUrl).toContain('sort=-created_at');
+      expect(capturedUrl).toContain('page%5Bnumber%5D=2');
+      expect(capturedHeaders?.['X-Locale']).toBe('ur');
+      expect(result.items).toHaveLength(1);
+      expect(result.items[0].id).toBe('candidate-1');
+      expect(result.pagination).toEqual({ page: 2, perPage: 20, totalCount: 45, totalPages: 3 });
+      expect(result.appliedFilters).toEqual({ status: 'fee_pending' });
+    });
+
+    it('sends no query string at all when no filters, sort or page are given', async () => {
+      let capturedUrl: string | undefined;
+      stubFetch(async (url) => {
+        capturedUrl = String(url);
+        return jsonResponse(successEnvelope([], { pagination: { page: 1, per_page: 20, total_count: 0, total_pages: 0 } }));
+      });
+      const client = buildClient();
+
+      await client.listCandidates({}, undefined, {});
+
+      expect(capturedUrl).toMatch(/\/admin\/candidates$/);
+    });
+
+    it('maps an empty result to an empty items array, not undefined', async () => {
+      stubFetch(async () => jsonResponse(successEnvelope([], { pagination: { page: 1, per_page: 20, total_count: 0, total_pages: 0 } })));
+      const client = buildClient();
+
+      const result = await client.listCandidates({}, undefined, {});
+
+      expect(result.items).toEqual([]);
+      expect(result.appliedFilters).toEqual({});
+    });
+
+    it('maps a 400 (unsupported filter/sort/invalid query parameter) to VALIDATION_ERROR', async () => {
+      stubFetch(async () =>
+        jsonResponse(errorEnvelope([{ code: 'unsupported_sort', message: 'Unsupported sort field.', field: 'sort.unknown' }]), {
+          status: 400,
+        })
+      );
+      const client = buildClient();
+
+      await expect(client.listCandidates({}, undefined, {})).rejects.toEqual({
+        code: 'VALIDATION_ERROR',
+        message: 'Unsupported sort field.',
+        field: 'sort.unknown',
+      });
+    });
+
+    it('maps a 403 to FORBIDDEN', async () => {
+      stubFetch(async () => jsonResponse(errorEnvelope([{ code: 'forbidden', message: 'You do not have access.' }]), { status: 403 }));
+      const client = buildClient();
+
+      await expect(client.listCandidates({}, undefined, {})).rejects.toEqual({ code: 'FORBIDDEN', message: 'You do not have access.' });
+    });
+  });
+
   describe('createCandidate', () => {
     it('sends the documented request body and Idempotency-Key header, omitting passport_number when not given', async () => {
       let capturedUrl: string | undefined;

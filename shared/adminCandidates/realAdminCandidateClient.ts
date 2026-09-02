@@ -14,12 +14,18 @@
 // conflict or a 422 duplicate/validation error reaches the caller intact.
 import type { ApiClient, ApiError } from '../api-client';
 import type { StaffAuthClient, StaffAuthError } from '../auth/staffTypes';
+import { buildCandidateListQuery } from './candidateListQueryParams';
 import type {
   AdminCandidateAssignmentSummary,
   AdminCandidateClient,
   AdminCandidateDetail,
   AdminCandidateError,
   AdminCandidateErrorCode,
+  AdminCandidateListFilters,
+  AdminCandidateListPage,
+  AdminCandidateListResult,
+  AdminCandidateListSort,
+  AdminCandidatePagination,
   CreateCandidateInput,
   NextOfKinDetail,
   NextOfKinInput,
@@ -118,6 +124,28 @@ function toNextOfKin(value: Partial<CandidateDetailResponse>): NextOfKinDetail {
   };
 }
 
+interface PaginationResponse {
+  page: number;
+  per_page: number;
+  total_count: number;
+  total_pages: number;
+}
+
+function toPagination(raw: unknown): AdminCandidatePagination {
+  const value = (raw && typeof raw === 'object' ? raw : {}) as Partial<PaginationResponse>;
+  return {
+    page: typeof value.page === 'number' ? value.page : 1,
+    perPage: typeof value.per_page === 'number' ? value.per_page : 0,
+    totalCount: typeof value.total_count === 'number' ? value.total_count : 0,
+    totalPages: typeof value.total_pages === 'number' ? value.total_pages : 0,
+  };
+}
+
+function toAppliedFilters(raw: unknown): Record<string, string> {
+  if (!raw || typeof raw !== 'object') return {};
+  return Object.fromEntries(Object.entries(raw as Record<string, unknown>).filter((entry): entry is [string, string] => typeof entry[1] === 'string'));
+}
+
 function toCandidateDetail(raw: unknown): AdminCandidateDetail {
   const value = (raw && typeof raw === 'object' ? raw : {}) as Partial<CandidateDetailResponse>;
   return {
@@ -150,6 +178,9 @@ const SERVER_CODE_TO_ERROR: Record<string, AdminCandidateErrorCode> = {
   idempotency_in_progress: 'IDEMPOTENCY_IN_PROGRESS',
   inactive_account: 'INACTIVE_ACCOUNT',
   not_found: 'NOT_FOUND',
+  unsupported_filter: 'VALIDATION_ERROR',
+  unsupported_sort: 'VALIDATION_ERROR',
+  invalid_query_parameter: 'VALIDATION_ERROR',
 };
 
 function isStaffAuthError(error: unknown): error is StaffAuthError {
@@ -178,6 +209,7 @@ function toCandidateError(error: unknown): AdminCandidateError {
     return { code: mapped, message: apiError.message, field: apiError.field };
   }
 
+  if (apiError.status === 400) return { code: 'VALIDATION_ERROR', message: apiError.message, field: apiError.field };
   if (apiError.status === 403) return { code: 'FORBIDDEN', message: apiError.message };
   if (apiError.status === 404) return { code: 'NOT_FOUND', message: apiError.message };
   if (apiError.status === 409) return { code: 'STALE_CANDIDATE', message: apiError.message };
@@ -229,6 +261,32 @@ export function createAdminCandidateClient(options: RealAdminCandidateClientOpti
           })
         );
         return toCandidateDetail(data);
+      } catch (error) {
+        throw toCandidateError(error);
+      }
+    },
+
+    async listCandidates(
+      filters: AdminCandidateListFilters,
+      sort: AdminCandidateListSort | undefined,
+      page: AdminCandidateListPage
+    ): Promise<AdminCandidateListResult> {
+      const query = buildCandidateListQuery(filters, sort, page);
+      try {
+        const result = await staffAuthClient.authenticatedDataRequest((token) =>
+          apiClient.getWithMeta<CandidateDetailResponse[]>(`/admin/candidates${query}`, {
+            headers: { Authorization: `Bearer ${token}`, 'X-Locale': getLocale() },
+          })
+        );
+        if (!result) throw { code: 'UNKNOWN' } satisfies AdminCandidateError;
+
+        const items = Array.isArray(result.data) ? result.data.map(toCandidateDetail) : [];
+        const meta = result.meta as { pagination?: unknown; applied_filters?: unknown } | undefined;
+        return {
+          items,
+          pagination: toPagination(meta?.pagination),
+          appliedFilters: toAppliedFilters(meta?.applied_filters),
+        };
       } catch (error) {
         throw toCandidateError(error);
       }

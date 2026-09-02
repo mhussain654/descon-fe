@@ -462,6 +462,17 @@ describe("CandidateProfileCard", () => {
     await screen.findByText("Jane Applicant");
   });
 
+  it("shows a distinct candidate-not-found state, with no retry action, for a 404", async () => {
+    adminCandidateClient.getCandidate.mockRejectedValue({ code: "NOT_FOUND" });
+    const client = await signInAs(HR);
+
+    renderCard(client);
+
+    expect(await screen.findByText("Candidate not found")).toBeInTheDocument();
+    expect(screen.getByText("This candidate may have been removed, or the link may be incorrect.")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Retry" })).not.toBeInTheDocument();
+  });
+
   it("renders the panel in Urdu when that is the persisted language", async () => {
     localStorage.setItem("descon.language", "ur");
     adminCandidateClient.getCandidate.mockResolvedValue(candidateDetail());

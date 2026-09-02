@@ -5,6 +5,7 @@ import {
   Card,
   CnicField,
   ConfirmDialog,
+  EmptyState,
   ErrorState,
   ForbiddenState,
   Input,
@@ -101,6 +102,18 @@ export function CandidateProfileCard({ candidateId }: CandidateProfileCardProps)
           retryLabel={t('retry')}
           onRetry={() => detailQuery.refetch()}
         />
+      </Card>
+    );
+  }
+
+  if (detailQuery.error?.code === 'NOT_FOUND') {
+    // Distinct from the generic error state below -- a 404 for this
+    // candidate id will never resolve by retrying the same request, so
+    // there is no retry action here, only the page's own "Back to
+    // Dashboard" link (already rendered above this card) to leave it.
+    return (
+      <Card>
+        <EmptyState title={t('adminCandidateNotFound')} description={t('adminCandidateNotFoundDescription')} />
       </Card>
     );
   }
