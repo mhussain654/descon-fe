@@ -5,15 +5,25 @@
 import { createCandidateImportClient } from '../../../shared/adminCandidateImport/realCandidateImportClient';
 import type {
   CandidateImportClient,
+  CandidateImportCommitResult,
   CandidateImportError,
   CandidateImportErrorCode,
-  CandidateImportResult,
+  CandidateImportPreflightResult,
   CandidateImportRowError,
+  CandidateImportTemplate,
 } from '../../../shared/adminCandidateImport/types';
 import { apiClient } from './api-client';
 import { staffAuthClient } from './staff-auth-client';
 
-export type { CandidateImportClient, CandidateImportError, CandidateImportErrorCode, CandidateImportResult, CandidateImportRowError };
+export type {
+  CandidateImportClient,
+  CandidateImportCommitResult,
+  CandidateImportError,
+  CandidateImportErrorCode,
+  CandidateImportPreflightResult,
+  CandidateImportRowError,
+  CandidateImportTemplate,
+};
 
 const LANGUAGE_STORAGE_KEY = 'descon.language';
 

@@ -14,7 +14,7 @@ import CandidateImportPage from "./page";
 import { candidateImportClient } from "../../../../lib/candidate-import-client";
 
 vi.mock("../../../../lib/candidate-import-client", () => ({
-  candidateImportClient: { importCandidates: vi.fn() },
+  candidateImportClient: { downloadTemplate: vi.fn(), preflightImport: vi.fn(), commitImport: vi.fn() },
 }));
 
 const HR = MOCK_STAFF_ACCOUNTS.find((account) => account.role === "hr" && !account.locked && !account.suspended);

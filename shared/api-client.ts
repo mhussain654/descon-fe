@@ -173,6 +173,19 @@ async function parseJsonBody<T>(response: Response): Promise<T | undefined> {
   return (await parseEnvelope<T>(response)).data;
 }
 
+export interface ParsedFile {
+  content: string;
+  /** From the response's own `Content-Disposition` header, when the server sent one (Rails' `send_data(..., filename:, disposition: 'attachment')` always does). Undefined only if a future endpoint omits it -- callers should fall back to their own default in that case, not assume this is always present. */
+  filename: string | undefined;
+}
+
+/** Rails' `send_data` quotes the filename (`attachment; filename="foo.csv"`); this also tolerates an unquoted value. */
+function filenameFromContentDisposition(value: string | null): string | undefined {
+  if (!value) return undefined;
+  const match = /filename="?([^";]+)"?/i.exec(value);
+  return match?.[1];
+}
+
 export function createApiClient(config: ApiClientConfig) {
   const {
     baseUrl,
@@ -284,9 +297,27 @@ export function createApiClient(config: ApiClientConfig) {
     }
   }
 
+  /**
+   * For an endpoint whose success response is a raw file (e.g. `send_data`
+   * on the Rails side), not a SuccessEnvelope -- the candidate-import CSV
+   * template today, an error-CSV download later. `filename` comes from the
+   * response's own `Content-Disposition` header when the server sent one,
+   * never guessed/hardcoded client-side, so a backend-side filename/version
+   * change is reflected automatically. Error responses are unaffected: a
+   * non-OK response is still the standard ErrorEnvelope, handled by
+   * `toResponseError` exactly as every other method already does.
+   */
+  async function requestFile(method: string, path: string, opts: RequestOptions = {}): Promise<ParsedFile> {
+    const response = await fetchOkResponse(method, path, undefined, opts);
+    const content = await response.text();
+    const filename = filenameFromContentDisposition(response.headers.get('content-disposition'));
+    return { content, filename };
+  }
+
   return {
     get: <T>(path: string, opts?: RequestOptions) => request<T>('GET', path, undefined, opts),
     getWithMeta: <T>(path: string, opts?: RequestOptions) => requestWithMeta<T>('GET', path, undefined, opts),
+    getFile: (path: string, opts?: RequestOptions) => requestFile('GET', path, opts),
     post: <T>(path: string, body?: unknown, opts?: RequestOptions) =>
       request<T>('POST', path, body, opts),
     put: <T>(path: string, body?: unknown, opts?: RequestOptions) =>
