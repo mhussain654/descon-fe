@@ -59,6 +59,7 @@ export default function RootLayout() {
               <Stack.Screen name="index" />
               <Stack.Screen name="login" />
               <Stack.Screen name="(tabs)" />
+              <Stack.Screen name="payment" />
               {/* Developer-facing component reference, not a candidate screen --
                   excluded from production builds (redirects to the initial
                   route if somehow navigated to), matching the equivalent web

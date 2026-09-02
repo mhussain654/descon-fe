@@ -31,11 +31,10 @@ const quickActions = [
   },
   {
     titleKey: "makePayment",
-    subLabelKey: "makePaymentComingSoon",
     icon: CreditCard,
     color: "#10B981",
     bgColor: "#E6F9F0",
-    disabled: true,
+    href: "/payment",
   },
 ];
 

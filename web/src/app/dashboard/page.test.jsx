@@ -248,7 +248,7 @@ describe("DashboardPage", () => {
     expect(await screen.findByText("Verification complete")).toBeInTheDocument();
   });
 
-  it("renders the quick-action link to documents and status, and shows Make Payment as visibly disabled", async () => {
+  it("renders the quick-action links to documents, status, and payment", async () => {
     candidateProfileClient.getProfile.mockResolvedValue(profilePayload());
     candidateDocumentsClient.getChecklist.mockResolvedValue([]);
     applicationProgressClient.getProgress.mockResolvedValue(progress());
@@ -257,9 +257,7 @@ describe("DashboardPage", () => {
     await screen.findByText("Ahmed Ali");
     expect(screen.getByRole("link", { name: /Upload Documents/ })).toHaveAttribute("href", "/documents");
     expect(screen.getByRole("link", { name: /View Status/ })).toHaveAttribute("href", "/status");
-    expect(screen.queryByRole("link", { name: /Make Payment/ })).not.toBeInTheDocument();
-    expect(screen.getByText("Make Payment")).toBeInTheDocument();
-    expect(screen.getByText("Coming soon")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /Make Payment/ })).toHaveAttribute("href", "/payment");
   });
 
   it("shows a dedicated session-expired screen (not a silent redirect) on a session-expired error from any source query, ending the session only once confirmed", async () => {

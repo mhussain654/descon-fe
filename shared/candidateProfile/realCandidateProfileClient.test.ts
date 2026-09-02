@@ -70,6 +70,51 @@ describe('createCandidateProfileClient (real)', () => {
       candidateStatus: 'registered',
       currentWorkflowStage: { code: 'registered', name: 'Registered' },
       active: true,
+      payment: {
+        eligible: false,
+        checkoutAvailable: false,
+        requiredStageCode: '',
+        currentStageCode: null,
+        blockingReasons: [],
+        amount: '0',
+        currencyCode: '',
+        latestPayment: null,
+      },
+    });
+  });
+
+  it('maps a real payment eligibility embedded in the profile response (MPS-F601)', async () => {
+    stubFetch(async () =>
+      jsonResponse(
+        successEnvelope(
+          profilePayload({
+            payment: {
+              eligible: true,
+              checkout_available: true,
+              required_stage_code: 'fee_pending',
+              current_stage_code: 'fee_pending',
+              blocking_reasons: [],
+              amount: '1500.0',
+              currency_code: 'PKR',
+              latest_payment: null,
+            },
+          })
+        )
+      )
+    );
+    const client = buildClient();
+
+    const profile = await client.getProfile('candidate-access-token');
+
+    expect(profile.payment).toEqual({
+      eligible: true,
+      checkoutAvailable: true,
+      requiredStageCode: 'fee_pending',
+      currentStageCode: 'fee_pending',
+      blockingReasons: [],
+      amount: '1500.0',
+      currencyCode: 'PKR',
+      latestPayment: null,
     });
   });
 

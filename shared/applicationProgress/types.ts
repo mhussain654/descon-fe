@@ -7,6 +7,7 @@
 //
 // Platform-independent only -- no browser or React Native types appear
 // anywhere in this module, matching shared/candidateDocuments/types.ts.
+import type { PaymentEligibility } from '../payments/types';
 
 export type ApplicationSubmissionState =
   | 'no_assignment'
@@ -100,6 +101,8 @@ export interface ApplicationProgress {
   /** The real, backend-computed 15-stage workflow snapshot (MPS-501) -- the sole source for rendering the Status screen's timeline and the Dashboard's current-stage summary. */
   workflow: ApplicationProgressWorkflow;
   documents: ApplicationProgressDocuments;
+  /** Same eligibility/latest-payment shape as GET /candidate/payment (MPS-F601) -- kept in sync here purely so other screens can read it without a second fetch; the dedicated payment page/journey is still the source of truth for acting on it. */
+  payment: PaymentEligibility;
 }
 
 export interface DocumentSubmissionResultDocuments {

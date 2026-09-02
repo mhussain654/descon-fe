@@ -3,6 +3,7 @@
 //   GET  /api/v1/candidate/application_progress
 //   POST /api/v1/candidate/document_submissions
 import type { ApiClient, ApiError } from '../api-client';
+import { toPaymentEligibility, type EligibilityResponse } from '../payments/mapEligibilityResponse';
 import type {
   ApplicationProgress,
   ApplicationProgressClient,
@@ -67,6 +68,7 @@ interface ApplicationProgressResponse {
   current_workflow_stage: WorkflowStageResponse | null;
   workflow: ApplicationProgressWorkflowResponse;
   documents: ApplicationProgressDocumentsResponse;
+  payment: EligibilityResponse;
 }
 
 interface DocumentSubmissionResultResponse {
@@ -210,6 +212,7 @@ function toApplicationProgress(raw: unknown): ApplicationProgress {
     currentWorkflowStage: toWorkflowStage(value.current_workflow_stage),
     workflow: toApplicationProgressWorkflow(value.workflow),
     documents: toDocuments(value.documents),
+    payment: toPaymentEligibility(value.payment),
   };
 }
 

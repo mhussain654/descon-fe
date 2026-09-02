@@ -1,0 +1,196 @@
+import { useEffect } from "react";
+import { CheckCircle, XCircle, Clock, Ban } from "lucide-react";
+import { useAuth } from "../../../../contexts/AuthContext";
+import { useLanguage } from "../../../../contexts/LanguageContext";
+import { usePaymentEligibility } from "../hooks/usePaymentEligibility";
+import { useInitiateCheckout } from "../hooks/useInitiateCheckout";
+import {
+  Badge,
+  Button,
+  EmptyState,
+  ErrorState,
+  ForbiddenState,
+  LoadingState,
+  OfflineState,
+  SessionExpiredState,
+  ValidationMessage,
+} from "../../../../design-system";
+import { PAYMENT_ERROR_KEYS } from "../../../../../../shared/payments/errorMessages";
+import {
+  isCheckoutExpired,
+  PAYMENT_BLOCKING_REASON_KEYS,
+  PAYMENT_STATUS_KEYS,
+  PAYMENT_STATUS_TONES,
+} from "../../../../../../shared/payments/statusLabels";
+
+const RETRYABLE_ERROR_CODES = new Set(["NETWORK_ERROR", "OFFLINE", "SERVER_ERROR", "RATE_LIMITED", "IDEMPOTENCY_IN_PROGRESS"]);
+
+const STATUS_ICONS = {
+  checkout_pending: Clock,
+  paid: CheckCircle,
+  failed: XCircle,
+  cancelled: Ban,
+  unknown: Clock,
+};
+
+export function PaymentPanel() {
+  const { t, language } = useLanguage();
+  const { logout } = useAuth();
+  const eligibilityQuery = usePaymentEligibility();
+  const checkout = useInitiateCheckout();
+
+  const returnToSignIn = () => {
+    logout("expired");
+  };
+
+  useEffect(() => {
+    const code = checkout.mutation.error?.code;
+    if (code === "SESSION_EXPIRED" || code === "INACTIVE_ACCOUNT") {
+      returnToSignIn();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [checkout.mutation.error]);
+
+  if (eligibilityQuery.isLoading) {
+    return <LoadingState message={t("loading")} />;
+  }
+
+  const error = eligibilityQuery.error;
+  if (error?.code === "SESSION_EXPIRED" || error?.code === "INACTIVE_ACCOUNT") {
+    return (
+      <SessionExpiredState
+        title={t("dsSessionExpiredTitle")}
+        description={t("dsSessionExpiredDescription")}
+        actionLabel={t("dsSessionExpiredAction")}
+        onAction={returnToSignIn}
+      />
+    );
+  }
+  if (error?.code === "FORBIDDEN") {
+    return <ForbiddenState title={t("dsForbiddenTitle")} description={t(PAYMENT_ERROR_KEYS.FORBIDDEN)} />;
+  }
+  if (error?.code === "OFFLINE") {
+    return (
+      <OfflineState
+        title={t("dsOfflineTitle")}
+        description={t("dsOfflineDescription")}
+        retryLabel={t("retry")}
+        onRetry={() => eligibilityQuery.refetch()}
+      />
+    );
+  }
+  if (error) {
+    return (
+      <ErrorState message={t(PAYMENT_ERROR_KEYS[error.code])} retryLabel={t("retry")} onRetry={() => eligibilityQuery.refetch()} />
+    );
+  }
+
+  const eligibility = eligibilityQuery.data;
+  if (!eligibility) {
+    return <ErrorState message={t("somethingWentWrong")} retryLabel={t("retry")} onRetry={() => eligibilityQuery.refetch()} />;
+  }
+
+  const payment = eligibility.latestPayment;
+  const expired = payment ? isCheckoutExpired(payment.status, payment.checkoutExpiresAt) : false;
+  const stillWaiting = payment?.status === "checkout_pending" && !expired;
+  const checkoutError = checkout.mutation.error;
+  const canRetryCheckout = checkoutError && RETRYABLE_ERROR_CODES.has(checkoutError.code);
+  const showPayAction =
+    eligibility.checkoutAvailable && (!payment || payment.status === "failed" || payment.status === "cancelled" || expired);
+
+  return (
+    <div className="space-y-5">
+      <div className="rounded-xl border border-gray-200 bg-white p-5">
+        <div className="mb-1 text-sm text-gray-600">{t("paymentAmountLabel")}</div>
+        <div className="text-2xl font-semibold text-black" dir="ltr">
+          {eligibility.amount} {eligibility.currencyCode}
+        </div>
+      </div>
+
+      {payment ? <LatestPaymentCard payment={payment} expired={expired} language={language} t={t} /> : null}
+
+      {!eligibility.eligible ? (
+        <EmptyState
+          title={t("paymentNotEligibleTitle")}
+          description={eligibility.blockingReasons.map((reason) => t(PAYMENT_BLOCKING_REASON_KEYS[reason])).join(" ")}
+        />
+      ) : null}
+
+      {eligibility.eligible && !eligibility.checkoutAvailable ? (
+        <ValidationMessage tone="error">{t("paymentProviderUnavailableError")}</ValidationMessage>
+      ) : null}
+
+      {showPayAction ? (
+        <Button onClick={checkout.initiate} disabled={checkout.mutation.isPending} loading={checkout.mutation.isPending}>
+          {t("paymentPayAction")}
+        </Button>
+      ) : null}
+
+      {checkoutError && checkoutError.code !== "IDEMPOTENCY_CONFLICT" ? (
+        <div>
+          <ValidationMessage tone="error">{checkoutError.message || t(PAYMENT_ERROR_KEYS[checkoutError.code])}</ValidationMessage>
+          {canRetryCheckout ? (
+            <Button variant="text" size="sm" onClick={checkout.initiate} disabled={checkout.mutation.isPending}>
+              {t("retry")}
+            </Button>
+          ) : null}
+        </div>
+      ) : null}
+
+      {checkout.manualCheckoutUrl ? (
+        <div className="rounded-xl bg-[#FFF7E6] px-4 py-3">
+          <p className="mb-2 text-sm text-gray-700">{t("paymentPopupBlockedMessage")}</p>
+          <Button variant="outline" size="sm" onClick={checkout.openCheckoutManually}>
+            {t("paymentOpenCheckoutAction")}
+          </Button>
+        </div>
+      ) : null}
+
+      {stillWaiting && !eligibilityQuery.pollingTimedOut ? (
+        <div className="rounded-xl bg-[#FFF7E6] px-4 py-3 text-sm text-gray-700">{t("paymentWaitingForConfirmation")}</div>
+      ) : null}
+
+      {stillWaiting && eligibilityQuery.pollingTimedOut ? (
+        <div className="rounded-xl bg-[#FFF7E6] px-4 py-3">
+          <p className="mb-2 text-sm text-gray-700">{t("paymentPollingTimedOutMessage")}</p>
+          <Button variant="outline" size="sm" onClick={() => eligibilityQuery.refetch()} disabled={eligibilityQuery.isFetching}>
+            {t("paymentManualRefreshAction")}
+          </Button>
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+function LatestPaymentCard({ payment, expired, language, t }) {
+  const displayStatus = expired ? "expired" : payment.status;
+  const Icon = expired ? XCircle : (STATUS_ICONS[payment.status] ?? Clock);
+  const tone = expired ? "danger" : PAYMENT_STATUS_TONES[payment.status];
+  const statusLabelKey = expired ? "paymentStatusExpired" : PAYMENT_STATUS_KEYS[payment.status];
+
+  return (
+    <div className="rounded-xl border border-gray-200 bg-white p-5">
+      <div className="mb-3 flex items-center justify-between">
+        <span className="text-sm font-medium text-black">{t("paymentLatestPaymentLabel")}</span>
+        <Badge tone={tone}>{t(statusLabelKey)}</Badge>
+      </div>
+      <div className="flex items-center gap-3 text-sm text-gray-700">
+        <Icon size={20} />
+        <span dir="ltr">
+          {payment.amount} {payment.currencyCode}
+        </span>
+      </div>
+      {displayStatus === "paid" && payment.paidAt ? (
+        <div className="mt-2 text-xs text-gray-500">
+          {t("paymentPaidAtLabel")}:{" "}
+          <span dir="ltr">{new Date(payment.paidAt).toLocaleString(language === "ur" ? "ur-PK" : "en-GB")}</span>
+        </div>
+      ) : null}
+      {displayStatus === "paid" ? (
+        <div className="mt-1 text-xs text-gray-500">
+          {t("paymentReferenceLabel")}: <span dir="ltr">{payment.id}</span>
+        </div>
+      ) : null}
+    </div>
+  );
+}

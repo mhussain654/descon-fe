@@ -199,11 +199,9 @@ export default function DashboardScreen() {
     {
       icon: CreditCard,
       label: t("makePayment"),
-      subLabel: t("makePaymentComingSoon"),
       color: "#10B981",
       bgColor: isDark ? "#1A2E1A" : "#E6F9F0",
-      disabled: true,
-      onPress: undefined,
+      onPress: () => router.push("/payment"),
     },
     {
       icon: Clock,
