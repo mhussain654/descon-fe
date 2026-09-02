@@ -15,8 +15,22 @@ describe("PaymentPendingPage", () => {
       </LanguageProvider>
     );
 
-    expect(screen.getByText("You're all set")).toBeInTheDocument();
-    expect(screen.getByText(/close this tab and return to the Descon app/)).toBeInTheDocument();
+    expect(screen.getByText("Payment confirmation pending")).toBeInTheDocument();
+    expect(
+      screen.getByText("Your payment provider is processing the payment. Return to Descon to check the confirmed status.")
+    ).toBeInTheDocument();
+  });
+
+  it("never implies the payment has succeeded -- the callback may still be pending", () => {
+    render(
+      <LanguageProvider>
+        <PaymentPendingPage />
+      </LanguageProvider>
+    );
+
+    expect(screen.queryByText(/all set/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/success/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/confirmed/i, { selector: "h1" })).not.toBeInTheDocument();
   });
 
   it("renders in Urdu when that is the persisted language", () => {
@@ -27,7 +41,7 @@ describe("PaymentPendingPage", () => {
       </LanguageProvider>
     );
 
-    expect(screen.getByText("آپ کا کام مکمل ہو گیا")).toBeInTheDocument();
+    expect(screen.getByText("ادائیگی کی تصدیق زیر التواء ہے")).toBeInTheDocument();
     localStorage.removeItem("descon.language");
   });
 });

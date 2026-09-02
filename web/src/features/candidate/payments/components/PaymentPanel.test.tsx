@@ -40,6 +40,19 @@ function payment(overrides = {}) {
   };
 }
 
+/** A minimal window.open() return-value stand-in: settable .location.href (what the popup-safe checkout flow navigates), a spyable .close(), and a real .opener slot to prove it gets nulled. */
+function createPopupStub() {
+  const stub: { closed: boolean; opener: unknown; location: { href: string }; close: () => void } = {
+    closed: false,
+    opener: {},
+    location: { href: "" },
+    close: () => {
+      stub.closed = true;
+    },
+  };
+  return stub;
+}
+
 function LoginStub() {
   const { login } = useAuth();
   return (
@@ -113,19 +126,85 @@ describe("PaymentPanel", () => {
     expect(screen.queryByRole("button", { name: "Pay now" })).not.toBeInTheDocument();
   });
 
-  it("initiates checkout and opens the backend-provided checkout URL in a new tab, never the current one", async () => {
+  it("opens a blank protected tab synchronously on click, then navigates it to the backend-provided checkout URL once initiation succeeds", async () => {
     paymentsClient.getEligibility.mockResolvedValue(eligibility());
     paymentsClient.initiateCheckout.mockResolvedValue({ eligibility: eligibility({ latestPayment: payment() }), payment: payment() });
-    const openSpy = vi.spyOn(window, "open").mockImplementation(() => null);
+    const popup = createPopupStub();
+    const openSpy = vi.spyOn(window, "open").mockReturnValue(popup as unknown as Window);
     renderPanel();
 
     fireEvent.click(await screen.findByRole("button", { name: "Pay now" }));
 
-    await waitFor(() => expect(paymentsClient.initiateCheckout).toHaveBeenCalledWith("candidate-access-token", expect.any(String)));
-    await waitFor(() =>
-      expect(openSpy).toHaveBeenCalledWith("https://mock-payments.example.test/checkout?orderid=1", "_blank", "noopener,noreferrer")
-    );
+    // Opened in the same click, before the checkout URL is known -- never
+    // passed noopener/noreferrer here, since that would make window.open
+    // return null and lose the handle this needs to navigate later.
+    expect(openSpy).toHaveBeenCalledWith("", "_blank");
+    expect(popup.opener).toBeNull();
+
+    await waitFor(() => expect(popup.location.href).toBe("https://mock-payments.example.test/checkout?orderid=1"));
     expect(window.location.href).not.toContain("mock-payments.example.test");
+    expect(screen.queryByText("Open checkout")).not.toBeInTheDocument();
+    // Opening (and even navigating) the tab is not confirmation -- only a
+    // subsequent GET returning "paid" is, which this mock never returns.
+    expect(screen.queryByText("Paid")).not.toBeInTheDocument();
+    openSpy.mockRestore();
+  });
+
+  it("shows a fallback button to open checkout manually when the browser blocks the pre-opened tab", async () => {
+    paymentsClient.getEligibility.mockResolvedValue(eligibility());
+    paymentsClient.initiateCheckout.mockResolvedValue({ eligibility: eligibility({ latestPayment: payment() }), payment: payment() });
+    const openSpy = vi.spyOn(window, "open").mockReturnValue(null);
+    renderPanel();
+
+    fireEvent.click(await screen.findByRole("button", { name: "Pay now" }));
+
+    expect(
+      await screen.findByText("Your browser blocked the checkout window. Use the button below to open it manually.")
+    ).toBeInTheDocument();
+    const manualButton = screen.getByRole("button", { name: "Open checkout" });
+
+    const manualPopup = createPopupStub();
+    openSpy.mockClear();
+    openSpy.mockReturnValue(manualPopup as unknown as Window);
+    fireEvent.click(manualButton);
+
+    // A click on the fallback button is its own fresh user gesture, so this
+    // one can safely pass noopener/noreferrer directly -- there's no later
+    // navigation step needed since the URL is already known.
+    expect(openSpy).toHaveBeenCalledWith("https://mock-payments.example.test/checkout?orderid=1", "_blank", "noopener,noreferrer");
+    expect(screen.queryByRole("button", { name: "Open checkout" })).not.toBeInTheDocument();
+    openSpy.mockRestore();
+  });
+
+  it("shows the fallback button when the candidate closes the pre-opened tab before initiation resolves", async () => {
+    paymentsClient.getEligibility.mockResolvedValue(eligibility());
+    paymentsClient.initiateCheckout.mockResolvedValue({ eligibility: eligibility({ latestPayment: payment() }), payment: payment() });
+    const popup = createPopupStub();
+    const openSpy = vi.spyOn(window, "open").mockReturnValue(popup as unknown as Window);
+    renderPanel();
+
+    fireEvent.click(await screen.findByRole("button", { name: "Pay now" }));
+    popup.close();
+
+    expect(
+      await screen.findByText("Your browser blocked the checkout window. Use the button below to open it manually.")
+    ).toBeInTheDocument();
+    openSpy.mockRestore();
+  });
+
+  it("closes the pre-opened tab when checkout initiation fails", async () => {
+    paymentsClient.getEligibility.mockResolvedValue(eligibility());
+    paymentsClient.initiateCheckout.mockRejectedValue({ code: "SERVER_ERROR" });
+    const popup = createPopupStub();
+    const closeSpy = vi.spyOn(popup, "close");
+    const openSpy = vi.spyOn(window, "open").mockReturnValue(popup as unknown as Window);
+    renderPanel();
+
+    fireEvent.click(await screen.findByRole("button", { name: "Pay now" }));
+
+    await screen.findByText("Something went wrong.");
+    expect(closeSpy).toHaveBeenCalled();
+    expect(screen.queryByRole("button", { name: "Open checkout" })).not.toBeInTheDocument();
     openSpy.mockRestore();
   });
 
@@ -134,16 +213,22 @@ describe("PaymentPanel", () => {
     renderPanel();
 
     expect(await screen.findByText(/waiting for your payment provider/)).toBeInTheDocument();
+    expect(screen.queryByText(/Payment reference/)).not.toBeInTheDocument();
   });
 
-  it("shows the paid receipt with amount and paid-on date, never provider internals", async () => {
+  it("shows the paid receipt with amount, paid-on date, and the safe payment reference id, never provider internals", async () => {
     paymentsClient.getEligibility.mockResolvedValue(
-      eligibility({ latestPayment: payment({ status: "paid", paidAt: "2026-08-31T10:00:00Z" }), checkoutAvailable: true })
+      eligibility({
+        latestPayment: payment({ id: "payment-public-id-42", status: "paid", paidAt: "2026-08-31T10:00:00Z" }),
+        checkoutAvailable: true,
+      })
     );
     renderPanel();
 
     expect(await screen.findByText("Paid")).toBeInTheDocument();
     expect(screen.getByText(/Paid on/)).toBeInTheDocument();
+    expect(screen.getByText(/Payment reference/)).toBeInTheDocument();
+    expect(screen.getByText("payment-public-id-42")).toBeInTheDocument();
     expect(screen.queryByText(/mock_hosted_checkout/)).not.toBeInTheDocument();
   });
 
@@ -175,12 +260,14 @@ describe("PaymentPanel", () => {
       code: "NOT_ELIGIBLE",
       message: "This candidate is not eligible to start payment.",
     });
+    const openSpy = vi.spyOn(window, "open").mockReturnValue(null);
     renderPanel();
 
     fireEvent.click(await screen.findByRole("button", { name: "Pay now" }));
 
     expect(await screen.findByText("This candidate is not eligible to start payment.")).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Retry" })).not.toBeInTheDocument();
+    openSpy.mockRestore();
   });
 
   it("renders in Urdu when that is the persisted language", async () => {

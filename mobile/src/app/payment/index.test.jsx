@@ -150,6 +150,10 @@ describe("PaymentScreen", () => {
       expect(mockOpenBrowserAsync).toHaveBeenCalledWith("https://mock-payments.example.test/checkout?orderid=1")
     );
     expect(await screen.findByText(/waiting for your payment provider/)).toBeOnTheScreen();
+    // Dismissing the in-app browser (back gesture, "Done", or completing
+    // payment all resolve openBrowserAsync identically) must never itself
+    // imply success -- only a subsequent GET returning "paid" can.
+    expect(screen.queryByText("Paid")).not.toBeOnTheScreen();
   });
 
   it("prevents a duplicate checkout initiation while one is already in flight", async () => {
@@ -182,14 +186,19 @@ describe("PaymentScreen", () => {
     expect(secondKey).toBe(paymentsClient.initiateCheckout.mock.calls[0][1]);
   });
 
-  it("shows the paid receipt with amount and paid-on date once the backend confirms paid, never before", async () => {
+  it("shows the paid receipt with amount, paid-on date, and the safe payment reference id once the backend confirms paid, never before", async () => {
     paymentsClient.getEligibility.mockResolvedValue(
-      eligibility({ latestPayment: payment({ status: "paid", paidAt: "2026-08-31T10:00:00Z" }), checkoutAvailable: true })
+      eligibility({
+        latestPayment: payment({ id: "payment-public-id-42", status: "paid", paidAt: "2026-08-31T10:00:00Z" }),
+        checkoutAvailable: true,
+      })
     );
     renderPaymentScreen();
 
     expect(await screen.findByText("Paid")).toBeOnTheScreen();
     expect(screen.getByText(/Paid on/)).toBeOnTheScreen();
+    expect(screen.getByText(/Payment reference/)).toBeOnTheScreen();
+    expect(screen.getByText(/payment-public-id-42/)).toBeOnTheScreen();
     expect(screen.queryByText(/mock_hosted_checkout/)).not.toBeOnTheScreen();
   });
 

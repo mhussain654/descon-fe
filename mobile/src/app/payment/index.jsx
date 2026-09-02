@@ -273,6 +273,11 @@ function LatestPaymentCard({ payment, expired, isDark, language, t }) {
           {t("paymentPaidAtLabel")}: {new Date(payment.paidAt).toLocaleString(language === "ur" ? "ur-PK" : "en-GB")}
         </Text>
       ) : null}
+      {displayStatus === "paid" ? (
+        <Text style={{ marginTop: 4, fontSize: 12, fontFamily: "Inter_400Regular", color: isDark ? "#9CA3AF" : "#6B7280" }}>
+          {t("paymentReferenceLabel")}: {payment.id}
+        </Text>
+      ) : null}
     </View>
   );
 }

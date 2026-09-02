@@ -51,20 +51,6 @@ export function PaymentPanel() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [checkout.mutation.error]);
 
-  // Never redirect via the SPA's own tab -- an in-memory-only session
-  // would be lost the moment the browser navigates away to the hosted
-  // checkout page and back. Opening a new tab keeps this tab's session
-  // alive so it can keep polling for the authoritative outcome, matching
-  // the ticket's own "backend payment status is authoritative, never a
-  // redirect/URL param" requirement -- there is nothing in this tab that
-  // ever trusts anything about what happens in the other one.
-  useEffect(() => {
-    const url = checkout.mutation.data?.payment.checkoutUrl;
-    if (checkout.mutation.isSuccess && url) {
-      window.open(url, "_blank", "noopener,noreferrer");
-    }
-  }, [checkout.mutation.isSuccess, checkout.mutation.data]);
-
   if (eligibilityQuery.isLoading) {
     return <LoadingState message={t("loading")} />;
   }
@@ -151,6 +137,15 @@ export function PaymentPanel() {
         </div>
       ) : null}
 
+      {checkout.manualCheckoutUrl ? (
+        <div className="rounded-xl bg-[#FFF7E6] px-4 py-3">
+          <p className="mb-2 text-sm text-gray-700">{t("paymentPopupBlockedMessage")}</p>
+          <Button variant="outline" size="sm" onClick={checkout.openCheckoutManually}>
+            {t("paymentOpenCheckoutAction")}
+          </Button>
+        </div>
+      ) : null}
+
       {stillWaiting && !eligibilityQuery.pollingTimedOut ? (
         <div className="rounded-xl bg-[#FFF7E6] px-4 py-3 text-sm text-gray-700">{t("paymentWaitingForConfirmation")}</div>
       ) : null}
@@ -189,6 +184,11 @@ function LatestPaymentCard({ payment, expired, language, t }) {
         <div className="mt-2 text-xs text-gray-500">
           {t("paymentPaidAtLabel")}:{" "}
           <span dir="ltr">{new Date(payment.paidAt).toLocaleString(language === "ur" ? "ur-PK" : "en-GB")}</span>
+        </div>
+      ) : null}
+      {displayStatus === "paid" ? (
+        <div className="mt-1 text-xs text-gray-500">
+          {t("paymentReferenceLabel")}: <span dir="ltr">{payment.id}</span>
         </div>
       ) : null}
     </div>
