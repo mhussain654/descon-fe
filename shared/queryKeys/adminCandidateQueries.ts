@@ -5,9 +5,16 @@
 // lists (countries/projects/crafts) are small, bounded lookup tables shared
 // by every staff session, so they carry no candidateId dimension.
 import type { Language } from '../i18n/translations';
+import type { AdminCandidateListFilters, AdminCandidateListPage, AdminCandidateListSort } from '../adminCandidates/types';
 
 export const adminCandidateQueries = {
   detail: (candidateId: string, locale: Language) => ['adminCandidates', 'detail', candidateId, locale] as const,
+  list: (
+    filters: AdminCandidateListFilters,
+    sort: AdminCandidateListSort | undefined,
+    page: AdminCandidateListPage,
+    locale: Language
+  ) => ['adminCandidates', 'list', filters, sort, page, locale] as const,
   countries: (locale: Language) => ['adminCandidates', 'countries', locale] as const,
   projects: (locale: Language) => ['adminCandidates', 'projects', locale] as const,
   crafts: (locale: Language) => ['adminCandidates', 'crafts', locale] as const,

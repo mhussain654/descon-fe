@@ -135,8 +135,59 @@ export interface AdminCandidateError {
   retryAfterSeconds?: number;
 }
 
+/**
+ * Server-side list filters for GET /api/v1/admin/candidates
+ * (Admin::Candidates::IndexQuery). `search` matches full_name (partial) or
+ * an exact CNIC/passport/reference-number match, in one field, mirroring
+ * the backend's own single combined search parameter -- there is no
+ * separate per-field search on this endpoint. `status` is a single
+ * workflow-stage code (not an array): the backend's own ALLOWED_FILTERS
+ * takes exactly one value per filter, unlike the document-review queue's
+ * multi-value status filter.
+ */
+export interface AdminCandidateListFilters {
+  search?: string;
+  status?: string;
+  countryCode?: string;
+  projectCode?: string;
+  craftCode?: string;
+}
+
+/** Matches Admin::Candidates::IndexQuery::ALLOWED_SORTS exactly -- a leading `-` means descending, mirroring the backend's own convention. */
+export type AdminCandidateListSort = 'created_at' | '-created_at' | 'full_name' | '-full_name' | 'reference_number' | '-reference_number';
+
+export interface AdminCandidateListPage {
+  number?: number;
+  size?: number;
+}
+
+export interface AdminCandidatePagination {
+  page: number;
+  perPage: number;
+  totalCount: number;
+  totalPages: number;
+}
+
+/**
+ * List rows carry the exact same shape as a single candidate detail --
+ * Admin::CandidatesController#index and #show both serialize through the
+ * same Admin::CandidateSerializer, so there is no separate slimmer "summary"
+ * type to define here (do not invent one the backend doesn't return).
+ */
+export interface AdminCandidateListResult {
+  items: AdminCandidateDetail[];
+  pagination: AdminCandidatePagination;
+  /** Echoes back which filters the backend actually applied (Admin::Candidates::IndexQuery#applied_filters) -- informational only, never used to drive UI state (the URL already owns that). */
+  appliedFilters: Record<string, string>;
+}
+
 export interface AdminCandidateClient {
   getCandidate(candidateId: string): Promise<AdminCandidateDetail>;
+  listCandidates(
+    filters: AdminCandidateListFilters,
+    sort: AdminCandidateListSort | undefined,
+    page: AdminCandidateListPage
+  ): Promise<AdminCandidateListResult>;
   createCandidate(input: CreateCandidateInput): Promise<AdminCandidateDetail>;
   updateCandidate(input: UpdateCandidateInput): Promise<AdminCandidateDetail>;
   getCountries(): Promise<ReferenceDataItem[]>;
