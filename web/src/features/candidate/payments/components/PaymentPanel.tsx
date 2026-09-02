@@ -16,7 +16,12 @@ import {
   ValidationMessage,
 } from "../../../../design-system";
 import { PAYMENT_ERROR_KEYS } from "../../../../../../shared/payments/errorMessages";
-import { PAYMENT_BLOCKING_REASON_KEYS, PAYMENT_STATUS_KEYS, PAYMENT_STATUS_TONES } from "../../../../../../shared/payments/statusLabels";
+import {
+  isCheckoutExpired,
+  PAYMENT_BLOCKING_REASON_KEYS,
+  PAYMENT_STATUS_KEYS,
+  PAYMENT_STATUS_TONES,
+} from "../../../../../../shared/payments/statusLabels";
 
 const RETRYABLE_ERROR_CODES = new Set(["NETWORK_ERROR", "OFFLINE", "SERVER_ERROR", "RATE_LIMITED", "IDEMPOTENCY_IN_PROGRESS"]);
 
@@ -100,10 +105,12 @@ export function PaymentPanel() {
   }
 
   const payment = eligibility.latestPayment;
+  const expired = payment ? isCheckoutExpired(payment.status, payment.checkoutExpiresAt) : false;
+  const stillWaiting = payment?.status === "checkout_pending" && !expired;
   const checkoutError = checkout.mutation.error;
   const canRetryCheckout = checkoutError && RETRYABLE_ERROR_CODES.has(checkoutError.code);
   const showPayAction =
-    eligibility.checkoutAvailable && (!payment || payment.status === "failed" || payment.status === "cancelled");
+    eligibility.checkoutAvailable && (!payment || payment.status === "failed" || payment.status === "cancelled" || expired);
 
   return (
     <div className="space-y-5">
@@ -114,7 +121,7 @@ export function PaymentPanel() {
         </div>
       </div>
 
-      {payment ? <LatestPaymentCard payment={payment} language={language} t={t} /> : null}
+      {payment ? <LatestPaymentCard payment={payment} expired={expired} language={language} t={t} /> : null}
 
       {!eligibility.eligible ? (
         <EmptyState
@@ -144,22 +151,33 @@ export function PaymentPanel() {
         </div>
       ) : null}
 
-      {payment?.status === "checkout_pending" ? (
+      {stillWaiting && !eligibilityQuery.pollingTimedOut ? (
         <div className="rounded-xl bg-[#FFF7E6] px-4 py-3 text-sm text-gray-700">{t("paymentWaitingForConfirmation")}</div>
+      ) : null}
+
+      {stillWaiting && eligibilityQuery.pollingTimedOut ? (
+        <div className="rounded-xl bg-[#FFF7E6] px-4 py-3">
+          <p className="mb-2 text-sm text-gray-700">{t("paymentPollingTimedOutMessage")}</p>
+          <Button variant="outline" size="sm" onClick={() => eligibilityQuery.refetch()} disabled={eligibilityQuery.isFetching}>
+            {t("paymentManualRefreshAction")}
+          </Button>
+        </div>
       ) : null}
     </div>
   );
 }
 
-function LatestPaymentCard({ payment, language, t }) {
-  const Icon = STATUS_ICONS[payment.status] ?? Clock;
-  const tone = PAYMENT_STATUS_TONES[payment.status];
+function LatestPaymentCard({ payment, expired, language, t }) {
+  const displayStatus = expired ? "expired" : payment.status;
+  const Icon = expired ? XCircle : (STATUS_ICONS[payment.status] ?? Clock);
+  const tone = expired ? "danger" : PAYMENT_STATUS_TONES[payment.status];
+  const statusLabelKey = expired ? "paymentStatusExpired" : PAYMENT_STATUS_KEYS[payment.status];
 
   return (
     <div className="rounded-xl border border-gray-200 bg-white p-5">
       <div className="mb-3 flex items-center justify-between">
         <span className="text-sm font-medium text-black">{t("paymentLatestPaymentLabel")}</span>
-        <Badge tone={tone}>{t(PAYMENT_STATUS_KEYS[payment.status])}</Badge>
+        <Badge tone={tone}>{t(statusLabelKey)}</Badge>
       </div>
       <div className="flex items-center gap-3 text-sm text-gray-700">
         <Icon size={20} />
@@ -167,7 +185,7 @@ function LatestPaymentCard({ payment, language, t }) {
           {payment.amount} {payment.currencyCode}
         </span>
       </div>
-      {payment.status === "paid" && payment.paidAt ? (
+      {displayStatus === "paid" && payment.paidAt ? (
         <div className="mt-2 text-xs text-gray-500">
           {t("paymentPaidAtLabel")}:{" "}
           <span dir="ltr">{new Date(payment.paidAt).toLocaleString(language === "ur" ? "ur-PK" : "en-GB")}</span>

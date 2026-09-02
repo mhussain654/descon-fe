@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { AuthProvider, useAuth } from "../../../../contexts/AuthContext";
@@ -33,7 +33,7 @@ function payment(overrides = {}) {
     currencyCode: "PKR",
     provider: "mock_hosted_checkout",
     checkoutUrl: "https://mock-payments.example.test/checkout?orderid=1",
-    checkoutExpiresAt: "2026-08-31T09:30:00Z",
+    checkoutExpiresAt: new Date(Date.now() + 30 * 60 * 1000).toISOString(),
     paidAt: null,
     updatedAt: "2026-08-31T09:00:00Z",
     ...overrides,
@@ -52,7 +52,9 @@ function LoginStub() {
           candidateId: "candidate-public-id-1",
           candidateName: "Ahmed Ali",
           preferredLocale: "en",
-          expiresAt: new Date(Date.now() + 60_000).toISOString(),
+          // Long enough to survive a fake-timer-advanced polling-timeout test
+          // without the session itself expiring mid-test.
+          expiresAt: new Date(Date.now() + 60 * 60 * 1000).toISOString(),
         })
       }
     >
@@ -74,6 +76,7 @@ function renderPanel() {
     </QueryClientProvider>
   );
   fireEvent.click(screen.getByText("login"));
+  return queryClient;
 }
 
 describe("PaymentPanel", () => {
@@ -186,5 +189,59 @@ describe("PaymentPanel", () => {
     renderPanel();
 
     expect(await screen.findByRole("button", { name: "ابھی ادائیگی کریں" })).toBeInTheDocument();
+  });
+
+  it("shows a distinct Expired state and allows starting a new checkout once the checkout window has passed", async () => {
+    paymentsClient.getEligibility.mockResolvedValue(
+      eligibility({ latestPayment: payment({ checkoutExpiresAt: new Date(Date.now() - 60_000).toISOString() }) })
+    );
+    renderPanel();
+
+    expect(await screen.findByText("Expired")).toBeInTheDocument();
+    expect(screen.queryByText(/waiting for your payment provider/)).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Pay now" })).toBeInTheDocument();
+  });
+
+  it("does not show Expired for a payment whose checkout window is still open", async () => {
+    paymentsClient.getEligibility.mockResolvedValue(eligibility({ latestPayment: payment() }));
+    renderPanel();
+
+    await screen.findByText(/waiting for your payment provider/);
+    expect(screen.queryByText("Expired")).not.toBeInTheDocument();
+  });
+
+  it("stops automatic polling after a safe timeout and offers a manual refresh instead", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    paymentsClient.getEligibility.mockResolvedValue(eligibility({ latestPayment: payment() }));
+    renderPanel();
+
+    await vi.waitFor(() => expect(screen.getByText(/waiting for your payment provider/)).toBeInTheDocument());
+    expect(screen.queryByRole("button", { name: "Refresh" })).not.toBeInTheDocument();
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(5 * 60 * 1000 + 1000);
+    });
+
+    expect(screen.getByText("We haven't heard back from your payment provider yet. Tap refresh to check again.")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Refresh" })).toBeInTheDocument();
+    expect(screen.queryByText(/waiting for your payment provider/)).not.toBeInTheDocument();
+
+    vi.useRealTimers();
+  });
+
+  it("invalidates the dashboard's application-progress and profile caches the moment a payment is confirmed paid", async () => {
+    paymentsClient.getEligibility
+      .mockResolvedValueOnce(eligibility({ latestPayment: payment() }))
+      .mockResolvedValueOnce(eligibility({ latestPayment: payment({ status: "paid", paidAt: "2026-09-01T09:00:00Z" }) }));
+    const queryClient = renderPanel();
+    queryClient.setQueryData(["documents", "applicationProgress", "candidate-public-id-1", "en"], { stale: false });
+    queryClient.setQueryData(["profile", "candidate", "candidate-public-id-1", "en"], { stale: false });
+
+    await screen.findByText(/waiting for your payment provider/);
+    await waitFor(() => queryClient.refetchQueries({ queryKey: ["payments", "eligibility"] }));
+    await screen.findByText("Paid");
+
+    expect(queryClient.getQueryState(["documents", "applicationProgress", "candidate-public-id-1", "en"])?.isInvalidated).toBe(true);
+    expect(queryClient.getQueryState(["profile", "candidate", "candidate-public-id-1", "en"])?.isInvalidated).toBe(true);
   });
 });

@@ -79,7 +79,7 @@ export function createPaymentsClient(options: RealPaymentsClientOptions): Paymen
     },
 
     async initiateCheckout(accessToken: string, idempotencyKey: string): Promise<InitiateCheckoutResult> {
-      let data: InitiateCheckoutResponse;
+      let data: InitiateCheckoutResponse | undefined;
       try {
         // The request body is always empty -- the backend controls amount,
         // currency, provider, and order reference entirely; there is
@@ -95,9 +95,9 @@ export function createPaymentsClient(options: RealPaymentsClientOptions): Paymen
         throw toPaymentError(error);
       }
 
-      const payment = toPayment(data.payment);
+      const payment = toPayment(data?.payment);
       if (!payment) throw { code: 'UNKNOWN' } satisfies PaymentError;
-      return { eligibility: toPaymentEligibility(data.eligibility), payment };
+      return { eligibility: toPaymentEligibility(data?.eligibility), payment };
     },
   };
 }

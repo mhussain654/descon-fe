@@ -16,8 +16,9 @@ const TEST_SAFE_AREA_METRICS = {
 };
 
 const mockReplace = jest.fn();
+const mockPush = jest.fn();
 jest.mock("expo-router", () => ({
-  useRouter: () => ({ replace: (...args) => mockReplace(...args), push: jest.fn(), back: jest.fn() }),
+  useRouter: () => ({ replace: (...args) => mockReplace(...args), push: (...args) => mockPush(...args), back: jest.fn() }),
 }));
 
 jest.mock("expo-secure-store", () => ({
@@ -167,6 +168,7 @@ afterEach(async () => {
   jest.mocked(candidateDocumentsClient.getChecklist).mockReset();
   jest.mocked(applicationProgressClient.getProgress).mockReset();
   mockReplace.mockReset();
+  mockPush.mockReset();
 });
 
 function renderDashboardScreen() {
@@ -261,7 +263,7 @@ describe("DashboardScreen", () => {
     expect(await screen.findByText("Verification complete")).toBeOnTheScreen();
   });
 
-  it("navigates to the documents and status screens from the quick-action tiles, and shows Make Payment as visibly disabled with no handler", async () => {
+  it("navigates to the documents, payment, and status screens from the quick-action tiles", async () => {
     candidateProfileClient.getProfile.mockResolvedValue(profilePayload());
     candidateDocumentsClient.getChecklist.mockResolvedValue([]);
     applicationProgressClient.getProgress.mockResolvedValue(progress());
@@ -270,10 +272,11 @@ describe("DashboardScreen", () => {
     await screen.findByText("Ahmed Ali");
     expect(screen.getByText("Upload Documents")).toBeOnTheScreen();
     expect(screen.getByText("View Status")).toBeOnTheScreen();
-    expect(screen.getByText("Make Payment")).toBeOnTheScreen();
-    expect(screen.getByText("Coming soon")).toBeOnTheScreen();
     const makePaymentTile = screen.getByRole("button", { name: "Make Payment" });
-    expect(makePaymentTile.props.accessibilityState).toMatchObject({ disabled: true });
+    expect(makePaymentTile.props.accessibilityState).toMatchObject({ disabled: false });
+
+    fireEvent.press(makePaymentTile);
+    expect(mockPush).toHaveBeenCalledWith("/payment");
   });
 
   it("shows a dedicated session-expired state (not a silent redirect) and returns to sign-in only once confirmed", async () => {

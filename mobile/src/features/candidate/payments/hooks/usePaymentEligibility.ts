@@ -15,24 +15,16 @@ import {
 } from '../../../../../../shared/payments/checkoutPolling';
 
 /**
- * Fetches the authenticated candidate's own payment eligibility and latest
- * payment. Identity comes only from `session.accessToken`, matching
- * useApplicationProgress.ts's identical rationale.
- *
- * No automatic retry -- every error state maps to a distinct, visible UI
- * state with its own explicit "Retry" action. Polls while a checkout is
- * pending (see shared/payments/checkoutPolling.ts) so the pending-
- * confirmation screen notices the provider's async callback without a
- * manual refresh -- but only for up to `CHECKOUT_POLL_TIMEOUT_MS`; after
- * that, `pollingTimedOut` becomes true and the caller must offer an
- * explicit manual refresh instead (ticket: "Stop polling after a safe
- * timeout and provide manual refresh").
- *
- * Also invalidates the dashboard's application-progress and profile
- * queries the moment a payment is observed transitioning to `paid`, so
- * the Dashboard reflects the confirmed fee without the candidate having
- * to navigate away and back (ticket: "Dashboard/application-progress
- * refresh after payment confirmation").
+ * Mirrors web's usePaymentEligibility.ts exactly -- see its comments for
+ * full rationale (polling, timeout, and dashboard/profile invalidation on
+ * a confirmed payment). Unlike web, the candidate session here is backed
+ * by expo-secure-store and survives leaving the app for the hosted
+ * checkout page and coming back, so there is no "new tab" workaround
+ * needed on this platform -- the checkout browser session is opened and
+ * dismissed from the same screen (see useInitiateCheckout.ts /
+ * app/payment/index.jsx), and this hook's own focus-refetch (wired at the
+ * screen level via useRefetchOnFocus) plus this interval/timeout logic
+ * covers noticing the outcome either way.
  */
 export function usePaymentEligibility() {
   const { session, status } = useAuth();
@@ -54,10 +46,6 @@ export function usePaymentEligibility() {
       isCheckoutPending(activeQuery.state.data) && !pollingTimedOut ? CHECKOUT_PENDING_POLL_INTERVAL_MS : false,
   });
 
-  // Tracks how long the current checkout has been pending, independent of
-  // React Query's own refetch bookkeeping, and flips `pollingTimedOut`
-  // once it's been too long -- resets the moment it's no longer pending
-  // (a fresh checkout later gets its own full timeout window).
   useEffect(() => {
     if (!isCheckoutPending(query.data)) {
       pendingSinceRef.current = null;
