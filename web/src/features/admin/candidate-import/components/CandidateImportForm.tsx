@@ -1,4 +1,5 @@
 import { useEffect } from 'react';
+import { Link } from 'react-router';
 import { useLanguage } from '../../../../contexts/LanguageContext';
 import { useStaffAuth } from '../../../../contexts/StaffAuthContext';
 import { Button, Card, ErrorState, ForbiddenState, LoadingState, OfflineState, ValidationMessage } from '../../../../design-system';
@@ -10,7 +11,6 @@ import { useCsvTemplateDownload } from '../hooks/useCsvTemplateDownload';
 import { REQUIRED_HEADERS } from '../schemas/csvFile';
 import { CsvFileField } from './CsvFileField';
 import { CandidateImportPreviewPanel } from './CandidateImportPreviewPanel';
-import { CandidateImportResultView } from './CandidateImportResultView';
 
 const FILE_VALIDATION_ERROR_KEYS: Record<string, TranslationKey> = {
   FILE_REQUIRED: 'adminCandidateImportFileRequiredError',
@@ -45,9 +45,14 @@ export function CandidateImportForm() {
 
   return (
     <div className="mx-auto max-w-3xl px-4 py-6 sm:px-6">
-      <div className="mb-6">
-        <h1 className="text-2xl font-semibold text-text-primary">{t('adminCandidateImportTitle')}</h1>
-        <p className="text-sm text-text-secondary">{t('adminCandidateImportSubtitle')}</p>
+      <div className="mb-6 flex flex-wrap items-start justify-between gap-2">
+        <div>
+          <h1 className="text-2xl font-semibold text-text-primary">{t('adminCandidateImportTitle')}</h1>
+          <p className="text-sm text-text-secondary">{t('adminCandidateImportSubtitle')}</p>
+        </div>
+        <Link to="/admin/candidates/import/history" className="text-sm font-medium text-brand hover:underline">
+          {t('adminCandidateImportViewHistory')}
+        </Link>
       </div>
 
       <Card className="mb-5">
@@ -129,13 +134,22 @@ export function CandidateImportForm() {
         />
       ) : null}
 
-      {wizard.step === 'result' && wizard.commitMutation.data ? (
-        <>
-          <CandidateImportResultView result={wizard.commitMutation.data} t={t} />
-          <Button type="button" variant="outline" onClick={wizard.startOver}>
-            {t('adminCandidateImportSelectAnotherFile')}
-          </Button>
-        </>
+      {wizard.step === 'submitted' && wizard.commitMutation.data ? (
+        <Card role="status">
+          <h2 className="mb-2 text-lg font-semibold text-text-primary">{t('adminCandidateImportSubmittedTitle')}</h2>
+          <p className="mb-4 text-sm text-text-secondary">{t('adminCandidateImportSubmittedDescription')}</p>
+          <div className="flex flex-wrap gap-3">
+            <Link
+              to={`/admin/candidates/import/${wizard.commitMutation.data.importId}`}
+              className="inline-flex h-10 items-center rounded-xl bg-brand px-4 text-sm font-medium text-white hover:bg-brand/90"
+            >
+              {t('adminCandidateImportViewDetails')}
+            </Link>
+            <Button type="button" variant="outline" onClick={wizard.startOver}>
+              {t('adminCandidateImportSelectAnotherFile')}
+            </Button>
+          </div>
+        </Card>
       ) : null}
     </div>
   );

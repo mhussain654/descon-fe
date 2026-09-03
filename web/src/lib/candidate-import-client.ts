@@ -4,24 +4,42 @@
 // mobile application") -- there is no mobile equivalent of this file.
 import { createCandidateImportClient } from '../../../shared/adminCandidateImport/realCandidateImportClient';
 import type {
+  CandidateImportBatchDetail,
+  CandidateImportBatchSummary,
   CandidateImportClient,
-  CandidateImportCommitResult,
+  CandidateImportCommitAccepted,
   CandidateImportError,
   CandidateImportErrorCode,
+  CandidateImportHistoryFilters,
+  CandidateImportHistoryPage,
+  CandidateImportHistoryPagination,
+  CandidateImportHistoryResult,
   CandidateImportPreflightResult,
   CandidateImportRowError,
+  CandidateImportRowResult,
+  CandidateImportRowStatus,
+  CandidateImportStatus,
   CandidateImportTemplate,
 } from '../../../shared/adminCandidateImport/types';
 import { apiClient } from './api-client';
 import { staffAuthClient } from './staff-auth-client';
 
 export type {
+  CandidateImportBatchDetail,
+  CandidateImportBatchSummary,
   CandidateImportClient,
-  CandidateImportCommitResult,
+  CandidateImportCommitAccepted,
   CandidateImportError,
   CandidateImportErrorCode,
+  CandidateImportHistoryFilters,
+  CandidateImportHistoryPage,
+  CandidateImportHistoryPagination,
+  CandidateImportHistoryResult,
   CandidateImportPreflightResult,
   CandidateImportRowError,
+  CandidateImportRowResult,
+  CandidateImportRowStatus,
+  CandidateImportStatus,
   CandidateImportTemplate,
 };
 

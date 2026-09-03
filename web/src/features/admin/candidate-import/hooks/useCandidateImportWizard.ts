@@ -2,7 +2,7 @@ import { useCallback, useRef, useState } from 'react';
 import { useMutation } from '@tanstack/react-query';
 import {
   candidateImportClient,
-  type CandidateImportCommitResult,
+  type CandidateImportCommitAccepted,
   type CandidateImportError,
   type CandidateImportPreflightResult,
 } from '../../../../lib/candidate-import-client';
@@ -12,23 +12,27 @@ function randomIdempotencyKey(prefix: string): string {
   return `${prefix}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
 }
 
-export type CandidateImportWizardStep = 'select' | 'preview' | 'result';
+export type CandidateImportWizardStep = 'select' | 'preview' | 'submitted';
 
 /**
- * Owns the whole two-phase import flow's state: file selection -> preflight
- * preview (accepted/rejected rows, nothing persisted yet) -> an explicit
- * confirm -> commit result (completed/partial/failed, derived from the
- * commit response's counts, not a backend-provided status). `step` is
- * derived purely from the two mutations' own success state, never tracked
- * separately, so it can't drift out of sync with what's actually happened.
+ * Owns the file-selection -> preflight-preview -> confirm-to-commit part of
+ * the import flow. `step` is derived purely from the two mutations' own
+ * success state, never tracked separately, so it can't drift out of sync
+ * with what's actually happened. This hook's job ends the moment commit
+ * returns its 202 -- that response is submission confirmation, never a
+ * final result (ticket: "Treat the commit 202 Accepted response as
+ * submission confirmation -- not final completion"), so there is no
+ * "result" step here at all; what actually happened lives on the batch
+ * detail page (useCandidateImportBatch), reached via the `importId` this
+ * hook's `commitMutation.data` carries once it succeeds.
  *
  * A fresh idempotency key is generated once per successful preflight (not
  * per commit attempt) and reused across any retry of that same preflight --
  * a network/server failure followed by "Retry" must not risk double-
- * importing (AGENTS.md: "Prevent accidental duplicate mutations"). This is
+ * submitting (AGENTS.md: "Prevent accidental duplicate mutations"). This is
  * on top of the backend's own token-keyed idempotency (re-submitting an
- * already-committed token safely replays the same result), so committing is
- * safe to retry even without the header reaching the server.
+ * already-claimed token safely replays the same accepted response), so
+ * committing is safe to retry even without the header reaching the server.
  */
 export function useCandidateImportWizard() {
   const [file, setFile] = useState<File | null>(null);
@@ -57,7 +61,7 @@ export function useCandidateImportWizard() {
     },
   });
 
-  const commitMutation = useMutation<CandidateImportCommitResult, CandidateImportError, void>({
+  const commitMutation = useMutation<CandidateImportCommitAccepted, CandidateImportError, void>({
     mutationFn: () => {
       const token = preflightMutation.data?.preflightToken;
       if (!token) return Promise.reject({ code: 'UNKNOWN' } satisfies CandidateImportError);
@@ -128,7 +132,7 @@ export function useCandidateImportWizard() {
     setCommitIdempotencyKey(null);
   }, [preflightMutation, commitMutation]);
 
-  const step: CandidateImportWizardStep = commitMutation.isSuccess ? 'result' : preflightMutation.isSuccess ? 'preview' : 'select';
+  const step: CandidateImportWizardStep = commitMutation.isSuccess ? 'submitted' : preflightMutation.isSuccess ? 'preview' : 'select';
 
   return {
     step,

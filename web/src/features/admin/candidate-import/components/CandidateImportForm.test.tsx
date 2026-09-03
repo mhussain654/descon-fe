@@ -1,5 +1,6 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { MemoryRouter } from 'react-router';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   createMockStaffAuthClient,
@@ -13,7 +14,15 @@ import { MAX_FILE_BYTES } from '../schemas/csvFile';
 import { CandidateImportForm } from './CandidateImportForm';
 
 vi.mock('../../../../lib/candidate-import-client', () => ({
-  candidateImportClient: { downloadTemplate: vi.fn(), preflightImport: vi.fn(), commitImport: vi.fn() },
+  candidateImportClient: {
+    downloadTemplate: vi.fn(),
+    preflightImport: vi.fn(),
+    commitImport: vi.fn(),
+    getImportBatch: vi.fn(),
+    listImportHistory: vi.fn(),
+    retryImport: vi.fn(),
+    downloadErrorExport: vi.fn(),
+  },
 }));
 
 // jsdom does not implement createObjectURL/revokeObjectURL at all -- see
@@ -33,13 +42,15 @@ async function renderForm() {
   const client = await signedInClient();
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return render(
-    <QueryClientProvider client={queryClient}>
-      <LanguageProvider>
-        <StaffAuthProvider client={client}>
-          <CandidateImportForm />
-        </StaffAuthProvider>
-      </LanguageProvider>
-    </QueryClientProvider>
+    <MemoryRouter>
+      <QueryClientProvider client={queryClient}>
+        <LanguageProvider>
+          <StaffAuthProvider client={client}>
+            <CandidateImportForm />
+          </StaffAuthProvider>
+        </LanguageProvider>
+      </QueryClientProvider>
+    </MemoryRouter>
   );
 }
 
@@ -48,13 +59,15 @@ async function renderFormWithClient() {
   const client = await signedInClient();
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   const result = render(
-    <QueryClientProvider client={queryClient}>
-      <LanguageProvider>
-        <StaffAuthProvider client={client}>
-          <CandidateImportForm />
-        </StaffAuthProvider>
-      </LanguageProvider>
-    </QueryClientProvider>
+    <MemoryRouter>
+      <QueryClientProvider client={queryClient}>
+        <LanguageProvider>
+          <StaffAuthProvider client={client}>
+            <CandidateImportForm />
+          </StaffAuthProvider>
+        </LanguageProvider>
+      </QueryClientProvider>
+    </MemoryRouter>
   );
   return { ...result, client };
 }
@@ -82,18 +95,16 @@ function preflightPayload(overrides: Record<string, unknown> = {}) {
   };
 }
 
-function commitPayload(overrides: Record<string, unknown> = {}) {
+function commitAcceptedPayload(overrides: Record<string, unknown> = {}) {
   return {
     importId: 'import-1',
-    status: 'committed' as const,
+    status: 'queued' as const,
     totalRows: 2,
-    successfulRows: 2,
-    failedRows: 0,
-    skippedRows: 0,
-    importedRows: 2,
+    acceptedRows: 2,
     rejectedRows: 0,
-    warningCount: 0,
-    errors: [],
+    skippedRows: 0,
+    committedRows: 0,
+    idempotencyKeyPresent: true,
     ...overrides,
   };
 }
@@ -302,9 +313,9 @@ describe('CandidateImportForm', () => {
   });
 
   describe('confirm and commit', () => {
-    it('confirms the preview and shows a committing state, then the completed result', async () => {
+    it('confirms the preview and, once the 202 is accepted, shows submission confirmation with a link to the detail page -- never a final result inline', async () => {
       candidateImportClient.preflightImport.mockResolvedValue(preflightPayload());
-      let resolveCommit: (value: ReturnType<typeof commitPayload>) => void;
+      let resolveCommit: (value: ReturnType<typeof commitAcceptedPayload>) => void;
       candidateImportClient.commitImport.mockReturnValue(
         new Promise((resolve) => {
           resolveCommit = resolve;
@@ -315,38 +326,11 @@ describe('CandidateImportForm', () => {
       fireEvent.click(screen.getByRole('button', { name: 'Confirm import' }));
       expect(await screen.findByRole('button', { name: 'Confirm import' })).toBeDisabled();
 
-      resolveCommit!(commitPayload());
-      expect(await screen.findByText('Import complete')).toBeInTheDocument();
-      expect(screen.getByText(/Imported: 2/)).toBeInTheDocument();
-    });
-
-    it('shows the partial-success result when some rows were rejected at commit time', async () => {
-      candidateImportClient.preflightImport.mockResolvedValue(preflightPayload());
-      candidateImportClient.commitImport.mockResolvedValue(
-        commitPayload({
-          successfulRows: 1,
-          failedRows: 1,
-          importedRows: 1,
-          rejectedRows: 1,
-          errors: [{ row: 3, field: 'cnic', code: 'duplicate_candidate', message: 'A candidate with this CNIC already exists.' }],
-        })
-      );
-      await submitPreflight();
-      fireEvent.click(screen.getByRole('button', { name: 'Confirm import' }));
-
-      expect(await screen.findByText('Import finished with some issues')).toBeInTheDocument();
-      expect(screen.getByText('A candidate with this CNIC already exists.')).toBeInTheDocument();
-    });
-
-    it('shows the failed-result state when nothing was actually imported at commit time', async () => {
-      candidateImportClient.preflightImport.mockResolvedValue(preflightPayload());
-      candidateImportClient.commitImport.mockResolvedValue(
-        commitPayload({ successfulRows: 0, failedRows: 2, importedRows: 0, rejectedRows: 2 })
-      );
-      await submitPreflight();
-      fireEvent.click(screen.getByRole('button', { name: 'Confirm import' }));
-
-      expect(await screen.findByText('No candidates were imported')).toBeInTheDocument();
+      resolveCommit!(commitAcceptedPayload());
+      expect(await screen.findByText('Import submitted')).toBeInTheDocument();
+      expect(screen.getByText(/isn't the final result/)).toBeInTheDocument();
+      const detailsLink = screen.getByRole('link', { name: 'View details' });
+      expect(detailsLink).toHaveAttribute('href', '/admin/candidates/import/import-1');
     });
 
     it('prevents repeated confirm clicks while a commit is already in flight', async () => {
@@ -363,7 +347,7 @@ describe('CandidateImportForm', () => {
 
     it('sends a fresh idempotency key on the first commit attempt, and reuses it across a retry', async () => {
       candidateImportClient.preflightImport.mockResolvedValue(preflightPayload());
-      candidateImportClient.commitImport.mockRejectedValueOnce({ code: 'SERVER_ERROR' }).mockResolvedValueOnce(commitPayload());
+      candidateImportClient.commitImport.mockRejectedValueOnce({ code: 'SERVER_ERROR' }).mockResolvedValueOnce(commitAcceptedPayload());
       await submitPreflight();
       fireEvent.click(screen.getByRole('button', { name: 'Confirm import' }));
       fireEvent.click(await screen.findByRole('button', { name: 'Retry' }));
@@ -408,17 +392,24 @@ describe('CandidateImportForm', () => {
       expect(screen.getByText('No file chosen')).toBeInTheDocument();
     });
 
-    it('allows importing another file after a completed result, clearing the previous result', async () => {
+    it('allows starting a new import after a submission was confirmed, clearing the previous confirmation', async () => {
       candidateImportClient.preflightImport.mockResolvedValue(preflightPayload());
-      candidateImportClient.commitImport.mockResolvedValue(commitPayload());
+      candidateImportClient.commitImport.mockResolvedValue(commitAcceptedPayload());
       await submitPreflight();
       fireEvent.click(screen.getByRole('button', { name: 'Confirm import' }));
-      await screen.findByText('Import complete');
+      await screen.findByText('Import submitted');
 
       fireEvent.click(screen.getByRole('button', { name: 'Choose a different file' }));
-      expect(screen.queryByText('Import complete')).not.toBeInTheDocument();
+      expect(screen.queryByText('Import submitted')).not.toBeInTheDocument();
       expect(screen.getByText('No file chosen')).toBeInTheDocument();
     });
+  });
+
+  it('links to the import history list', async () => {
+    await renderForm();
+
+    const link = screen.getByRole('link', { name: 'View import history' });
+    expect(link).toHaveAttribute('href', '/admin/candidates/import/history');
   });
 
   it('renders in Urdu when the language is Urdu', async () => {
@@ -426,16 +417,18 @@ describe('CandidateImportForm', () => {
     const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
     window.localStorage.setItem('descon.language', 'ur');
     render(
-      <QueryClientProvider client={queryClient}>
-        <LanguageProvider>
-          <StaffAuthProvider client={client}>
-            <CandidateImportForm />
-          </StaffAuthProvider>
-        </LanguageProvider>
-      </QueryClientProvider>
+      <MemoryRouter>
+        <QueryClientProvider client={queryClient}>
+          <LanguageProvider>
+            <StaffAuthProvider client={client}>
+              <CandidateImportForm />
+            </StaffAuthProvider>
+          </LanguageProvider>
+        </QueryClientProvider>
+      </MemoryRouter>
     );
 
-    expect(await screen.findByText('اپ لوڈ کرنے سے پہلے')).toBeInTheDocument();
+    expect(await screen.findByText('امیدوار درآمد کریں')).toBeInTheDocument();
     window.localStorage.removeItem('descon.language');
   });
 });
