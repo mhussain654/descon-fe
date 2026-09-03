@@ -8,6 +8,9 @@ import type { CandidateImportErrorCode } from './types';
 
 export const CANDIDATE_IMPORT_ERROR_KEYS: Record<CandidateImportErrorCode, string> = {
   INVALID_FILE: 'adminCandidateImportInvalidFileError',
+  PREFLIGHT_EXPIRED: 'adminCandidateImportPreflightExpiredError',
+  RETRY_NOT_ALLOWED: 'adminCandidateImportRetryNotAllowedError',
+  NOT_FOUND: 'adminCandidateImportNotFoundDescription',
   FORBIDDEN: 'dsForbiddenDescription',
   INACTIVE_ACCOUNT: 'staffAuthInactiveAccountError',
   SESSION_EXPIRED: 'dsSessionExpiredDescription',

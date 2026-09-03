@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { MAX_FILE_BYTES, REQUIRED_HEADERS, buildCsvTemplate, validateCsvFile } from './csvFile';
+import { MAX_FILE_BYTES, validateCsvFile } from './csvFile';
 
 function csvFile(name: string, sizeBytes: number, type = 'text/csv') {
   const file = new File([new Uint8Array(sizeBytes)], name, { type });
@@ -33,18 +33,5 @@ describe('validateCsvFile', () => {
 
   it('accepts a file exactly at the limit', () => {
     expect(validateCsvFile(csvFile('candidates.csv', MAX_FILE_BYTES))).toBeNull();
-  });
-});
-
-describe('buildCsvTemplate', () => {
-  it('starts with the exact required header row', () => {
-    const template = buildCsvTemplate();
-    expect(template.split('\n')[0]).toBe(REQUIRED_HEADERS.join(','));
-  });
-
-  it('includes one worked example row with the same column count as the header', () => {
-    const lines = buildCsvTemplate().trim().split('\n');
-    expect(lines).toHaveLength(2);
-    expect(lines[1].split(',')).toHaveLength(REQUIRED_HEADERS.length);
   });
 });

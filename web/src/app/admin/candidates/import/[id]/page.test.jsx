@@ -6,14 +6,13 @@ import {
   createMockStaffAuthClient,
   MOCK_STAFF_ACCOUNTS,
   MOCK_STAFF_PASSWORD,
-} from "../../../../../../shared/auth/staffAuthClient";
-import { LanguageProvider } from "../../../../contexts/LanguageContext";
-import { StaffAuthProvider } from "../../../../contexts/StaffAuthContext";
-import { StaffShell } from "../../../components/staff-shell";
-import CandidateImportPage from "./page";
-import { candidateImportClient } from "../../../../lib/candidate-import-client";
+} from "../../../../../../../shared/auth/staffAuthClient";
+import { LanguageProvider } from "../../../../../contexts/LanguageContext";
+import { StaffAuthProvider } from "../../../../../contexts/StaffAuthContext";
+import CandidateImportDetailPage from "./page";
+import { candidateImportClient } from "../../../../../lib/candidate-import-client";
 
-vi.mock("../../../../lib/candidate-import-client", () => ({
+vi.mock("../../../../../lib/candidate-import-client", () => ({
   candidateImportClient: {
     downloadTemplate: vi.fn(),
     preflightImport: vi.fn(),
@@ -34,6 +33,29 @@ async function signInAs(account) {
   return client;
 }
 
+function batchPayload(overrides = {}) {
+  return {
+    id: "import-1",
+    status: "completed",
+    sourceFilename: "candidates.csv",
+    templateVersion: "v1",
+    totalRows: 2,
+    acceptedRows: 2,
+    rejectedRows: 0,
+    skippedRows: 0,
+    committedRows: 2,
+    importedRows: 2,
+    errorCode: null,
+    expiresAt: null,
+    processedAt: "2026-08-26T09:35:00Z",
+    failedAt: null,
+    enqueuedAt: "2026-08-26T09:30:05Z",
+    createdAt: "2026-08-26T09:30:00Z",
+    rowResults: [],
+    ...overrides,
+  };
+}
+
 function renderAt(path, client) {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return render(
@@ -44,15 +66,7 @@ function renderAt(path, client) {
             <Routes>
               <Route path="/admin/forbidden" element={<p>Forbidden stub</p>} />
               <Route path="/admin/login" element={<p>Login stub</p>} />
-              <Route path="/admin/candidates/import" element={<CandidateImportPage />} />
-              <Route
-                path="/admin"
-                element={
-                  <StaffShell>
-                    <p>Candidates dashboard stub</p>
-                  </StaffShell>
-                }
-              />
+              <Route path="/admin/candidates/import/:id" element={<CandidateImportDetailPage params={{ id: "import-1" }} />} />
             </Routes>
           </StaffAuthProvider>
         </LanguageProvider>
@@ -61,45 +75,33 @@ function renderAt(path, client) {
   );
 }
 
-describe("CandidateImportPage", () => {
+describe("CandidateImportDetailPage", () => {
   afterEach(() => {
+    vi.mocked(candidateImportClient.getImportBatch).mockReset();
     sessionStorage.clear();
   });
 
-  it("allows a staff member with manage_candidates to reach the import screen", async () => {
+  it("allows a staff member with manage_candidates to reach the import detail screen", async () => {
+    candidateImportClient.getImportBatch.mockResolvedValue(batchPayload());
     const client = await signInAs(HR);
-    renderAt("/admin/candidates/import", client);
+    renderAt("/admin/candidates/import/import-1", client);
 
-    expect(await screen.findByRole("heading", { name: "Import candidates" })).toBeInTheDocument();
-    expect(screen.getByText("Upload a CSV file to register multiple candidates at once.")).toBeInTheDocument();
+    expect(await screen.findByText("Import details")).toBeInTheDocument();
+    expect(candidateImportClient.getImportBatch).toHaveBeenCalledWith("import-1");
   });
 
   it("redirects a staff member without manage_candidates to the forbidden route", async () => {
     const client = await signInAs(FINANCE);
-    renderAt("/admin/candidates/import", client);
+    renderAt("/admin/candidates/import/import-1", client);
 
     await waitFor(() => expect(screen.getByText("Forbidden stub")).toBeInTheDocument());
-    expect(screen.queryByText("Upload a CSV file to register multiple candidates at once.")).not.toBeInTheDocument();
+    expect(candidateImportClient.getImportBatch).not.toHaveBeenCalled();
   });
 
   it("sends an unauthenticated visitor to staff login", async () => {
     const client = createMockStaffAuthClient({ delayMs: 0 });
-    renderAt("/admin/candidates/import", client);
+    renderAt("/admin/candidates/import/import-1", client);
 
     await waitFor(() => expect(screen.getByText("Login stub")).toBeInTheDocument());
-  });
-
-  it("shows the import navigation item only for staff with manage_candidates", async () => {
-    const withPermission = await signInAs(HR);
-    renderAt("/admin", withPermission);
-    expect(await screen.findByText("Candidates dashboard stub")).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Import candidates" })).toBeInTheDocument();
-  });
-
-  it("never renders the import navigation item for staff lacking manage_candidates", async () => {
-    const withoutPermission = await signInAs(FINANCE);
-    renderAt("/admin", withoutPermission);
-    expect(await screen.findByText("Candidates dashboard stub")).toBeInTheDocument();
-    expect(screen.queryByRole("link", { name: "Import candidates" })).not.toBeInTheDocument();
   });
 });

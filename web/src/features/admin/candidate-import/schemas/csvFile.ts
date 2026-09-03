@@ -44,22 +44,3 @@ export function validateCsvFile(file: File | null): CsvFileValidationError | nul
 
   return null;
 }
-
-/** A downloadable starter CSV with the required header row and one worked example -- generated entirely client-side, no backend endpoint needed. */
-export function buildCsvTemplate(): string {
-  const header = REQUIRED_HEADERS.join(',');
-  const sampleRow = [
-    'Ahmed Ali',
-    '42101-1234567-1',
-    '+923001234567',
-    'DES-001001',
-    'en',
-    'registered',
-    'registered',
-    'qatar',
-    'qatar_infrastructure',
-    'electrician',
-    'true',
-  ].join(',');
-  return `${header}\n${sampleRow}\n`;
-}

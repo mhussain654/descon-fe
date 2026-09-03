@@ -251,4 +251,41 @@ describe('api-client', () => {
       });
     });
   });
+
+  describe('getFile', () => {
+    it('resolves with the raw body text and the filename from Content-Disposition', async () => {
+      stubFetch(async () =>
+        new Response('full_name,cnic\nJane,42101-1234567-1', {
+          status: 200,
+          headers: { 'Content-Type': 'text/csv', 'Content-Disposition': 'attachment; filename="candidate-import-template-v1.csv"' },
+        })
+      );
+      const client = createApiClient({ baseUrl: 'http://example.test' });
+      await expect(client.getFile('/admin/candidate_imports/template')).resolves.toEqual({
+        content: 'full_name,cnic\nJane,42101-1234567-1',
+        filename: 'candidate-import-template-v1.csv',
+      });
+    });
+
+    it('tolerates an unquoted filename', async () => {
+      stubFetch(async () => new Response('a,b', { status: 200, headers: { 'Content-Disposition': 'attachment; filename=template.csv' } }));
+      const client = createApiClient({ baseUrl: 'http://example.test' });
+      await expect(client.getFile('/things')).resolves.toEqual({ content: 'a,b', filename: 'template.csv' });
+    });
+
+    it('leaves filename undefined when the response has no Content-Disposition header', async () => {
+      stubFetch(async () => new Response('a,b', { status: 200 }));
+      const client = createApiClient({ baseUrl: 'http://example.test' });
+      await expect(client.getFile('/things')).resolves.toEqual({ content: 'a,b', filename: undefined });
+    });
+
+    it('still throws the normalized ApiError on a 4xx response, not a garbled file result', async () => {
+      stubFetch(async () => jsonResponse(errorEnvelope([{ code: 'forbidden', message: 'Not allowed' }]), { status: 403 }));
+      const client = createApiClient({ baseUrl: 'http://example.test' });
+      await expect(client.getFile('/admin/candidate_imports/template')).rejects.toMatchObject({
+        status: 403,
+        serverCode: 'forbidden',
+      });
+    });
+  });
 });
