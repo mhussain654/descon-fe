@@ -48,6 +48,11 @@ function StaffShellContent({ children }: { children: ReactNode }) {
       labelKey: 'staffNavDocumentReviews',
       visible: hasPermission('manage_candidate_documents'),
     },
+    {
+      href: '/admin/finance/payments',
+      labelKey: 'staffNavFinancePayments',
+      visible: hasPermission('view_payments') || hasPermission('manage_payments'),
+    },
     { href: '/admin/users', labelKey: 'staffNavUsers', visible: hasPermission('manage_staff_users') },
   ].filter((item) => item.visible);
 
