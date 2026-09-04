@@ -8,6 +8,7 @@ import { AuthProvider, useAuth } from "../../../contexts/AuthContext";
 import { LanguageProvider } from "../../../contexts/LanguageContext";
 import { candidateDocumentsClient } from "../../../lib/candidate-documents-client";
 import { applicationProgressClient } from "../../../lib/application-progress-client";
+import { candidateBankDetailsClient } from "../../../lib/candidate-bank-details-client";
 import { createQueryClientTestLifecycle } from "../../../testSupport/queryClientTestLifecycle";
 import DocumentsScreen from "./index";
 
@@ -66,6 +67,9 @@ jest.mock("../../../lib/candidate-documents-client", () => ({
 }));
 jest.mock("../../../lib/application-progress-client", () => ({
   applicationProgressClient: { getProgress: jest.fn(), submitDocuments: jest.fn() },
+}));
+jest.mock("../../../lib/candidate-bank-details-client", () => ({
+  candidateBankDetailsClient: { getBankDetail: jest.fn(), submitBankDetail: jest.fn() },
 }));
 
 function documentsSummary(overrides = {}) {
@@ -157,7 +161,33 @@ function deniedPermission(canAskAgain) {
   return { status: "denied", granted: false, canAskAgain, expires: "never" };
 }
 
+function bankDetailSummary(overrides = {}) {
+  return { status: "missing", bankDetail: null, ...overrides };
+}
+
+function bankDetail(overrides = {}) {
+  return {
+    id: "d86f5c87-4379-433a-9a29-c8c3d51f859a",
+    status: "submitted",
+    accountTitle: "Ahmed Ali",
+    accountNumber: "****************6702",
+    bankName: "Meezan Bank",
+    proof: { fileName: "cheque.pdf", contentType: "application/pdf", fileSize: 123456, uploadedAt: "2026-08-28T12:00:00Z" },
+    submittedAt: "2026-08-28T12:00:00Z",
+    updatedAt: "2026-08-28T12:00:00Z",
+    ...overrides,
+  };
+}
+
 const { createTestQueryClient, trackRender, cleanup } = createQueryClientTestLifecycle();
+
+// BankDetailsPanel unconditionally queries bank-detail state as soon as it
+// mounts -- default it to the "missing" state here so the pre-existing
+// tests below (none of which are about bank details) don't each need their
+// own mock, mirroring web's identical page.test.jsx convention.
+beforeEach(() => {
+  candidateBankDetailsClient.getBankDetail.mockResolvedValue(bankDetailSummary());
+});
 
 afterEach(async () => {
   await cleanup();
@@ -165,12 +195,21 @@ afterEach(async () => {
   jest.mocked(candidateDocumentsClient.uploadDocument).mockReset();
   jest.mocked(applicationProgressClient.getProgress).mockReset();
   jest.mocked(applicationProgressClient.submitDocuments).mockReset();
+  jest.mocked(candidateBankDetailsClient.getBankDetail).mockReset();
+  jest.mocked(candidateBankDetailsClient.submitBankDetail).mockReset();
   jest.mocked(DocumentPicker.getDocumentAsync).mockReset();
   jest.mocked(ImagePicker.requestCameraPermissionsAsync).mockReset();
   jest.mocked(ImagePicker.requestMediaLibraryPermissionsAsync).mockReset();
   jest.mocked(ImagePicker.launchCameraAsync).mockReset();
   jest.mocked(ImagePicker.launchImageLibraryAsync).mockReset();
   mockReplace.mockReset();
+  // Two tests below persist "ur" via AsyncStorage (there's no in-memory
+  // LanguageContext reset between tests the way web's localStorage-cleanup
+  // afterEach handles) -- without removing it here, every test running
+  // after either of them in file order silently renders in Urdu instead of
+  // the English strings it actually asserts on.
+  const AsyncStorage = require("@react-native-async-storage/async-storage");
+  await AsyncStorage.removeItem("descon.language");
 });
 
 /** Test-only harness: mounted alongside DocumentsScreen inside the same AuthProvider so a test can end the session mid-flight, mirroring how a real logout could race an in-flight upload's response. */
@@ -829,5 +868,84 @@ describe("DocumentsScreen", () => {
       await screen.findByText("اس ایپ کے لیے کیمرے تک رسائی بند ہے۔ اسے اجازت دینے کے لیے ترتیبات کھولیں، یا اس کے بجائے فائل منتخب کریں۔")
     ).toBeOnTheScreen();
     expect(screen.getByRole("button", { name: "ترتیبات کھولیں" })).toBeOnTheScreen();
+  });
+
+  describe("bank details", () => {
+    it("shows Incomplete when no bank detail has been submitted", async () => {
+      candidateDocumentsClient.getChecklist.mockResolvedValue([item({ status: "missing" })]);
+      applicationProgressClient.getProgress.mockResolvedValue(progress());
+      renderDocumentsScreen();
+
+      expect(await screen.findByText("Incomplete")).toBeOnTheScreen();
+    });
+
+    it("shows Complete when a bank detail already exists", async () => {
+      candidateDocumentsClient.getChecklist.mockResolvedValue([item({ status: "missing" })]);
+      applicationProgressClient.getProgress.mockResolvedValue(progress());
+      candidateBankDetailsClient.getBankDetail.mockResolvedValue(bankDetailSummary({ status: "submitted", bankDetail: bankDetail() }));
+      renderDocumentsScreen();
+
+      expect(await screen.findByText("Complete")).toBeOnTheScreen();
+    });
+
+    it("validates required fields client-side before calling the API", async () => {
+      candidateDocumentsClient.getChecklist.mockResolvedValue([item({ status: "missing" })]);
+      applicationProgressClient.getProgress.mockResolvedValue(progress());
+      renderDocumentsScreen();
+
+      fireEvent.press(await screen.findByRole("button", { name: "Add bank details" }));
+      fireEvent.press(screen.getByRole("button", { name: "Submit" }));
+
+      expect(await screen.findByText("Enter the account title.")).toBeOnTheScreen();
+      expect(screen.getByText("Enter the account number or IBAN.")).toBeOnTheScreen();
+      expect(screen.getByText("Enter the bank name.")).toBeOnTheScreen();
+      expect(candidateBankDetailsClient.submitBankDetail).not.toHaveBeenCalled();
+    });
+
+    it("picks a proof file, submits and shows Complete after success", async () => {
+      candidateDocumentsClient.getChecklist.mockResolvedValue([item({ status: "missing" })]);
+      applicationProgressClient.getProgress.mockResolvedValue(progress());
+      DocumentPicker.getDocumentAsync.mockResolvedValue({ canceled: false, assets: [pdfAsset("cheque.pdf")] });
+      candidateBankDetailsClient.submitBankDetail.mockResolvedValue(bankDetailSummary({ status: "submitted", bankDetail: bankDetail() }));
+      renderDocumentsScreen();
+
+      fireEvent.press(await screen.findByRole("button", { name: "Add bank details" }));
+      fireEvent.changeText(screen.getByLabelText("Account title"), "Ahmed Ali");
+      fireEvent.changeText(screen.getByLabelText("Account number / IBAN"), "PK36SCBL0000001123456702");
+      fireEvent.changeText(screen.getByLabelText("Bank name"), "Meezan Bank");
+      fireEvent.press(await screen.findByRole("button", { name: "Choose file" }));
+      await screen.findByText(/Selected file: cheque\.pdf/);
+
+      await act(async () => {
+        fireEvent.press(screen.getByRole("button", { name: "Submit" }));
+      });
+
+      await waitFor(() => expect(candidateBankDetailsClient.submitBankDetail).toHaveBeenCalledTimes(1));
+      const [params] = candidateBankDetailsClient.submitBankDetail.mock.calls[0];
+      expect(params.accessToken).toBe("candidate-access-token");
+      expect(params.formData.get("bank_detail[account_title]")).toBe("Ahmed Ali");
+      expect(params.formData.get("bank_detail[account_number]")).toBe("PK36SCBL0000001123456702");
+      expect(params.formData.get("bank_detail[bank_name]")).toBe("Meezan Bank");
+
+      expect(await screen.findByText("Complete")).toBeOnTheScreen();
+    });
+
+    it("ends the session and returns to sign-in when the bank-detail submission fails because the session expired", async () => {
+      candidateDocumentsClient.getChecklist.mockResolvedValue([item({ status: "missing" })]);
+      applicationProgressClient.getProgress.mockResolvedValue(progress());
+      DocumentPicker.getDocumentAsync.mockResolvedValue({ canceled: false, assets: [pdfAsset("cheque.pdf")] });
+      candidateBankDetailsClient.submitBankDetail.mockRejectedValue({ code: "SESSION_EXPIRED" });
+      renderDocumentsScreen();
+
+      fireEvent.press(await screen.findByRole("button", { name: "Add bank details" }));
+      fireEvent.changeText(screen.getByLabelText("Account title"), "Ahmed Ali");
+      fireEvent.changeText(screen.getByLabelText("Account number / IBAN"), "PK36SCBL0000001123456702");
+      fireEvent.changeText(screen.getByLabelText("Bank name"), "Meezan Bank");
+      fireEvent.press(await screen.findByRole("button", { name: "Choose file" }));
+      await screen.findByText(/Selected file: cheque\.pdf/);
+      fireEvent.press(screen.getByRole("button", { name: "Submit" }));
+
+      await waitFor(() => expect(mockReplace).toHaveBeenCalledWith("/login"));
+    });
   });
 });

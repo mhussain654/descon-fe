@@ -24,6 +24,8 @@ export const documentQueries = {
   applicationProgress: (candidateId: string, locale: Language) =>
     ['documents', 'applicationProgress', candidateId, locale] as const,
 
+  bankDetail: (candidateId: string, locale: Language) => ['documents', 'bankDetail', candidateId, locale] as const,
+
   staffQueue: (filters: DocumentReviewQueueFilters, page: DocumentReviewQueuePage, locale: Language) =>
     ['documents', 'staffQueue', filters, page, locale] as const,
 
