@@ -49,4 +49,17 @@ describe('StaffShell navigation', () => {
     expect(await screen.findByText('page content')).toBeInTheDocument();
     expect(screen.queryByRole('link', { name: 'Finance payments' })).not.toBeInTheDocument();
   });
+
+  it('shows the Audit log nav link for a staff member with view_audit_events', async () => {
+    await renderShellAs(MANAGEMENT);
+
+    expect(await screen.findByRole('link', { name: 'Audit log' })).toHaveAttribute('href', '/admin/audit-log');
+  });
+
+  it('never renders the Audit log nav link for a staff member without view_audit_events', async () => {
+    await renderShellAs(FINANCE);
+
+    expect(await screen.findByText('page content')).toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'Audit log' })).not.toBeInTheDocument();
+  });
 });
