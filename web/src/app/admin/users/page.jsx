@@ -23,7 +23,6 @@ import {
   ValidationMessage,
   toast,
 } from "../../../design-system";
-import { STAFF_ADMIN_ERROR_KEYS } from "../../../../../shared/staffAdmin/errorMessages";
 import { STAFF_ROLE_RANK } from "../../../../../shared/auth/staffTypes";
 import { staffDirectoryClient } from "../../../lib/staff-directory-client";
 
@@ -45,11 +44,21 @@ const STATUS_TONE = { active: "success", invited: "info", suspended: "danger" };
 
 const STAFF_DIRECTORY_QUERY_KEY = "staff-directory";
 
-/** Maps a rejected mutation's ApiError to a translated, already-safe message -- form-level unless the error names a specific field. */
+/**
+ * Maps a rejected mutation's ApiError to a display message -- form-level
+ * unless the error names a specific field. The real backend distinguishes
+ * every domain validation failure (duplicate email, last-admin protection,
+ * self-suspension, invalid state transition) only by `field`, not a
+ * separate code per case (confirmed against descon-be's openapi.yaml --
+ * all are `422 validation_failed`) -- so this uses the backend's own
+ * already-localized message directly (it honors the same `X-Locale`
+ * header the client sends) rather than inventing a client-side
+ * translation-key taxonomy the backend doesn't actually support
+ * distinguishing.
+ */
 function describeStaffAdminError(error, t) {
   const first = error?.errors?.[0];
-  const key = first?.code && STAFF_ADMIN_ERROR_KEYS[first.code] ? STAFF_ADMIN_ERROR_KEYS[first.code] : "somethingWentWrong";
-  return { field: first?.field, message: t(key) };
+  return { field: first?.field, message: first?.message ?? t("somethingWentWrong") };
 }
 
 export default function StaffUsersPage() {
@@ -155,15 +164,12 @@ function StaffUsersContent() {
 
   const columns = [
     {
-      key: "name",
-      header: t("staffAdminTableName"),
+      key: "email",
+      header: t("staffAdminTableEmail"),
       render: (member) => (
-        <div>
-          <div className="flex items-center gap-2 font-medium text-text-primary">
-            {member.name}
-            {member.id === session?.staffId ? <Badge tone="brand">{t("staffAdminYouBadge")}</Badge> : null}
-          </div>
-          <div className="text-sm text-text-secondary">{member.email}</div>
+        <div className="flex items-center gap-2 font-medium text-text-primary">
+          {member.email}
+          {member.id === session?.staffId ? <Badge tone="brand">{t("staffAdminYouBadge")}</Badge> : null}
         </div>
       ),
     },
@@ -178,10 +184,9 @@ function StaffUsersContent() {
       render: (member) => <Badge tone={STATUS_TONE[member.status]}>{t(STATUS_LABEL_KEYS[member.status])}</Badge>,
     },
     {
-      key: "lastActive",
-      header: t("staffAdminTableLastActive"),
-      render: (member) =>
-        member.lastActiveAt ? new Date(member.lastActiveAt).toLocaleDateString() : t("staffAdminNeverActive"),
+      key: "created",
+      header: t("staffAdminTableCreated"),
+      render: (member) => new Date(member.createdAt).toLocaleDateString(),
     },
     {
       key: "actions",
@@ -329,7 +334,6 @@ function StaffUsersContent() {
 }
 
 function InviteDialog({ open, onOpenChange, onInvite, isSubmitting, error, t }) {
-  const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [role, setRole] = useState("hr");
 
@@ -339,7 +343,6 @@ function InviteDialog({ open, onOpenChange, onInvite, isSubmitting, error, t }) 
       onOpenChange={(next) => {
         onOpenChange(next);
         if (next) {
-          setName("");
           setEmail("");
           setRole("hr");
         }
@@ -357,17 +360,9 @@ function InviteDialog({ open, onOpenChange, onInvite, isSubmitting, error, t }) 
           className="space-y-4"
           onSubmit={(event) => {
             event.preventDefault();
-            onInvite({ name, email, role });
+            onInvite({ email, role });
           }}
         >
-          <Input
-            label={t("staffAdminNameLabel")}
-            placeholder={t("staffAdminEnterName")}
-            value={name}
-            onChange={(event) => setName(event.target.value)}
-            disabled={isSubmitting}
-            required
-          />
           <Input
             type="email"
             label={t("email")}
@@ -405,7 +400,7 @@ function RoleDialog({ member, value, onValueChange, onOpenChange, onSave, isSubm
     <Dialog open={!!member} onOpenChange={onOpenChange}>
       <DialogContent
         title={t("staffAdminChangeRoleDialogTitle")}
-        description={member ? `${member.name} · ${t("staffAdminChangeRoleDialogDescription")}` : undefined}
+        description={member ? `${member.email} · ${t("staffAdminChangeRoleDialogDescription")}` : undefined}
         closeLabel={t("dsClose")}
       >
         {member ? (
