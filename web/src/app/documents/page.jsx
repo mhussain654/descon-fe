@@ -9,6 +9,7 @@ import { useDocumentUpload } from "../../features/candidate/documents/hooks/useD
 import { useApplicationProgress } from "../../features/candidate/progress/hooks/useApplicationProgress";
 import { useSubmitDocuments } from "../../features/candidate/progress/hooks/useSubmitDocuments";
 import { DocumentUploadPanel } from "../../features/candidate/documents/components/DocumentUploadPanel";
+import { BankDetailsPanel } from "../../features/candidate/documents/components/BankDetailsPanel";
 import {
   Button,
   ConfirmDialog,
@@ -120,7 +121,12 @@ export default function DocumentsPage() {
     const checklist = sortByPrototypeOrder(checklistQuery.data ?? []);
 
     if (checklist.length === 0) {
-      return <EmptyState title={t("candidateDocumentsEmptyTitle")} description={t("candidateDocumentsEmptyDescription")} />;
+      return (
+        <>
+          <BankDetailsPanel t={t} language={language} onSessionEnd={returnToSignIn} />
+          <EmptyState title={t("candidateDocumentsEmptyTitle")} description={t("candidateDocumentsEmptyDescription")} />
+        </>
+      );
     }
 
     return (
@@ -148,6 +154,8 @@ export default function DocumentsPage() {
             </Button>
           </div>
         ) : null}
+
+        <BankDetailsPanel t={t} language={language} onSessionEnd={returnToSignIn} />
 
         <div>
           {checklist.map((item) => (

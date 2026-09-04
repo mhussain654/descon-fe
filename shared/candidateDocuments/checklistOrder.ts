@@ -7,6 +7,11 @@ import type { CandidateDocumentChecklistItem } from './types';
  * by `document_type.code`, which is a stable but arbitrary API contract, not
  * a presentation decision -- so this is display-only sorting on the client.
  */
+// 'bank_details'/'cheque_image' were removed from this list (and from the
+// backend's active document requirements) once candidates started
+// submitting bank information through the dedicated, structured
+// CandidateBankDetail resource instead of a generic document upload -- see
+// web/src/features/candidate/documents/components/BankDetailsPanel.tsx.
 const PROTOTYPE_ORDER = [
   'passport',
   'cnic_front',
@@ -14,8 +19,6 @@ const PROTOTYPE_ORDER = [
   'next_of_kin_cnic',
   'police_character',
   'police_character_certificate',
-  'bank_details',
-  'cheque_image',
   'cv',
   'experience_letter',
   'certificates',
