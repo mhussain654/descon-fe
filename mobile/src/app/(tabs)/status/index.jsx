@@ -14,12 +14,16 @@ import { useLanguage } from "../../../contexts/LanguageContext";
 import { useRefetchOnFocus } from "../../../hooks/useRefetchOnFocus";
 import { useApplicationProgress } from "../../../features/candidate/progress/hooks/useApplicationProgress";
 import { useCandidateWorkflowHistory } from "../../../features/candidate/workflow/hooks/useCandidateWorkflowHistory";
-import { LoadingState, ErrorState, OfflineState, SessionExpiredState, ForbiddenState } from "../../../design-system";
+import { useCandidateFlightDetail } from "../../../features/candidate/workflow/hooks/useCandidateFlightDetail";
+import { useFlightTicketAccess } from "../../../features/candidate/workflow/hooks/useFlightTicketAccess";
+import { LoadingState, ErrorState, OfflineState, SessionExpiredState, ForbiddenState, Button, ValidationMessage } from "../../../design-system";
 import { APPLICATION_PROGRESS_ERROR_KEYS } from "../../../../../shared/applicationProgress/errorMessages";
 import { WORKFLOW_HISTORY_ERROR_KEYS } from "../../../../../shared/candidateWorkflow/errorMessages";
 import { findLatestQvcOutcome, QVC_OUTCOME_KEYS, QVC_OUTCOME_TONES } from "../../../../../shared/candidateWorkflow/qvcOutcome";
+import { CANDIDATE_FLIGHT_DETAIL_ERROR_KEYS } from "../../../../../shared/candidateFlightDetail/errorMessages";
 
 const QVC_OUTCOME_STAGE_CODE = "qvc_completed_outcome_received";
+const FLIGHT_TICKET_STAGE_CODES = new Set(["flight_details_uploaded", "mobilized"]);
 
 const QVC_TONE_COLORS = {
   success: { bg: "#E6F9F0", text: "#10B981" },
@@ -41,6 +45,8 @@ export default function StatusScreen() {
   const { logout } = useAuth();
   const progressQuery = useApplicationProgress();
   const historyQuery = useCandidateWorkflowHistory();
+  const flightDetailQuery = useCandidateFlightDetail();
+  const ticketAccess = useFlightTicketAccess();
   useRefetchOnFocus(progressQuery.refetch, progressQuery.isFetching);
   useRefetchOnFocus(historyQuery.refetch, historyQuery.isFetching);
 
@@ -305,6 +311,20 @@ export default function StatusScreen() {
                           {t("qvcOutcome")}: {t(QVC_OUTCOME_KEYS[qvcOutcome.code])}
                           {formatStageDate(qvcOutcome.date, language) ? ` • ${formatStageDate(qvcOutcome.date, language)}` : ""}
                         </Text>
+                      </View>
+                    ) : null}
+                    {FLIGHT_TICKET_STAGE_CODES.has(stage.code) && stage.status !== "pending" && flightDetailQuery.data?.ticketAttached ? (
+                      <View style={{ marginTop: 8 }}>
+                        <Button variant="outline" size="sm" onPress={ticketAccess.downloadTicket} disabled={ticketAccess.isRequesting}>
+                          {t("candidateFlightDownloadTicketAction")}
+                        </Button>
+                        {ticketAccess.error ? (
+                          <View style={{ marginTop: 4 }}>
+                            <ValidationMessage tone="error">
+                              {ticketAccess.error.message || t(CANDIDATE_FLIGHT_DETAIL_ERROR_KEYS[ticketAccess.error.code])}
+                            </ValidationMessage>
+                          </View>
+                        ) : null}
                       </View>
                     ) : null}
                   </View>

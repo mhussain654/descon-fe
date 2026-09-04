@@ -4,12 +4,17 @@ import { useAuth } from "../../contexts/AuthContext";
 import { useLanguage } from "../../contexts/LanguageContext";
 import { useApplicationProgress } from "../../features/candidate/progress/hooks/useApplicationProgress";
 import { useCandidateWorkflowHistory } from "../../features/candidate/workflow/hooks/useCandidateWorkflowHistory";
-import { LoadingState, ErrorState, OfflineState, SessionExpiredState, ForbiddenState } from "../../design-system";
+import { useCandidateFlightDetail } from "../../features/candidate/workflow/hooks/useCandidateFlightDetail";
+import { useFlightTicketAccess } from "../../features/candidate/workflow/hooks/useFlightTicketAccess";
+import { LoadingState, ErrorState, OfflineState, SessionExpiredState, ForbiddenState, Button, ValidationMessage } from "../../design-system";
 import { APPLICATION_PROGRESS_ERROR_KEYS } from "../../../../shared/applicationProgress/errorMessages";
 import { WORKFLOW_HISTORY_ERROR_KEYS } from "../../../../shared/candidateWorkflow/errorMessages";
 import { findLatestQvcOutcome, QVC_OUTCOME_KEYS, QVC_OUTCOME_TONES } from "../../../../shared/candidateWorkflow/qvcOutcome";
+import { CANDIDATE_FLIGHT_DETAIL_ERROR_KEYS } from "../../../../shared/candidateFlightDetail/errorMessages";
+import { resolveDocumentAccessUrl } from "../../lib/resolveDocumentAccessUrl";
 
 const QVC_OUTCOME_STAGE_CODE = "qvc_completed_outcome_received";
+const FLIGHT_TICKET_STAGE_CODES = new Set(["flight_details_uploaded", "mobilized"]);
 
 const QVC_TONE_CLASSES = {
   success: "bg-[#E6F9F0] text-[#10B981]",
@@ -39,6 +44,8 @@ export default function StatusPage() {
   const navigate = useNavigate();
   const progressQuery = useApplicationProgress();
   const historyQuery = useCandidateWorkflowHistory();
+  const flightDetailQuery = useCandidateFlightDetail();
+  const ticketAccess = useFlightTicketAccess();
 
   const returnToSignIn = () => {
     logout("expired");
@@ -147,6 +154,38 @@ export default function StatusPage() {
                     >
                       {t("qvcOutcome")}: {t(QVC_OUTCOME_KEYS[qvcOutcome.code])}
                       {formatStageDate(qvcOutcome.date, language) ? ` • ${formatStageDate(qvcOutcome.date, language)}` : ""}
+                    </div>
+                  ) : null}
+                  {FLIGHT_TICKET_STAGE_CODES.has(stage.code) && stage.status !== "pending" && flightDetailQuery.data?.ticketAttached ? (
+                    <div className="mt-3">
+                      {ticketAccess.access && !ticketAccess.isExpired ? (
+                        <a
+                          href={resolveDocumentAccessUrl(ticketAccess.access.url, import.meta.env.VITE_API_BASE_URL ?? "")}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-sm font-medium text-[#0066CC] underline"
+                        >
+                          {t("candidateFlightOpenTicketAction")}
+                        </a>
+                      ) : (
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="outline"
+                          onClick={ticketAccess.requestTicketAccess}
+                          disabled={ticketAccess.isRequesting}
+                        >
+                          {t("candidateFlightDownloadTicketAction")}
+                        </Button>
+                      )}
+                      {ticketAccess.isExpired ? (
+                        <p className="mt-1 text-xs text-gray-500">{t("candidateFlightAccessExpiredMessage")}</p>
+                      ) : null}
+                      {ticketAccess.error ? (
+                        <ValidationMessage tone="error">
+                          {ticketAccess.error.message || t(CANDIDATE_FLIGHT_DETAIL_ERROR_KEYS[ticketAccess.error.code])}
+                        </ValidationMessage>
+                      ) : null}
                     </div>
                   ) : null}
                 </div>
