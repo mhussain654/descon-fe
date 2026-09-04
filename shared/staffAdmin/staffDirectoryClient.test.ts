@@ -1,5 +1,5 @@
 // Framework-agnostic: runs under both web's Vitest and mobile's Jest.
-import { createMockStaffDirectoryClient, createUnavailableStaffDirectoryClient } from './staffDirectoryClient';
+import { createMockStaffDirectoryClient } from './staffDirectoryClient';
 
 describe('createMockStaffDirectoryClient', () => {
   it('lists the seeded staff members', async () => {
@@ -12,9 +12,9 @@ describe('createMockStaffDirectoryClient', () => {
   it('filters by query, role and status', async () => {
     const client = createMockStaffDirectoryClient({ delayMs: 0 });
 
-    const byQuery = await client.listStaff({ query: 'ayesha' });
+    const byQuery = await client.listStaff({ query: 'admin@descon' });
     expect(byQuery).toHaveLength(1);
-    expect(byQuery[0].name).toBe('Ayesha Admin');
+    expect(byQuery[0].email).toBe('admin@descon.com');
 
     const byRole = await client.listStaff({ role: 'hr' });
     expect(byRole.every((member) => member.role === 'hr')).toBe(true);
@@ -25,10 +25,10 @@ describe('createMockStaffDirectoryClient', () => {
 
   it('invites a new staff member with status "invited"', async () => {
     const client = createMockStaffDirectoryClient({ delayMs: 0 });
-    const invited = await client.inviteStaff({ name: 'New Person', email: 'new.person@descon.com', role: 'finance' });
+    const invited = await client.inviteStaff({ email: 'new.person@descon.com', role: 'finance' });
 
     expect(invited.status).toBe('invited');
-    expect(invited.invitedAt).toEqual(expect.any(String));
+    expect(invited.createdAt).toEqual(expect.any(String));
 
     const staff = await client.listStaff();
     expect(staff.some((member) => member.email === 'new.person@descon.com')).toBe(true);
@@ -36,12 +36,10 @@ describe('createMockStaffDirectoryClient', () => {
 
   it('rejects inviting a duplicate email with a field-addressable validation error', async () => {
     const client = createMockStaffDirectoryClient({ delayMs: 0 });
-    const error = await client
-      .inviteStaff({ name: 'Duplicate', email: 'admin@descon.com', role: 'finance' })
-      .catch((e) => e);
+    const error = await client.inviteStaff({ email: 'admin@descon.com', role: 'finance' }).catch((e) => e);
 
     expect(error.status).toBe(422);
-    expect(error.errors[0]).toMatchObject({ code: 'duplicate_email', field: 'email' });
+    expect(error.errors[0]).toMatchObject({ code: 'validation_failed', field: 'email' });
   });
 
   it('updates a staff member role', async () => {
@@ -51,13 +49,13 @@ describe('createMockStaffDirectoryClient', () => {
     expect(updated.role).toBe('admin');
   });
 
-  it('rejects demoting the last remaining admin, with a conflict error', async () => {
+  it('rejects demoting the last remaining admin, with a field-addressable validation error', async () => {
     const client = createMockStaffDirectoryClient({ delayMs: 0 });
     const [admin] = await client.listStaff({ role: 'admin' });
 
     const error = await client.updateStaffRole(admin.id, 'hr').catch((e) => e);
-    expect(error.status).toBe(409);
-    expect(error.errors[0].code).toBe('last_admin');
+    expect(error.status).toBe(422);
+    expect(error.errors[0]).toMatchObject({ code: 'validation_failed', field: 'user.role' });
 
     // The role must be unchanged after the rejected update.
     const [stillAdmin] = await client.listStaff({ role: 'admin' });
@@ -84,13 +82,13 @@ describe('createMockStaffDirectoryClient', () => {
     expect(reactivated.status).toBe('active');
   });
 
-  it('rejects suspending the last remaining active admin, with a conflict error', async () => {
+  it('rejects suspending the last remaining active admin, with a field-addressable validation error', async () => {
     const client = createMockStaffDirectoryClient({ delayMs: 0 });
     const [admin] = await client.listStaff({ role: 'admin' });
 
     const error = await client.updateStaffStatus(admin.id, 'suspended').catch((e) => e);
-    expect(error.status).toBe(409);
-    expect(error.errors[0].code).toBe('last_admin');
+    expect(error.status).toBe(422);
+    expect(error.errors[0]).toMatchObject({ code: 'validation_failed', field: 'user.staff_state' });
   });
 
   it('rejects updating an unknown staff id with a not-found error', async () => {
@@ -103,21 +101,9 @@ describe('createMockStaffDirectoryClient', () => {
     const clientA = createMockStaffDirectoryClient({ delayMs: 0 });
     const clientB = createMockStaffDirectoryClient({ delayMs: 0 });
 
-    await clientA.inviteStaff({ name: 'Only In A', email: 'only-in-a@descon.com', role: 'finance' });
+    await clientA.inviteStaff({ email: 'only-in-a@descon.com', role: 'finance' });
 
     const staffB = await clientB.listStaff();
     expect(staffB.some((member) => member.email === 'only-in-a@descon.com')).toBe(false);
-  });
-});
-
-describe('createUnavailableStaffDirectoryClient', () => {
-  it('every method fails safely instead of returning or accepting mock data', async () => {
-    const client = createUnavailableStaffDirectoryClient();
-    await expect(client.listStaff()).rejects.toMatchObject({ status: 503 });
-    await expect(client.inviteStaff({ name: 'X', email: 'x@descon.com', role: 'finance' })).rejects.toMatchObject({
-      status: 503,
-    });
-    await expect(client.updateStaffRole('any', 'admin')).rejects.toMatchObject({ status: 503 });
-    await expect(client.updateStaffStatus('any', 'suspended')).rejects.toMatchObject({ status: 503 });
   });
 });

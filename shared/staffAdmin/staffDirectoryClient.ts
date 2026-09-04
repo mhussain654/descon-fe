@@ -1,10 +1,12 @@
-// In-memory mock implementation of StaffDirectoryClient (MPS-F203). Stands
-// in for the not-yet-built MPS-205 staff-admin API during UI development.
-// Rejections use the same `ApiError`/`ApiErrorItem` shape shared/api-client.ts
-// already defines for the real API, so the UI's field-addressable error
-// handling is written once against that one documented error model
-// (AGENTS.md: "Normalize API errors through one documented error model") and
-// doesn't change when the real MPS-205 client replaces this mock.
+// In-memory mock implementation of StaffDirectoryClient (MPS-F203), used
+// only in tests -- the app itself uses `realStaffDirectoryClient.ts`
+// against the real MPS-205 backend. Rejections use the same
+// `ApiError`/`ApiErrorItem` shape shared/api-client.ts already defines for
+// the real API (AGENTS.md: "Normalize API errors through one documented
+// error model"), including the real backend's actual status/code shape
+// (422 `validation_failed` with a `field`, confirmed against
+// descon-be/openapi.yaml) so tests against this mock exercise the same
+// error-handling code paths as production.
 import type { ApiError } from '../api-client';
 import { STAFF_ROLE_RANK } from '../auth/staffTypes';
 import type { StaffRole, StaffStatus } from '../auth/staffTypes';
@@ -14,43 +16,38 @@ import type { StaffDirectoryClient, StaffDirectoryListParams, StaffInviteInput, 
 const INITIAL_STAFF: StaffMember[] = [
   {
     id: 'staff_admin_1',
-    name: 'Ayesha Admin',
     email: 'admin@descon.com',
     role: 'admin',
     status: 'active',
-    lastActiveAt: new Date().toISOString(),
+    createdAt: new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString(),
   },
   {
     id: 'staff_hr_1',
-    name: 'Bilal HR',
     email: 'hr@descon.com',
     role: 'hr',
     status: 'active',
-    lastActiveAt: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
+    createdAt: new Date(Date.now() - 60 * 24 * 60 * 60 * 1000).toISOString(),
   },
   {
     id: 'staff_finance_1',
-    name: 'Sana Finance',
     email: 'finance@descon.com',
     role: 'finance',
     status: 'active',
-    lastActiveAt: new Date(Date.now() - 26 * 60 * 60 * 1000).toISOString(),
+    createdAt: new Date(Date.now() - 45 * 24 * 60 * 60 * 1000).toISOString(),
   },
   {
     id: 'staff_invited_1',
-    name: 'Hamza Haroon',
     email: 'hamza.haroon@descon.com',
     role: 'hr',
     status: 'invited',
-    invitedAt: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(),
+    createdAt: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(),
   },
   {
     id: 'staff_suspended_1',
-    name: 'Zara Zaidi',
     email: 'zara.zaidi@descon.com',
     role: 'finance',
     status: 'suspended',
-    lastActiveAt: new Date(Date.now() - 40 * 24 * 60 * 60 * 1000).toISOString(),
+    createdAt: new Date(Date.now() - 40 * 24 * 60 * 60 * 1000).toISOString(),
   },
 ];
 
@@ -58,29 +55,21 @@ function randomId(): string {
   return `staff_${Math.random().toString(36).slice(2)}${Date.now().toString(36)}`;
 }
 
-function conflictError(errorCode: string, message: string): ApiError {
-  return {
-    status: 409,
-    code: 'HTTP_4XX',
-    serverCode: errorCode,
-    errors: [{ code: errorCode, message }],
-  };
-}
-
-function validationError(errorCode: string, message: string, field: string): ApiError {
+/** Real backend shape: every domain validation failure (duplicate email, last-admin protection, self-suspension) is a 422 `validation_failed` with a field, distinguished only by `field` + message -- there is no separate `duplicate_email`/`last_admin` code (confirmed against openapi.yaml). The mock matches this exactly. */
+function validationError(message: string, field: string): ApiError {
   return {
     status: 422,
     code: 'HTTP_4XX',
-    serverCode: errorCode,
+    serverCode: 'validation_failed',
     field,
-    errors: [{ code: errorCode, message, field }],
+    errors: [{ code: 'validation_failed', message, field }],
   };
 }
 
 function matchesQuery(member: StaffMember, query: string): boolean {
   const normalized = query.trim().toLowerCase();
   if (!normalized) return true;
-  return member.name.toLowerCase().includes(normalized) || member.email.toLowerCase().includes(normalized);
+  return member.email.toLowerCase().includes(normalized);
 }
 
 export interface MockStaffDirectoryClientOptions {
@@ -112,21 +101,20 @@ export function createMockStaffDirectoryClient(options: MockStaffDirectoryClient
       });
     },
 
-    async inviteStaff({ name, email, role }: StaffInviteInput) {
+    async inviteStaff({ email, role }: StaffInviteInput) {
       await wait();
 
       const normalizedEmail = email.trim().toLowerCase();
       if (staff.some((member) => member.email.toLowerCase() === normalizedEmail)) {
-        throw validationError('duplicate_email', 'A staff member with this email already exists.', 'email');
+        throw validationError('A staff member with this email already exists.', 'email');
       }
 
       const invited: StaffMember = {
         id: randomId(),
-        name: name.trim(),
         email: email.trim(),
         role,
         status: 'invited',
-        invitedAt: new Date().toISOString(),
+        createdAt: new Date().toISOString(),
       };
       staff = [...staff, invited];
       return invited;
@@ -142,7 +130,7 @@ export function createMockStaffDirectoryClient(options: MockStaffDirectoryClient
 
       const isDowngrade = STAFF_ROLE_RANK[role] < STAFF_ROLE_RANK[existing.role];
       if (isDowngrade && existing.role === 'admin' && activeAdminCount() <= 1) {
-        throw conflictError('last_admin', 'At least one active admin must remain.');
+        throw validationError('At least one active admin must remain.', 'user.role');
       }
 
       const updated: StaffMember = { ...existing, role };
@@ -159,28 +147,12 @@ export function createMockStaffDirectoryClient(options: MockStaffDirectoryClient
       }
 
       if (status === 'suspended' && existing.role === 'admin' && existing.status !== 'suspended' && activeAdminCount() <= 1) {
-        throw conflictError('last_admin', 'At least one active admin must remain.');
+        throw validationError('At least one active admin must remain.', 'user.staff_state');
       }
 
       const updated: StaffMember = { ...existing, status };
       staff = staff.map((member) => (member.id === staffId ? updated : member));
       return updated;
     },
-  };
-}
-
-/**
- * Safe fallback for any build where the mock must not be reachable (i.e.
- * production, until MPS-205 ships a real implementation) -- same pattern as
- * shared/auth/staffAuthClient.ts's `createUnavailableStaffAuthClient`.
- */
-export function createUnavailableStaffDirectoryClient(): StaffDirectoryClient {
-  const fail = (): Promise<never> =>
-    Promise.reject({ status: 503, code: 'HTTP_5XX', serverCode: 'service_unavailable' } satisfies ApiError);
-  return {
-    listStaff: fail,
-    inviteStaff: fail,
-    updateStaffRole: fail,
-    updateStaffStatus: fail,
   };
 }
