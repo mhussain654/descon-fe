@@ -1,11 +1,12 @@
-import { fireEvent, render, screen, within } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Link, MemoryRouter, Route, Routes } from "react-router";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { AuthProvider, useAuth } from "../../contexts/AuthContext";
 import { LanguageProvider } from "../../contexts/LanguageContext";
 import { applicationProgressClient } from "../../lib/application-progress-client";
 import { candidateWorkflowClient } from "../../lib/candidate-workflow-client";
+import { candidateFlightDetailClient } from "../../lib/candidate-flight-detail-client";
 import StatusPage from "./page";
 
 vi.mock("../../lib/application-progress-client", () => ({
@@ -14,6 +15,23 @@ vi.mock("../../lib/application-progress-client", () => ({
 vi.mock("../../lib/candidate-workflow-client", () => ({
   candidateWorkflowClient: { getWorkflowHistory: vi.fn() },
 }));
+vi.mock("../../lib/candidate-flight-detail-client", () => ({
+  candidateFlightDetailClient: { getFlightDetail: vi.fn(), requestTicketAccess: vi.fn() },
+}));
+
+function flightDetail(overrides = {}) {
+  return {
+    id: "3fa1d41e-d4aa-4bf3-9838-c0af7080f363",
+    airline: "Qatar Airways",
+    flightNumber: "QR-123",
+    sector: "LHE-DOH",
+    flightDepartureAt: "2026-09-20T14:30:00Z",
+    ticketAttached: true,
+    mobilizedOn: null,
+    mobilized: false,
+    ...overrides,
+  };
+}
 
 const CANONICAL_STAGES = [
   { code: "registered", name: "Registered", position: 1 },
@@ -142,9 +160,20 @@ function stageRow(labelText) {
 }
 
 describe("StatusPage", () => {
+  // Every test renders the page, and useCandidateFlightDetail unconditionally
+  // queries flight-detail state as soon as it mounts -- default it to "not
+  // recorded yet" here so the pre-existing tests below (none of which are
+  // about the flight ticket) don't each need their own mock, matching
+  // documents/page.test.jsx's identical established convention.
+  beforeEach(() => {
+    candidateFlightDetailClient.getFlightDetail.mockResolvedValue(null);
+  });
+
   afterEach(() => {
     vi.mocked(applicationProgressClient.getProgress).mockReset();
     vi.mocked(candidateWorkflowClient.getWorkflowHistory).mockReset();
+    vi.mocked(candidateFlightDetailClient.getFlightDetail).mockReset();
+    vi.mocked(candidateFlightDetailClient.requestTicketAccess).mockReset();
   });
 
   it("shows a loading state before progress resolves", async () => {
@@ -327,5 +356,87 @@ describe("StatusPage", () => {
 
     expect(await screen.findByText("رجسٹرڈ")).toBeInTheDocument();
     localStorage.removeItem("descon.language");
+  });
+
+  describe("flight ticket download", () => {
+    it("shows no download action when the flight_details_uploaded stage hasn't been reached", async () => {
+      applicationProgressClient.getProgress.mockResolvedValue(progressPayload({ workflow: workflowPayload({ timeline: timelineThrough(3) }) }));
+      candidateWorkflowClient.getWorkflowHistory.mockResolvedValue(historyPayload());
+      candidateFlightDetailClient.getFlightDetail.mockResolvedValue(flightDetail());
+      await signInAndNavigateToStatus();
+
+      await screen.findByText("Flight Details Uploaded");
+      expect(within(stageRow("Flight Details Uploaded")).queryByRole("button", { name: "Download Ticket" })).not.toBeInTheDocument();
+    });
+
+    it("shows no download action once the stage is reached if no ticket file was actually attached", async () => {
+      applicationProgressClient.getProgress.mockResolvedValue(progressPayload({ workflow: workflowPayload({ timeline: timelineThrough(14) }) }));
+      candidateWorkflowClient.getWorkflowHistory.mockResolvedValue(historyPayload());
+      candidateFlightDetailClient.getFlightDetail.mockResolvedValue(flightDetail({ ticketAttached: false }));
+      await signInAndNavigateToStatus();
+
+      await screen.findByText("Flight Details Uploaded");
+      expect(screen.queryByRole("button", { name: "Download Ticket" })).not.toBeInTheDocument();
+    });
+
+    it("shows a Download Ticket action on the flight_details_uploaded stage once reached and a ticket is attached", async () => {
+      applicationProgressClient.getProgress.mockResolvedValue(progressPayload({ workflow: workflowPayload({ timeline: timelineThrough(14) }) }));
+      candidateWorkflowClient.getWorkflowHistory.mockResolvedValue(historyPayload());
+      candidateFlightDetailClient.getFlightDetail.mockResolvedValue(flightDetail());
+      await signInAndNavigateToStatus();
+
+      await screen.findByText("Flight Details Uploaded");
+      expect(within(stageRow("Flight Details Uploaded")).getByRole("button", { name: "Download Ticket" })).toBeInTheDocument();
+    });
+
+    it("also shows the action on the mobilized stage once fully mobilized", async () => {
+      applicationProgressClient.getProgress.mockResolvedValue(
+        progressPayload({ workflow: workflowPayload({ timeline: timelineThrough(16), completedCount: 15, progressPercentage: 100 }) })
+      );
+      candidateWorkflowClient.getWorkflowHistory.mockResolvedValue(historyPayload());
+      candidateFlightDetailClient.getFlightDetail.mockResolvedValue(flightDetail({ mobilized: true, mobilizedOn: "2026-09-25" }));
+      await signInAndNavigateToStatus();
+
+      await screen.findByText("Mobilized");
+      expect(within(stageRow("Mobilized")).getByRole("button", { name: "Download Ticket" })).toBeInTheDocument();
+    });
+
+    it("requests a signed URL on click and renders it as an Open Ticket link, never eagerly fetching it on page load", async () => {
+      applicationProgressClient.getProgress.mockResolvedValue(progressPayload({ workflow: workflowPayload({ timeline: timelineThrough(14) }) }));
+      candidateWorkflowClient.getWorkflowHistory.mockResolvedValue(historyPayload());
+      candidateFlightDetailClient.getFlightDetail.mockResolvedValue(flightDetail());
+      candidateFlightDetailClient.requestTicketAccess.mockResolvedValue({
+        flightDetailId: "3fa1d41e-d4aa-4bf3-9838-c0af7080f363",
+        url: "/rails/active_storage/blobs/proxy/abc/ticket.pdf",
+        expiresAt: new Date(Date.now() + 5 * 60 * 1000).toISOString(),
+      });
+      await signInAndNavigateToStatus();
+
+      await screen.findByText("Flight Details Uploaded");
+      expect(candidateFlightDetailClient.requestTicketAccess).not.toHaveBeenCalled();
+
+      fireEvent.click(within(stageRow("Flight Details Uploaded")).getByRole("button", { name: "Download Ticket" }));
+
+      const link = await within(stageRow("Flight Details Uploaded")).findByRole("link", { name: "Open Ticket" });
+      expect(link).toHaveAttribute("href", expect.stringContaining("/rails/active_storage/blobs/proxy/abc/ticket.pdf"));
+      expect(link).toHaveAttribute("target", "_blank");
+      expect(candidateFlightDetailClient.requestTicketAccess).toHaveBeenCalledWith("candidate-access-token");
+    });
+
+    it("shows a field error when the backend reports the ticket isn't attached after all", async () => {
+      applicationProgressClient.getProgress.mockResolvedValue(progressPayload({ workflow: workflowPayload({ timeline: timelineThrough(14) }) }));
+      candidateWorkflowClient.getWorkflowHistory.mockResolvedValue(historyPayload());
+      candidateFlightDetailClient.getFlightDetail.mockResolvedValue(flightDetail());
+      candidateFlightDetailClient.requestTicketAccess.mockRejectedValue({
+        code: "TICKET_NOT_ATTACHED",
+        message: "Your flight ticket has not been uploaded yet.",
+      });
+      await signInAndNavigateToStatus();
+
+      await screen.findByText("Flight Details Uploaded");
+      fireEvent.click(within(stageRow("Flight Details Uploaded")).getByRole("button", { name: "Download Ticket" }));
+
+      expect(await screen.findByText("Your flight ticket has not been uploaded yet.")).toBeInTheDocument();
+    });
   });
 });
