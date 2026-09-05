@@ -19,6 +19,7 @@ import {
   OfflineState,
   SessionExpiredState,
   ForbiddenState,
+  StatTile,
   ValidationMessage,
 } from "../../design-system";
 import { CANDIDATE_DOCUMENTS_ERROR_KEYS } from "../../../../shared/candidateDocuments/errorMessages";
@@ -134,17 +135,17 @@ export default function DocumentsPage() {
         <div className="mb-5 flex gap-2">
           <StatTile
             value={stats.verified}
-            labelKey="verified"
+            label={t("verified")}
             className="bg-[#E6F9F0] text-[#10B981]"
             labelClassName="text-[#10B981]"
           />
           <StatTile
             value={stats.pendingReview}
-            labelKey="candidateDocumentsStatusPendingReview"
+            label={t("candidateDocumentsStatusPendingReview")}
             className="bg-[#FFF7E6] text-[#F59E0B]"
             labelClassName="text-[#F59E0B]"
           />
-          <StatTile value={stats.missing} labelKey="pending" className="bg-[#F6F6F6] text-[#6B7280]" />
+          <StatTile value={stats.missing} label={t("pending")} className="bg-[#F6F6F6] text-[#6B7280]" />
         </div>
 
         {documents?.canSubmit ? (
@@ -204,15 +205,6 @@ export default function DocumentsPage() {
   );
 }
 
-function StatTile({ value, labelKey, className, labelClassName = "text-black" }) {
-  const { t } = useLanguage();
-  return (
-    <div className={`flex-1 rounded-xl p-3 text-center ${className}`}>
-      <div className="text-2xl font-semibold">{value}</div>
-      <div className={`text-[11px] ${labelClassName}`}>{t(labelKey)}</div>
-    </div>
-  );
-}
 
 function DocumentRow({ item, language, t, isActive, isAnyUploadPending, upload }) {
   const config = STATUS_CONFIG[item.status] ?? STATUS_CONFIG.unknown;

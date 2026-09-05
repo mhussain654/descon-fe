@@ -55,6 +55,14 @@ function StaffShellContent({ children }: { children: ReactNode }) {
     },
     { href: '/admin/users', labelKey: 'staffNavUsers', visible: hasPermission('manage_staff_users') },
     { href: '/admin/audit-log', labelKey: 'staffNavAuditLog', visible: hasPermission('view_audit_events') },
+    { href: '/admin/dashboard', labelKey: 'staffNavAdminDashboard', visible: hasPermission('view_admin_dashboard') },
+    { href: '/admin/mps-dashboard', labelKey: 'staffNavMpsDashboard', visible: hasPermission('view_mps_dashboard') },
+    {
+      href: '/admin/management-dashboard',
+      labelKey: 'staffNavManagementDashboard',
+      visible: hasPermission('view_management_dashboard'),
+    },
+    { href: '/admin/reports', labelKey: 'staffNavReports', visible: hasPermission('view_reports') },
   ].filter((item) => item.visible);
 
   return (

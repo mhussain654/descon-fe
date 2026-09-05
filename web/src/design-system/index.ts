@@ -26,6 +26,7 @@ export * from './Select';
 export * from './SessionExpiredState';
 export * from './Skeleton';
 export * from './Spinner';
+export * from './StatTile';
 export * from './Table';
 export * from './Textarea';
 export * from './Timeline';

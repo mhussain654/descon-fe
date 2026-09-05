@@ -62,4 +62,36 @@ describe('StaffShell navigation', () => {
     expect(await screen.findByText('page content')).toBeInTheDocument();
     expect(screen.queryByRole('link', { name: 'Audit log' })).not.toBeInTheDocument();
   });
+
+  it('shows the Dashboard nav link for a staff member with view_admin_dashboard', async () => {
+    const ADMIN = MOCK_STAFF_ACCOUNTS.find((account) => account.role === 'admin')!;
+    await renderShellAs(ADMIN);
+
+    expect(await screen.findByRole('link', { name: 'Dashboard' })).toHaveAttribute('href', '/admin/dashboard');
+  });
+
+  it('shows the MPS Dashboard and Reports nav links for a staff member with view_mps_dashboard/view_reports', async () => {
+    const MPS = MOCK_STAFF_ACCOUNTS.find((account) => account.role === 'mps')!;
+    await renderShellAs(MPS);
+
+    expect(await screen.findByRole('link', { name: 'MPS Dashboard' })).toHaveAttribute('href', '/admin/mps-dashboard');
+    expect(screen.getByRole('link', { name: 'Reports' })).toHaveAttribute('href', '/admin/reports');
+    expect(screen.queryByRole('link', { name: 'Management Dashboard' })).not.toBeInTheDocument();
+  });
+
+  it('shows the Management Dashboard nav link for a staff member with view_management_dashboard', async () => {
+    await renderShellAs(MANAGEMENT);
+
+    expect(await screen.findByRole('link', { name: 'Management Dashboard' })).toHaveAttribute('href', '/admin/management-dashboard');
+  });
+
+  it('never renders any dashboard/reports nav link for a staff member without those permissions', async () => {
+    await renderShellAs(HR);
+
+    expect(await screen.findByText('page content')).toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'Dashboard' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'MPS Dashboard' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'Management Dashboard' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'Reports' })).not.toBeInTheDocument();
+  });
 });
