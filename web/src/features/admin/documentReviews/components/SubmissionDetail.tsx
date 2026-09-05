@@ -10,6 +10,7 @@ import {
   EmptyState,
   ErrorState,
   ForbiddenState,
+  Input,
   LoadingState,
   OfflineState,
   Textarea,
@@ -18,10 +19,12 @@ import {
 import { formatDate } from '../../../../../../shared/i18n/locale';
 import { ADMIN_DOCUMENT_REVIEW_ERROR_KEYS } from '../../../../../../shared/adminDocumentReviews/errorMessages';
 import { formatFileSize, referenceDisplayName } from '../../../../../../shared/adminDocumentReviews/formatting';
+import { supportsOcrExtraction } from '../../../../../../shared/adminDocumentReviews/ocrSupportedRequirementCodes';
 import { ADMIN_REVIEWER_ROLE_KEYS, DOCUMENT_STATUS_KEYS, DOCUMENT_STATUS_TONES } from '../../../../../../shared/adminDocumentReviews/statusLabels';
-import type { SubmissionDocument } from '../../../../../../shared/adminDocumentReviews/types';
+import type { DocumentExtraction, SubmissionDocument } from '../../../../../../shared/adminDocumentReviews/types';
 import type { TranslationKey } from '../../../../../../shared/i18n/translations';
 import { useDocumentAccess } from '../hooks/useDocumentAccess';
+import { useDocumentExtraction } from '../hooks/useDocumentExtraction';
 import { useDocumentSubmission } from '../hooks/useDocumentSubmission';
 import { useReviewDecision } from '../hooks/useReviewDecision';
 import { DocumentPreview } from './DocumentPreview';
@@ -108,6 +111,10 @@ export function SubmissionDetail({ submissionId }: SubmissionDetailProps) {
   if (!detail) return null;
 
   const previewDocument = detail.documents.find((doc) => doc.id === previewDocumentId) ?? null;
+  const verifyTargetDocument =
+    decision.confirmTarget?.action === 'verified'
+      ? (detail.documents.find((doc) => doc.id === decision.confirmTarget?.documentId) ?? null)
+      : null;
   const decisionError = decision.mutation.error;
   const rejectionFieldError =
     decisionError?.code === 'REJECTION_REASON_REQUIRED' || decisionError?.code === 'REJECTION_REASON_INVALID'
@@ -194,6 +201,16 @@ export function SubmissionDetail({ submissionId }: SubmissionDetailProps) {
         onConfirm={decision.confirm}
         isConfirming={decision.mutation.isPending}
       >
+        {verifyTargetDocument && supportsOcrExtraction(verifyTargetDocument.requirementCode) ? (
+          <OcrDateFields
+            documentId={verifyTargetDocument.id}
+            issuedOn={decision.issuedOn}
+            expiresOn={decision.expiresOn}
+            onIssuedOnChange={decision.setIssuedOn}
+            onExpiresOnChange={decision.setExpiresOn}
+            disabled={decision.mutation.isPending}
+          />
+        ) : null}
         {conflictMessage ? <ValidationMessage tone="error">{conflictMessage}</ValidationMessage> : null}
         {nonFieldDecisionError ? <ValidationMessage tone="error">{nonFieldDecisionError}</ValidationMessage> : null}
       </ConfirmDialog>
@@ -233,6 +250,83 @@ export function SubmissionDetail({ submissionId }: SubmissionDetailProps) {
           onRequestNewAccess={() => documentAccess.requestAccess(previewDocument.id)}
         />
       ) : null}
+    </div>
+  );
+}
+
+interface OcrDateFieldsProps {
+  documentId: string;
+  issuedOn: string;
+  expiresOn: string;
+  onIssuedOnChange: (value: string) => void;
+  onExpiresOnChange: (value: string) => void;
+  disabled: boolean;
+}
+
+const EXTRACTION_STATUS_KEYS: Record<DocumentExtraction['status'], TranslationKey> = {
+  not_started: 'adminDocumentReviewExtractionNotStarted',
+  pending: 'adminDocumentReviewExtractionPending',
+  succeeded: 'adminDocumentReviewExtractionSucceeded',
+  failed: 'adminDocumentReviewExtractionFailed',
+};
+
+const EXTRACTION_STATUS_TONES: Record<DocumentExtraction['status'], 'neutral' | 'warning' | 'success' | 'danger'> = {
+  not_started: 'neutral',
+  pending: 'warning',
+  succeeded: 'success',
+  failed: 'danger',
+};
+
+/**
+ * Always-editable issue/expiry inputs for an OCR-supported document type
+ * (MPS-404), pre-filled once from the latest extraction attempt when it
+ * first loads (never overwriting a value HR has already started typing).
+ * Extraction failing or still being pending never blocks verification --
+ * the inputs work regardless of extraction status.
+ */
+function OcrDateFields({ documentId, issuedOn, expiresOn, onIssuedOnChange, onExpiresOnChange, disabled }: OcrDateFieldsProps) {
+  const { t } = useLanguage();
+  const extractionQuery = useDocumentExtraction(documentId, true);
+  const [prefilled, setPrefilled] = useState(false);
+
+  useEffect(() => {
+    const extraction = extractionQuery.data;
+    if (prefilled || !extraction) return;
+    if (extraction.issuedOn) onIssuedOnChange(extraction.issuedOn);
+    if (extraction.expiresOn) onExpiresOnChange(extraction.expiresOn);
+    setPrefilled(true);
+  }, [extractionQuery.data, prefilled, onIssuedOnChange, onExpiresOnChange]);
+
+  const extraction = extractionQuery.data;
+
+  return (
+    <div className="mb-4 space-y-3">
+      {extraction ? (
+        <div className="flex items-center gap-2">
+          <Badge tone={EXTRACTION_STATUS_TONES[extraction.status]}>{t(EXTRACTION_STATUS_KEYS[extraction.status])}</Badge>
+          {extraction.status === 'succeeded' && extraction.confidenceIssuedOn !== undefined ? (
+            <span className="text-xs text-text-tertiary">
+              {t('adminDocumentReviewExtractionConfidenceLabel')}: {Math.round(extraction.confidenceIssuedOn)}%
+            </span>
+          ) : null}
+        </div>
+      ) : null}
+      <div className="grid grid-cols-2 gap-3">
+        <Input
+          type="date"
+          label={t('adminDocumentReviewIssuedOnLabel')}
+          value={issuedOn}
+          onChange={(event) => onIssuedOnChange(event.target.value)}
+          disabled={disabled}
+        />
+        <Input
+          type="date"
+          label={t('adminDocumentReviewExpiresOnLabel')}
+          value={expiresOn}
+          onChange={(event) => onExpiresOnChange(event.target.value)}
+          disabled={disabled}
+        />
+      </div>
     </div>
   );
 }

@@ -73,6 +73,11 @@ export interface SubmissionDocument {
   rejectionReason?: string;
   /** Present once the document has been reviewed (verified or rejected). */
   reviewer?: ReviewerInfo;
+  /** Present for police_character (PCC) documents, and for an OCR-supported document type (MPS-404) once HR has confirmed a value through the verify action. */
+  issuedOn?: string;
+  expiresOn?: string;
+  /** PCC-only -- passport/CNIC expiry has no tracked compliance concept the way PCC's does. */
+  complianceStatus?: 'current' | 'near_expiry' | 'expired';
 }
 
 export interface DocumentSubmissionDetail {
@@ -147,6 +152,25 @@ export interface ReviewDecisionResult {
   };
 }
 
+/** Optional HR-confirmed/corrected dates for an OCR-supported document type (MPS-404) -- ignored by the backend for every other document type. */
+export interface VerifyDocumentDates {
+  issuedOn?: string;
+  expiresOn?: string;
+}
+
+export type DocumentExtractionStatus = 'not_started' | 'pending' | 'succeeded' | 'failed';
+
+/** The latest OCR extraction attempt for a document (MPS-404) -- feeds the verify dialog's pre-filled, always-editable issue/expiry inputs. Never applied automatically; HR always confirms via verifyDocument. */
+export interface DocumentExtraction {
+  status: DocumentExtractionStatus;
+  issuedOn?: string;
+  expiresOn?: string;
+  confidenceIssuedOn?: number;
+  confidenceExpiresOn?: number;
+  errorMessage?: string;
+  extractedAt?: string;
+}
+
 export type AdminDocumentReviewErrorCode =
   | 'MISSING_IDEMPOTENCY_KEY'
   | 'INVALID_IDEMPOTENCY_KEY'
@@ -182,6 +206,7 @@ export interface AdminDocumentReviewsClient {
   getQueue(filters: DocumentReviewQueueFilters, page: DocumentReviewQueuePage): Promise<DocumentReviewQueueResult>;
   getSubmission(submissionId: string): Promise<DocumentSubmissionDetail>;
   requestDocumentAccess(documentId: string): Promise<DocumentAccess>;
-  verifyDocument(documentId: string, idempotencyKey: string): Promise<ReviewDecisionResult>;
+  verifyDocument(documentId: string, idempotencyKey: string, dates?: VerifyDocumentDates): Promise<ReviewDecisionResult>;
   rejectDocument(documentId: string, reason: string, idempotencyKey: string): Promise<ReviewDecisionResult>;
+  getExtraction(documentId: string): Promise<DocumentExtraction>;
 }
