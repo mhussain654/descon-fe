@@ -31,7 +31,7 @@ export const MOCK_STAFF_ACCOUNTS: MockStaffAccount[] = [
     name: 'Ayesha Admin',
     email: 'admin@descon.com',
     role: 'admin',
-    permissions: ['manage_staff_users', 'manage_candidate_documents'],
+    permissions: ['manage_staff_users', 'manage_candidate_documents', 'view_admin_dashboard'],
   },
   {
     staffId: 'staff_hr_1',
@@ -52,7 +52,15 @@ export const MOCK_STAFF_ACCOUNTS: MockStaffAccount[] = [
     name: 'Omar MPS',
     email: 'mps@descon.com',
     role: 'mps',
-    permissions: ['view_candidates', 'manage_candidate_assignments', 'manage_candidate_documents', 'manage_workflow', 'manage_communications'],
+    permissions: [
+      'view_candidates',
+      'manage_candidate_assignments',
+      'manage_candidate_documents',
+      'manage_workflow',
+      'manage_communications',
+      'view_mps_dashboard',
+      'view_reports',
+    ],
   },
   {
     staffId: 'staff_management_1',
@@ -67,6 +75,8 @@ export const MOCK_STAFF_ACCOUNTS: MockStaffAccount[] = [
       'view_payments',
       'view_communications',
       'view_audit_events',
+      'view_management_dashboard',
+      'view_reports',
     ],
   },
   {

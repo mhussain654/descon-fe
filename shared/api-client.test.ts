@@ -288,4 +288,34 @@ describe('api-client', () => {
       });
     });
   });
+
+  describe('getBinaryFile', () => {
+    it('resolves with a Blob and the filename from Content-Disposition', async () => {
+      stubFetch(async () =>
+        new Response(new Blob(['pdf-bytes']), {
+          status: 200,
+          headers: { 'Content-Type': 'application/pdf', 'Content-Disposition': 'attachment; filename="status_summary.pdf"' },
+        })
+      );
+      const client = createApiClient({ baseUrl: 'http://example.test' });
+      const result = await client.getBinaryFile('/admin/reports/status_summary/export');
+      expect(result.filename).toBe('status_summary.pdf');
+      expect(result.blob.type).toBe('application/pdf');
+      // Not asserting an exact byte count here: jsdom's Blob/Response polyfill
+      // doesn't preserve the real Node Blob's byte length for a body constructed
+      // this way in tests, even though real browser and Node fetch do (verified
+      // directly against Node's own Response/Blob, outside this jsdom-backed
+      // test runner). A non-empty blob is enough to prove content flowed through.
+      expect(result.blob.size).toBeGreaterThan(0);
+    });
+
+    it('still throws the normalized ApiError on a 4xx response, not a garbled file result', async () => {
+      stubFetch(async () => jsonResponse(errorEnvelope([{ code: 'invalid_query_parameter', message: 'Unknown format' }]), { status: 400 }));
+      const client = createApiClient({ baseUrl: 'http://example.test' });
+      await expect(client.getBinaryFile('/admin/reports/status_summary/export')).rejects.toMatchObject({
+        status: 400,
+        serverCode: 'invalid_query_parameter',
+      });
+    });
+  });
 });
