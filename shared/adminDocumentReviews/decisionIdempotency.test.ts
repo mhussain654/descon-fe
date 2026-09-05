@@ -5,8 +5,16 @@ import {
   type DecisionIdempotencyKeyState,
 } from './decisionIdempotency';
 
-function selection(overrides: Partial<{ documentId: string; action: 'verified' | 'rejected'; rejectionReason: string }> = {}) {
-  return { documentId: 'doc-1', action: 'verified' as const, rejectionReason: '', ...overrides };
+function selection(
+  overrides: Partial<{
+    documentId: string;
+    action: 'verified' | 'rejected';
+    rejectionReason: string;
+    issuedOn: string;
+    expiresOn: string;
+  }> = {}
+) {
+  return { documentId: 'doc-1', action: 'verified' as const, rejectionReason: '', issuedOn: '', expiresOn: '', ...overrides };
 }
 
 describe('resolveDecisionIdempotencyKey', () => {
@@ -61,6 +69,34 @@ describe('resolveDecisionIdempotencyKey', () => {
     const retry = resolveDecisionIdempotencyKey(
       first,
       selection({ action: 'rejected', rejectionReason: 'Blurry photo.' }),
+      () => 'key-2'
+    );
+    expect(retry).toBe(first);
+  });
+
+  it('mints a new key when the HR-confirmed issued_on/expires_on dates change', () => {
+    const first = resolveDecisionIdempotencyKey(
+      EMPTY_DECISION_IDEMPOTENCY_KEY_STATE,
+      selection({ issuedOn: '2020-01-01', expiresOn: '2030-01-01' }),
+      () => 'key-1'
+    );
+    const next = resolveDecisionIdempotencyKey(
+      first,
+      selection({ issuedOn: '2020-01-02', expiresOn: '2030-01-01' }),
+      () => 'key-2'
+    );
+    expect(next.key).toBe('key-2');
+  });
+
+  it('reuses the key when retrying with the same dates', () => {
+    const first = resolveDecisionIdempotencyKey(
+      EMPTY_DECISION_IDEMPOTENCY_KEY_STATE,
+      selection({ issuedOn: '2020-01-01', expiresOn: '2030-01-01' }),
+      () => 'key-1'
+    );
+    const retry = resolveDecisionIdempotencyKey(
+      first,
+      selection({ issuedOn: '2020-01-01', expiresOn: '2030-01-01' }),
       () => 'key-2'
     );
     expect(retry).toBe(first);
