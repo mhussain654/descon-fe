@@ -10,7 +10,7 @@ export const CANDIDATE_FLIGHT_DETAIL_ERROR_KEYS: Record<CandidateFlightDetailErr
   INACTIVE_ACCOUNT: 'candidateProfileInactiveAccountDescription',
   SESSION_EXPIRED: 'dsSessionExpiredDescription',
   RATE_LIMITED: 'authRateLimitedError',
-  NETWORK_ERROR: 'somethingWentWrong',
+  NETWORK_ERROR: 'networkError',
   OFFLINE: 'dsOfflineDescription',
   SERVER_ERROR: 'somethingWentWrong',
   UNKNOWN: 'somethingWentWrong',
