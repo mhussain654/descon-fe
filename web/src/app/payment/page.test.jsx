@@ -26,6 +26,7 @@ function LoginStub() {
             candidateName: "Ahmed Ali",
             preferredLocale: "en",
             expiresAt: new Date(Date.now() + 60_000).toISOString(),
+            consent: { currentPolicyVersion: "v1", accepted: true, acceptedAt: "2026-09-06T12:00:00Z" },
           })
         }
       >

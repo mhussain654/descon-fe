@@ -1070,6 +1070,14 @@ export const translations = {
     copiedSuccessfully: 'Copied successfully!',
     restartAction: 'Restart app',
     success: 'Success',
+
+    // Consent (MPS-204)
+    consentTitle: 'Consent Required',
+    consentMessage:
+      'Before you can continue, please review and accept our current data and privacy policy.',
+    consentAcceptAction: 'I Agree & Continue',
+    consentDeclineAction: 'Logout',
+    consentErrorMessage: 'We could not record your consent. Please try again.',
   },
   ur: {
     // Welcome
@@ -2132,6 +2140,13 @@ export const translations = {
     copiedSuccessfully: 'کامیابی سے کاپی ہو گیا!',
     restartAction: 'دوبارہ شروع کریں',
     success: 'کامیابی',
+
+    // Consent (MPS-204)
+    consentTitle: 'رضامندی درکار ہے',
+    consentMessage: 'جاری رکھنے سے پہلے، براہ کرم ہماری موجودہ ڈیٹا اور پرائیویسی پالیسی کا جائزہ لیں اور اسے قبول کریں۔',
+    consentAcceptAction: 'میں متفق ہوں اور جاری رکھنا چاہتا ہوں',
+    consentDeclineAction: 'لاگ آؤٹ',
+    consentErrorMessage: 'ہم آپ کی رضامندی درج نہیں کر سکے۔ براہ کرم دوبارہ کوشش کریں۔',
   },
 } as const satisfies Record<Language, Record<string, string>>;
 

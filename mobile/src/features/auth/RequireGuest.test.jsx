@@ -34,8 +34,8 @@ describe('RequireGuest', () => {
     expect(screen.getByRole('progressbar')).toBeOnTheScreen();
   });
 
-  it('redirects to the authenticated dashboard instead of rendering guest content when already authenticated', () => {
-    useAuth.mockReturnValue({ status: 'authenticated' });
+  it('redirects to the authenticated dashboard instead of rendering guest content when already authenticated and consented', () => {
+    useAuth.mockReturnValue({ status: 'authenticated', session: { consent: { accepted: true } } });
     render(
       <RequireGuest>
         <GuestStub />
@@ -43,6 +43,17 @@ describe('RequireGuest', () => {
     );
     expect(screen.queryByText('Guest content')).toBeNull();
     expect(screen.getByText('redirect:/(tabs)/dashboard')).toBeOnTheScreen();
+  });
+
+  it('redirects to the consent gate instead of the dashboard when authenticated but not yet consented', () => {
+    useAuth.mockReturnValue({ status: 'authenticated', session: { consent: { accepted: false } } });
+    render(
+      <RequireGuest>
+        <GuestStub />
+      </RequireGuest>
+    );
+    expect(screen.queryByText('Guest content')).toBeNull();
+    expect(screen.getByText('redirect:/consent')).toBeOnTheScreen();
   });
 
   it('renders guest content when unauthenticated', () => {

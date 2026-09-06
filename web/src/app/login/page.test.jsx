@@ -32,7 +32,12 @@ beforeEach(() => {
             token_type: 'Bearer',
             expires_in: 900,
             session: { id: 'session-1' },
-            candidate: { id: 'candidate-1', full_name: 'Test Candidate', preferred_locale: 'en' },
+            candidate: {
+              id: 'candidate-1',
+              full_name: 'Test Candidate',
+              preferred_locale: 'en',
+              consent: { current_policy_version: '2026-09-06', accepted: true, accepted_at: '2026-09-06T12:00:00Z' },
+            },
           })
         ),
         { status: 201, headers: { 'Content-Type': 'application/json' } }

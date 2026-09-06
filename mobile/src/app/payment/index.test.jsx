@@ -46,6 +46,7 @@ jest.mock("expo-secure-store", () => ({
         // Long enough to survive a fake-timer-advanced polling-timeout test
         // without the session itself expiring mid-test.
         expiresAt: new Date(Date.now() + 60 * 60 * 1000).toISOString(),
+        consent: { currentPolicyVersion: "v1", accepted: true, acceptedAt: "2026-09-06T12:00:00Z" },
       })
     )
   ),
