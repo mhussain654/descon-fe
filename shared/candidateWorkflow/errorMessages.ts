@@ -7,7 +7,7 @@ export const WORKFLOW_HISTORY_ERROR_KEYS: Record<WorkflowHistoryErrorCode, strin
   INACTIVE_ACCOUNT: 'candidateProfileInactiveAccountDescription',
   FORBIDDEN: 'dsForbiddenDescription',
   RATE_LIMITED: 'authRateLimitedError',
-  NETWORK_ERROR: 'somethingWentWrong',
+  NETWORK_ERROR: 'networkError',
   OFFLINE: 'dsOfflineDescription',
   SERVER_ERROR: 'somethingWentWrong',
   UNKNOWN: 'somethingWentWrong',

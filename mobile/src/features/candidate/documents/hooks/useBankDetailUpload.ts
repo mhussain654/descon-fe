@@ -34,6 +34,9 @@ function toPickedProof(asset: ImagePicker.ImagePickerAsset, fallbackPrefix: stri
     size: asset.fileSize,
     mimeType,
     lastModified: Date.now(),
+    // Web-only: see useDocumentUpload.ts's buildFormData comment -- dropped
+    // here entirely would leave the Expo web build with no working upload.
+    file: asset.file,
   };
 }
 
@@ -45,18 +48,24 @@ function contentSignature(accountTitle: string, accountNumber: string, bankName:
 /**
  * Builds the multipart body for a picked proof file -- React Native's
  * `fetch`/`FormData` accept a `{ uri, name, type }` part in place of a real
- * `Blob`, mirroring useDocumentUpload.ts's buildFormData exactly.
+ * `Blob`, mirroring useDocumentUpload.ts's buildFormData exactly, including
+ * its web fallback (a browser's real FormData does not understand that
+ * `{uri, name, type}` shape and silently stringifies it instead).
  */
-function buildFormData(accountTitle: string, accountNumber: string, bankName: string, proof: PickedProof): FormData {
+export function buildFormData(accountTitle: string, accountNumber: string, bankName: string, proof: PickedProof): FormData {
   const formData = new FormData();
   formData.append('bank_detail[account_title]', accountTitle);
   formData.append('bank_detail[account_number]', accountNumber);
   formData.append('bank_detail[bank_name]', bankName);
-  formData.append(
-    'bank_detail[proof]',
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RN's FormData typing models web's Blob-only signature; the platform's actual runtime accepts this shape for a file part.
-    { uri: proof.uri, name: proof.name, type: proof.mimeType || 'application/octet-stream' } as any
-  );
+  if (proof.file) {
+    formData.append('bank_detail[proof]', proof.file, proof.name);
+  } else {
+    formData.append(
+      'bank_detail[proof]',
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RN's FormData typing models web's Blob-only signature; the platform's actual runtime accepts this shape for a file part.
+      { uri: proof.uri, name: proof.name, type: proof.mimeType || 'application/octet-stream' } as any
+    );
+  }
   return formData;
 }
 

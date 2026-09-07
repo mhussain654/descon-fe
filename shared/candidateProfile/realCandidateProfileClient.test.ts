@@ -36,6 +36,7 @@ function profilePayload(overrides: Record<string, unknown> = {}) {
     candidate_status: 'registered',
     current_workflow_stage: { code: 'registered', name: 'Registered' },
     active: true,
+    consent: { current_policy_version: '2026-09-06', accepted: true, accepted_at: '2026-09-06T12:00:00Z' },
     ...overrides,
   };
 }
@@ -79,6 +80,11 @@ describe('createCandidateProfileClient (real)', () => {
         amount: '0',
         currencyCode: '',
         latestPayment: null,
+      },
+      consent: {
+        currentPolicyVersion: '2026-09-06',
+        accepted: true,
+        acceptedAt: '2026-09-06T12:00:00Z',
       },
     });
   });

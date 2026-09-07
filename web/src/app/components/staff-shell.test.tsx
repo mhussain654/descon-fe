@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MemoryRouter } from 'react-router';
 import { describe, expect, it } from 'vitest';
@@ -93,5 +93,55 @@ describe('StaffShell navigation', () => {
     expect(screen.queryByRole('link', { name: 'MPS Dashboard' })).not.toBeInTheDocument();
     expect(screen.queryByRole('link', { name: 'Management Dashboard' })).not.toBeInTheDocument();
     expect(screen.queryByRole('link', { name: 'Reports' })).not.toBeInTheDocument();
+  });
+});
+
+describe('StaffShell mobile navigation menu', () => {
+  it('keeps the mobile nav closed (and its links out of the DOM) until the menu button is opened', async () => {
+    const ADMIN = MOCK_STAFF_ACCOUNTS.find((account) => account.role === 'admin')!;
+    await renderShellAs(ADMIN);
+    await screen.findByText('page content');
+
+    // Two "Candidates" links would exist once the drawer opens (desktop nav
+    // + mobile drawer nav); while closed there must be exactly one.
+    expect(screen.getAllByRole('link', { name: 'Candidates' })).toHaveLength(1);
+    expect(screen.queryByRole('navigation', { name: 'Descon Staff Portal' })).toBeInTheDocument();
+  });
+
+  it('opens the mobile drawer on menu button click, exposing a second copy of the nav links', async () => {
+    const ADMIN = MOCK_STAFF_ACCOUNTS.find((account) => account.role === 'admin')!;
+    await renderShellAs(ADMIN);
+    await screen.findByText('page content');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Menu' }));
+
+    expect(screen.getAllByRole('link', { name: 'Candidates' })).toHaveLength(2);
+    expect(screen.getByRole('button', { name: 'Menu' })).toHaveAttribute('aria-expanded', 'true');
+  });
+
+  it('closes the mobile drawer again on a second menu button click', async () => {
+    const ADMIN = MOCK_STAFF_ACCOUNTS.find((account) => account.role === 'admin')!;
+    await renderShellAs(ADMIN);
+    await screen.findByText('page content');
+
+    const toggle = screen.getByRole('button', { name: 'Menu' });
+    fireEvent.click(toggle);
+    fireEvent.click(toggle);
+
+    expect(screen.getAllByRole('link', { name: 'Candidates' })).toHaveLength(1);
+    expect(toggle).toHaveAttribute('aria-expanded', 'false');
+  });
+
+  it('closes the mobile drawer after clicking a nav link inside it', async () => {
+    await renderShellAs(MANAGEMENT);
+    await screen.findByText('page content');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Menu' }));
+    expect(screen.getAllByRole('link', { name: 'Reports' })).toHaveLength(2);
+
+    const [, drawerLink] = screen.getAllByRole('link', { name: 'Reports' });
+    fireEvent.click(drawerLink);
+
+    expect(await screen.findAllByRole('link', { name: 'Reports' })).toHaveLength(1);
   });
 });

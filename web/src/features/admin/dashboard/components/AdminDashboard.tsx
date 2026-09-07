@@ -7,7 +7,7 @@ import { DOCUMENT_REVIEW_SUMMARY_ROWS } from '../../../../../../shared/adminDocu
 import { ADMIN_PAYMENT_STATUS_KEYS } from '../../../../../../shared/adminPayments/paymentLabels';
 import type { AdminPaymentStatus } from '../../../../lib/admin-payments-client';
 import type { TranslationKey } from '../../../../../../shared/i18n/translations';
-import { StatusSummaryTable, type TFn } from '../../reports/components/ReportTables';
+import { stageLabel, type TFn } from '../../reports/components/ReportTables';
 import { useAdminDashboard } from '../hooks/useAdminDashboard';
 
 /**
@@ -76,13 +76,9 @@ function DashboardContent({ query, t }: { query: ReturnType<typeof useAdminDashb
         </div>
       </Card>
 
-      <div>
-        <h2 className="mb-2 text-sm font-semibold text-text-primary">{t('dashboardWorkflowStageQueueTitle')}</h2>
-        <StatusSummaryTable rows={data.workflowStageQueue} t={t} />
-      </div>
-
       <Card>
-        <h2 className="mb-2 text-sm font-semibold text-text-primary">{t('adminDashboardDocumentReviewQueueTitle')}</h2>
+        <h2 className="text-sm font-semibold text-text-primary">{t('adminDashboardDocumentReviewQueueTitle')}</h2>
+        <p className="mb-2 text-xs text-text-secondary">{t('adminDashboardDocumentReviewQueueSubtitle')}</p>
         <div className="flex flex-wrap gap-2">
           {DOCUMENT_REVIEW_SUMMARY_ROWS.map((row) => (
             <StatTile
@@ -96,7 +92,8 @@ function DashboardContent({ query, t }: { query: ReturnType<typeof useAdminDashb
       </Card>
 
       <Card>
-        <h2 className="mb-2 text-sm font-semibold text-text-primary">{t('adminDashboardPaymentSummaryTitle')}</h2>
+        <h2 className="text-sm font-semibold text-text-primary">{t('adminDashboardPaymentSummaryTitle')}</h2>
+        <p className="mb-2 text-xs text-text-secondary">{t('adminDashboardPaymentSummarySubtitle')}</p>
         <div className="flex flex-wrap gap-2">
           {data.paymentSummary.map((row) => (
             <StatTile
@@ -105,6 +102,16 @@ function DashboardContent({ query, t }: { query: ReturnType<typeof useAdminDashb
               label={t((ADMIN_PAYMENT_STATUS_KEYS[row.code as AdminPaymentStatus] ?? 'candidateDocumentsStatusUnknown') as TranslationKey)}
               className="bg-[#F6F6F6] text-[#374151]"
             />
+          ))}
+        </div>
+      </Card>
+
+      <Card>
+        <h2 className="text-sm font-semibold text-text-primary">{t('dashboardWorkflowStageQueueTitle')}</h2>
+        <p className="mb-2 text-xs text-text-secondary">{t('dashboardWorkflowStageQueueSubtitle')}</p>
+        <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 xl:grid-cols-4">
+          {data.workflowStageQueue.map((row) => (
+            <StatTile key={row.code} value={row.count} label={stageLabel(row.code, t)} className="bg-[#F6F6F6] text-[#374151]" />
           ))}
         </div>
       </Card>

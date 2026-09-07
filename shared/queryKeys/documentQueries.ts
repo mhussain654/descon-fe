@@ -44,4 +44,8 @@ export const documentQueries = {
    */
   staffCandidateSummary: (candidateId: string, locale: Language) =>
     ['documents', 'staffCandidateSummary', candidateId, locale] as const,
+
+  /** The latest OCR extraction attempt for one document (MPS-404) -- feeds the verify dialog's pre-filled issue/expiry inputs. */
+  staffDocumentExtraction: (documentId: string, locale: Language) =>
+    ['documents', 'staffDocumentExtraction', documentId, locale] as const,
 };

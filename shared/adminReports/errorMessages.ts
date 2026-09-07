@@ -9,7 +9,7 @@ export const REPORT_ERROR_KEYS: Record<ReportErrorCode, string> = {
   INACTIVE_ACCOUNT: 'staffAuthInactiveAccountError',
   SESSION_EXPIRED: 'dsSessionExpiredDescription',
   RATE_LIMITED: 'authRateLimitedError',
-  NETWORK_ERROR: 'somethingWentWrong',
+  NETWORK_ERROR: 'networkError',
   OFFLINE: 'dsOfflineDescription',
   SERVER_ERROR: 'somethingWentWrong',
   UNKNOWN: 'somethingWentWrong',

@@ -33,15 +33,8 @@ const WEB_ALIASES = {
     './polyfills/web/refreshControl.web.tsx'
   ),
   'expo-status-bar': path.resolve(__dirname, './polyfills/web/statusBar.web.tsx'),
-  'expo-location': path.resolve(__dirname, './polyfills/web/location.web.ts'),
   './layouts/Tabs': path.resolve(__dirname, './polyfills/web/tabbar.web.jsx'),
-  'expo-notifications': path.resolve(__dirname, './polyfills/web/notifications.web.tsx'),
-  'expo-contacts': path.resolve(__dirname, './polyfills/web/contacts.web.ts'),
   'expo-font': path.resolve(__dirname, './polyfills/web/expo-font.web.ts'),
-  'react-native-google-mobile-ads': path.resolve(
-    __dirname,
-    './polyfills/web/google-mobile-ads.web.tsx'
-  ),
   'react-native-web/dist/exports/ScrollView': path.resolve(
     __dirname,
     './polyfills/web/scrollview.web.jsx'

@@ -1,5 +1,6 @@
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { axe } from 'jest-axe';
 import { MemoryRouter } from 'react-router';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { AuthProvider } from '../../contexts/AuthContext';
@@ -32,7 +33,12 @@ beforeEach(() => {
             token_type: 'Bearer',
             expires_in: 900,
             session: { id: 'session-1' },
-            candidate: { id: 'candidate-1', full_name: 'Test Candidate', preferred_locale: 'en' },
+            candidate: {
+              id: 'candidate-1',
+              full_name: 'Test Candidate',
+              preferred_locale: 'en',
+              consent: { current_policy_version: '2026-09-06', accepted: true, accepted_at: '2026-09-06T12:00:00Z' },
+            },
           })
         ),
         { status: 201, headers: { 'Content-Type': 'application/json' } }
@@ -80,6 +86,12 @@ describe('LoginPage', () => {
     expect(screen.queryByRole('textbox', { name: /mobile/i })).not.toBeInTheDocument();
     expect(screen.queryByLabelText(/password/i)).not.toBeInTheDocument();
     expect(screen.queryByLabelText(/email/i)).not.toBeInTheDocument();
+  });
+
+  it('has no automatically detectable accessibility violations', async () => {
+    const { container } = renderLoginPage();
+    const results = await axe(container);
+    expect(results).toHaveNoViolations();
   });
 
   it('never renders any signup/registration affordance', () => {
