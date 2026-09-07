@@ -1,5 +1,6 @@
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { axe } from 'jest-axe';
 import { MemoryRouter } from 'react-router';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { AuthProvider } from '../../contexts/AuthContext';
@@ -85,6 +86,12 @@ describe('LoginPage', () => {
     expect(screen.queryByRole('textbox', { name: /mobile/i })).not.toBeInTheDocument();
     expect(screen.queryByLabelText(/password/i)).not.toBeInTheDocument();
     expect(screen.queryByLabelText(/email/i)).not.toBeInTheDocument();
+  });
+
+  it('has no automatically detectable accessibility violations', async () => {
+    const { container } = renderLoginPage();
+    const results = await axe(container);
+    expect(results).toHaveNoViolations();
   });
 
   it('never renders any signup/registration affordance', () => {

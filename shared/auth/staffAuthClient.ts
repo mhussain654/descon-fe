@@ -31,7 +31,7 @@ export const MOCK_STAFF_ACCOUNTS: MockStaffAccount[] = [
     name: 'Ayesha Admin',
     email: 'admin@descon.com',
     role: 'admin',
-    permissions: ['manage_staff_users', 'manage_candidate_documents', 'view_admin_dashboard'],
+    permissions: ['manage_staff_users', 'manage_candidate_documents', 'view_admin_dashboard', 'manage_backups'],
   },
   {
     staffId: 'staff_hr_1',

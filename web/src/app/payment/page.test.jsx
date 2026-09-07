@@ -1,5 +1,6 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { act, fireEvent, render, screen } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { axe } from "jest-axe";
 import { Link, MemoryRouter, Route, Routes } from "react-router";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { AuthProvider, useAuth } from "../../contexts/AuthContext";
@@ -84,5 +85,25 @@ describe("PaymentPage", () => {
 
     expect(await screen.findByRole("heading", { name: "Make Payment" })).toBeInTheDocument();
     expect(await screen.findByRole("button", { name: "Pay now" })).toBeInTheDocument();
+  });
+
+  it("has no automatically detectable accessibility violations", async () => {
+    paymentsClient.getEligibility.mockResolvedValue({
+      eligible: true,
+      checkoutAvailable: true,
+      requiredStageCode: "fee_pending",
+      currentStageCode: "fee_pending",
+      blockingReasons: [],
+      amount: "1500.0",
+      currencyCode: "PKR",
+      latestPayment: null,
+    });
+    const { container } = renderPaymentPage();
+    fireEvent.click(screen.getByText("login"));
+    fireEvent.click(await screen.findByText("Go to payment"));
+
+    await screen.findByRole("heading", { name: "Make Payment" });
+    const results = await act(async () => axe(container));
+    expect(results).toHaveNoViolations();
   });
 });
