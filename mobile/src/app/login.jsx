@@ -38,7 +38,9 @@ export default function LoginScreen() {
         toast.error(t("authSessionPersistError"));
         return;
       }
-      router.replace("/(tabs)/dashboard");
+      // MPS-204: a candidate who hasn't accepted the current policy version
+      // goes straight to the consent gate, never the dashboard.
+      router.replace(session.consent.accepted ? "/(tabs)/dashboard" : "/consent");
     },
     [login, router, t]
   );

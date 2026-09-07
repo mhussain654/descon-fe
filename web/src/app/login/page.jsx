@@ -18,7 +18,9 @@ export default function LoginPage() {
   const onAuthenticated = useCallback(
     (session) => {
       login(session);
-      navigate("/dashboard", { replace: true });
+      // MPS-204: a candidate who hasn't accepted the current policy version
+      // goes straight to the consent gate, never the dashboard.
+      navigate(session.consent.accepted ? "/dashboard" : "/consent", { replace: true });
     },
     [login, navigate]
   );

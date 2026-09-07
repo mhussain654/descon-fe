@@ -24,6 +24,8 @@ export const documentQueries = {
   applicationProgress: (candidateId: string, locale: Language) =>
     ['documents', 'applicationProgress', candidateId, locale] as const,
 
+  bankDetail: (candidateId: string, locale: Language) => ['documents', 'bankDetail', candidateId, locale] as const,
+
   staffQueue: (filters: DocumentReviewQueueFilters, page: DocumentReviewQueuePage, locale: Language) =>
     ['documents', 'staffQueue', filters, page, locale] as const,
 
@@ -42,4 +44,8 @@ export const documentQueries = {
    */
   staffCandidateSummary: (candidateId: string, locale: Language) =>
     ['documents', 'staffCandidateSummary', candidateId, locale] as const,
+
+  /** The latest OCR extraction attempt for one document (MPS-404) -- feeds the verify dialog's pre-filled issue/expiry inputs. */
+  staffDocumentExtraction: (documentId: string, locale: Language) =>
+    ['documents', 'staffDocumentExtraction', documentId, locale] as const,
 };

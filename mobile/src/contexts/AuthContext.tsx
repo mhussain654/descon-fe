@@ -11,7 +11,7 @@ import {
 import { useQueryClient } from "@tanstack/react-query";
 import { z } from "zod";
 import { isSessionValid } from "../../../shared/auth/session";
-import type { AuthSession } from "../../../shared/auth/types";
+import type { AuthSession, ConsentStatus } from "../../../shared/auth/types";
 
 const SESSION_STORE_KEY = "descon.candidateSession";
 
@@ -27,6 +27,8 @@ interface AuthContextValue {
   /** True immediately after an expiry-triggered logout; a screen that reads it should also clear it (see `acknowledgeSessionExpired`). */
   sessionExpired: boolean;
   acknowledgeSessionExpired: () => void;
+  /** Updates the current session's consent status in place (MPS-204), e.g. after the candidate accepts on the consent screen. No-op if called with no session. */
+  setConsentStatus: (status: ConsentStatus) => void;
 }
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
@@ -39,6 +41,11 @@ const authSessionSchema = z.object({
   candidateName: z.string().min(1),
   preferredLocale: z.enum(['en', 'ur']),
   expiresAt: z.string(),
+  consent: z.object({
+    currentPolicyVersion: z.string(),
+    accepted: z.boolean(),
+    acceptedAt: z.string().nullable(),
+  }),
 });
 
 async function deleteStoredSessionSafely(): Promise<void> {
@@ -141,6 +148,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             candidateName: "",
             preferredLocale: "en",
             expiresAt: new Date(0).toISOString(),
+            consent: { currentPolicyVersion: "", accepted: false, acceptedAt: null },
           };
           await SecureStore.setItemAsync(SESSION_STORE_KEY, JSON.stringify(expiredMarker));
         } catch {
@@ -153,6 +161,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const acknowledgeSessionExpired = useCallback(() => setSessionExpired(false), []);
 
+  const setConsentStatus = useCallback((status: ConsentStatus) => {
+    setSession((current) => {
+      if (!current) return current;
+      const next = { ...current, consent: status };
+      SecureStore.setItemAsync(SESSION_STORE_KEY, JSON.stringify(next)).catch(() => {
+        // Best effort -- the in-memory session is already updated; a failed
+        // persist just means a restart could re-show the consent gate once
+        // more, not that the candidate loses access now.
+      });
+      return next;
+    });
+  }, []);
+
   useEffect(() => {
     if (status !== "authenticated" || !session) return undefined;
     const interval = setInterval(() => {
@@ -164,8 +185,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [status, session, logout]);
 
   const value = useMemo(
-    () => ({ status, session, login, logout, sessionExpired, acknowledgeSessionExpired }),
-    [status, session, login, logout, sessionExpired, acknowledgeSessionExpired]
+    () => ({ status, session, login, logout, sessionExpired, acknowledgeSessionExpired, setConsentStatus }),
+    [status, session, login, logout, sessionExpired, acknowledgeSessionExpired, setConsentStatus]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

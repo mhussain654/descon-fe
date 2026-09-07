@@ -1,4 +1,4 @@
-import type { DocumentDisplayStatus, QueueStatusFilter, ReviewDisplayState, ReviewerDisplayRole, ReviewState } from './types';
+import type { DocumentDisplayStatus, DocumentReviewQueueSummary, QueueStatusFilter, ReviewDisplayState, ReviewerDisplayRole, ReviewState } from './types';
 
 export type StatusTone = 'neutral' | 'info' | 'warning' | 'success' | 'danger';
 
@@ -73,6 +73,22 @@ export const FILTERABLE_QUEUE_STATUSES: readonly QueueStatusFilter[] = [
   'rejected',
   'expired_pcc',
   'near_expiry_pcc',
+];
+
+/**
+ * Summary chip order/labels -- ticket: "Total submissions awaiting review,
+ * Candidates with rejected documents, Candidates with expired PCC,
+ * Candidates with near-expiry PCC, Fully verified submissions." Shared by
+ * DocumentReviewQueue.tsx's own summary chips and the Admin dashboard's
+ * document-review-queue tile (MPS-801), which surfaces the same
+ * DocumentReviewQueueSummary shape.
+ */
+export const DOCUMENT_REVIEW_SUMMARY_ROWS: { key: keyof DocumentReviewQueueSummary; labelKey: string }[] = [
+  { key: 'pendingReview', labelKey: 'candidateDocumentsStatusPendingReview' },
+  { key: 'rejected', labelKey: 'rejected' },
+  { key: 'expiredPcc', labelKey: 'candidateDocumentsPccExpired' },
+  { key: 'nearExpiryPcc', labelKey: 'candidateDocumentsPccNearExpiry' },
+  { key: 'verified', labelKey: 'verified' },
 ];
 
 /** Known staff role codes -> translated label key, plus 'unknown' for a future role this build doesn't recognize yet. Never render the raw role code or a personal name -- the backend has no name field for reviewers at all. */
