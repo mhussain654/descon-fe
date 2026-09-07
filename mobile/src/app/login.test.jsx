@@ -71,7 +71,12 @@ function otpVerifySuccessResponse() {
         token_type: 'bearer',
         expires_in: 3600,
         session: { id: 'session-1' },
-        candidate: { id: 'candidate-1', full_name: 'Ahmed Ali', preferred_locale: 'en' },
+        candidate: {
+          id: 'candidate-1',
+          full_name: 'Ahmed Ali',
+          preferred_locale: 'en',
+          consent: { current_policy_version: '2026-09-06', accepted: true, accepted_at: '2026-09-06T12:00:00Z' },
+        },
       },
       meta: {},
       errors: [],
@@ -388,6 +393,7 @@ describe('LoginScreen', () => {
             candidateName: 'Ahmed Ali',
             preferredLocale: 'en',
             expiresAt: new Date(Date.now() + 60_000).toISOString(),
+            consent: { currentPolicyVersion: 'v1', accepted: true, acceptedAt: '2026-09-06T12:00:00Z' },
           })
         )
       );

@@ -25,7 +25,7 @@ export const ADMIN_DOCUMENT_REVIEW_ERROR_KEYS: Record<AdminDocumentReviewErrorCo
   FORBIDDEN: 'staffAuthForbiddenError',
   VALIDATION_ERROR: 'somethingWentWrong',
   RATE_LIMITED: 'authRateLimitedError',
-  NETWORK_ERROR: 'somethingWentWrong',
+  NETWORK_ERROR: 'networkError',
   OFFLINE: 'dsOfflineDescription',
   SERVER_ERROR: 'somethingWentWrong',
   UNKNOWN: 'somethingWentWrong',

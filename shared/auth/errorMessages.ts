@@ -23,6 +23,6 @@ export const AUTH_ERROR_KEYS: Record<AuthErrorCode, string> = {
   SESSION_EXPIRED: 'dsSessionExpiredTitle',
   OFFLINE: 'dsOfflineTitle',
   SERVICE_UNAVAILABLE: 'authServiceUnavailableError',
-  NETWORK_ERROR: 'somethingWentWrong',
+  NETWORK_ERROR: 'networkError',
   UNKNOWN: 'somethingWentWrong',
 };

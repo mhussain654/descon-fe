@@ -44,10 +44,6 @@
         }
       ],
       [
-        "expo-video",
-        { "supportsBackgroundPlayback": true, "supportsPictureInPicture": true }
-      ],
-      [
         "expo-image-picker",
         {
           "cameraPermission": "Allow $(PRODUCT_NAME) to use the camera to photograph your documents.",
@@ -55,8 +51,7 @@
         }
       ],
       "expo-font",
-      "expo-secure-store",
-      "expo-web-browser"
+      "expo-secure-store"
     ],
     "web": {
       "bundler": "metro",
@@ -67,8 +62,13 @@
     },
     "extra": {
       "router": {
-        "origin": false
+        "origin": false,
+        "sitemap": false
+      },
+      "eas": {
+        "projectId": "6e7d472b-5842-4900-b28a-bfaed8972b75"
       }
-    }
+    },
+    "owner": "mhussain654"
   }
 }

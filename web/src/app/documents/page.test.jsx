@@ -1,5 +1,6 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { axe } from "jest-axe";
 import { Link, MemoryRouter, Route, Routes } from "react-router";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { AuthProvider, useAuth } from "../../contexts/AuthContext";
@@ -90,6 +91,7 @@ function LoginStub() {
             candidateName: "Ahmed Ali",
             preferredLocale: "en",
             expiresAt: new Date(Date.now() + 60_000).toISOString(),
+            consent: { currentPolicyVersion: "v1", accepted: true, acceptedAt: "2026-09-06T12:00:00Z" },
           })
         }
       >
@@ -119,9 +121,10 @@ function renderDocumentsPage() {
 }
 
 async function signInAndNavigateToDocuments() {
-  renderDocumentsPage();
+  const rendered = renderDocumentsPage();
   fireEvent.click(screen.getByText("login"));
   fireEvent.click(await screen.findByText("Go to documents"));
+  return rendered;
 }
 
 /** Test-only harness: mounted alongside DocumentsPage inside the same AuthProvider so a test can end the session mid-flight, mirroring how a real logout could race an in-flight upload's response. */
@@ -254,6 +257,20 @@ describe("DocumentsPage", () => {
     expect(screen.getByText("3")).toBeInTheDocument();
     expect(screen.getByText("2")).toBeInTheDocument();
     expect(screen.getByText("5")).toBeInTheDocument();
+  });
+
+  it("has no automatically detectable accessibility violations", async () => {
+    candidateDocumentsClient.getChecklist.mockResolvedValue([
+      item({ status: "missing" }),
+      item({ requirementCode: "cnic_front", name: "CNIC (Front)", status: "uploaded", document: uploadedDocument() }),
+    ]);
+    applicationProgressClient.getProgress.mockResolvedValue(progress({ documents: documentsSummary({ canSubmit: true }) }));
+    const { container } = await signInAndNavigateToDocuments();
+
+    await screen.findByText("Passport");
+    await screen.findByText("Incomplete");
+    const results = await axe(container);
+    expect(results).toHaveNoViolations();
   });
 
   it("renders a missing required document with its localized status, and an Upload action", async () => {

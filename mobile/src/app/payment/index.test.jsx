@@ -19,10 +19,20 @@ jest.mock("expo-router", () => ({
   useRouter: () => ({ replace: (...args) => mockReplace(...args), push: jest.fn(), back: (...args) => mockBack(...args) }),
 }));
 
-const mockOpenBrowserAsync = jest.fn(() => Promise.resolve({ type: "dismiss" }));
-jest.mock("expo-web-browser", () => ({
-  openBrowserAsync: (...args) => mockOpenBrowserAsync(...args),
-}));
+// A real WebView can't run in jest -- this stand-in renders nothing but
+// captures the props the screen passes it, so a test can assert what URL
+// it was asked to load and drive its onNavigationStateChange callback the
+// same way a real return-URL navigation would.
+let latestWebViewProps = null;
+jest.mock("react-native-webview", () => {
+  const { View } = require("react-native");
+  return {
+    WebView: (props) => {
+      latestWebViewProps = props;
+      return <View testID="hosted-checkout-webview" />;
+    },
+  };
+});
 
 jest.mock("expo-secure-store", () => ({
   getItemAsync: jest.fn(() =>
@@ -36,6 +46,7 @@ jest.mock("expo-secure-store", () => ({
         // Long enough to survive a fake-timer-advanced polling-timeout test
         // without the session itself expiring mid-test.
         expiresAt: new Date(Date.now() + 60 * 60 * 1000).toISOString(),
+        consent: { currentPolicyVersion: "v1", accepted: true, acceptedAt: "2026-09-06T12:00:00Z" },
       })
     )
   ),
@@ -94,7 +105,7 @@ afterEach(async () => {
   await cleanup();
   jest.mocked(paymentsClient.getEligibility).mockReset();
   jest.mocked(paymentsClient.initiateCheckout).mockReset();
-  mockOpenBrowserAsync.mockClear();
+  latestWebViewProps = null;
   mockReplace.mockReset();
   mockBack.mockReset();
 });
@@ -136,7 +147,7 @@ describe("PaymentScreen", () => {
     expect(screen.queryByRole("button", { name: "Pay now" })).not.toBeOnTheScreen();
   });
 
-  it("initiates checkout with a fresh idempotency key, opens the server-provided URL in the in-app browser, and refetches on return", async () => {
+  it("initiates checkout with a fresh idempotency key, embeds the server-provided URL in the checkout WebView, and refetches once closed", async () => {
     paymentsClient.getEligibility
       .mockResolvedValueOnce(eligibility())
       .mockResolvedValueOnce(eligibility({ latestPayment: payment() }));
@@ -146,14 +157,18 @@ describe("PaymentScreen", () => {
     fireEvent.press(await screen.findByRole("button", { name: "Pay now" }));
 
     await waitFor(() => expect(paymentsClient.initiateCheckout).toHaveBeenCalledWith("candidate-access-token", expect.any(String)));
-    await waitFor(() =>
-      expect(mockOpenBrowserAsync).toHaveBeenCalledWith("https://mock-payments.example.test/checkout?orderid=1")
-    );
-    expect(await screen.findByText(/waiting for your payment provider/)).toBeOnTheScreen();
-    // Dismissing the in-app browser (back gesture, "Done", or completing
-    // payment all resolve openBrowserAsync identically) must never itself
+    await waitFor(() => expect(screen.getByTestId("hosted-checkout-webview")).toBeOnTheScreen());
+    expect(latestWebViewProps.source).toEqual({ uri: "https://mock-payments.example.test/checkout?orderid=1" });
+
+    // Closing the embedded checkout (back gesture, its own close button, or
+    // reaching the return URL all call the same onClose) must never itself
     // imply success -- only a subsequent GET returning "paid" can.
+    jest.mocked(paymentsClient.getEligibility).mockResolvedValueOnce(eligibility({ latestPayment: payment() }));
+    fireEvent.press(screen.getByRole("button", { name: "Close" }));
+
+    expect(screen.queryByTestId("hosted-checkout-webview")).not.toBeOnTheScreen();
     expect(screen.queryByText("Paid")).not.toBeOnTheScreen();
+    await waitFor(() => expect(paymentsClient.getEligibility).toHaveBeenCalledTimes(2));
   });
 
   it("prevents a duplicate checkout initiation while one is already in flight", async () => {

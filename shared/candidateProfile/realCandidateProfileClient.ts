@@ -20,6 +20,7 @@ interface CandidateProfileResponse {
   current_workflow_stage: { code: string; name: string } | null;
   active: boolean;
   payment: EligibilityResponse;
+  consent: { current_policy_version: string; accepted: boolean; accepted_at: string | null };
 }
 
 export interface RealCandidateProfileClientOptions {
@@ -31,6 +32,7 @@ export interface RealCandidateProfileClientOptions {
 /** Maps the backend's ErrorItem.code (see openapi.yaml's /candidate/profile 403 example) to the shared error taxonomy. */
 const SERVER_CODE_TO_ERROR: Record<string, CandidateProfileErrorCode> = {
   inactive_account: 'INACTIVE_ACCOUNT',
+  consent_required: 'CONSENT_REQUIRED',
 };
 
 function toProfile(data: CandidateProfileResponse): CandidateProfile {
@@ -44,6 +46,11 @@ function toProfile(data: CandidateProfileResponse): CandidateProfile {
     currentWorkflowStage: data.current_workflow_stage,
     active: data.active,
     payment: toPaymentEligibility(data.payment),
+    consent: {
+      currentPolicyVersion: data.consent.current_policy_version,
+      accepted: data.consent.accepted,
+      acceptedAt: data.consent.accepted_at,
+    },
   };
 }
 

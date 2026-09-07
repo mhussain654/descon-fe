@@ -28,6 +28,7 @@ import { staffAuthClient } from '../lib/staff-auth-client';
 import { translate } from '../../../shared/i18n/translate';
 import type { Language } from '../../../shared/i18n/translations';
 import type { Route } from './+types/root';
+import { initErrorReporting, reportError } from '../lib/error-reporting';
 
 // Lives here (not app/layout.jsx) for the same reason AuthProvider does --
 // see the comment on <ClientOnly> below -- and because AuthProvider's
@@ -214,6 +215,7 @@ class ErrorBoundaryWrapper extends Component<ErrorBoundaryProps, ErrorBoundarySt
 
   componentDidCatch(error: unknown, info: unknown) {
     console.error(error, info);
+    reportError(error);
   }
 
   render() {
@@ -236,6 +238,7 @@ export const ClientOnly: React.FC<ClientOnlyProps> = ({ loader }) => {
   const [isMounted, setIsMounted] = useState(false);
 
   useEffect(() => {
+    initErrorReporting();
     setIsMounted(true);
   }, []);
 
