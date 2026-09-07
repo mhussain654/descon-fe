@@ -17,7 +17,7 @@ export const APPLICATION_PROGRESS_ERROR_KEYS: Record<ApplicationProgressErrorCod
   CONFLICT: 'applicationProgressConflictError',
   IN_PROGRESS: 'applicationProgressInProgressError',
   RATE_LIMITED: 'authRateLimitedError',
-  NETWORK_ERROR: 'somethingWentWrong',
+  NETWORK_ERROR: 'networkError',
   OFFLINE: 'dsOfflineDescription',
   SERVER_ERROR: 'somethingWentWrong',
   UNKNOWN: 'somethingWentWrong',

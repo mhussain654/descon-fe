@@ -7,6 +7,7 @@ import type { AuthError, AuthSession, CandidateAuthClient, OtpChallenge } from '
 
 /** The only code that verifies successfully in the mock. Real verification never works this way -- this is a documented dev/test convenience. */
 export const MOCK_VALID_OTP = '123456';
+export const MOCK_POLICY_VERSION = 'mock-policy-v1';
 /** A reserved CNIC that makes `requestOtp` fail generically, for exercising the non-enumerating-failure UI path. Real CNIC existence is never distinguishable through the client's behavior otherwise. */
 export const MOCK_REQUEST_FAILURE_CNIC = '0000000000000';
 export const MOCK_MAX_ATTEMPTS = 3;
@@ -132,6 +133,9 @@ export function createMockCandidateAuthClient(options: MockCandidateAuthClientOp
         candidateName: 'Mock Candidate',
         preferredLocale: 'en',
         expiresAt: new Date(Date.now() + 60 * 60 * 1000).toISOString(),
+        // Mirrors a real first-time login: consent starts unaccepted so the
+        // mock exercises the same post-login gate the real backend enforces.
+        consent: { currentPolicyVersion: MOCK_POLICY_VERSION, accepted: false, acceptedAt: null },
       } satisfies AuthSession;
     },
   };

@@ -21,13 +21,14 @@ import { formatDate } from '../../../../../../shared/i18n/locale';
 import { ADMIN_DOCUMENT_REVIEW_ERROR_KEYS } from '../../../../../../shared/adminDocumentReviews/errorMessages';
 import { referenceDisplayName } from '../../../../../../shared/adminDocumentReviews/formatting';
 import {
+  DOCUMENT_REVIEW_SUMMARY_ROWS,
   FILTERABLE_QUEUE_STATUSES,
   QUEUE_STATUS_FILTER_ONLY_KEYS,
   QUEUE_STATUS_FILTER_ONLY_TONES,
   REVIEW_STATE_KEYS,
   REVIEW_STATE_TONES,
 } from '../../../../../../shared/adminDocumentReviews/statusLabels';
-import type { DocumentReviewQueueItem, DocumentReviewQueueSummary, QueueStatusFilter } from '../../../../../../shared/adminDocumentReviews/types';
+import type { DocumentReviewQueueItem, QueueStatusFilter } from '../../../../../../shared/adminDocumentReviews/types';
 
 /** Merges the 4 review-state labels/tones with the 3 filter-only ones (rejected/expired_pcc/near_expiry_pcc) so every chip in FILTERABLE_QUEUE_STATUSES has a label and tone. */
 const QUEUE_STATUS_KEYS = { ...REVIEW_STATE_KEYS, ...QUEUE_STATUS_FILTER_ONLY_KEYS } as Record<QueueStatusFilter, string>;
@@ -36,14 +37,7 @@ const QUEUE_STATUS_TONES = { ...REVIEW_STATE_TONES, ...QUEUE_STATUS_FILTER_ONLY_
   (typeof REVIEW_STATE_TONES)[keyof typeof REVIEW_STATE_TONES]
 >;
 
-/** Summary chip order/labels -- ticket: "Total submissions awaiting review, Candidates with rejected documents, Candidates with expired PCC, Candidates with near-expiry PCC, Fully verified submissions." */
-const SUMMARY_ROWS: { key: keyof DocumentReviewQueueSummary; labelKey: string }[] = [
-  { key: 'pendingReview', labelKey: 'candidateDocumentsStatusPendingReview' },
-  { key: 'rejected', labelKey: 'rejected' },
-  { key: 'expiredPcc', labelKey: 'candidateDocumentsPccExpired' },
-  { key: 'nearExpiryPcc', labelKey: 'candidateDocumentsPccNearExpiry' },
-  { key: 'verified', labelKey: 'verified' },
-];
+const SUMMARY_ROWS = DOCUMENT_REVIEW_SUMMARY_ROWS;
 import type { TranslationKey } from '../../../../../../shared/i18n/translations';
 import { datetimeLocalValueToIso, isoToDatetimeLocalValue } from '../dateTimeLocalInput';
 import { useDebouncedUrlFilter } from '../hooks/useDebouncedUrlFilter';

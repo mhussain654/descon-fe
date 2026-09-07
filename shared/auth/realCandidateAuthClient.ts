@@ -28,6 +28,11 @@ interface CandidateOtpVerifyResponse {
     id: string;
     full_name: string;
     preferred_locale: 'en' | 'ur';
+    consent: {
+      current_policy_version: string;
+      accepted: boolean;
+      accepted_at: string | null;
+    };
   };
 }
 
@@ -128,6 +133,11 @@ export function createCandidateAuthClient(options: RealCandidateAuthClientOption
           candidateName: data.candidate.full_name,
           preferredLocale: data.candidate.preferred_locale,
           expiresAt: new Date(Date.now() + data.expires_in * 1000).toISOString(),
+          consent: {
+            currentPolicyVersion: data.candidate.consent.current_policy_version,
+            accepted: data.candidate.consent.accepted,
+            acceptedAt: data.candidate.consent.accepted_at,
+          },
         } satisfies AuthSession;
       } catch (error) {
         throw toAuthError(error);

@@ -52,6 +52,20 @@ export interface OtpChallenge {
   maskedDestination?: string;
 }
 
+/**
+ * Whether the candidate has accepted the currently-required consent policy
+ * version (MPS-204). The backend gates every candidate endpoint except the
+ * consent endpoint itself on this, so the UI must check it right after
+ * login -- before navigating anywhere else -- rather than discovering it
+ * from the first 403 a protected screen happens to hit.
+ */
+export interface ConsentStatus {
+  currentPolicyVersion: string;
+  accepted: boolean;
+  /** ISO 8601 timestamp, or null when not yet accepted. */
+  acceptedAt: string | null;
+}
+
 export interface AuthSession {
   accessToken: string;
   refreshToken: string;
@@ -60,6 +74,7 @@ export interface AuthSession {
   preferredLocale: 'en' | 'ur';
   /** ISO 8601 timestamp. */
   expiresAt: string;
+  consent: ConsentStatus;
 }
 
 /**

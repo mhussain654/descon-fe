@@ -1,12 +1,14 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { axe } from "jest-axe";
 import { Link, MemoryRouter, Route, Routes } from "react-router";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { AuthProvider, useAuth } from "../../contexts/AuthContext";
 import { LanguageProvider } from "../../contexts/LanguageContext";
 import { toast } from "../../design-system";
 import { candidateDocumentsClient } from "../../lib/candidate-documents-client";
 import { applicationProgressClient } from "../../lib/application-progress-client";
+import { candidateBankDetailsClient } from "../../lib/candidate-bank-details-client";
 import DocumentsPage from "./page";
 
 vi.mock("../../lib/candidate-documents-client", () => ({
@@ -15,6 +17,27 @@ vi.mock("../../lib/candidate-documents-client", () => ({
 vi.mock("../../lib/application-progress-client", () => ({
   applicationProgressClient: { getProgress: vi.fn(), submitDocuments: vi.fn() },
 }));
+vi.mock("../../lib/candidate-bank-details-client", () => ({
+  candidateBankDetailsClient: { getBankDetail: vi.fn(), submitBankDetail: vi.fn() },
+}));
+
+function bankDetailSummary(overrides = {}) {
+  return { status: "missing", bankDetail: null, ...overrides };
+}
+
+function bankDetail(overrides = {}) {
+  return {
+    id: "d86f5c87-4379-433a-9a29-c8c3d51f859a",
+    status: "submitted",
+    accountTitle: "Ahmed Ali",
+    accountNumber: "****************6702",
+    bankName: "Meezan Bank",
+    proof: { fileName: "cheque.pdf", contentType: "application/pdf", fileSize: 123456, uploadedAt: "2026-08-28T12:00:00Z" },
+    submittedAt: "2026-08-28T12:00:00Z",
+    updatedAt: "2026-08-28T12:00:00Z",
+    ...overrides,
+  };
+}
 
 function documentsSummary(overrides = {}) {
   return {
@@ -68,6 +91,7 @@ function LoginStub() {
             candidateName: "Ahmed Ali",
             preferredLocale: "en",
             expiresAt: new Date(Date.now() + 60_000).toISOString(),
+            consent: { currentPolicyVersion: "v1", accepted: true, acceptedAt: "2026-09-06T12:00:00Z" },
           })
         }
       >
@@ -97,9 +121,10 @@ function renderDocumentsPage() {
 }
 
 async function signInAndNavigateToDocuments() {
-  renderDocumentsPage();
+  const rendered = renderDocumentsPage();
   fireEvent.click(screen.getByText("login"));
   fireEvent.click(await screen.findByText("Go to documents"));
+  return rendered;
 }
 
 /** Test-only harness: mounted alongside DocumentsPage inside the same AuthProvider so a test can end the session mid-flight, mirroring how a real logout could race an in-flight upload's response. */
@@ -183,11 +208,23 @@ window.URL.createObjectURL = vi.fn(() => "blob:mock-preview-url");
 window.URL.revokeObjectURL = vi.fn();
 
 describe("DocumentsPage", () => {
+  // Every test renders the page, and BankDetailsPanel unconditionally
+  // queries bank-detail state as soon as it mounts -- default it to the
+  // "missing" state here so the ~50 pre-existing tests below (none of
+  // which are about bank details) don't each need their own mock, matching
+  // this file's already-established convention of module-level default
+  // mocks (see applicationProgressClient/candidateDocumentsClient above).
+  beforeEach(() => {
+    candidateBankDetailsClient.getBankDetail.mockResolvedValue(bankDetailSummary());
+  });
+
   afterEach(() => {
     vi.mocked(candidateDocumentsClient.getChecklist).mockReset();
     vi.mocked(candidateDocumentsClient.uploadDocument).mockReset();
     vi.mocked(applicationProgressClient.getProgress).mockReset();
     vi.mocked(applicationProgressClient.submitDocuments).mockReset();
+    vi.mocked(candidateBankDetailsClient.getBankDetail).mockReset();
+    vi.mocked(candidateBankDetailsClient.submitBankDetail).mockReset();
     window.localStorage.removeItem("descon.language");
   });
 
@@ -220,6 +257,20 @@ describe("DocumentsPage", () => {
     expect(screen.getByText("3")).toBeInTheDocument();
     expect(screen.getByText("2")).toBeInTheDocument();
     expect(screen.getByText("5")).toBeInTheDocument();
+  });
+
+  it("has no automatically detectable accessibility violations", async () => {
+    candidateDocumentsClient.getChecklist.mockResolvedValue([
+      item({ status: "missing" }),
+      item({ requirementCode: "cnic_front", name: "CNIC (Front)", status: "uploaded", document: uploadedDocument() }),
+    ]);
+    applicationProgressClient.getProgress.mockResolvedValue(progress({ documents: documentsSummary({ canSubmit: true }) }));
+    const { container } = await signInAndNavigateToDocuments();
+
+    await screen.findByText("Passport");
+    await screen.findByText("Incomplete");
+    const results = await axe(container);
+    expect(results).toHaveNoViolations();
   });
 
   it("renders a missing required document with its localized status, and an Upload action", async () => {
@@ -941,6 +992,146 @@ describe("DocumentsPage", () => {
       fireEvent.click(screen.getByRole("button", { name: "Submit" }));
 
       expect(await screen.findByText("You are offline")).toBeInTheDocument();
+    });
+  });
+
+  describe("bank details", () => {
+    it("shows Incomplete when no bank detail has been submitted", async () => {
+      candidateDocumentsClient.getChecklist.mockResolvedValue([item({ status: "missing" })]);
+      applicationProgressClient.getProgress.mockResolvedValue(progress());
+      await signInAndNavigateToDocuments();
+
+      expect(await screen.findByText("Incomplete")).toBeInTheDocument();
+    });
+
+    it("shows Complete when a bank detail already exists", async () => {
+      candidateDocumentsClient.getChecklist.mockResolvedValue([item({ status: "missing" })]);
+      applicationProgressClient.getProgress.mockResolvedValue(progress());
+      candidateBankDetailsClient.getBankDetail.mockResolvedValue(bankDetailSummary({ status: "submitted", bankDetail: bankDetail() }));
+      await signInAndNavigateToDocuments();
+
+      expect(await screen.findByText("Complete")).toBeInTheDocument();
+    });
+
+    it("validates required fields client-side before calling the API", async () => {
+      candidateDocumentsClient.getChecklist.mockResolvedValue([item({ status: "missing" })]);
+      applicationProgressClient.getProgress.mockResolvedValue(progress());
+      await signInAndNavigateToDocuments();
+
+      fireEvent.click(await screen.findByRole("button", { name: "Add bank details" }));
+      fireEvent.click(screen.getByRole("button", { name: "Submit" }));
+
+      expect(await screen.findByText("Enter the account title.")).toBeInTheDocument();
+      expect(screen.getByText("Enter the account number or IBAN.")).toBeInTheDocument();
+      expect(screen.getByText("Enter the bank name.")).toBeInTheDocument();
+      expect(candidateBankDetailsClient.submitBankDetail).not.toHaveBeenCalled();
+    });
+
+    it("rejects an invalid account number client-side, without calling the API", async () => {
+      candidateDocumentsClient.getChecklist.mockResolvedValue([item({ status: "missing" })]);
+      applicationProgressClient.getProgress.mockResolvedValue(progress());
+      await signInAndNavigateToDocuments();
+
+      fireEvent.click(await screen.findByRole("button", { name: "Add bank details" }));
+      fireEvent.change(screen.getByLabelText("Account title"), { target: { value: "Ahmed Ali" } });
+      fireEvent.change(screen.getByLabelText("Account number / IBAN"), { target: { value: "!!" } });
+      fireEvent.change(screen.getByLabelText("Bank name"), { target: { value: "Meezan Bank" } });
+      fireEvent.click(screen.getByRole("button", { name: "Submit" }));
+
+      expect(await screen.findByText("Enter a valid account number or IBAN.")).toBeInTheDocument();
+      expect(candidateBankDetailsClient.submitBankDetail).not.toHaveBeenCalled();
+    });
+
+    it("requires a proof file client-side before calling the API", async () => {
+      candidateDocumentsClient.getChecklist.mockResolvedValue([item({ status: "missing" })]);
+      applicationProgressClient.getProgress.mockResolvedValue(progress());
+      await signInAndNavigateToDocuments();
+
+      fireEvent.click(await screen.findByRole("button", { name: "Add bank details" }));
+      fireEvent.change(screen.getByLabelText("Account title"), { target: { value: "Ahmed Ali" } });
+      fireEvent.change(screen.getByLabelText("Account number / IBAN"), { target: { value: "PK36SCBL0000001123456702" } });
+      fireEvent.change(screen.getByLabelText("Bank name"), { target: { value: "Meezan Bank" } });
+      fireEvent.click(screen.getByRole("button", { name: "Submit" }));
+
+      expect(await screen.findByText("Choose a file to upload.")).toBeInTheDocument();
+      expect(candidateBankDetailsClient.submitBankDetail).not.toHaveBeenCalled();
+    });
+
+    it("submits the exact fields the backend expects and shows Complete after success", async () => {
+      candidateDocumentsClient.getChecklist.mockResolvedValue([item({ status: "missing" })]);
+      applicationProgressClient.getProgress.mockResolvedValue(progress());
+      candidateBankDetailsClient.submitBankDetail.mockResolvedValue(bankDetailSummary({ status: "submitted", bankDetail: bankDetail() }));
+      await signInAndNavigateToDocuments();
+
+      fireEvent.click(await screen.findByRole("button", { name: "Add bank details" }));
+      fireEvent.change(screen.getByLabelText("Account title"), { target: { value: "Ahmed Ali" } });
+      fireEvent.change(screen.getByLabelText("Account number / IBAN"), { target: { value: "PK36SCBL0000001123456702" } });
+      fireEvent.change(screen.getByLabelText("Bank name"), { target: { value: "Meezan Bank" } });
+      const fileInput = document.querySelector('input[type="file"]');
+      fireEvent.change(fileInput, { target: { files: [pdfFile("cheque.pdf")] } });
+      fireEvent.click(screen.getByRole("button", { name: "Submit" }));
+
+      await waitFor(() => expect(candidateBankDetailsClient.submitBankDetail).toHaveBeenCalledTimes(1));
+      const [params] = candidateBankDetailsClient.submitBankDetail.mock.calls[0];
+      expect(params.accessToken).toBe("candidate-access-token");
+      expect(params.formData.get("bank_detail[account_title]")).toBe("Ahmed Ali");
+      expect(params.formData.get("bank_detail[account_number]")).toBe("PK36SCBL0000001123456702");
+      expect(params.formData.get("bank_detail[bank_name]")).toBe("Meezan Bank");
+      expect(params.formData.get("bank_detail[proof]").name).toBe("cheque.pdf");
+
+      expect(await screen.findByText("Complete")).toBeInTheDocument();
+    });
+
+    it("shows a field-addressable server error without closing the form", async () => {
+      candidateDocumentsClient.getChecklist.mockResolvedValue([item({ status: "missing" })]);
+      applicationProgressClient.getProgress.mockResolvedValue(progress());
+      candidateBankDetailsClient.submitBankDetail.mockRejectedValue({
+        code: "INVALID_ACCOUNT_NUMBER",
+        message: "Enter a valid account number or IBAN.",
+        field: "bank_detail.account_number",
+      });
+      await signInAndNavigateToDocuments();
+
+      fireEvent.click(await screen.findByRole("button", { name: "Add bank details" }));
+      fireEvent.change(screen.getByLabelText("Account title"), { target: { value: "Ahmed Ali" } });
+      fireEvent.change(screen.getByLabelText("Account number / IBAN"), { target: { value: "PK36SCBL0000001123456702" } });
+      fireEvent.change(screen.getByLabelText("Bank name"), { target: { value: "Meezan Bank" } });
+      const fileInput = document.querySelector('input[type="file"]');
+      fireEvent.change(fileInput, { target: { files: [pdfFile("cheque.pdf")] } });
+      fireEvent.click(screen.getByRole("button", { name: "Submit" }));
+
+      expect(await screen.findByText("Enter a valid account number or IBAN.")).toBeInTheDocument();
+      expect(screen.getByLabelText("Account title")).toBeInTheDocument();
+    });
+
+    it("ends the session and returns to sign-in when the bank-detail submission fails because the session expired", async () => {
+      candidateDocumentsClient.getChecklist.mockResolvedValue([item({ status: "missing" })]);
+      applicationProgressClient.getProgress.mockResolvedValue(progress());
+      candidateBankDetailsClient.submitBankDetail.mockRejectedValue({ code: "SESSION_EXPIRED" });
+      await signInAndNavigateToDocuments();
+
+      fireEvent.click(await screen.findByRole("button", { name: "Add bank details" }));
+      fireEvent.change(screen.getByLabelText("Account title"), { target: { value: "Ahmed Ali" } });
+      fireEvent.change(screen.getByLabelText("Account number / IBAN"), { target: { value: "PK36SCBL0000001123456702" } });
+      fireEvent.change(screen.getByLabelText("Bank name"), { target: { value: "Meezan Bank" } });
+      const fileInput = document.querySelector('input[type="file"]');
+      fireEvent.change(fileInput, { target: { files: [pdfFile("cheque.pdf")] } });
+      fireEvent.click(screen.getByRole("button", { name: "Submit" }));
+
+      await waitFor(() => expect(screen.getByText("Login screen")).toBeInTheDocument());
+    });
+
+    it("allows canceling the form without submitting", async () => {
+      candidateDocumentsClient.getChecklist.mockResolvedValue([item({ status: "missing" })]);
+      applicationProgressClient.getProgress.mockResolvedValue(progress());
+      await signInAndNavigateToDocuments();
+
+      fireEvent.click(await screen.findByRole("button", { name: "Add bank details" }));
+      fireEvent.change(screen.getByLabelText("Account title"), { target: { value: "Ahmed Ali" } });
+      fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+
+      expect(screen.queryByLabelText("Account title")).not.toBeInTheDocument();
+      expect(candidateBankDetailsClient.submitBankDetail).not.toHaveBeenCalled();
     });
   });
 });

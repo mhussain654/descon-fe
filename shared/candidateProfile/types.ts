@@ -6,6 +6,7 @@
 // Only the approved fields from that contract are represented here -- see
 // CandidateProfile's doc comments for why each is safe to render.
 import type { PaymentEligibility } from '../payments/types';
+import type { ConsentStatus } from '../auth/types';
 
 export interface CandidateWorkflowStage {
   code: string;
@@ -28,12 +29,16 @@ export interface CandidateProfile {
   active: boolean;
   /** Same eligibility/latest-payment shape as GET /candidate/payment (MPS-F601) -- kept in sync here purely so other screens can read it without a second fetch; the dedicated payment page/journey is still the source of truth for acting on it. */
   payment: PaymentEligibility;
+  /** MPS-204: whether the candidate has accepted the currently-required policy version. Normally already known from the login response by the time this screen renders -- this is a defense-in-depth mirror so a stale/refreshed profile view stays consistent with the gate. */
+  consent: ConsentStatus;
 }
 
 export type CandidateProfileErrorCode =
   | 'SESSION_EXPIRED'
   /** 403 `inactive_account` -- the candidate's own account was deactivated after the session was issued. */
   | 'INACTIVE_ACCOUNT'
+  /** 403 `consent_required` -- the candidate has not accepted the current policy version (MPS-204). The UI should route to the consent screen rather than showing a generic forbidden error. */
+  | 'CONSENT_REQUIRED'
   /** A 403 for any other/unrecognized reason (forward-compatible; nothing in the app triggers this today). */
   | 'FORBIDDEN'
   | 'RATE_LIMITED'

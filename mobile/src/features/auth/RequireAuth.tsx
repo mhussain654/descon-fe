@@ -11,7 +11,7 @@ import { RestoringScreen } from "./RestoringScreen";
  * protected content before authorization is confirmed.
  */
 export function RequireAuth({ children }: { children: ReactNode }) {
-  const { status } = useAuth();
+  const { status, session } = useAuth();
 
   if (status === "restoring") {
     return <RestoringScreen />;
@@ -19,6 +19,13 @@ export function RequireAuth({ children }: { children: ReactNode }) {
 
   if (status !== "authenticated") {
     return <Redirect href="/login" />;
+  }
+
+  // MPS-204: every candidate screen except the consent screen itself is
+  // gated on having accepted the current policy version -- mirrors the
+  // backend's ProtectedController#ensure_consent_given!.
+  if (!session?.consent?.accepted) {
+    return <Redirect href="/consent" />;
   }
 
   return children;

@@ -15,7 +15,7 @@ export const PAYMENT_ERROR_KEYS: Record<PaymentErrorCode, string> = {
   SESSION_EXPIRED: 'dsSessionExpiredDescription',
   FORBIDDEN: 'staffAuthForbiddenError',
   RATE_LIMITED: 'authRateLimitedError',
-  NETWORK_ERROR: 'somethingWentWrong',
+  NETWORK_ERROR: 'networkError',
   OFFLINE: 'dsOfflineDescription',
   SERVER_ERROR: 'somethingWentWrong',
   UNKNOWN: 'somethingWentWrong',

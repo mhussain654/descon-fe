@@ -20,6 +20,8 @@ import type {
   AdminDocumentReviewsClient,
   DocumentAccess,
   DocumentDisplayStatus,
+  DocumentExtraction,
+  DocumentExtractionStatus,
   DocumentReviewQueueFilters,
   DocumentReviewQueueItem,
   DocumentReviewQueuePage,
@@ -36,6 +38,7 @@ import type {
   ReviewerInfo,
   ReviewSummary,
   SubmissionDocument,
+  VerifyDocumentDates,
 } from './types';
 
 interface ReferenceCodeResponse {
@@ -90,6 +93,9 @@ interface SubmissionDocumentResponse {
   verified_at?: string;
   rejection_reason?: string;
   reviewer?: ReviewerResponse | null;
+  issued_on?: string;
+  expires_on?: string;
+  compliance_status?: string;
 }
 
 interface QueueSummaryResponse {
@@ -125,6 +131,16 @@ interface QueuePaginationResponse {
   total_pages: number;
 }
 
+interface DocumentExtractionResponse {
+  status: string;
+  issued_on?: string;
+  expires_on?: string;
+  confidence_issued_on?: number;
+  confidence_expires_on?: number;
+  error_message?: string;
+  extracted_at?: string;
+}
+
 export interface RealAdminDocumentReviewsClientOptions {
   apiClient: ApiClient;
   staffAuthClient: StaffAuthClient;
@@ -155,6 +171,14 @@ function toReviewerInfo(raw: unknown): ReviewerInfo | undefined {
 
 function toDocumentStatus(raw: unknown): DocumentDisplayStatus {
   return typeof raw === 'string' && KNOWN_DOCUMENT_STATUSES.has(raw) ? (raw as DocumentDisplayStatus) : 'unknown';
+}
+
+const KNOWN_COMPLIANCE_STATUSES = new Set<string>(['current', 'near_expiry', 'expired']);
+
+function toComplianceStatus(raw: unknown): SubmissionDocument['complianceStatus'] {
+  return typeof raw === 'string' && KNOWN_COMPLIANCE_STATUSES.has(raw)
+    ? (raw as SubmissionDocument['complianceStatus'])
+    : undefined;
 }
 
 function toNumber(raw: unknown): number {
@@ -236,6 +260,9 @@ function toSubmissionDocument(raw: unknown): SubmissionDocument | null {
     verifiedAt: typeof value.verified_at === 'string' ? value.verified_at : undefined,
     rejectionReason: typeof value.rejection_reason === 'string' ? value.rejection_reason : undefined,
     reviewer: toReviewerInfo(value.reviewer),
+    issuedOn: typeof value.issued_on === 'string' ? value.issued_on : undefined,
+    expiresOn: typeof value.expires_on === 'string' ? value.expires_on : undefined,
+    complianceStatus: toComplianceStatus(value.compliance_status),
   };
 }
 
@@ -258,6 +285,25 @@ function toDocumentAccess(raw: unknown): DocumentAccess {
     documentId: typeof value.document_id === 'string' ? value.document_id : '',
     url: typeof value.url === 'string' ? value.url : '',
     expiresAt: typeof value.expires_at === 'string' ? value.expires_at : '',
+  };
+}
+
+const KNOWN_EXTRACTION_STATUSES = new Set<string>(['not_started', 'pending', 'succeeded', 'failed']);
+
+function toDocumentExtraction(raw: unknown): DocumentExtraction {
+  const value = (raw && typeof raw === 'object' ? raw : {}) as Partial<DocumentExtractionResponse>;
+  const status: DocumentExtractionStatus =
+    typeof value.status === 'string' && KNOWN_EXTRACTION_STATUSES.has(value.status)
+      ? (value.status as DocumentExtractionStatus)
+      : 'not_started';
+  return {
+    status,
+    issuedOn: typeof value.issued_on === 'string' ? value.issued_on : undefined,
+    expiresOn: typeof value.expires_on === 'string' ? value.expires_on : undefined,
+    confidenceIssuedOn: typeof value.confidence_issued_on === 'number' ? value.confidence_issued_on : undefined,
+    confidenceExpiresOn: typeof value.confidence_expires_on === 'number' ? value.confidence_expires_on : undefined,
+    errorMessage: typeof value.error_message === 'string' ? value.error_message : undefined,
+    extractedAt: typeof value.extracted_at === 'string' ? value.extracted_at : undefined,
   };
 }
 
@@ -421,12 +467,13 @@ export function createAdminDocumentReviewsClient(
       }
     },
 
-    async verifyDocument(documentId: string, idempotencyKey: string): Promise<ReviewDecisionResult> {
+    async verifyDocument(documentId: string, idempotencyKey: string, dates?: VerifyDocumentDates): Promise<ReviewDecisionResult> {
       try {
+        const body = dates?.issuedOn || dates?.expiresOn ? { issued_on: dates.issuedOn, expires_on: dates.expiresOn } : undefined;
         const data = await staffAuthClient.authenticatedDataRequest((token) =>
           apiClient.post<ReviewDecisionResponse>(
             `/admin/candidate_documents/${encodeURIComponent(documentId)}/verifications`,
-            undefined,
+            body,
             {
               headers: {
                 Authorization: `Bearer ${token}`,
@@ -458,6 +505,19 @@ export function createAdminDocumentReviewsClient(
           )
         );
         return toReviewDecisionResult(data);
+      } catch (error) {
+        throw toReviewError(error);
+      }
+    },
+
+    async getExtraction(documentId: string): Promise<DocumentExtraction> {
+      try {
+        const data = await staffAuthClient.authenticatedDataRequest((token) =>
+          apiClient.get<DocumentExtractionResponse>(`/admin/candidate_documents/${encodeURIComponent(documentId)}/extraction`, {
+            headers: { Authorization: `Bearer ${token}`, 'X-Locale': getLocale() },
+          })
+        );
+        return toDocumentExtraction(data);
       } catch (error) {
         throw toReviewError(error);
       }

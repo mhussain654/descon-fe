@@ -7,8 +7,6 @@ function item(requirementCode: string) {
 describe('sortByPrototypeOrder', () => {
   it('reorders a backend response (alphabetical by requirement code) into the approved prototype order', () => {
     const checklist = [
-      item('bank_details'),
-      item('cheque_image'),
       item('cnic_back'),
       item('cnic_front'),
       item('cv'),
@@ -23,8 +21,6 @@ describe('sortByPrototypeOrder', () => {
       'cnic_back',
       'next_of_kin_cnic',
       'police_character_certificate',
-      'bank_details',
-      'cheque_image',
       'cv',
     ]);
   });

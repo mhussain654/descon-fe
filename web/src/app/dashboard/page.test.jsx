@@ -1,5 +1,6 @@
 import { fireEvent, render, screen } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { axe } from "jest-axe";
 import { Link, MemoryRouter, Route, Routes } from "react-router";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { AuthProvider, useAuth } from "../../contexts/AuthContext";
@@ -133,6 +134,7 @@ function LoginStub() {
             candidateName: "Ahmed Ali",
             preferredLocale: "en",
             expiresAt: new Date(Date.now() + 60_000).toISOString(),
+            consent: { currentPolicyVersion: "v1", accepted: true, acceptedAt: "2026-09-06T12:00:00Z" },
           })
         }
       >
@@ -162,9 +164,10 @@ function renderDashboardPage() {
 }
 
 async function signInAndNavigateToDashboard() {
-  renderDashboardPage();
+  const rendered = renderDashboardPage();
   fireEvent.click(screen.getByText("login"));
   fireEvent.click(await screen.findByText("Go to dashboard"));
+  return rendered;
 }
 
 describe("DashboardPage", () => {
@@ -184,6 +187,17 @@ describe("DashboardPage", () => {
     expect(screen.getByText("DES-001001")).toBeInTheDocument();
     expect(screen.getByText("Documents Uploaded (In Progress)")).toBeInTheDocument();
     expect(screen.getByText("13% complete")).toBeInTheDocument();
+  });
+
+  it("has no automatically detectable accessibility violations", async () => {
+    candidateProfileClient.getProfile.mockResolvedValue(profilePayload());
+    candidateDocumentsClient.getChecklist.mockResolvedValue([checklistItem()]);
+    applicationProgressClient.getProgress.mockResolvedValue(progress());
+    const { container } = await signInAndNavigateToDashboard();
+
+    await screen.findByText("Ahmed Ali");
+    const results = await axe(container);
+    expect(results).toHaveNoViolations();
   });
 
   it("shows the verified chip only once the backend reports the submission as verified", async () => {
