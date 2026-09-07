@@ -28,6 +28,11 @@ export interface DocumentPreviewProps {
 export function DocumentPreview({ document, access, isRequesting, error, isExpired, onClose, onRequestNewAccess }: DocumentPreviewProps) {
   const { t } = useLanguage();
   const isSupported = PREVIEWABLE_CONTENT_TYPES.has(document.contentType);
+  // Fails closed: resolveDocumentAccessUrl returns null for anything that
+  // doesn't resolve to our own API origin (a malformed backend response, an
+  // unexpected absolute URL, a dangerous scheme) -- never render that as a
+  // preview source.
+  const resolvedUrl = access ? resolveDocumentAccessUrl(access.url, import.meta.env.VITE_API_BASE_URL ?? '') : null;
 
   return (
     <Dialog open onOpenChange={(open) => (!open ? onClose() : undefined)}>
@@ -50,20 +55,13 @@ export function DocumentPreview({ document, access, isRequesting, error, isExpir
         ) : null}
 
         {!isRequesting && !error && !isExpired && access ? (
-          isSupported ? (
+          !resolvedUrl ? (
+            <ErrorState message={t('somethingWentWrong')} retryLabel={t('retry')} onRetry={onRequestNewAccess} />
+          ) : isSupported ? (
             document.contentType === 'application/pdf' ? (
-              <embed
-                src={resolveDocumentAccessUrl(access.url, import.meta.env.VITE_API_BASE_URL ?? '')}
-                type="application/pdf"
-                title={document.name}
-                className="h-[70vh] w-full rounded-lg"
-              />
+              <embed src={resolvedUrl} type="application/pdf" title={document.name} className="h-[70vh] w-full rounded-lg" />
             ) : (
-              <img
-                src={resolveDocumentAccessUrl(access.url, import.meta.env.VITE_API_BASE_URL ?? '')}
-                alt={document.name}
-                className="max-h-[70vh] w-full rounded-lg object-contain"
-              />
+              <img src={resolvedUrl} alt={document.name} className="max-h-[70vh] w-full rounded-lg object-contain" />
             )
           ) : (
             <EmptyState

@@ -57,6 +57,16 @@ describe('ManagementDashboard', () => {
     expect(screen.getByText('2026-06-01')).toBeInTheDocument();
   });
 
+  it('renders the outcome-tracking stat cards above the conversion funnel table', async () => {
+    adminManagementDashboardClient.getDashboard.mockResolvedValue(summary());
+
+    const { container } = await renderAs(MANAGEMENT);
+    await screen.findByText('72%');
+
+    const headings = [...container.querySelectorAll('h2')].map((heading) => heading.textContent);
+    expect(headings.indexOf('Outcome tracking')).toBeLessThan(headings.indexOf('Conversion funnel'));
+  });
+
   it('re-fetches with the selected granularity', async () => {
     adminManagementDashboardClient.getDashboard.mockResolvedValue(summary());
 

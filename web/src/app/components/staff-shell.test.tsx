@@ -70,11 +70,11 @@ describe('StaffShell navigation', () => {
     expect(await screen.findByRole('link', { name: 'Dashboard' })).toHaveAttribute('href', '/admin/dashboard');
   });
 
-  it('shows the MPS Dashboard and Reports nav links for a staff member with view_mps_dashboard/view_reports', async () => {
+  it('shows the Operations Dashboard and Reports nav links for a staff member with view_mps_dashboard/view_reports', async () => {
     const MPS = MOCK_STAFF_ACCOUNTS.find((account) => account.role === 'mps')!;
     await renderShellAs(MPS);
 
-    expect(await screen.findByRole('link', { name: 'MPS Dashboard' })).toHaveAttribute('href', '/admin/mps-dashboard');
+    expect(await screen.findByRole('link', { name: 'Operations Dashboard' })).toHaveAttribute('href', '/admin/mps-dashboard');
     expect(screen.getByRole('link', { name: 'Reports' })).toHaveAttribute('href', '/admin/reports');
     expect(screen.queryByRole('link', { name: 'Management Dashboard' })).not.toBeInTheDocument();
   });
@@ -90,7 +90,7 @@ describe('StaffShell navigation', () => {
 
     expect(await screen.findByText('page content')).toBeInTheDocument();
     expect(screen.queryByRole('link', { name: 'Dashboard' })).not.toBeInTheDocument();
-    expect(screen.queryByRole('link', { name: 'MPS Dashboard' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'Operations Dashboard' })).not.toBeInTheDocument();
     expect(screen.queryByRole('link', { name: 'Management Dashboard' })).not.toBeInTheDocument();
     expect(screen.queryByRole('link', { name: 'Reports' })).not.toBeInTheDocument();
   });

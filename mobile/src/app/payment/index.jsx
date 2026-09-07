@@ -242,6 +242,7 @@ export default function PaymentScreen() {
         onClose={checkout.closeCheckout}
         closeLabel={t("dsClose")}
         loadingLabel={t("loading")}
+        blockedMessage={t("paymentCheckoutNavigationBlocked")}
       />
     </View>
   );

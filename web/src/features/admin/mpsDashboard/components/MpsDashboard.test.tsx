@@ -59,6 +59,21 @@ describe('MpsDashboard', () => {
     expect(screen.getByText('2026-06-01')).toBeInTheDocument();
   });
 
+  it('renders the workflow stage queue as a stat-tile grid with a scope subtitle, above the tables', async () => {
+    adminMpsDashboardClient.getDashboard.mockResolvedValue(summary());
+
+    const { container } = await renderAs(MPS);
+    await screen.findByText('9');
+
+    expect(screen.getByText('12')).toBeInTheDocument();
+    expect(screen.getByText('Registered')).toBeInTheDocument();
+    expect(screen.getByText('Total candidates per stage, across the whole pipeline')).toBeInTheDocument();
+
+    const headings = [...container.querySelectorAll('h2')].map((heading) => heading.textContent);
+    expect(headings.indexOf('Delayed / critical cases')).toBeLessThan(headings.indexOf('Craft-wise summary'));
+    expect(headings.indexOf('Workflow stage queue')).toBeLessThan(headings.indexOf('Craft-wise summary'));
+  });
+
   it('re-fetches with the selected granularity', async () => {
     adminMpsDashboardClient.getDashboard.mockResolvedValue(summary());
 

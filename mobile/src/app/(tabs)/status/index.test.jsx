@@ -394,6 +394,11 @@ describe("StatusScreen", () => {
     });
 
     it("requests a signed URL on press and hands it to the OS via Linking.openURL", async () => {
+      // resolveDocumentAccessUrl (used by useFlightTicketAccess) fails
+      // closed when EXPO_PUBLIC_API_BASE_URL isn't configured -- it can't
+      // validate the signed URL resolves to our own API origin without it.
+      const originalApiBaseUrl = process.env.EXPO_PUBLIC_API_BASE_URL;
+      process.env.EXPO_PUBLIC_API_BASE_URL = "http://localhost:3000/api/v1";
       applicationProgressClient.getProgress.mockResolvedValue(progressPayload({ workflow: workflowPayload({ timeline: timelineThrough(14) }) }));
       candidateWorkflowClient.getWorkflowHistory.mockResolvedValue(historyPayload());
       candidateFlightDetailClient.getFlightDetail.mockResolvedValue(flightDetail());
@@ -416,6 +421,32 @@ describe("StatusScreen", () => {
       expect(candidateFlightDetailClient.requestTicketAccess).toHaveBeenCalledWith("candidate-access-token");
       expect(openURL.mock.calls[0][0]).toContain("/rails/active_storage/blobs/proxy/abc/ticket.pdf");
       openURL.mockRestore();
+      process.env.EXPO_PUBLIC_API_BASE_URL = originalApiBaseUrl;
+    });
+
+    it("shows a generic error and never calls Linking.openURL when the signed URL does not resolve to our own API origin (fails closed)", async () => {
+      const originalApiBaseUrl = process.env.EXPO_PUBLIC_API_BASE_URL;
+      process.env.EXPO_PUBLIC_API_BASE_URL = "http://localhost:3000/api/v1";
+      applicationProgressClient.getProgress.mockResolvedValue(progressPayload({ workflow: workflowPayload({ timeline: timelineThrough(14) }) }));
+      candidateWorkflowClient.getWorkflowHistory.mockResolvedValue(historyPayload());
+      candidateFlightDetailClient.getFlightDetail.mockResolvedValue(flightDetail());
+      candidateFlightDetailClient.requestTicketAccess.mockResolvedValue({
+        flightDetailId: "3fa1d41e-d4aa-4bf3-9838-c0af7080f363",
+        url: "https://evil.example/ticket.pdf",
+        expiresAt: new Date(Date.now() + 5 * 60 * 1000).toISOString(),
+      });
+      const openURL = jest.spyOn(Linking, "openURL").mockResolvedValue();
+      renderStatusScreen();
+
+      await screen.findByText("Flight Details Uploaded");
+      await act(async () => {
+        fireEvent.press(within(stageRow("Flight Details Uploaded")).getByRole("button", { name: "Download Ticket" }));
+      });
+
+      expect(await screen.findByText("Something went wrong.")).toBeOnTheScreen();
+      expect(openURL).not.toHaveBeenCalled();
+      openURL.mockRestore();
+      process.env.EXPO_PUBLIC_API_BASE_URL = originalApiBaseUrl;
     });
 
     it("shows a field error when the backend reports the ticket isn't attached after all", async () => {

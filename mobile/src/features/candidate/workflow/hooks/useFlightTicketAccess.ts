@@ -26,7 +26,14 @@ export function useFlightTicketAccess() {
     setError(null);
     try {
       const access = await candidateFlightDetailClient.requestTicketAccess(session.accessToken);
+      // Fails closed: null when the signed URL doesn't resolve to our own
+      // API origin (a malformed backend response, an unexpected absolute
+      // URL, a dangerous scheme) -- never hand that to Linking.openURL.
       const url = resolveDocumentAccessUrl(access.url, process.env.EXPO_PUBLIC_API_BASE_URL ?? '');
+      if (!url) {
+        setError({ code: 'UNKNOWN' });
+        return;
+      }
       await Linking.openURL(url);
     } catch (requestError) {
       setError(requestError as CandidateFlightDetailError);

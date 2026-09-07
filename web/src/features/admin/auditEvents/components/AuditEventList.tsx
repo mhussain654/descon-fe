@@ -22,15 +22,24 @@ import { AUDIT_EVENT_ERROR_KEYS } from '../../../../../../shared/adminAuditEvent
 import type { AuditEvent, AuditEventListFilters, AuditEventListSort } from '../../../../lib/admin-audit-events-client';
 import type { TranslationKey } from '../../../../../../shared/i18n/translations';
 import { useAuditEventList } from '../hooks/useAuditEventList';
+import { approvedMetadataEntries } from '../auditEventMetadata';
 import {
   DEFAULT_PAGE_SIZE,
   readAuditEventListStateFromSearchParams,
   writeAuditEventListStateToSearchParams,
 } from '../auditEventListUrlState';
 
-/** Renders metadata as a compact, read-only key/value listing -- never a raw JSON blob, and never an editable field (this explorer has no edit affordance anywhere, matching the backend's read-only-by-design route). */
+/**
+ * Renders metadata as a compact, read-only key/value listing -- never a raw
+ * JSON blob, and never an editable field (this explorer has no edit
+ * affordance anywhere, matching the backend's read-only-by-design route).
+ * Only allowlisted keys are shown (see auditEventMetadata.ts) and every
+ * value is safely formatted -- never `String(value)`, which would render a
+ * nested object as the literal text "[object Object]" and could surface a
+ * field this module never approved for display.
+ */
 function MetadataSummary({ metadata }: { metadata: Record<string, unknown> }) {
-  const entries = Object.entries(metadata);
+  const entries = approvedMetadataEntries(metadata);
   if (entries.length === 0) return <span className="text-text-tertiary">—</span>;
 
   return (
@@ -38,7 +47,7 @@ function MetadataSummary({ metadata }: { metadata: Record<string, unknown> }) {
       {entries.map(([key, value]) => (
         <div key={key} className="flex gap-1">
           <dt className="font-medium text-text-tertiary">{key}:</dt>
-          <dd className="truncate text-text-secondary">{String(value)}</dd>
+          <dd className="truncate text-text-secondary">{value}</dd>
         </div>
       ))}
     </dl>
