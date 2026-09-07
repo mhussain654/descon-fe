@@ -22,7 +22,7 @@ export const ADMIN_CANDIDATE_ERROR_KEYS: Record<AdminCandidateErrorCode, string>
   FORBIDDEN: 'staffAuthForbiddenError',
   NOT_FOUND: 'adminCandidateNotFoundError',
   RATE_LIMITED: 'authRateLimitedError',
-  NETWORK_ERROR: 'somethingWentWrong',
+  NETWORK_ERROR: 'networkError',
   OFFLINE: 'dsOfflineDescription',
   SERVER_ERROR: 'somethingWentWrong',
   UNKNOWN: 'somethingWentWrong',

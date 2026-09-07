@@ -12,14 +12,16 @@ import { RestoringScreen } from "./RestoringScreen";
  * never be shown to an already-authenticated candidate.
  */
 export function RequireGuest({ children }: { children: ReactNode }) {
-  const { status } = useAuth();
+  const { status, session } = useAuth();
 
   if (status === "restoring") {
     return <RestoringScreen />;
   }
 
   if (status === "authenticated") {
-    return <Redirect href="/(tabs)/dashboard" />;
+    // MPS-204: send straight to the consent gate rather than the
+    // dashboard, which would just redirect here again via RequireAuth.
+    return <Redirect href={session?.consent?.accepted ? "/(tabs)/dashboard" : "/consent"} />;
   }
 
   return children;

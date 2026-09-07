@@ -18,7 +18,7 @@ export const ADMIN_WORKFLOW_ERROR_KEYS: Record<AdminWorkflowErrorCode, string> =
   SESSION_EXPIRED: 'dsSessionExpiredDescription',
   FORBIDDEN: 'staffAuthForbiddenError',
   RATE_LIMITED: 'authRateLimitedError',
-  NETWORK_ERROR: 'somethingWentWrong',
+  NETWORK_ERROR: 'networkError',
   OFFLINE: 'dsOfflineDescription',
   SERVER_ERROR: 'somethingWentWrong',
   UNKNOWN: 'somethingWentWrong',

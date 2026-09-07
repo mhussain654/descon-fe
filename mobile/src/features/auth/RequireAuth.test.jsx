@@ -45,13 +45,24 @@ describe('RequireAuth', () => {
     expect(screen.getByText('redirect:/login')).toBeOnTheScreen();
   });
 
-  it('renders protected content once authenticated', () => {
-    useAuth.mockReturnValue({ status: 'authenticated' });
+  it('renders protected content once authenticated and consent has been accepted', () => {
+    useAuth.mockReturnValue({ status: 'authenticated', session: { consent: { accepted: true } } });
     render(
       <RequireAuth>
         <ProtectedStub />
       </RequireAuth>
     );
     expect(screen.getByText('Protected content')).toBeOnTheScreen();
+  });
+
+  it('redirects to /consent instead of rendering protected content when consent has not been accepted', () => {
+    useAuth.mockReturnValue({ status: 'authenticated', session: { consent: { accepted: false } } });
+    render(
+      <RequireAuth>
+        <ProtectedStub />
+      </RequireAuth>
+    );
+    expect(screen.queryByText('Protected content')).toBeNull();
+    expect(screen.getByText('redirect:/consent')).toBeOnTheScreen();
   });
 });

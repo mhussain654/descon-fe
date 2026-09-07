@@ -16,7 +16,7 @@ export const CANDIDATE_IMPORT_ERROR_KEYS: Record<CandidateImportErrorCode, strin
   SESSION_EXPIRED: 'dsSessionExpiredDescription',
   CONFLICT: 'adminCandidateImportConflictError',
   RATE_LIMITED: 'authRateLimitedError',
-  NETWORK_ERROR: 'somethingWentWrong',
+  NETWORK_ERROR: 'networkError',
   OFFLINE: 'dsOfflineDescription',
   SERVER_ERROR: 'somethingWentWrong',
   UNKNOWN: 'somethingWentWrong',

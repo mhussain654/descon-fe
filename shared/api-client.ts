@@ -179,6 +179,12 @@ export interface ParsedFile {
   filename: string | undefined;
 }
 
+/** Like ParsedFile, but for a binary download (xlsx/pdf export) -- `.text()` would corrupt those bytes, so this reads `.blob()` instead. `Blob`/`response.blob()` are available in both the web fetch implementation and Expo/React Native's, so this stays in the portable client rather than a web-only file. */
+export interface ParsedBinaryFile {
+  blob: Blob;
+  filename: string | undefined;
+}
+
 /** Rails' `send_data` quotes the filename (`attachment; filename="foo.csv"`); this also tolerates an unquoted value. */
 function filenameFromContentDisposition(value: string | null): string | undefined {
   if (!value) return undefined;
@@ -314,10 +320,19 @@ export function createApiClient(config: ApiClientConfig) {
     return { content, filename };
   }
 
+  /** Like `requestFile`, but for a binary download -- see ParsedBinaryFile. */
+  async function requestBinaryFile(method: string, path: string, opts: RequestOptions = {}): Promise<ParsedBinaryFile> {
+    const response = await fetchOkResponse(method, path, undefined, opts);
+    const blob = await response.blob();
+    const filename = filenameFromContentDisposition(response.headers.get('content-disposition'));
+    return { blob, filename };
+  }
+
   return {
     get: <T>(path: string, opts?: RequestOptions) => request<T>('GET', path, undefined, opts),
     getWithMeta: <T>(path: string, opts?: RequestOptions) => requestWithMeta<T>('GET', path, undefined, opts),
     getFile: (path: string, opts?: RequestOptions) => requestFile('GET', path, opts),
+    getBinaryFile: (path: string, opts?: RequestOptions) => requestBinaryFile('GET', path, opts),
     post: <T>(path: string, body?: unknown, opts?: RequestOptions) =>
       request<T>('POST', path, body, opts),
     put: <T>(path: string, body?: unknown, opts?: RequestOptions) =>
