@@ -85,13 +85,13 @@ function DashboardContent({
   return (
     <div className="flex flex-col gap-4">
       <div>
-        <h2 className="mb-2 text-sm font-semibold text-text-primary">{t('managementDashboardConversionTitle')}</h2>
-        <ConversionTable rows={data.conversionFunnel} t={t} />
+        <h2 className="mb-2 text-sm font-semibold text-text-primary">{t('managementDashboardOutcomeTrackingTitle')}</h2>
+        <OutcomeTrackingTiles summary={data.outcomeTracking} t={t} />
       </div>
 
       <div>
-        <h2 className="mb-2 text-sm font-semibold text-text-primary">{t('managementDashboardOutcomeTrackingTitle')}</h2>
-        <OutcomeTrackingTiles summary={data.outcomeTracking} t={t} />
+        <h2 className="mb-2 text-sm font-semibold text-text-primary">{t('managementDashboardConversionTitle')}</h2>
+        <ConversionTable rows={data.conversionFunnel} t={t} />
       </div>
 
       <MobilizationTables summary={data.mobilization} t={t} />

@@ -5,7 +5,7 @@ import { Card, ErrorState, ForbiddenState, LoadingState, OfflineState, Select, S
 import { MPS_DASHBOARD_ERROR_KEYS } from '../../../../../../shared/adminMpsDashboard/errorMessages';
 import type { TrendGranularity } from '../../../../lib/admin-mps-dashboard-client';
 import type { TranslationKey } from '../../../../../../shared/i18n/translations';
-import { CraftSummaryTable, MobilizationTables, StatusSummaryTable, TrendTable, type TFn } from '../../reports/components/ReportTables';
+import { CraftSummaryTable, MobilizationTables, stageLabel, TrendTable, type TFn } from '../../reports/components/ReportTables';
 import { useMpsDashboard } from '../hooks/useMpsDashboard';
 
 const GRANULARITY_OPTIONS: { value: TrendGranularity; labelKey: TranslationKey }[] = [
@@ -84,16 +84,21 @@ function DashboardContent({
 
   return (
     <div className="flex flex-col gap-4">
-      <div>
-        <h2 className="mb-2 text-sm font-semibold text-text-primary">{t('dashboardWorkflowStageQueueTitle')}</h2>
-        <StatusSummaryTable rows={data.workflowStageQueue} t={t} />
-      </div>
-
       <Card>
         <h2 className="mb-2 text-sm font-semibold text-text-primary">{t('mpsDashboardDelayedCasesTitle')}</h2>
         <div className="flex flex-wrap gap-2">
           <StatTile value={data.delayedCases.delayed} label={t('mpsDashboardDelayed')} className="bg-[#FFF7E6] text-[#F59E0B]" />
           <StatTile value={data.delayedCases.critical} label={t('mpsDashboardCritical')} className="bg-[#FEF2F2] text-[#EF4444]" />
+        </div>
+      </Card>
+
+      <Card>
+        <h2 className="text-sm font-semibold text-text-primary">{t('dashboardWorkflowStageQueueTitle')}</h2>
+        <p className="mb-2 text-xs text-text-secondary">{t('dashboardWorkflowStageQueueSubtitle')}</p>
+        <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 xl:grid-cols-4">
+          {data.workflowStageQueue.map((row) => (
+            <StatTile key={row.code} value={row.count} label={stageLabel(row.code, t)} className="bg-[#F6F6F6] text-[#374151]" />
+          ))}
         </div>
       </Card>
 

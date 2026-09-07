@@ -5,6 +5,7 @@ import type { CandidateProfileErrorCode } from './types';
 export const CANDIDATE_PROFILE_ERROR_KEYS: Record<CandidateProfileErrorCode, string> = {
   SESSION_EXPIRED: 'dsSessionExpiredDescription',
   INACTIVE_ACCOUNT: 'candidateProfileInactiveAccountDescription',
+  CONSENT_REQUIRED: 'consentMessage',
   FORBIDDEN: 'dsForbiddenDescription',
   RATE_LIMITED: 'authRateLimitedError',
   NETWORK_ERROR: 'networkError',

@@ -49,6 +49,22 @@ describe('AdminDashboard', () => {
     expect(screen.getByText('88')).toBeInTheDocument();
   });
 
+  it('gives each stat-tile card a subtitle clarifying what is being counted and its scope', async () => {
+    adminDashboardClient.getDashboard.mockResolvedValue({
+      candidateWorkload: { totalActiveCandidates: 128 },
+      workflowStageQueue: [{ code: 'registered', position: 1, count: 12 }],
+      documentReviewQueue: { pendingReview: 6, verified: 90, rejected: 3, expiredPcc: 1, nearExpiryPcc: 2 },
+      paymentSummary: [{ code: 'paid', count: 88 }],
+    });
+
+    await renderAs(ADMIN);
+    await screen.findByText('128');
+
+    expect(screen.getByText('Total documents per review status, across all candidates')).toBeInTheDocument();
+    expect(screen.getByText('Total payments per status, across all candidates')).toBeInTheDocument();
+    expect(screen.getByText('Total candidates per stage, across the whole pipeline')).toBeInTheDocument();
+  });
+
   it('shows the FORBIDDEN state for a staff member without view_admin_dashboard', async () => {
     adminDashboardClient.getDashboard.mockRejectedValue({ code: 'FORBIDDEN' });
 
