@@ -135,6 +135,9 @@ describe("CandidateDetailsPage", () => {
     expect(screen.getByText("Payment")).toBeInTheDocument();
     expect(screen.getByText("Documents")).toBeInTheDocument();
     expect(screen.getByText("No document submissions yet.")).toBeInTheDocument();
-    expect(adminDocumentReviewsClient.getQueue).toHaveBeenCalledWith({ candidatePublicId: "candidate-1" }, { number: 1, size: 5 });
+    expect(adminDocumentReviewsClient.getQueue).toHaveBeenCalledWith(
+      { candidatePublicId: "candidate-1", status: ["pending_review", "partially_reviewed", "changes_required", "verified"] },
+      { number: 1, size: 5 }
+    );
   });
 });

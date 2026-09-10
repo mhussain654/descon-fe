@@ -361,7 +361,7 @@ describe("WorkflowPanel", () => {
     expect(screen.queryByRole("button", { name: "Confirm sharing" })).not.toBeInTheDocument();
   });
 
-  it("never renders the current stage's raw status code -- always a translated label", async () => {
+  it("never renders the current stage's raw status code, and shows no redundant/contradictory badge while the workflow is ongoing", async () => {
     adminWorkflowClient.getWorkflowState.mockResolvedValue(workflowState({ currentStage: timelineStage({ status: "current" }) }));
     adminWorkflowClient.getAllowedTransitions.mockResolvedValue(allowedTransitions());
     adminWorkflowClient.getWorkflowHistory.mockResolvedValue(workflowHistory());
@@ -369,8 +369,26 @@ describe("WorkflowPanel", () => {
 
     renderPanel(client);
 
-    expect(await screen.findByText("In Progress")).toBeInTheDocument();
+    // The row's own label already says "Current stage" -- a badge repeating
+    // that (or the generic "In Progress" wording used for this same backend
+    // status elsewhere, e.g. the candidate-facing dashboard's timeline)
+    // would read as contradicting a stage whose own name can already
+    // describe a completed action (e.g. "Fee Paid" next to the Payment
+    // card's "Paid" badge). No badge is the correct rendering here.
+    await screen.findByText("Fee Paid");
     expect(screen.queryByText("current")).not.toBeInTheDocument();
+    expect(screen.queryByText("In Progress")).not.toBeInTheDocument();
+  });
+
+  it("shows a Completed badge on the current-stage row once the workflow reaches its terminal stage", async () => {
+    adminWorkflowClient.getWorkflowState.mockResolvedValue(workflowState({ currentStage: timelineStage({ status: "completed" }) }));
+    adminWorkflowClient.getAllowedTransitions.mockResolvedValue(allowedTransitions());
+    adminWorkflowClient.getWorkflowHistory.mockResolvedValue(workflowHistory());
+    const client = await signInAs(MPS);
+
+    renderPanel(client);
+
+    expect(await screen.findByText("Completed")).toBeInTheDocument();
   });
 
   it("never infers eligibility client-side -- an allowed:false response hides the action even though the frontend has no other reason to think it's blocked", async () => {

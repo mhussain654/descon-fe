@@ -45,12 +45,19 @@ describe("CandidateDocumentsSummaryCard", () => {
     vi.mocked(adminDocumentReviewsClient.getQueue).mockReset();
   });
 
-  it("scopes the query to this candidate via filter[candidate_public_id]", async () => {
+  it("scopes the query to this candidate via filter[candidate_public_id], across every review status", async () => {
     adminDocumentReviewsClient.getQueue.mockResolvedValue({ items: [], pagination: { page: 1, perPage: 5, totalCount: 0, totalPages: 0 }, summary: undefined });
     renderCard();
 
     await screen.findByText("No document submissions yet.");
-    expect(adminDocumentReviewsClient.getQueue).toHaveBeenCalledWith({ candidatePublicId: "candidate-1" }, { number: 1, size: 5 });
+    // Explicit statuses, not the queue endpoint's own pending-only default --
+    // this card answers "what is the candidate's latest submission, whatever
+    // its outcome", not "what's still actionable" (the review queue's own
+    // question).
+    expect(adminDocumentReviewsClient.getQueue).toHaveBeenCalledWith(
+      { candidatePublicId: "candidate-1", status: ["pending_review", "partially_reviewed", "changes_required", "verified"] },
+      { number: 1, size: 5 }
+    );
   });
 
   it("shows a no-submissions message when the candidate has none", async () => {
@@ -72,6 +79,18 @@ describe("CandidateDocumentsSummaryCard", () => {
     expect(screen.getByText(/Submitted on/)).toBeInTheDocument();
     const link = screen.getByRole("link", { name: "View submission" });
     expect(link).toHaveAttribute("href", "/admin/document-reviews/submission-1");
+  });
+
+  it("shows a fully-verified submission rather than a false no-submissions message", async () => {
+    adminDocumentReviewsClient.getQueue.mockResolvedValue({
+      items: [queueItem({ review: { pendingReview: 0, verified: 1, rejected: 0, requiredTotal: 1, reviewState: "verified" } })],
+      pagination: { page: 1, perPage: 5, totalCount: 1, totalPages: 1 },
+      summary: undefined,
+    });
+    renderCard();
+
+    expect(await screen.findByText("Verified")).toBeInTheDocument();
+    expect(screen.queryByText("No document submissions yet.")).not.toBeInTheDocument();
   });
 
   it("links to the document-review queue filtered to this candidate", async () => {
