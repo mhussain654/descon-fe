@@ -369,6 +369,44 @@ describe('createAdminDocumentReviewsClient (real)', () => {
         review: { pendingReview: 0, verified: 1, rejected: 0, requiredTotal: 1, reviewState: 'verified' },
       });
     });
+
+    it('sends no body when no dates are given', async () => {
+      let capturedBody: unknown;
+      stubFetch(async (_url, init) => {
+        capturedBody = init?.body;
+        return jsonResponse(
+          successEnvelope({
+            document: submissionDocumentResponse({ status: 'verified' }),
+            submission: { id: 'submission-1', review: { pending_review: 0, verified: 1, rejected: 0, required_total: 1, review_state: 'verified' } },
+          })
+        );
+      });
+      const client = buildClient();
+
+      await client.verifyDocument('doc-1', 'idem-key-1');
+
+      expect(capturedBody).toBeUndefined();
+    });
+
+    it('sends HR-confirmed issued_on/expires_on in the documented body shape', async () => {
+      let capturedBody: string | undefined;
+      stubFetch(async (_url, init) => {
+        capturedBody = init?.body as string;
+        return jsonResponse(
+          successEnvelope({
+            document: submissionDocumentResponse({ status: 'verified', issued_on: '2020-01-01', expires_on: '2030-01-01' }),
+            submission: { id: 'submission-1', review: { pending_review: 0, verified: 1, rejected: 0, required_total: 1, review_state: 'verified' } },
+          })
+        );
+      });
+      const client = buildClient();
+
+      const result = await client.verifyDocument('doc-1', 'idem-key-1', { issuedOn: '2020-01-01', expiresOn: '2030-01-01' });
+
+      expect(JSON.parse(capturedBody!)).toEqual({ issued_on: '2020-01-01', expires_on: '2030-01-01' });
+      expect(result.document.issuedOn).toBe('2020-01-01');
+      expect(result.document.expiresOn).toBe('2030-01-01');
+    });
   });
 
   describe('rejectDocument', () => {
@@ -496,6 +534,58 @@ describe('createAdminDocumentReviewsClient (real)', () => {
         getLocale: () => 'en',
       });
       await expect(client.getSubmission('submission-1')).rejects.toEqual({ code: 'OFFLINE' });
+    });
+  });
+
+  describe('getExtraction', () => {
+    it('maps a succeeded extraction', async () => {
+      let capturedUrl: string | undefined;
+      stubFetch(async (url) => {
+        capturedUrl = String(url);
+        return jsonResponse(
+          successEnvelope({
+            status: 'succeeded',
+            issued_on: '2020-01-01',
+            expires_on: '2030-01-01',
+            confidence_issued_on: 96.4,
+            confidence_expires_on: 95.1,
+            extracted_at: '2026-08-27T10:00:00Z',
+          })
+        );
+      });
+      const client = buildClient();
+
+      const result = await client.getExtraction('doc-1');
+
+      expect(capturedUrl).toContain('/admin/candidate_documents/doc-1/extraction');
+      expect(result).toEqual({
+        status: 'succeeded',
+        issuedOn: '2020-01-01',
+        expiresOn: '2030-01-01',
+        confidenceIssuedOn: 96.4,
+        confidenceExpiresOn: 95.1,
+        extractedAt: '2026-08-27T10:00:00Z',
+      });
+    });
+
+    it('maps not_started with no other fields present', async () => {
+      stubFetch(async () => jsonResponse(successEnvelope({ status: 'not_started' })));
+      const client = buildClient();
+
+      const result = await client.getExtraction('doc-1');
+
+      expect(result).toEqual({ status: 'not_started' });
+    });
+
+    it('maps a failed extraction, including its error message', async () => {
+      stubFetch(async () =>
+        jsonResponse(successEnvelope({ status: 'failed', error_message: 'no identity document detected' }))
+      );
+      const client = buildClient();
+
+      const result = await client.getExtraction('doc-1');
+
+      expect(result).toEqual({ status: 'failed', errorMessage: 'no identity document detected' });
     });
   });
 });

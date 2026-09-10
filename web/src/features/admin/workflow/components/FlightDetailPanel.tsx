@@ -123,6 +123,12 @@ export function FlightDetailPanel({
     mobilizeTransition.blockingReasons.length > 0;
 
   const isThisTicketAccess = actions.ticketAccess.access !== null;
+  // Fails closed: null when the signed URL doesn't resolve to our own API
+  // origin (a malformed backend response, an unexpected absolute URL, a
+  // dangerous scheme) -- never render that as a link's href.
+  const ticketAccessUrl = actions.ticketAccess.access
+    ? resolveDocumentAccessUrl(actions.ticketAccess.access.url, import.meta.env.VITE_API_BASE_URL ?? '')
+    : null;
 
   return (
     <div className="mt-6 border-t border-border pt-6">
@@ -202,9 +208,9 @@ export function FlightDetailPanel({
           </div>
           {flightDetail.ticketAttached ? (
             <div className="mt-2">
-              {isThisTicketAccess && actions.ticketAccess.access && !actions.ticketAccess.isExpired ? (
+              {isThisTicketAccess && actions.ticketAccess.access && !actions.ticketAccess.isExpired && ticketAccessUrl ? (
                 <a
-                  href={resolveDocumentAccessUrl(actions.ticketAccess.access.url, import.meta.env.VITE_API_BASE_URL ?? '')}
+                  href={ticketAccessUrl}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="text-sm font-medium text-brand-primary underline"

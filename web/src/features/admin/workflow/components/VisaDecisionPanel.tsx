@@ -161,6 +161,13 @@ function VisaDecisionsBody({
 function VisaDecisionRow({ decision, actions }: { decision: AdminVisaDecision; actions: ReturnType<typeof useVisaActions> }) {
   const { t, language } = useLanguage();
   const isThisAccess = actions.copyAccess.access?.visaDecisionId === decision.id;
+  // Fails closed: null when the signed URL doesn't resolve to our own API
+  // origin (a malformed backend response, an unexpected absolute URL, a
+  // dangerous scheme) -- never render that as a link's href.
+  const copyAccessUrl =
+    isThisAccess && actions.copyAccess.access
+      ? resolveDocumentAccessUrl(actions.copyAccess.access.url, import.meta.env.VITE_API_BASE_URL ?? '')
+      : null;
 
   return (
     <li className="rounded-lg border border-border p-3 text-sm">
@@ -179,9 +186,9 @@ function VisaDecisionRow({ decision, actions }: { decision: AdminVisaDecision; a
       </div>
       {decision.outcomeCode === 'issued' && decision.visaCopyAttached ? (
         <div className="mt-2">
-          {isThisAccess && actions.copyAccess.access && !actions.copyAccess.isExpired ? (
+          {isThisAccess && actions.copyAccess.access && !actions.copyAccess.isExpired && copyAccessUrl ? (
             <a
-              href={resolveDocumentAccessUrl(actions.copyAccess.access.url, import.meta.env.VITE_API_BASE_URL ?? '')}
+              href={copyAccessUrl}
               target="_blank"
               rel="noopener noreferrer"
               className="text-sm font-medium text-brand-primary underline"

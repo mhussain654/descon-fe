@@ -18,6 +18,7 @@ import { useDocumentUpload } from "../../../features/candidate/documents/hooks/u
 import { useApplicationProgress } from "../../../features/candidate/progress/hooks/useApplicationProgress";
 import { useSubmitDocuments } from "../../../features/candidate/progress/hooks/useSubmitDocuments";
 import { DocumentUploadPanel } from "../../../features/candidate/documents/components/DocumentUploadPanel";
+import { BankDetailsPanel } from "../../../features/candidate/documents/components/BankDetailsPanel";
 import {
   Button,
   ConfirmDialog,
@@ -147,7 +148,12 @@ export default function DocumentsScreen() {
     const checklist = sortByPrototypeOrder(checklistQuery.data ?? []);
 
     if (checklist.length === 0) {
-      return <EmptyState title={t("candidateDocumentsEmptyTitle")} description={t("candidateDocumentsEmptyDescription")} />;
+      return (
+        <>
+          <BankDetailsPanel isDark={isDark} t={t} language={language} onSessionEnd={returnToSignIn} />
+          <EmptyState title={t("candidateDocumentsEmptyTitle")} description={t("candidateDocumentsEmptyDescription")} />
+        </>
+      );
     }
 
     return (
@@ -189,6 +195,8 @@ export default function DocumentsScreen() {
             </Button>
           </View>
         ) : null}
+
+        <BankDetailsPanel isDark={isDark} t={t} language={language} onSessionEnd={returnToSignIn} />
 
         {/* Document List */}
         <View>

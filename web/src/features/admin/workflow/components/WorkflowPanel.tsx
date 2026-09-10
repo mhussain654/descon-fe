@@ -51,17 +51,24 @@ const FLIGHT_STAGE_CODE = 'flight_details_uploaded';
 const MOBILIZED_STAGE_CODE = 'mobilized';
 const VISA_FLIGHT_MOBILIZATION_STAGE_CODES = new Set([VISA_STAGE_CODE, FLIGHT_STAGE_CODE, MOBILIZED_STAGE_CODE]);
 
-/** Translation keys for a timeline stage's status -- reuses existing generic keys rather than duplicating them, since a raw backend status code must never render untranslated. */
-const STAGE_STATUS_KEYS: Record<string, TranslationKey> = {
+/**
+ * Translation key for the "Current stage" summary row's badge. This row's
+ * own label already says "Current stage", so a `current`-status badge
+ * (backend: CandidateWorkflows::SnapshotBuilder#current_stage_status) would
+ * only ever repeat that -- and the generic shared `inProgress` wording used
+ * for this same status elsewhere (e.g. the candidate-facing dashboard's
+ * stage timeline) reads as actively self-contradictory here, since this
+ * stage's own name can already describe a completed action (e.g. "Fee
+ * Paid") sitting right next to the Payment card's "Paid" badge on the same
+ * page. The only status value worth calling out here is `completed`,
+ * meaning the whole workflow has reached its terminal stage.
+ */
+const STAGE_STATUS_KEYS: Partial<Record<string, TranslationKey>> = {
   completed: 'workflowStageCompletedPrefix',
-  current: 'inProgress',
-  pending: 'pending',
 };
 
 function stageStatusTone(status: string): 'neutral' | 'success' | 'info' {
-  if (status === 'completed') return 'success';
-  if (status === 'current') return 'info';
-  return 'neutral';
+  return status === 'completed' ? 'success' : 'neutral';
 }
 
 /**
@@ -222,10 +229,8 @@ export function WorkflowPanel({ candidateId }: WorkflowPanelProps) {
           <div className="text-xs text-text-tertiary">{t('adminWorkflowCurrentStageLabel')}</div>
           <div className="mt-1 flex items-center gap-2">
             <span className="font-medium text-text-primary">{state.currentStage?.name ?? t('adminWorkflowNoCurrentStage')}</span>
-            {state.currentStage ? (
-              <Badge tone={stageStatusTone(state.currentStage.status)}>
-                {t(STAGE_STATUS_KEYS[state.currentStage.status] ?? STAGE_STATUS_KEYS.pending)}
-              </Badge>
+            {state.currentStage && STAGE_STATUS_KEYS[state.currentStage.status] ? (
+              <Badge tone={stageStatusTone(state.currentStage.status)}>{t(STAGE_STATUS_KEYS[state.currentStage.status]!)}</Badge>
             ) : null}
           </div>
           {latestTransition ? (

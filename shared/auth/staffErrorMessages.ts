@@ -12,6 +12,6 @@ export const STAFF_AUTH_ERROR_KEYS: Record<StaffAuthErrorCode, string> = {
   FORBIDDEN: 'staffAuthForbiddenError',
   OFFLINE: 'dsOfflineTitle',
   SERVICE_UNAVAILABLE: 'authServiceUnavailableError',
-  NETWORK_ERROR: 'somethingWentWrong',
+  NETWORK_ERROR: 'networkError',
   UNKNOWN: 'somethingWentWrong',
 };

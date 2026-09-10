@@ -1,12 +1,13 @@
 // Pure idempotency-key lifecycle for a verify/reject decision. Mirrors
 // shared/candidateDocuments/idempotency.ts's reuse-vs-mint design, extended
-// to three inputs that must each independently force a fresh key (ticket:
+// to the inputs that must each independently force a fresh key (ticket:
 // "Changing document requires a new key. Changing action requires a new
 // key. Changing rejection reason requires a new key.") -- the backend's own
-// DecisionFingerprint hashes exactly these three (document public_id,
-// action, rejection_reason) plus the method/path, so reusing a key across a
-// changed selection would otherwise surface as a confusing
-// idempotency_conflict instead of just starting a new attempt.
+// DecisionFingerprint hashes exactly these (document public_id, action,
+// rejection_reason, and -- MPS-404 -- issued_on/expires_on) plus the
+// method/path, so reusing a key across a changed selection would otherwise
+// surface as a confusing idempotency_conflict instead of just starting a
+// new attempt.
 
 export type ReviewDecisionAction = 'verified' | 'rejected';
 
@@ -15,6 +16,9 @@ export interface DecisionSelection {
   action: ReviewDecisionAction;
   /** Empty string for a 'verified' decision -- only meaningful for 'rejected'. */
   rejectionReason: string;
+  /** Only meaningful for a 'verified' decision on an OCR-supported document type (MPS-404). Empty string when not applicable. */
+  issuedOn: string;
+  expiresOn: string;
 }
 
 export interface DecisionIdempotencyKeyState {
@@ -25,7 +29,13 @@ export interface DecisionIdempotencyKeyState {
 export const EMPTY_DECISION_IDEMPOTENCY_KEY_STATE: DecisionIdempotencyKeyState = { key: null, selection: null };
 
 function sameSelection(a: DecisionSelection, b: DecisionSelection): boolean {
-  return a.documentId === b.documentId && a.action === b.action && a.rejectionReason === b.rejectionReason;
+  return (
+    a.documentId === b.documentId &&
+    a.action === b.action &&
+    a.rejectionReason === b.rejectionReason &&
+    a.issuedOn === b.issuedOn &&
+    a.expiresOn === b.expiresOn
+  );
 }
 
 /** Reuses the current key only when document, action and rejection reason all exactly match -- otherwise mints a fresh one, for either a genuinely new decision or a manual retry of the same one. */

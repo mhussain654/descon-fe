@@ -8,13 +8,17 @@ import type {
   AdminDocumentReviewErrorCode,
   AdminDocumentReviewsClient,
   DocumentAccess,
+  DocumentExtraction,
+  DocumentExtractionStatus,
   DocumentReviewQueueFilters,
   DocumentReviewQueueItem,
   DocumentReviewQueuePage,
   DocumentReviewQueueResult,
   DocumentSubmissionDetail,
+  QueueStatusFilter,
   ReviewDecisionResult,
   SubmissionDocument,
+  VerifyDocumentDates,
 } from '../../../shared/adminDocumentReviews/types';
 import { apiClient } from './api-client';
 import { staffAuthClient } from './staff-auth-client';
@@ -24,13 +28,17 @@ export type {
   AdminDocumentReviewErrorCode,
   AdminDocumentReviewsClient,
   DocumentAccess,
+  DocumentExtraction,
+  DocumentExtractionStatus,
   DocumentReviewQueueFilters,
   DocumentReviewQueueItem,
   DocumentReviewQueuePage,
   DocumentReviewQueueResult,
   DocumentSubmissionDetail,
+  QueueStatusFilter,
   ReviewDecisionResult,
   SubmissionDocument,
+  VerifyDocumentDates,
 };
 
 const LANGUAGE_STORAGE_KEY = 'descon.language';

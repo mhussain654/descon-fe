@@ -11,7 +11,7 @@ function withQueryClient(ui: ReactElement) {
   return <QueryClientProvider client={queryClient}>{ui}</QueryClientProvider>;
 }
 
-function LoginStub() {
+function LoginStub({ consentAccepted = true }: { consentAccepted?: boolean }) {
   const { login } = useAuth();
   return (
     <div>
@@ -26,6 +26,7 @@ function LoginStub() {
             candidateName: 'Ahmed Ali',
             preferredLocale: 'en',
             expiresAt: new Date(Date.now() + 60_000).toISOString(),
+            consent: { currentPolicyVersion: 'v1', accepted: consentAccepted, acceptedAt: consentAccepted ? '2026-09-06T12:00:00Z' : null },
           })
         }
       >
@@ -40,13 +41,18 @@ function ProtectedStub() {
   return <p>Protected content</p>;
 }
 
-function renderGuarded() {
+function ConsentStub() {
+  return <p>Consent screen</p>;
+}
+
+function renderGuarded({ consentAccepted = true }: { consentAccepted?: boolean } = {}) {
   return render(
     withQueryClient(
       <AuthProvider>
         <MemoryRouter initialEntries={['/login']}>
           <Routes>
-            <Route path="/login" element={<LoginStub />} />
+            <Route path="/login" element={<LoginStub consentAccepted={consentAccepted} />} />
+            <Route path="/consent" element={<ConsentStub />} />
             <Route
               path="/dashboard"
               element={
@@ -93,5 +99,13 @@ describe('RequireAuth', () => {
     fireEvent.click(screen.getByRole('link', { name: 'Go to dashboard' }));
     expect(screen.getByText('Protected content')).toBeInTheDocument();
     expect(screen.queryByText('Login screen')).not.toBeInTheDocument();
+  });
+
+  it('redirects to /consent instead of rendering protected content when consent has not been accepted', () => {
+    renderGuarded({ consentAccepted: false });
+    fireEvent.click(screen.getByRole('button', { name: 'login' }));
+    fireEvent.click(screen.getByRole('link', { name: 'Go to dashboard' }));
+    expect(screen.getByText('Consent screen')).toBeInTheDocument();
+    expect(screen.queryByText('Protected content')).not.toBeInTheDocument();
   });
 });

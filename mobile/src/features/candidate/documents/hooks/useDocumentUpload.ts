@@ -61,6 +61,10 @@ function toPickedDocument(asset: ImagePicker.ImagePickerAsset, fallbackPrefix: s
     size: asset.fileSize,
     mimeType,
     lastModified: Date.now(),
+    // Web-only: expo-image-picker/document-picker both hand back a real
+    // File on web (see buildFormData's comment) -- dropped here entirely
+    // would leave the Expo web build with no working upload path at all.
+    file: asset.file,
   };
 }
 
@@ -77,30 +81,38 @@ function documentSignature(document: PickedDocument, issuedOn: string): string {
 }
 
 /**
- * Builds the multipart body for a picked document. React Native's `fetch`/
- * `FormData` accept a `{ uri, name, type }` part in place of a real `Blob`
- * for a file field -- this is the standard RN upload pattern, distinct from
- * web's real `File` object, and is never used outside this mobile module
- * (ticket: "React Native document-picker file objects belong in mobile
- * code.").
+ * Builds the multipart body for a picked document. Native React Native's
+ * `fetch`/`FormData` accept a `{ uri, name, type }` part in place of a real
+ * `Blob` for a file field -- the standard RN upload pattern. Running the
+ * same code via Expo web is also supported (see app.json's `web` config),
+ * and the browser's real `FormData.append` does NOT understand that `{uri,
+ * name, type}` shape: passed a plain object, it silently stringifies it
+ * (`"[object Object]"`), which is exactly what a plain object would look
+ * like once serialized -- so on web the picker's own `file` (a real `File`,
+ * `@platform web` on both expo-document-picker and expo-image-picker
+ * assets) must be appended directly instead.
  *
  * `issuedOn` is only appended for the police_character requirement -- the
  * backend rejects the request entirely if `expires_on` is ever supplied by
  * the client (PccExpiryNotEditableError), so that field is never sent here
  * at all; expiry is always server-calculated.
  */
-function buildFormData(requirementCode: string, document: PickedDocument, issuedOn: string): FormData {
+export function buildFormData(requirementCode: string, document: PickedDocument, issuedOn: string): FormData {
   const formData = new FormData();
   formData.append('candidate_document[requirement_code]', requirementCode);
-  formData.append(
-    'candidate_document[file]',
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RN's FormData typing models web's Blob-only signature; the platform's actual runtime accepts this shape for a file part.
-    {
-      uri: document.uri,
-      name: document.name,
-      type: document.mimeType || 'application/octet-stream',
-    } as any
-  );
+  if (document.file) {
+    formData.append('candidate_document[file]', document.file, document.name);
+  } else {
+    formData.append(
+      'candidate_document[file]',
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RN's FormData typing models web's Blob-only signature; the platform's actual runtime accepts this shape for a file part.
+      {
+        uri: document.uri,
+        name: document.name,
+        type: document.mimeType || 'application/octet-stream',
+      } as any
+    );
+  }
   if (requirementCode === PCC_REQUIREMENT_CODE && issuedOn.trim()) {
     formData.append('candidate_document[issued_on]', issuedOn.trim());
   }

@@ -38,6 +38,9 @@ interface DecisionVariables {
   action: ReviewDecisionAction;
   reason: string;
   idempotencyKey: string;
+  /** Only meaningful for a 'verified' action on an OCR-supported document type (MPS-404). */
+  issuedOn: string;
+  expiresOn: string;
 }
 
 /**
@@ -56,6 +59,8 @@ export function useReviewDecision(submissionId: string, candidateId?: string) {
   const queryClient = useQueryClient();
   const [confirmTarget, setConfirmTarget] = useState<ConfirmTarget | null>(null);
   const [reason, setReason] = useState('');
+  const [issuedOn, setIssuedOn] = useState('');
+  const [expiresOn, setExpiresOn] = useState('');
   const [idempotencyState, setIdempotencyState] = useState<DecisionIdempotencyKeyState>(
     EMPTY_DECISION_IDEMPOTENCY_KEY_STATE
   );
@@ -93,9 +98,12 @@ export function useReviewDecision(submissionId: string, candidateId?: string) {
   );
 
   const mutation = useMutation<ReviewDecisionResult, AdminDocumentReviewError, DecisionVariables>({
-    mutationFn: ({ documentId, action, reason: rejectionReason, idempotencyKey }) =>
+    mutationFn: ({ documentId, action, reason: rejectionReason, idempotencyKey, issuedOn: confirmedIssuedOn, expiresOn: confirmedExpiresOn }) =>
       action === 'verified'
-        ? adminDocumentReviewsClient.verifyDocument(documentId, idempotencyKey)
+        ? adminDocumentReviewsClient.verifyDocument(documentId, idempotencyKey, {
+            issuedOn: confirmedIssuedOn || undefined,
+            expiresOn: confirmedExpiresOn || undefined,
+          })
         : adminDocumentReviewsClient.rejectDocument(documentId, rejectionReason, idempotencyKey),
     onSuccess: (result, variables) => {
       seedSubmissionCache(result);
@@ -112,6 +120,8 @@ export function useReviewDecision(submissionId: string, candidateId?: string) {
       );
       setConfirmTarget(null);
       setReason('');
+      setIssuedOn('');
+      setExpiresOn('');
       setIdempotencyState(clearDecisionIdempotencyKey());
     },
     onError: (error) => {
@@ -139,6 +149,8 @@ export function useReviewDecision(submissionId: string, candidateId?: string) {
     (documentId: string) => {
       if (mutation.isPending) return;
       mutation.reset();
+      setIssuedOn('');
+      setExpiresOn('');
       setIdempotencyState(EMPTY_DECISION_IDEMPOTENCY_KEY_STATE);
       setConfirmTarget({ documentId, action: 'verified' });
     },
@@ -160,6 +172,8 @@ export function useReviewDecision(submissionId: string, candidateId?: string) {
     if (mutation.isPending) return;
     setConfirmTarget(null);
     setReason('');
+    setIssuedOn('');
+    setExpiresOn('');
     setIdempotencyState(clearDecisionIdempotencyKey());
   }, [mutation]);
 
@@ -171,16 +185,35 @@ export function useReviewDecision(submissionId: string, candidateId?: string) {
 
     const { documentId, action } = confirmTarget;
     const trimmedReason = action === 'rejected' ? reason.trim() : '';
-    const selection = { documentId, action, rejectionReason: trimmedReason };
+    const confirmedIssuedOn = action === 'verified' ? issuedOn : '';
+    const confirmedExpiresOn = action === 'verified' ? expiresOn : '';
+    const selection = {
+      documentId,
+      action,
+      rejectionReason: trimmedReason,
+      issuedOn: confirmedIssuedOn,
+      expiresOn: confirmedExpiresOn,
+    };
     const resolved = resolveDecisionIdempotencyKey(idempotencyState, selection, randomDecisionIdempotencyKey);
     setIdempotencyState(resolved);
-    mutation.mutate({ documentId, action, reason: trimmedReason, idempotencyKey: resolved.key as string });
-  }, [confirmTarget, reason, mutation, idempotencyState]);
+    mutation.mutate({
+      documentId,
+      action,
+      reason: trimmedReason,
+      idempotencyKey: resolved.key as string,
+      issuedOn: confirmedIssuedOn,
+      expiresOn: confirmedExpiresOn,
+    });
+  }, [confirmTarget, reason, issuedOn, expiresOn, mutation, idempotencyState]);
 
   return {
     confirmTarget,
     reason,
     setReason,
+    issuedOn,
+    setIssuedOn,
+    expiresOn,
+    setExpiresOn,
     openVerifyConfirm,
     openRejectConfirm,
     closeConfirm,

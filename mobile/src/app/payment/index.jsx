@@ -13,6 +13,7 @@ import { useAuth } from "../../contexts/AuthContext";
 import { useLanguage } from "../../contexts/LanguageContext";
 import { usePaymentEligibility } from "../../features/candidate/payments/hooks/usePaymentEligibility";
 import { useInitiateCheckout } from "../../features/candidate/payments/hooks/useInitiateCheckout";
+import { HostedCheckoutWebView } from "../../features/candidate/payments/components/HostedCheckoutWebView";
 import {
   Badge,
   Button,
@@ -235,6 +236,14 @@ export default function PaymentScreen() {
       >
         {renderBody()}
       </ScrollView>
+
+      <HostedCheckoutWebView
+        url={checkout.checkoutUrl}
+        onClose={checkout.closeCheckout}
+        closeLabel={t("dsClose")}
+        loadingLabel={t("loading")}
+        blockedMessage={t("paymentCheckoutNavigationBlocked")}
+      />
     </View>
   );
 }

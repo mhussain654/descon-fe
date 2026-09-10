@@ -1,7 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { isSessionValid } from '../../../shared/auth/session';
-import type { AuthSession } from '../../../shared/auth/types';
+import type { AuthSession, ConsentStatus } from '../../../shared/auth/types';
 
 export type AuthStatus = 'unauthenticated' | 'authenticated';
 export type LogoutReason = 'manual' | 'expired';
@@ -12,6 +12,8 @@ interface AuthContextValue {
   /** Set once by the OTP screen on successful verification. */
   login: (session: AuthSession) => void;
   logout: (reason?: LogoutReason) => void;
+  /** Updates the current session's consent status in place (MPS-204), e.g. after the candidate accepts on the consent screen. No-op if called with no session. */
+  setConsentStatus: (status: ConsentStatus) => void;
   /** True immediately after an expiry-triggered logout; a screen that reads it should also clear it (see `acknowledgeSessionExpired`). */
   sessionExpired: boolean;
   acknowledgeSessionExpired: () => void;
@@ -58,6 +60,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const acknowledgeSessionExpired = useCallback(() => setSessionExpired(false), []);
 
+  const setConsentStatus = useCallback((status: ConsentStatus) => {
+    setSession((current) => (current ? { ...current, consent: status } : current));
+  }, []);
+
   // Detects the session going stale while the app is open (not just at
   // request time), so a candidate idling on a protected screen gets moved
   // back to login promptly rather than only on their next action.
@@ -74,8 +80,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const status: AuthStatus = session && isSessionValid(session) ? 'authenticated' : 'unauthenticated';
 
   const value = useMemo(
-    () => ({ status, session, login, logout, sessionExpired, acknowledgeSessionExpired }),
-    [status, session, login, logout, sessionExpired, acknowledgeSessionExpired]
+    () => ({ status, session, login, logout, sessionExpired, acknowledgeSessionExpired, setConsentStatus }),
+    [status, session, login, logout, sessionExpired, acknowledgeSessionExpired, setConsentStatus]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

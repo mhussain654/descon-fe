@@ -202,7 +202,9 @@ describe("StaffLoginPage", () => {
     fireEvent.change(screen.getByLabelText("Password"), { target: { value: MOCK_STAFF_PASSWORD } });
     fireEvent.click(screen.getByRole("button", { name: "Sign in" }));
 
-    await waitFor(() => expect(screen.getByText("Something went wrong.")).toBeInTheDocument());
+    await waitFor(() =>
+      expect(screen.getByText("Couldn't reach the server. Check your connection and try again.")).toBeInTheDocument()
+    );
   });
 
   it("renders in Urdu/RTL, including a translated inactive-account message", async () => {

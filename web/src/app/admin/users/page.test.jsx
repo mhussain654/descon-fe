@@ -1,14 +1,35 @@
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { MemoryRouter, Route, Routes } from "react-router";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { createMockStaffAuthClient, MOCK_STAFF_ACCOUNTS, MOCK_STAFF_PASSWORD } from "../../../../../shared/auth/staffAuthClient";
 import { LanguageProvider } from "../../../contexts/LanguageContext";
 import { StaffAuthProvider } from "../../../contexts/StaffAuthContext";
 import StaffUsersPage from "./page";
+import { staffDirectoryClient } from "../../../lib/staff-directory-client";
+
+vi.mock("../../../lib/staff-directory-client", () => ({
+  staffDirectoryClient: {
+    listStaff: vi.fn(),
+    inviteStaff: vi.fn(),
+    updateStaffRole: vi.fn(),
+    updateStaffStatus: vi.fn(),
+  },
+}));
 
 const ADMIN = MOCK_STAFF_ACCOUNTS.find((account) => account.role === "admin");
 const HR = MOCK_STAFF_ACCOUNTS.find((account) => account.role === "hr" && !account.locked && !account.suspended);
+
+/** Real-backend-shaped fixtures (Users::SummarySerializer): id/email/role/staff_state/active/created_at, no name -- matches shared/staffAdmin/types.ts exactly. */
+function seedStaff() {
+  return [
+    { id: "staff_admin_1", email: "admin@descon.com", role: "admin", status: "active", createdAt: "2026-06-01T00:00:00Z" },
+    { id: "staff_hr_1", email: "hr@descon.com", role: "hr", status: "active", createdAt: "2026-06-05T00:00:00Z" },
+    { id: "staff_finance_1", email: "finance@descon.com", role: "finance", status: "active", createdAt: "2026-06-10T00:00:00Z" },
+    { id: "staff_invited_1", email: "hamza.haroon@descon.com", role: "hr", status: "invited", createdAt: "2026-08-30T00:00:00Z" },
+    { id: "staff_suspended_1", email: "zara.zaidi@descon.com", role: "finance", status: "suspended", createdAt: "2026-05-01T00:00:00Z" },
+  ];
+}
 
 async function signInAs(account) {
   const client = createMockStaffAuthClient({ delayMs: 0 });
@@ -33,27 +54,32 @@ async function renderUsersPage(client) {
   return result;
 }
 
-/** "Ayesha Admin" (the signed-in admin) appears both in the StaffShell header and in the table row -- scope row lookups to the table body to disambiguate. */
-function tableRowFor(name) {
-  return within(screen.getByRole("table")).getByText(name).closest("tr");
+function tableRowFor(email) {
+  return within(screen.getByRole("table")).getByText(email).closest("tr");
 }
 
 describe("StaffUsersPage", () => {
   afterEach(() => {
+    vi.mocked(staffDirectoryClient.listStaff).mockReset();
+    vi.mocked(staffDirectoryClient.inviteStaff).mockReset();
+    vi.mocked(staffDirectoryClient.updateStaffRole).mockReset();
+    vi.mocked(staffDirectoryClient.updateStaffStatus).mockReset();
     sessionStorage.clear();
   });
 
   it("lists the seeded staff with role and status", async () => {
+    staffDirectoryClient.listStaff.mockResolvedValue(seedStaff());
     const client = await signInAs(ADMIN);
     await renderUsersPage(client);
 
     const table = screen.getByRole("table");
-    expect(within(table).getByText("Ayesha Admin")).toBeInTheDocument();
-    expect(within(table).getByText("Bilal HR")).toBeInTheDocument();
-    expect(within(table).getByText("Zara Zaidi")).toBeInTheDocument();
+    expect(within(table).getByText("admin@descon.com")).toBeInTheDocument();
+    expect(within(table).getByText("hr@descon.com")).toBeInTheDocument();
+    expect(within(table).getByText("zara.zaidi@descon.com")).toBeInTheDocument();
   });
 
   it("redirects a non-admin (lacking the admin-only role) to the forbidden route, never rendering the table", async () => {
+    staffDirectoryClient.listStaff.mockResolvedValue(seedStaff());
     const client = await signInAs(HR);
     const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
     render(
@@ -73,7 +99,7 @@ describe("StaffUsersPage", () => {
 
     await waitFor(() => expect(screen.getByText("Forbidden stub")).toBeInTheDocument());
     expect(screen.queryByRole("table")).not.toBeInTheDocument();
-    expect(screen.queryByText("Bilal HR")).not.toBeInTheDocument();
+    expect(screen.queryByText("hr@descon.com")).not.toBeInTheDocument();
   });
 
   it("redirects an admin-*role* staff member who lacks the manage_staff_users *permission* -- role alone never grants access", async () => {
@@ -116,118 +142,173 @@ describe("StaffUsersPage", () => {
   });
 
   it("filters the list by search query", async () => {
+    staffDirectoryClient.listStaff.mockImplementation(async (params = {}) => {
+      const all = seedStaff();
+      if (!params.query) return all;
+      return all.filter((member) => member.email.includes(params.query));
+    });
     const client = await signInAs(ADMIN);
     await renderUsersPage(client);
 
-    fireEvent.change(screen.getByRole("searchbox"), { target: { value: "bilal" } });
+    fireEvent.change(screen.getByRole("searchbox"), { target: { value: "hr@descon" } });
 
-    await waitFor(() => expect(within(screen.getByRole("table")).queryByText("Ayesha Admin")).not.toBeInTheDocument());
-    expect(within(screen.getByRole("table")).getByText("Bilal HR")).toBeInTheDocument();
+    await waitFor(() => expect(within(screen.getByRole("table")).queryByText("admin@descon.com")).not.toBeInTheDocument());
+    expect(within(screen.getByRole("table")).getByText("hr@descon.com")).toBeInTheDocument();
   });
 
   it("invites a new staff member and refreshes the list without a page reload", async () => {
+    const invited = {
+      id: "staff_new_1",
+      email: "new.person@descon.com",
+      role: "hr",
+      status: "invited",
+      createdAt: new Date().toISOString(),
+    };
+    // First resolution is the page's initial load; the second is the
+    // refetch `invalidateStaffList()` triggers after a successful invite --
+    // matching production, where the real backend's second GET reflects
+    // the just-created row.
+    staffDirectoryClient.listStaff.mockResolvedValueOnce(seedStaff()).mockResolvedValue([...seedStaff(), invited]);
+    staffDirectoryClient.inviteStaff.mockResolvedValue(invited);
     const client = await signInAs(ADMIN);
     await renderUsersPage(client);
 
     fireEvent.click(screen.getByRole("button", { name: "+ Invite staff" }));
-    fireEvent.change(screen.getByLabelText("Name"), { target: { value: "New Person" } });
     fireEvent.change(screen.getByLabelText("Email"), { target: { value: "new.person@descon.com" } });
     fireEvent.click(screen.getByRole("button", { name: "Send invite" }));
 
-    await waitFor(() => expect(screen.getByText("New Person")).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText("new.person@descon.com")).toBeInTheDocument());
     // The invite dialog itself closed on success.
     expect(screen.queryByText("Invite staff member")).not.toBeInTheDocument();
   });
 
   it("shows a field-addressable error for a duplicate email invite, without closing the dialog", async () => {
+    staffDirectoryClient.listStaff.mockResolvedValue(seedStaff());
+    staffDirectoryClient.inviteStaff.mockRejectedValue({
+      status: 422,
+      code: "HTTP_4XX",
+      serverCode: "validation_failed",
+      field: "email",
+      errors: [{ code: "validation_failed", field: "email", message: "Email has already been taken" }],
+    });
     const client = await signInAs(ADMIN);
     await renderUsersPage(client);
 
     fireEvent.click(screen.getByRole("button", { name: "+ Invite staff" }));
-    fireEvent.change(screen.getByLabelText("Name"), { target: { value: "Duplicate" } });
     fireEvent.change(screen.getByLabelText("Email"), { target: { value: ADMIN.email } });
     fireEvent.click(screen.getByRole("button", { name: "Send invite" }));
 
     const emailField = await screen.findByLabelText("Email");
     await waitFor(() => expect(emailField).toHaveAttribute("aria-invalid", "true"));
-    expect(screen.getByText("A staff member with this email already exists.")).toBeInTheDocument();
+    expect(screen.getByText("Email has already been taken")).toBeInTheDocument();
     // The dialog stays open so the staff member can correct the field.
     expect(screen.getByText("Invite staff member")).toBeInTheDocument();
   });
 
   it("suspends a staff member after explicit confirmation", async () => {
+    staffDirectoryClient.listStaff.mockResolvedValue(seedStaff());
+    staffDirectoryClient.updateStaffStatus.mockResolvedValue({
+      id: "staff_invited_1",
+      email: "hamza.haroon@descon.com",
+      role: "hr",
+      status: "suspended",
+      createdAt: "2026-08-30T00:00:00Z",
+    });
     const client = await signInAs(ADMIN);
     await renderUsersPage(client);
 
-    // A distinct target from the other mutating tests below -- the staff
-    // directory client is a module-level singleton shared across every test
-    // in this file (matching production, where it really is one instance
-    // for the session), so each mutating test uses its own row to stay
-    // independent of the others' side effects.
-    const targetRow = tableRowFor("Hamza Haroon");
+    // A distinct target from the other mutating tests below -- each
+    // mutating test asserts only against its own mocked resolution, so
+    // they stay independent of each other's side effects.
+    const targetRow = tableRowFor("hamza.haroon@descon.com");
     fireEvent.click(within(targetRow).getByRole("button", { name: "Suspend" }));
 
     expect(screen.getByText("Suspend staff member")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Suspend" }));
 
     await waitFor(() => {
-      expect(within(tableRowFor("Hamza Haroon")).getByText("Suspended")).toBeInTheDocument();
+      expect(staffDirectoryClient.updateStaffStatus).toHaveBeenCalledWith("staff_invited_1", "suspended");
     });
   });
 
-  it("requires an explicit confirmation step for a role downgrade before applying it", async () => {
+  it("treats selecting a member's current role as a no-op -- no mutation call, dialog just closes", async () => {
+    staffDirectoryClient.listStaff.mockResolvedValue(seedStaff());
     const client = await signInAs(ADMIN);
     await renderUsersPage(client);
 
-    // Only `admin` outranks the other four (peer) roles, so demonstrating a
-    // downgrade needs a second admin first -- promote Bilal HR to admin (an
-    // upgrade, no confirmation needed), then demote them back, which *is* a
-    // genuine downgrade. (Demoting the signed-in admin's own row is
-    // impossible through this UI at all -- actions are hidden there -- and
-    // the "last remaining admin" business rule itself is covered directly
-    // against the client in shared/staffAdmin/staffDirectoryClient.test.ts.)
-    fireEvent.click(within(tableRowFor("Bilal HR")).getByRole("button", { name: "Change role" }));
-    fireEvent.change(screen.getByLabelText("Role"), { target: { value: "admin" } });
-    fireEvent.click(screen.getByRole("button", { name: "Save" }));
-    await waitFor(() => expect(within(tableRowFor("Bilal HR")).getByText("Admin")).toBeInTheDocument());
-
-    fireEvent.click(within(tableRowFor("Bilal HR")).getByRole("button", { name: "Change role" }));
+    fireEvent.click(within(tableRowFor("hr@descon.com")).getByRole("button", { name: "Change role" }));
     fireEvent.change(screen.getByLabelText("Role"), { target: { value: "hr" } });
     fireEvent.click(screen.getByRole("button", { name: "Save" }));
 
-    // A downgrade requires an explicit confirmation step, not an immediate
-    // change -- the mutation must not have been called yet. (The table
-    // itself is aria-hidden by the open modal at this point, per Radix's
-    // modal semantics, so it isn't queried here.)
-    expect(screen.getByText("Confirm role downgrade")).toBeInTheDocument();
-
-    fireEvent.click(screen.getByRole("button", { name: "Confirm" }));
-
-    await waitFor(() => expect(within(tableRowFor("Bilal HR")).getByText("HR")).toBeInTheDocument());
-    expect(screen.queryByText("Confirm role downgrade")).not.toBeInTheDocument();
+    expect(staffDirectoryClient.updateStaffRole).not.toHaveBeenCalled();
+    expect(screen.queryByLabelText("Role")).not.toBeInTheDocument();
   });
 
   it("does not require confirmation for a role upgrade", async () => {
+    staffDirectoryClient.listStaff.mockResolvedValue(seedStaff());
+    staffDirectoryClient.updateStaffRole.mockResolvedValue({
+      id: "staff_finance_1",
+      email: "finance@descon.com",
+      role: "admin",
+      status: "active",
+      createdAt: "2026-06-10T00:00:00Z",
+    });
     const client = await signInAs(ADMIN);
     await renderUsersPage(client);
 
-    const financeRow = screen.getByText("Sana Finance").closest("tr");
-    fireEvent.click(within(financeRow).getByRole("button", { name: "Change role" }));
+    fireEvent.click(within(tableRowFor("finance@descon.com")).getByRole("button", { name: "Change role" }));
     fireEvent.change(screen.getByLabelText("Role"), { target: { value: "admin" } });
     fireEvent.click(screen.getByRole("button", { name: "Save" }));
 
     expect(screen.queryByText("Confirm role downgrade")).not.toBeInTheDocument();
     await waitFor(() => {
-      const row = screen.getByText("Sana Finance").closest("tr");
-      expect(within(row).getByText("Admin")).toBeInTheDocument();
+      expect(staffDirectoryClient.updateStaffRole).toHaveBeenCalledWith("staff_finance_1", "admin");
     });
   });
 
-  it("does not render role/status actions on the current staff member's own row", async () => {
+  it("requires confirmation for a role downgrade and applies it only after confirming", async () => {
+    // Only `admin` outranks the other four (peer) roles (STAFF_ROLE_RANK),
+    // so demonstrating a downgrade needs a second admin first -- promote
+    // finance to admin (an upgrade, immediate, no confirmation), then demote
+    // them back, which *is* a genuine downgrade. The signed-in admin's own
+    // row hides actions entirely, so it can't be used for either step.
+    const financeAsAdmin = { id: "staff_finance_1", email: "finance@descon.com", role: "admin", status: "active", createdAt: "2026-06-10T00:00:00Z" };
+    staffDirectoryClient.listStaff
+      .mockResolvedValueOnce(seedStaff())
+      .mockResolvedValue(seedStaff().map((member) => (member.id === "staff_finance_1" ? financeAsAdmin : member)));
+    staffDirectoryClient.updateStaffRole.mockImplementation(async (staffId, role) => ({ ...financeAsAdmin, id: staffId, role }));
+
     const client = await signInAs(ADMIN);
     await renderUsersPage(client);
 
-    const ownRow = tableRowFor("Ayesha Admin");
+    fireEvent.click(within(tableRowFor("finance@descon.com")).getByRole("button", { name: "Change role" }));
+    fireEvent.change(screen.getByLabelText("Role"), { target: { value: "admin" } });
+    fireEvent.click(screen.getByRole("button", { name: "Save" }));
+
+    await waitFor(() => expect(staffDirectoryClient.updateStaffRole).toHaveBeenCalledWith("staff_finance_1", "admin"));
+    await waitFor(() => expect(within(tableRowFor("finance@descon.com")).getByText("Admin")).toBeInTheDocument());
+
+    fireEvent.click(within(tableRowFor("finance@descon.com")).getByRole("button", { name: "Change role" }));
+    fireEvent.change(screen.getByLabelText("Role"), { target: { value: "hr" } });
+    fireEvent.click(screen.getByRole("button", { name: "Save" }));
+
+    expect(screen.getByText("Confirm role downgrade")).toBeInTheDocument();
+    expect(staffDirectoryClient.updateStaffRole).toHaveBeenCalledTimes(1);
+
+    fireEvent.click(screen.getByRole("button", { name: "Confirm" }));
+
+    await waitFor(() => {
+      expect(staffDirectoryClient.updateStaffRole).toHaveBeenCalledWith("staff_finance_1", "hr");
+    });
+    expect(screen.queryByText("Confirm role downgrade")).not.toBeInTheDocument();
+  });
+
+  it("does not render role/status actions on the current staff member's own row", async () => {
+    staffDirectoryClient.listStaff.mockResolvedValue(seedStaff());
+    const client = await signInAs(ADMIN);
+    await renderUsersPage(client);
+
+    const ownRow = tableRowFor("admin@descon.com");
     expect(within(ownRow).queryByRole("button", { name: "Change role" })).not.toBeInTheDocument();
     expect(within(ownRow).queryByRole("button", { name: "Suspend" })).not.toBeInTheDocument();
     expect(within(ownRow).getByText("You")).toBeInTheDocument();

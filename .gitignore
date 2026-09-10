@@ -1,0 +1,8 @@
+# Root-level ignore for this monorepo. web/ and mobile/ each have their own
+# .gitignore for their own build/dependency artifacts -- this one exists
+# because a stray root-level node_modules/ (e.g. from running a tool at the
+# repo root by mistake) had no .gitignore at all covering it, and a leftover
+# vitest result file ended up committed as a result.
+node_modules/
+.DS_Store
+*.log
