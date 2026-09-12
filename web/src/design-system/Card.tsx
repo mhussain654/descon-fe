@@ -12,7 +12,7 @@ export function Card({ noPadding = false, className, children, ...props }: CardP
     <div
       {...props}
       className={classNames(
-        'rounded-2xl border border-border bg-surface-raised',
+        'rounded-2xl border border-border bg-surface-raised shadow-sm',
         !noPadding && 'p-6',
         className
       )}

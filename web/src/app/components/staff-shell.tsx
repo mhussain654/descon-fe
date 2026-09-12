@@ -95,13 +95,24 @@ function StaffShellContent({ children }: { children: ReactNode }) {
     { href: '/admin/backups', labelKey: 'staffNavBackups', visible: hasPermission('manage_backups') },
   ].filter((item) => item.visible);
 
-  const isActive = (href: string) => location.pathname === href || location.pathname.startsWith(`${href}/`);
+  // The "Candidates" item's bare `/admin` href is a prefix of every other
+  // admin route, so a naive per-item startsWith check would highlight it
+  // (and whichever other item also matches) at the same time -- e.g. both
+  // "Candidates" and "AI call scripts" lit up together while on
+  // /admin/ai-call-scripts. Only the single longest/most specific matching
+  // href should ever be treated as active.
+  const activeHref = navItems.reduce<string | null>((best, item) => {
+    const matches = location.pathname === item.href || location.pathname.startsWith(`${item.href}/`);
+    if (!matches) return best;
+    return !best || item.href.length > best.length ? item.href : best;
+  }, null);
+  const isActive = (href: string) => href === activeHref;
 
   return (
-    <div className="min-h-screen bg-[#FAFAFA]">
-      <header className="border-b border-gray-300 bg-white">
+    <div className="min-h-screen bg-surface-background">
+      <header className="border-b border-border bg-surface-raised shadow-sm">
         <div className="mx-auto flex max-w-[1600px] items-center justify-between gap-3 px-4 py-3 sm:px-6">
-          <div className="flex min-w-0 items-center gap-3">
+          <div className="flex min-w-0 items-center gap-2.5">
             <div className="2xl:hidden">
               <IconButton
                 icon={isMobileNavOpen ? <X className="h-5 w-5" aria-hidden="true" /> : <Menu className="h-5 w-5" aria-hidden="true" />}
@@ -113,16 +124,19 @@ function StaffShellContent({ children }: { children: ReactNode }) {
                 onClick={() => setIsMobileNavOpen((open) => !open)}
               />
             </div>
-            <span className="truncate text-base font-semibold text-gray-900">{t('staffPortalTitle')}</span>
+            <span className="h-2.5 w-2.5 shrink-0 rounded-full bg-brand" aria-hidden="true" />
+            <span className="truncate text-base font-semibold text-text-primary">{t('staffPortalTitle')}</span>
           </div>
 
-          <nav className="hidden items-center gap-4 2xl:flex" aria-label={t('staffPortalTitle')}>
+          <nav className="hidden items-center gap-1 2xl:flex" aria-label={t('staffPortalTitle')}>
             {navItems.map((item) => (
               <Link
                 key={item.href}
                 to={item.href}
-                className={`text-sm font-medium whitespace-nowrap ${
-                  isActive(item.href) ? 'text-gray-900' : 'text-gray-500 hover:text-gray-900'
+                className={`rounded-lg px-3 py-1.5 text-sm font-medium whitespace-nowrap transition-colors ${
+                  isActive(item.href)
+                    ? 'bg-brand-subtle text-brand'
+                    : 'text-text-secondary hover:bg-surface-sunken hover:text-text-primary'
                 }`}
               >
                 {t(item.labelKey)}
@@ -132,7 +146,7 @@ function StaffShellContent({ children }: { children: ReactNode }) {
 
           <div className="hidden items-center gap-3 2xl:flex">
             <div className="text-end text-sm">
-              <div className="font-medium text-gray-900">{session.email}</div>
+              <div className="font-medium text-text-primary">{session.email}</div>
               <Badge tone="neutral">{t(ROLE_LABEL_KEYS[session.role])}</Badge>
             </div>
             <Button variant="outline" size="sm" onClick={() => signOut()}>
@@ -142,23 +156,25 @@ function StaffShellContent({ children }: { children: ReactNode }) {
         </div>
 
         {isMobileNavOpen && (
-          <div id="staff-mobile-nav" className="border-t border-gray-200 2xl:hidden">
+          <div id="staff-mobile-nav" className="border-t border-border 2xl:hidden">
             <nav className="flex flex-col gap-1 px-4 py-3" aria-label={t('staffPortalTitle')}>
               {navItems.map((item) => (
                 <Link
                   key={item.href}
                   to={item.href}
-                  className={`rounded-md px-3 py-2 text-sm font-medium ${
-                    isActive(item.href) ? 'bg-gray-100 text-gray-900' : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+                  className={`rounded-lg px-3 py-2 text-sm font-medium ${
+                    isActive(item.href)
+                      ? 'bg-brand-subtle text-brand'
+                      : 'text-text-secondary hover:bg-surface-sunken hover:text-text-primary'
                   }`}
                 >
                   {t(item.labelKey)}
                 </Link>
               ))}
             </nav>
-            <div className="flex items-center justify-between gap-3 border-t border-gray-200 px-4 py-3">
+            <div className="flex items-center justify-between gap-3 border-t border-border px-4 py-3">
               <div className="text-sm">
-                <div className="font-medium text-gray-900">{session.email}</div>
+                <div className="font-medium text-text-primary">{session.email}</div>
                 <Badge tone="neutral">{t(ROLE_LABEL_KEYS[session.role])}</Badge>
               </div>
               <Button variant="outline" size="sm" onClick={() => signOut()}>

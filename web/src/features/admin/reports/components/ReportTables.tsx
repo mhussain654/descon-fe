@@ -117,11 +117,11 @@ export function OutcomeTrackingTiles({ summary, t }: { summary: OutcomeTracking;
   return (
     <Card>
       <div className="flex flex-wrap gap-2">
-        <StatTile value={summary.rejectedDocuments} label={t('reportOutcomeRejectedDocuments')} className="bg-[#FEF2F2] text-[#EF4444]" />
-        <StatTile value={summary.qvcReMedical} label={t('reportOutcomeQvcReMedical')} className="bg-[#FFF7E6] text-[#F59E0B]" />
-        <StatTile value={summary.qvcRejected} label={t('reportOutcomeQvcRejected')} className="bg-[#FEF2F2] text-[#EF4444]" />
-        <StatTile value={summary.qvcNoShow} label={t('reportOutcomeQvcNoShow')} className="bg-[#F6F6F6] text-[#6B7280]" />
-        <StatTile value={summary.visaRejected} label={t('reportOutcomeVisaRejected')} className="bg-[#FEF2F2] text-[#EF4444]" />
+        <StatTile value={summary.rejectedDocuments} label={t('reportOutcomeRejectedDocuments')} className="bg-danger-subtle text-danger-emphasis" />
+        <StatTile value={summary.qvcReMedical} label={t('reportOutcomeQvcReMedical')} className="bg-warning-subtle text-warning-emphasis" />
+        <StatTile value={summary.qvcRejected} label={t('reportOutcomeQvcRejected')} className="bg-danger-subtle text-danger-emphasis" />
+        <StatTile value={summary.qvcNoShow} label={t('reportOutcomeQvcNoShow')} className="bg-surface-sunken text-text-secondary" />
+        <StatTile value={summary.visaRejected} label={t('reportOutcomeVisaRejected')} className="bg-danger-subtle text-danger-emphasis" />
       </div>
     </Card>
   );
