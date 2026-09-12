@@ -75,6 +75,21 @@ function StaffShellContent({ children }: { children: ReactNode }) {
       labelKey: 'staffNavFinancePayments',
       visible: hasPermission('view_payments') || hasPermission('manage_payments'),
     },
+    {
+      href: '/admin/communications',
+      labelKey: 'staffNavCommunications',
+      visible: hasPermission('view_communications') || hasPermission('manage_communications'),
+    },
+    {
+      href: '/admin/ai-call-scripts',
+      labelKey: 'staffNavAiCallScripts',
+      visible: hasPermission('manage_ai_call_scripts'),
+    },
+    {
+      href: '/admin/ai-call-settings',
+      labelKey: 'staffNavAiCallSettings',
+      visible: hasPermission('manage_ai_call_settings'),
+    },
     { href: '/admin/users', labelKey: 'staffNavUsers', visible: hasPermission('manage_staff_users') },
     { href: '/admin/audit-log', labelKey: 'staffNavAuditLog', visible: hasPermission('view_audit_events') },
     { href: '/admin/backups', labelKey: 'staffNavBackups', visible: hasPermission('manage_backups') },
