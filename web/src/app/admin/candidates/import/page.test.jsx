@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { MemoryRouter, Route, Routes } from "react-router";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -93,6 +93,10 @@ describe("CandidateImportPage", () => {
     const withPermission = await signInAs(HR);
     renderAt("/admin", withPermission);
     expect(await screen.findByText("Candidates dashboard stub")).toBeInTheDocument();
+
+    // "Import candidates" lives inside the "Administration" nav group.
+    fireEvent.click(screen.getByRole("button", { name: "Administration" }));
+
     expect(screen.getByRole("link", { name: "Import candidates" })).toBeInTheDocument();
   });
 

@@ -16,13 +16,18 @@ import { useApplicationProgress } from "../../../features/candidate/progress/hoo
 import { useCandidateWorkflowHistory } from "../../../features/candidate/workflow/hooks/useCandidateWorkflowHistory";
 import { useCandidateFlightDetail } from "../../../features/candidate/workflow/hooks/useCandidateFlightDetail";
 import { useFlightTicketAccess } from "../../../features/candidate/workflow/hooks/useFlightTicketAccess";
+import { useCandidateVisaDecisions } from "../../../features/candidate/workflow/hooks/useCandidateVisaDecisions";
+import { useVisaCopyAccess } from "../../../features/candidate/workflow/hooks/useVisaCopyAccess";
 import { LoadingState, ErrorState, OfflineState, SessionExpiredState, ForbiddenState, Button, ValidationMessage } from "../../../design-system";
 import { APPLICATION_PROGRESS_ERROR_KEYS } from "../../../../../shared/applicationProgress/errorMessages";
 import { WORKFLOW_HISTORY_ERROR_KEYS } from "../../../../../shared/candidateWorkflow/errorMessages";
 import { findLatestQvcOutcome, QVC_OUTCOME_KEYS, QVC_OUTCOME_TONES } from "../../../../../shared/candidateWorkflow/qvcOutcome";
+import { VISA_OUTCOME_KEYS, VISA_OUTCOME_TONES } from "../../../../../shared/candidateVisaDecisions/outcomeLabels";
 import { CANDIDATE_FLIGHT_DETAIL_ERROR_KEYS } from "../../../../../shared/candidateFlightDetail/errorMessages";
+import { CANDIDATE_VISA_DECISIONS_ERROR_KEYS } from "../../../../../shared/candidateVisaDecisions/errorMessages";
 
 const QVC_OUTCOME_STAGE_CODE = "qvc_completed_outcome_received";
+const VISA_OUTCOME_STAGE_CODE = "visa_issued_or_rejected";
 const FLIGHT_TICKET_STAGE_CODES = new Set(["flight_details_uploaded", "mobilized"]);
 
 const QVC_TONE_COLORS = {
@@ -47,6 +52,8 @@ export default function StatusScreen() {
   const historyQuery = useCandidateWorkflowHistory();
   const flightDetailQuery = useCandidateFlightDetail();
   const ticketAccess = useFlightTicketAccess();
+  const visaDecisionsQuery = useCandidateVisaDecisions();
+  const visaCopyAccess = useVisaCopyAccess();
   useRefetchOnFocus(progressQuery.refetch, progressQuery.isFetching);
   useRefetchOnFocus(historyQuery.refetch, historyQuery.isFetching);
 
@@ -94,6 +101,9 @@ export default function StatusScreen() {
   const workflow = progressQuery.data?.workflow;
   const timeline = workflow?.timeline ?? [];
   const qvcOutcome = findLatestQvcOutcome(historyQuery.data?.items ?? []);
+  // The latest recorded visa decision (a candidate can be re-submitted, so this is
+  // never assumed to be the only one) -- the backend returns the list in chronological order.
+  const latestVisaDecision = visaDecisionsQuery.data?.at(-1) ?? null;
   const historyItems = historyQuery.data?.items ?? [];
   const lastUpdatedLabel = workflow ? formatStageDate(workflow.updatedAt, language) : null;
 
@@ -212,6 +222,7 @@ export default function StatusScreen() {
               const startedLabel = formatStageDate(stage.startedAt, language);
               const completedLabel = formatStageDate(stage.completedAt, language);
               const outcomeTone = qvcOutcome ? QVC_TONE_COLORS[QVC_OUTCOME_TONES[qvcOutcome.code]] : null;
+              const visaOutcomeTone = latestVisaDecision ? QVC_TONE_COLORS[VISA_OUTCOME_TONES[latestVisaDecision.outcomeCode]] : null;
 
               return (
                 <View key={stage.code} style={{ flexDirection: "row" }}>
@@ -311,6 +322,46 @@ export default function StatusScreen() {
                           {t("qvcOutcome")}: {t(QVC_OUTCOME_KEYS[qvcOutcome.code])}
                           {formatStageDate(qvcOutcome.date, language) ? ` • ${formatStageDate(qvcOutcome.date, language)}` : ""}
                         </Text>
+                      </View>
+                    ) : null}
+                    {stage.code === VISA_OUTCOME_STAGE_CODE && latestVisaDecision ? (
+                      <View>
+                        <View
+                          style={{
+                            backgroundColor: visaOutcomeTone.bg,
+                            borderRadius: 8,
+                            paddingHorizontal: 12,
+                            paddingVertical: 8,
+                            marginTop: 8,
+                            alignSelf: "flex-start",
+                          }}
+                        >
+                          <Text style={{ fontSize: 12, fontFamily: "Inter_500Medium", color: visaOutcomeTone.text }}>
+                            {t("visaOutcome")}: {t(VISA_OUTCOME_KEYS[latestVisaDecision.outcomeCode])}
+                            {formatStageDate(latestVisaDecision.decisionDate, language)
+                              ? ` • ${formatStageDate(latestVisaDecision.decisionDate, language)}`
+                              : ""}
+                          </Text>
+                        </View>
+                        {latestVisaDecision.visaCopyAttached ? (
+                          <View style={{ marginTop: 8 }}>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onPress={() => visaCopyAccess.downloadVisaCopy(latestVisaDecision.id)}
+                              disabled={visaCopyAccess.isRequesting}
+                            >
+                              {t("candidateVisaDownloadCopyAction")}
+                            </Button>
+                            {visaCopyAccess.error ? (
+                              <View style={{ marginTop: 4 }}>
+                                <ValidationMessage tone="error">
+                                  {visaCopyAccess.error.message || t(CANDIDATE_VISA_DECISIONS_ERROR_KEYS[visaCopyAccess.error.code])}
+                                </ValidationMessage>
+                              </View>
+                            ) : null}
+                          </View>
+                        ) : null}
                       </View>
                     ) : null}
                     {FLIGHT_TICKET_STAGE_CODES.has(stage.code) && stage.status !== "pending" && flightDetailQuery.data?.ticketAttached ? (

@@ -37,6 +37,7 @@ export const MOCK_STAFF_ACCOUNTS: MockStaffAccount[] = [
       'view_admin_dashboard',
       'manage_backups',
       'manage_ai_call_settings',
+      'manage_training_settings',
     ],
   },
   {

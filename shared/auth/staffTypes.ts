@@ -7,9 +7,20 @@
 // descon-be's openapi.yaml (`UserProfile`, `SessionPayload`) and
 // `app/models/user.rb`'s `STAFF_ROLE_CODES` -- not invented here.
 
+import type { TranslationKey } from '../i18n/translations';
+
 export type StaffRole = 'admin' | 'hr' | 'mps' | 'finance' | 'management';
 
 export type StaffStatus = 'active' | 'invited' | 'suspended';
+
+/** The one place every screen showing a role's display name (StaffShell's nav/account menu, StaffProfile, the users admin table) gets its label key from -- previously redefined identically in each of them. */
+export const STAFF_ROLE_LABEL_KEYS: Record<StaffRole, TranslationKey> = {
+  admin: 'staffAdminRoleAdmin',
+  hr: 'staffAdminRoleHr',
+  mps: 'staffAdminRoleMps',
+  finance: 'staffAdminRoleFinance',
+  management: 'staffAdminRoleManagement',
+};
 
 /**
  * Relative privilege ranking, used only to decide whether a role *change*

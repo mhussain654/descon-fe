@@ -23,18 +23,12 @@ import {
   ValidationMessage,
   toast,
 } from "../../../design-system";
-import { STAFF_ROLE_RANK } from "../../../../../shared/auth/staffTypes";
+import { STAFF_ROLE_LABEL_KEYS, STAFF_ROLE_RANK } from "../../../../../shared/auth/staffTypes";
 import { staffDirectoryClient } from "../../../lib/staff-directory-client";
 
 const ROLES = ["admin", "hr", "mps", "finance", "management"];
 const STATUSES = ["active", "invited", "suspended"];
-const ROLE_LABEL_KEYS = {
-  admin: "staffAdminRoleAdmin",
-  hr: "staffAdminRoleHr",
-  mps: "staffAdminRoleMps",
-  finance: "staffAdminRoleFinance",
-  management: "staffAdminRoleManagement",
-};
+const ROLE_LABEL_KEYS = STAFF_ROLE_LABEL_KEYS;
 const STATUS_LABEL_KEYS = {
   active: "staffAdminStatusActive",
   invited: "staffAdminStatusInvited",
