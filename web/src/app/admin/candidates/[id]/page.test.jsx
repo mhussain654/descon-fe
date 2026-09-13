@@ -8,6 +8,7 @@ import { StaffAuthProvider } from "../../../../contexts/StaffAuthContext";
 import { adminCandidateClient } from "../../../../lib/admin-candidates-client";
 import { adminWorkflowClient } from "../../../../lib/admin-workflow-client";
 import { adminDocumentReviewsClient } from "../../../../lib/admin-document-reviews-client";
+import { adminCandidateAiCallsClient } from "../../../../lib/admin-candidate-ai-calls-client";
 import CandidateDetailsPage from "./page";
 
 // Document verification's own role-gating (previously tested against this
@@ -42,6 +43,10 @@ vi.mock("../../../../lib/admin-workflow-client", () => ({
 
 vi.mock("../../../../lib/admin-document-reviews-client", () => ({
   adminDocumentReviewsClient: { getQueue: vi.fn(), getSubmission: vi.fn(), requestDocumentAccess: vi.fn(), verifyDocument: vi.fn(), rejectDocument: vi.fn() },
+}));
+
+vi.mock("../../../../lib/admin-candidate-ai-calls-client", () => ({
+  adminCandidateAiCallsClient: { listCandidateAiCalls: vi.fn(), triggerCandidateAiCall: vi.fn() },
 }));
 
 const HR = MOCK_STAFF_ACCOUNTS.find((account) => account.role === "hr");
@@ -114,6 +119,7 @@ describe("CandidateDetailsPage", () => {
       pagination: { page: 1, perPage: 5, totalCount: 0, totalPages: 0 },
       summary: undefined,
     });
+    adminCandidateAiCallsClient.listCandidateAiCalls.mockResolvedValue([]);
   });
 
   afterEach(() => {
@@ -123,6 +129,7 @@ describe("CandidateDetailsPage", () => {
     vi.mocked(adminWorkflowClient.getWorkflowHistory).mockReset();
     vi.mocked(adminWorkflowClient.getQvcAttempts).mockReset();
     vi.mocked(adminDocumentReviewsClient.getQueue).mockReset();
+    vi.mocked(adminCandidateAiCallsClient.listCandidateAiCalls).mockReset();
     sessionStorage.clear();
   });
 
@@ -135,6 +142,8 @@ describe("CandidateDetailsPage", () => {
     expect(screen.getByText("Payment")).toBeInTheDocument();
     expect(screen.getByText("Documents")).toBeInTheDocument();
     expect(screen.getByText("No document submissions yet.")).toBeInTheDocument();
+    expect(await screen.findByText("AI voice calls")).toBeInTheDocument();
+    expect(screen.getByText("No admin-triggered calls yet.")).toBeInTheDocument();
     expect(adminDocumentReviewsClient.getQueue).toHaveBeenCalledWith(
       { candidatePublicId: "candidate-1", status: ["pending_review", "partially_reviewed", "changes_required", "verified"] },
       { number: 1, size: 5 }

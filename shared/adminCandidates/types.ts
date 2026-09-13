@@ -128,7 +128,7 @@ export type AdminCandidateErrorCode =
 
 export interface AdminCandidateError {
   code: AdminCandidateErrorCode;
-  /** The backend's own already-localized message, when present -- prefer this over a hardcoded translation for VALIDATION_ERROR/DUPLICATE_*/ASSIGNMENT_FIELD_LOCKED, which cover many distinct underlying reasons. */
+  /** The backend's own already-localized message, when present -- prefer this over a hardcoded translation for VALIDATION_ERROR, DUPLICATE_* codes, and ASSIGNMENT_FIELD_LOCKED, which cover many distinct underlying reasons. */
   message?: string;
   /** The field the first envelope error applies to, for form-level mapping (e.g. 'cnic', 'passport_number', 'reference_number', 'country_code'). */
   field?: string;

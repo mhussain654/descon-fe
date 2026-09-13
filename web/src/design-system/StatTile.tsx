@@ -20,9 +20,9 @@ export interface StatTileProps {
  */
 export function StatTile({ value, label, className, labelClassName = 'text-black' }: StatTileProps) {
   return (
-    <div className={classNames('flex-1 rounded-xl p-3 text-center', className)}>
-      <div className="text-2xl font-semibold">{value}</div>
-      <div className={classNames('text-[11px]', labelClassName)}>{label}</div>
+    <div className={classNames('flex-1 rounded-xl border border-black/5 p-4 text-center transition-shadow hover:shadow-sm', className)}>
+      <div className="text-3xl font-bold tracking-tight">{value}</div>
+      <div className={classNames('mt-0.5 text-xs font-medium', labelClassName)}>{label}</div>
     </div>
   );
 }

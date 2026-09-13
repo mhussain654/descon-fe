@@ -7,6 +7,7 @@ import { WorkflowPanel } from "../../../../features/admin/workflow/components/Wo
 import { CandidateProfileCard } from "../../../../features/admin/candidates/components/CandidateProfileCard";
 import { CandidateDocumentsSummaryCard } from "../../../../features/admin/candidates/components/CandidateDocumentsSummaryCard";
 import { CandidatePaymentStatusCard } from "../../../../features/admin/candidates/components/CandidatePaymentStatusCard";
+import { CandidateAiCallsCard } from "../../../../features/admin/candidateAiCalls/components/CandidateAiCallsCard";
 
 // No auth guard existed here before MPS-F202/MPS-F203 -- see the identical
 // note in ../../page.jsx.
@@ -45,6 +46,8 @@ function CandidateDetails({ params }) {
           <CandidatePaymentStatusCard candidateId={params.id} />
 
           <CandidateDocumentsSummaryCard candidateId={params.id} />
+
+          <CandidateAiCallsCard candidateId={params.id} />
 
           {/* Workflow-transition panel (MPS-F501 Phases A-C). Calls the real
               backend directly using this route's `params.id` as the

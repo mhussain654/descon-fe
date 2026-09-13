@@ -72,7 +72,7 @@ function DashboardContent({ query, t }: { query: ReturnType<typeof useAdminDashb
       <Card>
         <h2 className="mb-2 text-sm font-semibold text-text-primary">{t('adminDashboardCandidateWorkloadTitle')}</h2>
         <div className="flex flex-wrap gap-2">
-          <StatTile value={data.candidateWorkload.totalActiveCandidates} label={t('adminDashboardTotalActiveCandidates')} className="bg-[#E6F2FF] text-[#0066CC]" />
+          <StatTile value={data.candidateWorkload.totalActiveCandidates} label={t('adminDashboardTotalActiveCandidates')} className="bg-brand-subtle text-brand" />
         </div>
       </Card>
 
@@ -85,7 +85,7 @@ function DashboardContent({ query, t }: { query: ReturnType<typeof useAdminDashb
               key={row.key}
               value={data.documentReviewQueue[row.key]}
               label={t(row.labelKey as TranslationKey)}
-              className="bg-[#F6F6F6] text-[#374151]"
+              className="bg-surface-sunken text-text-secondary"
             />
           ))}
         </div>
@@ -100,7 +100,7 @@ function DashboardContent({ query, t }: { query: ReturnType<typeof useAdminDashb
               key={row.code}
               value={row.count}
               label={t((ADMIN_PAYMENT_STATUS_KEYS[row.code as AdminPaymentStatus] ?? 'candidateDocumentsStatusUnknown') as TranslationKey)}
-              className="bg-[#F6F6F6] text-[#374151]"
+              className="bg-surface-sunken text-text-secondary"
             />
           ))}
         </div>
@@ -111,7 +111,7 @@ function DashboardContent({ query, t }: { query: ReturnType<typeof useAdminDashb
         <p className="mb-2 text-xs text-text-secondary">{t('dashboardWorkflowStageQueueSubtitle')}</p>
         <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 xl:grid-cols-4">
           {data.workflowStageQueue.map((row) => (
-            <StatTile key={row.code} value={row.count} label={stageLabel(row.code, t)} className="bg-[#F6F6F6] text-[#374151]" />
+            <StatTile key={row.code} value={row.count} label={stageLabel(row.code, t)} className="bg-surface-sunken text-text-secondary" />
           ))}
         </div>
       </Card>

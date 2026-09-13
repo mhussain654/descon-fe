@@ -87,8 +87,8 @@ function DashboardContent({
       <Card>
         <h2 className="mb-2 text-sm font-semibold text-text-primary">{t('mpsDashboardDelayedCasesTitle')}</h2>
         <div className="flex flex-wrap gap-2">
-          <StatTile value={data.delayedCases.delayed} label={t('mpsDashboardDelayed')} className="bg-[#FFF7E6] text-[#F59E0B]" />
-          <StatTile value={data.delayedCases.critical} label={t('mpsDashboardCritical')} className="bg-[#FEF2F2] text-[#EF4444]" />
+          <StatTile value={data.delayedCases.delayed} label={t('mpsDashboardDelayed')} className="bg-warning-subtle text-warning-emphasis" />
+          <StatTile value={data.delayedCases.critical} label={t('mpsDashboardCritical')} className="bg-danger-subtle text-danger-emphasis" />
         </div>
       </Card>
 
@@ -97,7 +97,7 @@ function DashboardContent({
         <p className="mb-2 text-xs text-text-secondary">{t('dashboardWorkflowStageQueueSubtitle')}</p>
         <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 xl:grid-cols-4">
           {data.workflowStageQueue.map((row) => (
-            <StatTile key={row.code} value={row.count} label={stageLabel(row.code, t)} className="bg-[#F6F6F6] text-[#374151]" />
+            <StatTile key={row.code} value={row.count} label={stageLabel(row.code, t)} className="bg-surface-sunken text-text-secondary" />
           ))}
         </div>
       </Card>

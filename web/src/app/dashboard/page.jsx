@@ -1,12 +1,13 @@
 import { useCallback, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router";
-import { FileText, CreditCard, Clock } from "lucide-react";
+import { FileText, CreditCard, Clock, GraduationCap } from "lucide-react";
 import UserShell from "../components/user-shell";
 import { useAuth } from "../../contexts/AuthContext";
 import { useLanguage } from "../../contexts/LanguageContext";
 import { useCandidateProfile } from "../../features/candidate/profile/hooks/useCandidateProfile";
 import { useCandidateDocuments } from "../../features/candidate/documents/hooks/useCandidateDocuments";
 import { useApplicationProgress } from "../../features/candidate/progress/hooks/useApplicationProgress";
+import { useTrainingSetting } from "../../features/candidate/training/hooks/useTrainingSetting";
 import { resolveNextAction, NEXT_ACTION_KEYS } from "../../../../shared/applicationProgress/nextAction";
 import { currentDashboardStage } from "../../../../shared/applicationProgress/currentDashboardStage";
 import { LoadingState, ErrorState, OfflineState, SessionExpiredState, ForbiddenState } from "../../design-system";
@@ -14,7 +15,7 @@ import { CANDIDATE_PROFILE_ERROR_KEYS } from "../../../../shared/candidateProfil
 import { CANDIDATE_DOCUMENTS_ERROR_KEYS } from "../../../../shared/candidateDocuments/errorMessages";
 import { APPLICATION_PROGRESS_ERROR_KEYS } from "../../../../shared/applicationProgress/errorMessages";
 
-const quickActions = [
+const BASE_QUICK_ACTIONS = [
   {
     titleKey: "uploadDocuments",
     icon: FileText,
@@ -48,6 +49,12 @@ export default function DashboardPage() {
   // already used elsewhere in the candidate app, this page just composes
   // their already-cached data.
   const progressQuery = useApplicationProgress();
+  // Deliberately not part of `isLoading`/`primaryError` below -- the
+  // Training quick action opens an external link directly (no intermediate
+  // page), so a slow or failed fetch of that one link should never block
+  // the rest of the dashboard from rendering. The tile itself just stays
+  // disabled until the URL is available.
+  const trainingQuery = useTrainingSetting();
 
   const returnToSignIn = () => {
     logout("expired");
@@ -227,7 +234,22 @@ export default function DashboardPage() {
         <section>
           <h2 className="mb-4 text-lg font-semibold text-black">{t("quickActions")}</h2>
           <div className="flex flex-wrap gap-4">
-            {quickActions.map((action) => {
+            {[
+              ...BASE_QUICK_ACTIONS,
+              // Opens the admin-managed training link directly -- no
+              // intermediate page, since there's nothing else to show
+              // beyond the link itself. Disabled until the link has
+              // actually loaded (never opens a stale/empty URL).
+              {
+                titleKey: "viewTraining",
+                icon: GraduationCap,
+                color: "#8B5CF6",
+                bgColor: "#F3E8FF",
+                href: trainingQuery.data?.url,
+                external: true,
+                disabled: !trainingQuery.data?.url,
+              },
+            ].map((action) => {
               const Icon = action.icon;
               const content = (
                 <>
@@ -254,6 +276,21 @@ export default function DashboardPage() {
                   >
                     {content}
                   </div>
+                );
+              }
+
+              if (action.external) {
+                return (
+                  <a
+                    key={action.titleKey}
+                    href={action.href}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex w-[calc(50%-0.5rem)] flex-col items-center rounded-xl p-5 transition hover:-translate-y-0.5"
+                    style={{ backgroundColor: action.bgColor }}
+                  >
+                    {content}
+                  </a>
                 );
               }
 

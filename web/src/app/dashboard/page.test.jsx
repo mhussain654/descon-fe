@@ -2,12 +2,13 @@ import { fireEvent, render, screen } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { axe } from "jest-axe";
 import { Link, MemoryRouter, Route, Routes } from "react-router";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { AuthProvider, useAuth } from "../../contexts/AuthContext";
 import { LanguageProvider } from "../../contexts/LanguageContext";
 import { candidateProfileClient } from "../../lib/candidate-profile-client";
 import { candidateDocumentsClient } from "../../lib/candidate-documents-client";
 import { applicationProgressClient } from "../../lib/application-progress-client";
+import { trainingSettingClient } from "../../lib/training-setting-client";
 import DashboardPage from "./page";
 
 vi.mock("../../lib/candidate-profile-client", () => ({
@@ -18,6 +19,9 @@ vi.mock("../../lib/candidate-documents-client", () => ({
 }));
 vi.mock("../../lib/application-progress-client", () => ({
   applicationProgressClient: { getProgress: vi.fn(), submitDocuments: vi.fn() },
+}));
+vi.mock("../../lib/training-setting-client", () => ({
+  trainingSettingClient: { getTrainingSetting: vi.fn() },
 }));
 
 const CANONICAL_STAGES = [
@@ -171,10 +175,20 @@ async function signInAndNavigateToDashboard() {
 }
 
 describe("DashboardPage", () => {
+  // Every test renders the page, and useTrainingSetting unconditionally
+  // queries the training-link setting as soon as it mounts -- default it to
+  // a resolved link here so the pre-existing tests below (none of which are
+  // about the Training quick action) don't each need their own mock,
+  // matching status/page.test.jsx's identical established convention.
+  beforeEach(() => {
+    trainingSettingClient.getTrainingSetting.mockResolvedValue({ url: "https://www.youtube.com/@DesconManpower" });
+  });
+
   afterEach(() => {
     vi.mocked(candidateProfileClient.getProfile).mockReset();
     vi.mocked(candidateDocumentsClient.getChecklist).mockReset();
     vi.mocked(applicationProgressClient.getProgress).mockReset();
+    vi.mocked(trainingSettingClient.getTrainingSetting).mockReset();
   });
 
   it("shows the candidate's real name, reference number, real workflow stage and real workflow progress percentage", async () => {
@@ -272,6 +286,46 @@ describe("DashboardPage", () => {
     expect(screen.getByRole("link", { name: /Upload Documents/ })).toHaveAttribute("href", "/documents");
     expect(screen.getByRole("link", { name: /View Status/ })).toHaveAttribute("href", "/status");
     expect(screen.getByRole("link", { name: /Make Payment/ })).toHaveAttribute("href", "/payment");
+  });
+
+  describe("Training quick action", () => {
+    it("opens the admin-managed training link directly in a new tab, once loaded -- no intermediate page", async () => {
+      candidateProfileClient.getProfile.mockResolvedValue(profilePayload());
+      candidateDocumentsClient.getChecklist.mockResolvedValue([]);
+      applicationProgressClient.getProgress.mockResolvedValue(progress());
+      trainingSettingClient.getTrainingSetting.mockResolvedValue({ url: "https://www.youtube.com/@DesconManpower" });
+      await signInAndNavigateToDashboard();
+
+      await screen.findByText("Ahmed Ali");
+      const trainingLink = await screen.findByRole("link", { name: /Training/ });
+      expect(trainingLink).toHaveAttribute("href", "https://www.youtube.com/@DesconManpower");
+      expect(trainingLink).toHaveAttribute("target", "_blank");
+      expect(trainingLink).toHaveAttribute("rel", expect.stringContaining("noopener"));
+    });
+
+    it("stays disabled (never opens a stale/empty link) while the training link is still loading", async () => {
+      candidateProfileClient.getProfile.mockResolvedValue(profilePayload());
+      candidateDocumentsClient.getChecklist.mockResolvedValue([]);
+      applicationProgressClient.getProgress.mockResolvedValue(progress());
+      trainingSettingClient.getTrainingSetting.mockReturnValue(new Promise(() => {}));
+      await signInAndNavigateToDashboard();
+
+      await screen.findByText("Ahmed Ali");
+      expect(screen.queryByRole("link", { name: /Training/ })).not.toBeInTheDocument();
+      const trainingTile = screen.getByText("Training").closest("[aria-disabled='true']");
+      expect(trainingTile).toBeInTheDocument();
+    });
+
+    it("stays disabled if the training link fails to load, rather than opening a broken link", async () => {
+      candidateProfileClient.getProfile.mockResolvedValue(profilePayload());
+      candidateDocumentsClient.getChecklist.mockResolvedValue([]);
+      applicationProgressClient.getProgress.mockResolvedValue(progress());
+      trainingSettingClient.getTrainingSetting.mockRejectedValue({ code: "SERVER_ERROR" });
+      await signInAndNavigateToDashboard();
+
+      await screen.findByText("Ahmed Ali");
+      expect(screen.queryByRole("link", { name: /Training/ })).not.toBeInTheDocument();
+    });
   });
 
   it("shows a dedicated session-expired screen (not a silent redirect) on a session-expired error from any source query, ending the session only once confirmed", async () => {
