@@ -12,7 +12,7 @@
 // Communication#status_code takes for the ai_voice_call channel are the
 // same 8-value set by construction (see record_post_call_webhook_service.rb).
 import type { TranslationKey } from '../i18n/translations';
-import type { AdminAiCallOutcome, AdminAiCallReason, AdminAiCallVerificationStatus } from './types';
+import type { AdminAiCallOutcome, AdminAiCallOutcomeReason, AdminAiCallReason, AdminAiCallVerificationStatus } from './types';
 
 export { communicationStatusLabel as adminAiCallStatusLabel, communicationStatusTone as adminAiCallStatusTone } from '../adminCommunications/communicationLabels';
 
@@ -43,6 +43,18 @@ const OUTCOME_TONES: Record<AdminAiCallOutcome, 'success' | 'warning' | 'neutral
   callback_required: 'warning',
 };
 
+const OUTCOME_REASON_KEYS: Record<AdminAiCallOutcomeReason, TranslationKey> = {
+  resolved: 'adminCandidateAiCallOutcomeReasonResolved',
+  unresolved: 'adminCandidateAiCallOutcomeReasonUnresolved',
+  candidate_requested: 'adminCandidateAiCallOutcomeReasonCandidateRequested',
+  agent_escalation: 'adminCandidateAiCallOutcomeReasonAgentEscalation',
+  busy: 'adminCandidateAiCallOutcomeReasonBusy',
+  no_answer: 'adminCandidateAiCallOutcomeReasonNoAnswer',
+  voicemail: 'adminCandidateAiCallOutcomeReasonVoicemail',
+  provider_failure: 'adminCandidateAiCallOutcomeReasonProviderFailure',
+  needs_manual_review: 'adminCandidateAiCallOutcomeReasonNeedsManualReview',
+};
+
 const VERIFICATION_STATUS_KEYS: Record<AdminAiCallVerificationStatus, TranslationKey> = {
   not_applicable: 'adminCandidateAiCallVerificationNotApplicable',
   pending: 'adminCandidateAiCallVerificationPending',
@@ -65,6 +77,10 @@ export function adminAiCallOutcomeLabel(outcome: AdminAiCallOutcome, t: (key: Tr
 
 export function adminAiCallOutcomeTone(outcome: AdminAiCallOutcome): 'success' | 'warning' | 'neutral' {
   return OUTCOME_TONES[outcome];
+}
+
+export function adminAiCallOutcomeReasonLabel(reason: AdminAiCallOutcomeReason, t: (key: TranslationKey) => string): string {
+  return t(OUTCOME_REASON_KEYS[reason]);
 }
 
 export function adminAiCallVerificationStatusLabel(status: AdminAiCallVerificationStatus, t: (key: TranslationKey) => string): string {

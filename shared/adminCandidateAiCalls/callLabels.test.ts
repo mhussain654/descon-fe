@@ -1,12 +1,14 @@
 import {
   adminAiCallConfirmDescription,
   adminAiCallOutcomeLabel,
+  adminAiCallOutcomeReasonLabel,
   adminAiCallOutcomeTone,
   adminAiCallReasonLabel,
   adminAiCallStatusLabel,
   adminAiCallStatusTone,
   adminAiCallVerificationStatusLabel,
 } from './callLabels';
+import type { AdminAiCallOutcomeReason } from './types';
 
 const t = (key: string) => `t:${key}`;
 
@@ -36,6 +38,26 @@ describe('adminAiCallOutcomeLabel/Tone', () => {
     expect(adminAiCallOutcomeTone('answered')).toBe('success');
     expect(adminAiCallOutcomeTone('callback_required')).toBe('warning');
     expect(adminAiCallOutcomeTone('not_answered')).toBe('neutral');
+  });
+});
+
+describe('adminAiCallOutcomeReasonLabel', () => {
+  it('translates every outcome_reason to its own dedicated key', () => {
+    const reasons: AdminAiCallOutcomeReason[] = [
+      'resolved',
+      'unresolved',
+      'candidate_requested',
+      'agent_escalation',
+      'busy',
+      'no_answer',
+      'voicemail',
+      'provider_failure',
+      'needs_manual_review',
+    ];
+    const labels = new Set(reasons.map((reason) => adminAiCallOutcomeReasonLabel(reason, t)));
+
+    expect(labels.size).toBe(reasons.length);
+    expect(adminAiCallOutcomeReasonLabel('candidate_requested', t)).toBe('t:adminCandidateAiCallOutcomeReasonCandidateRequested');
   });
 });
 

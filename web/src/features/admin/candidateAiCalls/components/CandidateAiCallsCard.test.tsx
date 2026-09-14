@@ -160,4 +160,77 @@ describe("CandidateAiCallsCard", () => {
 
     expect(await screen.findByText("This candidate has no current assignment.")).toBeInTheDocument();
   });
+
+  it("does not sign the admin out when the selected candidate is inactive, and shows a candidate-specific message", async () => {
+    adminCandidateAiCallsClient.listCandidateAiCalls.mockResolvedValue([]);
+    adminCandidateAiCallsClient.triggerCandidateAiCall.mockRejectedValue({ code: "INACTIVE_ACCOUNT" });
+    const client = await signInAs(HR);
+    const signOutSpy = vi.spyOn(client, "signOut");
+
+    renderCard(client);
+    await screen.findByText("No admin-triggered calls yet.");
+
+    fireEvent.change(screen.getByLabelText("Call candidate"), { target: { value: "missing_documents" } });
+    await screen.findByText("Place this call?");
+    fireEvent.click(screen.getByRole("button", { name: "Call now" }));
+
+    expect(await screen.findByText("This candidate is inactive and cannot receive an AI call.")).toBeInTheDocument();
+    expect(screen.getByText("Place this call?")).toBeInTheDocument();
+    expect(signOutSpy).not.toHaveBeenCalled();
+  });
+
+  it("signs the admin out when the call history itself reports an inactive/session-expired staff account", async () => {
+    adminCandidateAiCallsClient.listCandidateAiCalls.mockRejectedValue({ code: "INACTIVE_ACCOUNT" });
+    const client = await signInAs(HR);
+    const signOutSpy = vi.spyOn(client, "signOut");
+
+    renderCard(client);
+
+    await waitFor(() => expect(signOutSpy).toHaveBeenCalled());
+  });
+
+  it("shows an actionable message and refreshes call history on an idempotency conflict, without closing the dialog", async () => {
+    adminCandidateAiCallsClient.listCandidateAiCalls.mockResolvedValue([]);
+    adminCandidateAiCallsClient.triggerCandidateAiCall.mockRejectedValue({ code: "IDEMPOTENCY_CONFLICT" });
+    const client = await signInAs(HR);
+
+    renderCard(client);
+    await screen.findByText("No admin-triggered calls yet.");
+
+    fireEvent.change(screen.getByLabelText("Call candidate"), { target: { value: "missing_documents" } });
+    await screen.findByText("Place this call?");
+    fireEvent.click(screen.getByRole("button", { name: "Call now" }));
+
+    expect(
+      await screen.findByText("This request may already have gone through. Check the call history below before trying again.")
+    ).toBeInTheDocument();
+    expect(screen.getByText("Place this call?")).toBeInTheDocument();
+    await waitFor(() => expect(adminCandidateAiCallsClient.listCandidateAiCalls).toHaveBeenCalledTimes(2));
+  });
+
+  it("renders the summary, outcome reason, answered/completed timestamps and triggered-by details", async () => {
+    adminCandidateAiCallsClient.listCandidateAiCalls.mockResolvedValue([
+      call({ summary: "Candidate confirmed they will upload the passport by Friday." }),
+    ]);
+    const client = await signInAs(HR);
+
+    renderCard(client);
+
+    expect(await screen.findByText(/Candidate confirmed they will upload the passport by Friday\./)).toBeInTheDocument();
+    expect(screen.getByText("Resolved on the call")).toBeInTheDocument();
+    expect(screen.getByText(/Answered:/)).toBeInTheDocument();
+    expect(screen.getByText(/Completed:/)).toBeInTheDocument();
+    expect(screen.getByText(/Triggered by:.*hr \(staff-1\)/)).toBeInTheDocument();
+  });
+
+  it("makes a callback-required outcome visually prominent, including its reason", async () => {
+    adminCandidateAiCallsClient.listCandidateAiCalls.mockResolvedValue([
+      call({ outcome: "callback_required", outcomeReason: "candidate_requested" }),
+    ]);
+    const client = await signInAs(HR);
+
+    renderCard(client);
+
+    expect(await screen.findByText(/Callback required.*Candidate requested a callback/)).toBeInTheDocument();
+  });
 });

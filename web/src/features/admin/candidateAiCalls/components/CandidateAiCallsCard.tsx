@@ -6,16 +6,31 @@ import { formatDate } from '../../../../../../shared/i18n/locale';
 import {
   adminAiCallConfirmDescription,
   adminAiCallOutcomeLabel,
+  adminAiCallOutcomeReasonLabel,
   adminAiCallOutcomeTone,
   adminAiCallReasonLabel,
   adminAiCallStatusLabel,
   adminAiCallStatusTone,
 } from '../../../../../../shared/adminCandidateAiCalls/callLabels';
 import { CANDIDATE_AI_CALL_ERROR_KEYS } from '../../../../../../shared/adminCandidateAiCalls/errorMessages';
-import type { AdminAiCallReason, AdminCandidateAiCall } from '../../../../lib/admin-candidate-ai-calls-client';
+import type { AdminAiCallReason, AdminCandidateAiCall, AdminCandidateAiCallError } from '../../../../lib/admin-candidate-ai-calls-client';
 import type { TranslationKey } from '../../../../../../shared/i18n/translations';
 import { useCandidateAiCallList } from '../hooks/useCandidateAiCallList';
 import { useTriggerCandidateAiCall } from '../hooks/useTriggerCandidateAiCall';
+
+/**
+ * The trigger mutation's own error message, preferring the server's
+ * localized message when present. `INACTIVE_ACCOUNT` never falls through to
+ * CANDIDATE_AI_CALL_ERROR_KEYS's generic map here -- that map's copy
+ * ("staffAuthInactiveAccountError") is about the STAFF's own account, but on
+ * this specific endpoint the far more likely cause is the selected
+ * candidate being inactive (see the sign-out effect's comment above).
+ */
+function triggerErrorMessage(error: AdminCandidateAiCallError, t: (key: TranslationKey) => string): string {
+  if (error.message) return error.message;
+  if (error.code === 'INACTIVE_ACCOUNT') return t('adminCandidateAiCallInactiveCandidateError');
+  return t(CANDIDATE_AI_CALL_ERROR_KEYS[error.code] as TranslationKey);
+}
 
 const CALL_REASONS: AdminAiCallReason[] = [
   'missing_documents',
@@ -44,10 +59,27 @@ export function CandidateAiCallsCard({ candidateId }: CandidateAiCallsCardProps)
   const canTrigger = hasPermission('trigger_ai_calls');
 
   useEffect(() => {
-    const code = query.error?.code ?? mutation.error?.code;
+    // GET .../ai_calls never checks the selected candidate's own active
+    // state (see the backend controller's #index action) -- its only
+    // source of INACTIVE_ACCOUNT is the staff session itself, so it's safe
+    // to treat unambiguously as a sign-out signal here.
+    const code = query.error?.code;
     if (code === 'SESSION_EXPIRED') signOut('expired');
     else if (code === 'INACTIVE_ACCOUNT') signOut('manual');
-  }, [query.error, mutation.error, signOut]);
+  }, [query.error, signOut]);
+
+  useEffect(() => {
+    // The trigger mutation's INACTIVE_ACCOUNT is ambiguous -- backend raises
+    // the same InactiveAccountError/code both for the staff session
+    // (base_controller, every request) and for the selected CANDIDATE being
+    // inactive (TriggerOutboundCallService's own `candidate.active?` check).
+    // Signing the admin out here would be wrong in the (overwhelmingly
+    // common) candidate-inactive case, so this dialog shows its own
+    // candidate-specific message instead (see the render below) and never
+    // signs out on this code. SESSION_EXPIRED has no such ambiguity -- it's
+    // purely an authentication-layer signal regardless of source.
+    if (mutation.error?.code === 'SESSION_EXPIRED') signOut('expired');
+  }, [mutation.error, signOut]);
 
   // A staff member without trigger_ai_calls simply doesn't see this
   // section -- matches CandidateDocumentsSummaryCard's identical "no
@@ -92,11 +124,49 @@ export function CandidateAiCallsCard({ candidateId }: CandidateAiCallsCardProps)
       {calls.length > 0 ? (
         <ul className="divide-y divide-border-subtle">
           {calls.map((call) => (
-            <li key={call.id} className="flex flex-wrap items-center gap-3 py-2 first:pt-0 last:pb-0">
-              <span className="text-sm font-medium text-text-primary">{adminAiCallReasonLabel(call.callReason, t)}</span>
-              <Badge tone={adminAiCallStatusTone(call.status)}>{adminAiCallStatusLabel(call.status, t)}</Badge>
-              {call.outcome ? <Badge tone={adminAiCallOutcomeTone(call.outcome)}>{adminAiCallOutcomeLabel(call.outcome, t)}</Badge> : null}
-              <span className="text-xs text-text-tertiary">{formatDate(call.createdAt, language, { dateStyle: 'medium', timeStyle: 'short' })}</span>
+            <li key={call.id} className="flex flex-col gap-2 py-3 first:pt-0 last:pb-0">
+              <div className="flex flex-wrap items-center gap-3">
+                <span className="text-sm font-medium text-text-primary">{adminAiCallReasonLabel(call.callReason, t)}</span>
+                <Badge tone={adminAiCallStatusTone(call.status)}>{adminAiCallStatusLabel(call.status, t)}</Badge>
+                {call.outcome ? <Badge tone={adminAiCallOutcomeTone(call.outcome)}>{adminAiCallOutcomeLabel(call.outcome, t)}</Badge> : null}
+                <span className="text-xs text-text-tertiary">{formatDate(call.createdAt, language, { dateStyle: 'medium', timeStyle: 'short' })}</span>
+              </div>
+
+              {call.outcome === 'callback_required' ? (
+                <p className="rounded-lg bg-warning-subtle px-3 py-2 text-sm font-medium text-warning-emphasis">
+                  {adminAiCallOutcomeLabel('callback_required', t)}
+                  {call.outcomeReason ? ` – ${adminAiCallOutcomeReasonLabel(call.outcomeReason, t)}` : null}
+                </p>
+              ) : call.outcomeReason ? (
+                <p className="text-xs text-text-tertiary">{adminAiCallOutcomeReasonLabel(call.outcomeReason, t)}</p>
+              ) : null}
+
+              {call.summary ? (
+                <p className="text-sm text-text-secondary">
+                  <span className="font-medium text-text-tertiary">{t('adminCandidateAiCallSummaryLabel')}: </span>
+                  {call.summary}
+                </p>
+              ) : null}
+
+              {call.answeredAt || call.completedAt || call.triggeredBy ? (
+                <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-text-tertiary">
+                  {call.answeredAt ? (
+                    <span>
+                      {t('adminCandidateAiCallAnsweredAtLabel')}: {formatDate(call.answeredAt, language, { dateStyle: 'medium', timeStyle: 'short' })}
+                    </span>
+                  ) : null}
+                  {call.completedAt ? (
+                    <span>
+                      {t('adminCandidateAiCallCompletedAtLabel')}: {formatDate(call.completedAt, language, { dateStyle: 'medium', timeStyle: 'short' })}
+                    </span>
+                  ) : null}
+                  {call.triggeredBy ? (
+                    <span>
+                      {t('adminCandidateAiCallTriggeredByLabel')}: {call.triggeredBy.role} ({call.triggeredBy.id})
+                    </span>
+                  ) : null}
+                </div>
+              ) : null}
             </li>
           ))}
         </ul>
@@ -115,11 +185,7 @@ export function CandidateAiCallsCard({ candidateId }: CandidateAiCallsCardProps)
         onConfirm={confirm}
         isConfirming={mutation.isPending}
       >
-        {mutation.isError && mutation.error.code !== 'IDEMPOTENCY_CONFLICT' ? (
-          <ValidationMessage>
-            {mutation.error.message || t(CANDIDATE_AI_CALL_ERROR_KEYS[mutation.error.code] as TranslationKey)}
-          </ValidationMessage>
-        ) : null}
+        {mutation.isError ? <ValidationMessage>{triggerErrorMessage(mutation.error, t)}</ValidationMessage> : null}
       </ConfirmDialog>
     </Card>
   );

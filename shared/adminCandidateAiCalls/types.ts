@@ -23,7 +23,26 @@ export type AdminAiCallDirection = 'inbound' | 'outbound';
 /** Matches CandidateAiCall::STATUSES. */
 export type AdminAiCallStatus = 'requested' | 'queued' | 'ringing' | 'in_progress' | 'processing' | 'completed' | 'failed' | 'cancelled';
 
+/** Matches CandidateAiCall::TERMINAL_STATUSES -- once a call reaches one of these, its status/outcome are final and there is nothing left to poll for. */
+export const AI_CALL_TERMINAL_STATUSES: readonly AdminAiCallStatus[] = ['completed', 'failed', 'cancelled'];
+
+export function isTerminalAiCallStatus(status: AdminAiCallStatus): boolean {
+  return (AI_CALL_TERMINAL_STATUSES as readonly string[]).includes(status);
+}
+
 export type AdminAiCallOutcome = 'answered' | 'not_answered' | 'callback_required';
+
+/** Matches AiCalls::OutcomeMapper's fixed outcome_reason values. */
+export type AdminAiCallOutcomeReason =
+  | 'resolved'
+  | 'unresolved'
+  | 'candidate_requested'
+  | 'agent_escalation'
+  | 'busy'
+  | 'no_answer'
+  | 'voicemail'
+  | 'provider_failure'
+  | 'needs_manual_review';
 
 /** Matches CandidateAiCall::VERIFICATION_STATUSES. */
 export type AdminAiCallVerificationStatus = 'not_applicable' | 'pending' | 'verified' | 'failed' | 'skipped';
@@ -41,7 +60,7 @@ export interface AdminCandidateAiCall {
   status: AdminAiCallStatus;
   triggeredBy?: AdminAiCallActorRef;
   outcome?: AdminAiCallOutcome;
-  outcomeReason?: string;
+  outcomeReason?: AdminAiCallOutcomeReason;
   verificationStatus: AdminAiCallVerificationStatus;
   summary?: string;
   startedAt?: string;

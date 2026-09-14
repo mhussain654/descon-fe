@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useLanguage } from '../../../../contexts/LanguageContext';
-import { Badge, Button, Select, Textarea } from '../../../../design-system';
+import { Badge, Button, ConfirmDialog, Select, Textarea } from '../../../../design-system';
 import { formatDate } from '../../../../../../shared/i18n/locale';
 import { WORKFLOW_STAGE_LABEL_KEYS } from '../../../../../../shared/adminWorkflow/canonicalStages';
 import type { WorkflowStageCallScript } from '../../../../lib/admin-workflow-stage-call-scripts-client';
@@ -10,7 +10,18 @@ interface WorkflowStageCallScriptRowProps {
   script: WorkflowStageCallScript;
 }
 
-/** One canonical workflow stage's call script, view mode by default with an Edit action -- mirrors CandidateProfileCard.tsx's "toggle isEditing, render a controlled form" pattern, simplified: no confirm step, since editing content has no external side effect to guard. */
+/**
+ * One canonical workflow stage's call script, view mode by default with an
+ * Edit action -- mirrors CandidateProfileCard.tsx's "toggle isEditing,
+ * render a controlled form" pattern. Unlike that card, saving here can have
+ * a real external side effect: turning `active` on (or changing the
+ * wording of an already-active script) means every future candidate
+ * entering this workflow stage automatically receives a billed AI voice
+ * call using this content -- EditMode gates exactly those two cases behind
+ * a confirmation step (see `needsConfirmation` there); a save that only
+ * deactivates a script, or edits text while staying inactive, goes straight
+ * through.
+ */
 export function WorkflowStageCallScriptRow({ script }: WorkflowStageCallScriptRowProps) {
   const [isEditing, setIsEditing] = useState(false);
 
@@ -63,13 +74,37 @@ function EditMode({ script, onDone }: { script: WorkflowStageCallScript; onDone:
   const [announcementEn, setAnnouncementEn] = useState(script.announcementEn);
   const [announcementUr, setAnnouncementUr] = useState(script.announcementUr ?? '');
   const [active, setActive] = useState(script.active);
+  const [confirmOpen, setConfirmOpen] = useState(false);
   const mutation = useUpdateWorkflowStageCallScript();
 
-  const handleSave = () => {
+  const save = () => {
     mutation.mutate(
       { workflowStageCode: script.workflowStageCode, input: { announcementEn, announcementUr, active } },
       { onSuccess: onDone }
     );
+  };
+
+  // A save has a real external side effect -- future candidates entering
+  // this workflow stage will automatically receive a billed AI voice call
+  // -- exactly when the RESULTING state is active and either it wasn't
+  // active before (activation) or the wording an active script speaks is
+  // changing. Deactivating, or editing text while staying inactive, has no
+  // such effect and saves immediately.
+  const activating = active && !script.active;
+  const changingActiveWording = active && script.active && (announcementEn !== script.announcementEn || announcementUr !== script.announcementUr);
+  const needsConfirmation = activating || changingActiveWording;
+
+  const handleSave = () => {
+    if (needsConfirmation) {
+      setConfirmOpen(true);
+      return;
+    }
+    save();
+  };
+
+  const handleConfirm = () => {
+    setConfirmOpen(false);
+    save();
   };
 
   const errorMessage = mutation.isError && mutation.error.code === 'VALIDATION_FAILED' ? mutation.error.message : undefined;
@@ -113,6 +148,20 @@ function EditMode({ script, onDone }: { script: WorkflowStageCallScript; onDone:
           {t('adminWorkflowStageCallScriptSaveAction')}
         </Button>
       </div>
+
+      <ConfirmDialog
+        open={confirmOpen}
+        onOpenChange={setConfirmOpen}
+        title={t(activating ? 'adminWorkflowStageCallScriptActivateConfirmTitle' : 'adminWorkflowStageCallScriptMessageChangeConfirmTitle')}
+        description={t(
+          activating ? 'adminWorkflowStageCallScriptActivateConfirmDescription' : 'adminWorkflowStageCallScriptMessageChangeConfirmDescription'
+        )}
+        confirmLabel={t('adminWorkflowStageCallScriptConfirmSaveAction')}
+        cancelLabel={t('adminWorkflowStageCallScriptCancelAction')}
+        closeLabel={t('dsClose')}
+        onConfirm={handleConfirm}
+        isConfirming={mutation.isPending}
+      />
     </div>
   );
 }

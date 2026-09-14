@@ -1,9 +1,6 @@
 {
 	"include": [
-		"**/*.ts",
-		"**/*.tsx",
-		"**/*.js",
-		"**/*.jsx",
+		"**/*.{ts,tsx,js,jsx}",
 		"**/.server/**/*",
 		"**/.client/**/*",
 		"./src/global.d.ts"

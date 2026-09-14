@@ -31,7 +31,7 @@ interface CandidateAiCallResponse {
   status: AdminCandidateAiCall['status'];
   triggered_by: CandidateAiCallActorResponse | null;
   outcome: AdminCandidateAiCall['outcome'] | null;
-  outcome_reason: string | null;
+  outcome_reason: AdminCandidateAiCall['outcomeReason'] | null;
   verification_status: AdminCandidateAiCall['verificationStatus'];
   summary: string | null;
   started_at: string | null;
@@ -162,4 +162,3 @@ export function createAdminCandidateAiCallsClient(options: RealAdminCandidateAiC
     },
   };
 }
-

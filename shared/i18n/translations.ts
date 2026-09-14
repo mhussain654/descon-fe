@@ -581,6 +581,22 @@ export const translations = {
     adminCandidateAiCallVerificationVerified: 'Verified',
     adminCandidateAiCallVerificationFailed: 'Failed',
     adminCandidateAiCallVerificationSkipped: 'Skipped',
+    adminCandidateAiCallInactiveCandidateError: 'This candidate is inactive and cannot receive an AI call.',
+    adminCandidateAiCallIdempotencyConflictError:
+      'This request may already have gone through. Check the call history below before trying again.',
+    adminCandidateAiCallOutcomeReasonResolved: 'Resolved on the call',
+    adminCandidateAiCallOutcomeReasonUnresolved: 'Not resolved on the call',
+    adminCandidateAiCallOutcomeReasonCandidateRequested: 'Candidate requested a callback',
+    adminCandidateAiCallOutcomeReasonAgentEscalation: 'Agent escalated for follow-up',
+    adminCandidateAiCallOutcomeReasonBusy: 'Line was busy',
+    adminCandidateAiCallOutcomeReasonNoAnswer: 'No answer',
+    adminCandidateAiCallOutcomeReasonVoicemail: 'Went to voicemail',
+    adminCandidateAiCallOutcomeReasonProviderFailure: 'Carrier/telephony failure',
+    adminCandidateAiCallOutcomeReasonNeedsManualReview: 'Needs manual review',
+    adminCandidateAiCallSummaryLabel: 'Summary',
+    adminCandidateAiCallAnsweredAtLabel: 'Answered',
+    adminCandidateAiCallCompletedAtLabel: 'Completed',
+    adminCandidateAiCallTriggeredByLabel: 'Triggered by',
 
     // Workflow-stage AI call scripts (MPS-708/MPS-F706)
     adminWorkflowStageCallScriptTitle: 'AI call scripts',
@@ -601,6 +617,13 @@ export const translations = {
     adminWorkflowStageCallScriptUpdateSuccessToast: 'Script updated.',
     adminWorkflowStageCallScriptEmptyTitle: 'No call scripts yet',
     adminWorkflowStageCallScriptEmptyDescription: 'Workflow-stage call scripts will appear here once seeded.',
+    adminWorkflowStageCallScriptActivateConfirmTitle: 'Activate this automated call?',
+    adminWorkflowStageCallScriptActivateConfirmDescription:
+      'From now on, every candidate who enters this workflow stage will automatically receive a billed AI voice call using this script.',
+    adminWorkflowStageCallScriptMessageChangeConfirmTitle: 'Save changes to this active script?',
+    adminWorkflowStageCallScriptMessageChangeConfirmDescription:
+      'This script is active. Candidates who enter this workflow stage from now on will hear the updated wording on their automated AI call.',
+    adminWorkflowStageCallScriptConfirmSaveAction: 'Confirm and save',
 
     // AI call operational settings / rate limits (MPS-712/MPS-F706)
     adminAiCallSettingsTitle: 'AI call settings',
@@ -611,7 +634,9 @@ export const translations = {
     adminAiCallSettingsMaxDurationLabel: 'Max call duration (minutes)',
     adminAiCallSettingsCallingHoursStartLabel: 'Calling hours start (0-23)',
     adminAiCallSettingsCallingHoursEndLabel: 'Calling hours end (0-23)',
-    adminAiCallSettingsDefaultHintPrefix: 'You can edit this. Platform default:',
+    adminAiCallSettingsDefaultHint:
+      'If left blank, this falls back to a platform-configured default, which may vary by environment.',
+    adminAiCallSettingsDefaultPlaceholder: 'Platform default',
     adminAiCallSettingsUpdatedBy: 'Last updated by',
     adminAiCallSettingsSaveAction: 'Save',
     adminAiCallSettingsUpdateSuccessToast: 'Settings updated.',
@@ -1809,6 +1834,21 @@ export const translations = {
     adminCandidateAiCallVerificationVerified: 'تصدیق شدہ',
     adminCandidateAiCallVerificationFailed: 'ناکام',
     adminCandidateAiCallVerificationSkipped: 'نظرانداز شدہ',
+    adminCandidateAiCallInactiveCandidateError: 'یہ امیدوار غیر فعال ہے اور اسے AI کال موصول نہیں ہو سکتی۔',
+    adminCandidateAiCallIdempotencyConflictError: 'یہ درخواست پہلے ہی مکمل ہو چکی ہو سکتی ہے۔ دوبارہ کوشش کرنے سے پہلے نیچے کال ہسٹری چیک کریں۔',
+    adminCandidateAiCallOutcomeReasonResolved: 'کال پر حل ہو گیا',
+    adminCandidateAiCallOutcomeReasonUnresolved: 'کال پر حل نہیں ہوا',
+    adminCandidateAiCallOutcomeReasonCandidateRequested: 'امیدوار نے کال بیک کی درخواست کی',
+    adminCandidateAiCallOutcomeReasonAgentEscalation: 'ایجنٹ نے پیروی کے لیے بڑھایا',
+    adminCandidateAiCallOutcomeReasonBusy: 'لائن مصروف تھی',
+    adminCandidateAiCallOutcomeReasonNoAnswer: 'کوئی جواب نہیں',
+    adminCandidateAiCallOutcomeReasonVoicemail: 'وائس میل پر گئی',
+    adminCandidateAiCallOutcomeReasonProviderFailure: 'کیریئر/ٹیلی فون کی خرابی',
+    adminCandidateAiCallOutcomeReasonNeedsManualReview: 'دستی جائزے کی ضرورت ہے',
+    adminCandidateAiCallSummaryLabel: 'خلاصہ',
+    adminCandidateAiCallAnsweredAtLabel: 'جواب دیا گیا',
+    adminCandidateAiCallCompletedAtLabel: 'مکمل ہوئی',
+    adminCandidateAiCallTriggeredByLabel: 'شروع کی گئی از',
 
     // Workflow-stage AI call scripts (MPS-708/MPS-F706)
     adminWorkflowStageCallScriptTitle: 'AI کال اسکرپٹس',
@@ -1829,6 +1869,13 @@ export const translations = {
     adminWorkflowStageCallScriptUpdateSuccessToast: 'اسکرپٹ اپ ڈیٹ ہو گئی۔',
     adminWorkflowStageCallScriptEmptyTitle: 'ابھی تک کوئی کال اسکرپٹ نہیں',
     adminWorkflowStageCallScriptEmptyDescription: 'ورک فلو مرحلے کی کال اسکرپٹس سیڈ ہونے کے بعد یہاں ظاہر ہوں گی۔',
+    adminWorkflowStageCallScriptActivateConfirmTitle: 'یہ خودکار کال فعال کریں؟',
+    adminWorkflowStageCallScriptActivateConfirmDescription:
+      'اب سے، جو بھی امیدوار اس ورک فلو مرحلے میں داخل ہوگا اسے خودکار طور پر اس اسکرپٹ کے ساتھ ایک بلڈ AI صوتی کال موصول ہوگی۔',
+    adminWorkflowStageCallScriptMessageChangeConfirmTitle: 'اس فعال اسکرپٹ میں تبدیلیاں محفوظ کریں؟',
+    adminWorkflowStageCallScriptMessageChangeConfirmDescription:
+      'یہ اسکرپٹ فعال ہے۔ اب سے اس ورک فلو مرحلے میں داخل ہونے والے امیدوار اپنی خودکار AI کال میں تازہ ترین عبارت سنیں گے۔',
+    adminWorkflowStageCallScriptConfirmSaveAction: 'تصدیق کریں اور محفوظ کریں',
 
     // AI call operational settings / rate limits (MPS-712/MPS-F706)
     adminAiCallSettingsTitle: 'AI کال کی ترتیبات',
@@ -1839,7 +1886,8 @@ export const translations = {
     adminAiCallSettingsMaxDurationLabel: 'زیادہ سے زیادہ کال کا دورانیہ (منٹ)',
     adminAiCallSettingsCallingHoursStartLabel: 'کالنگ کے اوقات شروع (0-23)',
     adminAiCallSettingsCallingHoursEndLabel: 'کالنگ کے اوقات ختم (0-23)',
-    adminAiCallSettingsDefaultHintPrefix: 'آپ اسے تبدیل کر سکتے ہیں۔ پلیٹ فارم ڈیفالٹ:',
+    adminAiCallSettingsDefaultHint: 'اگر خالی چھوڑا جائے تو یہ پلیٹ فارم کی مقرر کردہ ڈیفالٹ ویلیو پر منحصر ہوگا، جو ماحول کے لحاظ سے مختلف ہو سکتی ہے۔',
+    adminAiCallSettingsDefaultPlaceholder: 'پلیٹ فارم ڈیفالٹ',
     adminAiCallSettingsUpdatedBy: 'آخری تازہ کاری از',
     adminAiCallSettingsSaveAction: 'محفوظ کریں',
     adminAiCallSettingsUpdateSuccessToast: 'ترتیبات اپ ڈیٹ ہو گئیں۔',

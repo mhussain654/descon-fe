@@ -13,21 +13,6 @@ type FieldState = Record<
   string
 >;
 
-/**
- * Mirrors AiCalls::Configuration's own ENV fallback defaults exactly
- * (descon-be/app/services/ai_calls/configuration.rb) -- shown so an admin
- * knows what a blank field actually resolves to, not just that "some
- * default" applies. Update this map if those backend defaults ever change.
- */
-const PLATFORM_DEFAULTS: Record<keyof FieldState, number> = {
-  outboundTriggerCooldownMinutes: 60,
-  dailyOutboundCallLimit: 200,
-  adminTriggerRateLimitPerHour: 50,
-  callingHoursStart: 9,
-  callingHoursEnd: 19,
-  maxCallDurationMinutes: 15,
-};
-
 function toFieldState(settings: AiCallOperationalSetting): FieldState {
   const toStr = (value: number | null) => (value === null ? '' : String(value));
   return {
@@ -90,7 +75,6 @@ export function AiCallOperationalSettingsForm() {
   const settings = query.data;
   const setField = (key: keyof FieldState) => (event: React.ChangeEvent<HTMLInputElement>) =>
     setFields((current) => (current ? { ...current, [key]: event.target.value } : current));
-  const defaultHint = (key: keyof FieldState) => `${t('adminAiCallSettingsDefaultHintPrefix')} ${PLATFORM_DEFAULTS[key]}`;
 
   const handleSave = () => {
     mutation.mutate({
@@ -113,8 +97,8 @@ export function AiCallOperationalSettingsForm() {
             type="number"
             min={0}
             label={t('adminAiCallSettingsCooldownLabel')}
-            placeholder={String(PLATFORM_DEFAULTS.outboundTriggerCooldownMinutes)}
-            helperText={defaultHint('outboundTriggerCooldownMinutes')}
+            placeholder={t('adminAiCallSettingsDefaultPlaceholder')}
+            helperText={t('adminAiCallSettingsDefaultHint')}
             value={fields.outboundTriggerCooldownMinutes}
             onChange={setField('outboundTriggerCooldownMinutes')}
           />
@@ -122,8 +106,8 @@ export function AiCallOperationalSettingsForm() {
             type="number"
             min={0}
             label={t('adminAiCallSettingsDailyLimitLabel')}
-            placeholder={String(PLATFORM_DEFAULTS.dailyOutboundCallLimit)}
-            helperText={defaultHint('dailyOutboundCallLimit')}
+            placeholder={t('adminAiCallSettingsDefaultPlaceholder')}
+            helperText={t('adminAiCallSettingsDefaultHint')}
             value={fields.dailyOutboundCallLimit}
             onChange={setField('dailyOutboundCallLimit')}
           />
@@ -131,8 +115,8 @@ export function AiCallOperationalSettingsForm() {
             type="number"
             min={0}
             label={t('adminAiCallSettingsAdminRateLimitLabel')}
-            placeholder={String(PLATFORM_DEFAULTS.adminTriggerRateLimitPerHour)}
-            helperText={defaultHint('adminTriggerRateLimitPerHour')}
+            placeholder={t('adminAiCallSettingsDefaultPlaceholder')}
+            helperText={t('adminAiCallSettingsDefaultHint')}
             value={fields.adminTriggerRateLimitPerHour}
             onChange={setField('adminTriggerRateLimitPerHour')}
           />
@@ -140,8 +124,8 @@ export function AiCallOperationalSettingsForm() {
             type="number"
             min={0}
             label={t('adminAiCallSettingsMaxDurationLabel')}
-            placeholder={String(PLATFORM_DEFAULTS.maxCallDurationMinutes)}
-            helperText={defaultHint('maxCallDurationMinutes')}
+            placeholder={t('adminAiCallSettingsDefaultPlaceholder')}
+            helperText={t('adminAiCallSettingsDefaultHint')}
             value={fields.maxCallDurationMinutes}
             onChange={setField('maxCallDurationMinutes')}
           />
@@ -150,8 +134,8 @@ export function AiCallOperationalSettingsForm() {
             min={0}
             max={23}
             label={t('adminAiCallSettingsCallingHoursStartLabel')}
-            placeholder={String(PLATFORM_DEFAULTS.callingHoursStart)}
-            helperText={defaultHint('callingHoursStart')}
+            placeholder={t('adminAiCallSettingsDefaultPlaceholder')}
+            helperText={t('adminAiCallSettingsDefaultHint')}
             value={fields.callingHoursStart}
             onChange={setField('callingHoursStart')}
           />
@@ -160,8 +144,8 @@ export function AiCallOperationalSettingsForm() {
             min={0}
             max={23}
             label={t('adminAiCallSettingsCallingHoursEndLabel')}
-            placeholder={String(PLATFORM_DEFAULTS.callingHoursEnd)}
-            helperText={defaultHint('callingHoursEnd')}
+            placeholder={t('adminAiCallSettingsDefaultPlaceholder')}
+            helperText={t('adminAiCallSettingsDefaultHint')}
             value={fields.callingHoursEnd}
             onChange={setField('callingHoursEnd')}
           />

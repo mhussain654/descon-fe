@@ -94,7 +94,7 @@ describe("WorkflowStageCallScriptList", () => {
     expect(await screen.findByText("No call scripts yet")).toBeInTheDocument();
   });
 
-  it("edits and saves both languages and the active flag", async () => {
+  it("requires confirmation before activating a script, and saves only after confirming", async () => {
     adminWorkflowStageCallScriptsClient.listWorkflowStageCallScripts.mockResolvedValue([script()]);
     adminWorkflowStageCallScriptsClient.updateWorkflowStageCallScript.mockResolvedValue(
       script({ announcementEn: "Approved wording.", announcementUr: "منظور شدہ۔", active: true })
@@ -112,6 +112,16 @@ describe("WorkflowStageCallScriptList", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Save" }));
 
+    expect(await screen.findByText("Activate this automated call?")).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        "From now on, every candidate who enters this workflow stage will automatically receive a billed AI voice call using this script."
+      )
+    ).toBeInTheDocument();
+    expect(adminWorkflowStageCallScriptsClient.updateWorkflowStageCallScript).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByRole("button", { name: "Confirm and save" }));
+
     await waitFor(() =>
       expect(adminWorkflowStageCallScriptsClient.updateWorkflowStageCallScript).toHaveBeenCalledWith("verified", {
         announcementEn: "Approved wording.",
@@ -120,6 +130,69 @@ describe("WorkflowStageCallScriptList", () => {
       })
     );
     await waitFor(() => expect(screen.queryByLabelText("Opening announcement (English)")).not.toBeInTheDocument());
+  });
+
+  it("cancelling the activation confirmation does not save", async () => {
+    adminWorkflowStageCallScriptsClient.listWorkflowStageCallScripts.mockResolvedValue([script()]);
+    const client = await signInAs(HR);
+
+    renderList(client);
+    await screen.findByText("Verified");
+
+    fireEvent.click(screen.getByRole("button", { name: "Edit" }));
+    fireEvent.change(screen.getByLabelText("Status"), { target: { value: "active" } });
+    fireEvent.click(screen.getByRole("button", { name: "Save" }));
+    await screen.findByText("Activate this automated call?");
+
+    // Two "Cancel" buttons are present once the confirm dialog opens (the
+    // edit form's own Cancel, still in the DOM behind it, and the dialog's) --
+    // the dialog's is the one that should actually appear once opened.
+    fireEvent.click(screen.getAllByRole("button", { name: "Cancel" }).at(-1)!);
+
+    await waitFor(() => expect(screen.queryByText("Activate this automated call?")).not.toBeInTheDocument());
+    expect(adminWorkflowStageCallScriptsClient.updateWorkflowStageCallScript).not.toHaveBeenCalled();
+    expect(screen.getByLabelText("Opening announcement (English)")).toBeInTheDocument();
+  });
+
+  it("saves immediately, without confirmation, when only deactivating a script", async () => {
+    adminWorkflowStageCallScriptsClient.listWorkflowStageCallScripts.mockResolvedValue([script({ active: true })]);
+    adminWorkflowStageCallScriptsClient.updateWorkflowStageCallScript.mockResolvedValue(script({ active: false }));
+    const client = await signInAs(HR);
+
+    renderList(client);
+    await screen.findByText("Verified");
+
+    fireEvent.click(screen.getByRole("button", { name: "Edit" }));
+    fireEvent.change(screen.getByLabelText("Status"), { target: { value: "inactive" } });
+    fireEvent.click(screen.getByRole("button", { name: "Save" }));
+
+    await waitFor(() => expect(adminWorkflowStageCallScriptsClient.updateWorkflowStageCallScript).toHaveBeenCalled());
+    expect(screen.queryByText("Activate this automated call?")).not.toBeInTheDocument();
+  });
+
+  it("requires confirmation before saving a wording change to an already-active script", async () => {
+    adminWorkflowStageCallScriptsClient.listWorkflowStageCallScripts.mockResolvedValue([script({ active: true })]);
+    adminWorkflowStageCallScriptsClient.updateWorkflowStageCallScript.mockResolvedValue(
+      script({ active: true, announcementEn: "New wording." })
+    );
+    const client = await signInAs(HR);
+
+    renderList(client);
+    await screen.findByText("Verified");
+
+    fireEvent.click(screen.getByRole("button", { name: "Edit" }));
+    fireEvent.change(screen.getByLabelText("Opening announcement (English)"), { target: { value: "New wording." } });
+    fireEvent.click(screen.getByRole("button", { name: "Save" }));
+
+    expect(await screen.findByText("Save changes to this active script?")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Confirm and save" }));
+
+    await waitFor(() =>
+      expect(adminWorkflowStageCallScriptsClient.updateWorkflowStageCallScript).toHaveBeenCalledWith(
+        "verified",
+        expect.objectContaining({ announcementEn: "New wording.", active: true })
+      )
+    );
   });
 
   it("cancelling the edit discards changes without saving", async () => {

@@ -56,7 +56,15 @@ export function useTriggerCandidateAiCall(candidateId: string | undefined) {
     },
     onError: (error) => {
       if (error.code === 'IDEMPOTENCY_CONFLICT') {
+        // The original request may already have placed a billed call --
+        // refresh history immediately (rather than waiting for the dialog
+        // to close) so whatever's visible underneath is current before the
+        // admin decides whether to retry. The dialog stays open with its
+        // own explanation (CANDIDATE_AI_CALL_ERROR_KEYS.IDEMPOTENCY_CONFLICT,
+        // rendered via ConfirmDialog's children in CandidateAiCallsCard) --
+        // never silent.
         setIdempotencyState(clearCallIdempotencyKey());
+        if (candidateId) queryClient.invalidateQueries({ queryKey: adminCandidateAiCallQueries.list(candidateId, language) });
         return;
       }
       if (TERMINAL_ERROR_CODES.has(error.code)) {

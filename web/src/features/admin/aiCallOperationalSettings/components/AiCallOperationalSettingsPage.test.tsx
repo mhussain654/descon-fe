@@ -64,6 +64,22 @@ describe("AiCallOperationalSettingsPage", () => {
     expect(await screen.findByLabelText("Daily outbound call limit")).toHaveValue(null);
   });
 
+  it("describes a blank field's fallback generically, without claiming a specific number as the effective default", async () => {
+    adminAiCallOperationalSettingsClient.getAiCallOperationalSettings.mockResolvedValue(settings());
+    const client = await signInAs(ADMIN);
+
+    renderPage(client);
+
+    const dailyLimitField = await screen.findByLabelText("Daily outbound call limit");
+    expect(dailyLimitField).toHaveAttribute("placeholder", "Platform default");
+    expect(
+      screen.getAllByText("If left blank, this falls back to a platform-configured default, which may vary by environment.").length
+    ).toBeGreaterThan(0);
+    // No component-level constant should be asserting a specific number is
+    // "the" platform default -- a real ENV override could make that wrong.
+    expect(screen.queryByText(/Platform default: \d/)).not.toBeInTheDocument();
+  });
+
   it("renders existing overrides in their fields", async () => {
     adminAiCallOperationalSettingsClient.getAiCallOperationalSettings.mockResolvedValue(
       settings({ dailyOutboundCallLimit: 75, callingHoursStart: 8 })
