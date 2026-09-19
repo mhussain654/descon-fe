@@ -47,3 +47,28 @@ export const WORKFLOW_STAGE_LABEL_KEYS: Record<CanonicalWorkflowStageCode, Trans
   flight_details_uploaded: 'adminWorkflowStageFlightDetailsUploaded',
   mobilized: 'adminWorkflowStageMobilized',
 };
+
+/**
+ * A static, one-per-stage "what should staff do next" hint (admin dashboard
+ * redesign's "Recently updated candidates" table) -- not a recommendation
+ * engine, the same fixed lookup shape as WORKFLOW_STAGE_LABEL_KEYS above,
+ * just describing the obvious next step for a candidate sitting in that
+ * stage today.
+ */
+export const WORKFLOW_STAGE_NEXT_ACTION_KEYS: Record<CanonicalWorkflowStageCode, TranslationKey> = {
+  registered: 'adminWorkflowNextActionRequestDocuments',
+  documents_pending: 'adminWorkflowNextActionFollowUpDocuments',
+  documents_uploaded: 'adminWorkflowNextActionReviewDocuments',
+  under_verification: 'adminWorkflowNextActionContinueVerification',
+  verified: 'adminWorkflowNextActionCollectFee',
+  fee_pending: 'adminWorkflowNextActionFollowUpPayment',
+  fee_paid: 'adminWorkflowNextActionShareWithQatarBu',
+  documents_shared_with_qatar_bu: 'adminWorkflowNextActionBookQvcAppointment',
+  qvc_appointment_booked: 'adminWorkflowNextActionAwaitQvcOutcome',
+  qvc_completed_outcome_received: 'adminWorkflowNextActionReviewQvcOutcome',
+  visa_issued_or_rejected: 'adminWorkflowNextActionConfirmVisaOutcome',
+  appeared_for_protection: 'adminWorkflowNextActionConfirmProtectionOutcome',
+  protected_ready_to_fly: 'adminWorkflowNextActionScheduleFlight',
+  flight_details_uploaded: 'adminWorkflowNextActionConfirmMobilization',
+  mobilized: 'adminWorkflowNextActionNoActionNeeded',
+};

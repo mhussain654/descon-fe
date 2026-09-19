@@ -80,6 +80,7 @@ export type AdminDashboardErrorCode =
   | 'INACTIVE_ACCOUNT'
   | 'SESSION_EXPIRED'
   | 'RATE_LIMITED'
+  | 'INVALID_FILTER'
   | 'NETWORK_ERROR'
   | 'OFFLINE'
   | 'SERVER_ERROR'
@@ -89,8 +90,17 @@ export interface AdminDashboardError {
   code: AdminDashboardErrorCode;
   message?: string;
   retryAfterSeconds?: number;
+  /** Set on INVALID_FILTER -- e.g. "filter.country_code". */
+  field?: string;
+}
+
+/** Scopes every dashboard section to candidates whose current assignment matches -- see descon-be's Admin::Reports::DashboardFilterResolution. */
+export interface AdminDashboardFilters {
+  countryCode?: string;
+  projectCode?: string;
+  craftCode?: string;
 }
 
 export interface AdminDashboardClient {
-  getDashboard(): Promise<AdminDashboardSummary>;
+  getDashboard(filters?: AdminDashboardFilters): Promise<AdminDashboardSummary>;
 }

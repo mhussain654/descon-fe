@@ -7,10 +7,12 @@
 // rationale (an error response must reach the caller intact).
 import type { ApiClient, ApiError } from '../api-client';
 import type { StaffAuthClient, StaffAuthError } from '../auth/staffTypes';
+import { buildDashboardQuery } from './dashboardQueryParams';
 import type {
   AdminDashboardClient,
   AdminDashboardError,
   AdminDashboardErrorCode,
+  AdminDashboardFilters,
   AdminDashboardSummary,
   PaymentSummaryRow,
   RequiresAttentionRow,
@@ -118,6 +120,7 @@ function toDashboardError(error: unknown): AdminDashboardError {
   if (apiError.code === 'NETWORK_ERROR' || apiError.code === 'TIMEOUT') return { code: 'NETWORK_ERROR' };
   if (apiError.code === 'CANCELLED') return { code: 'UNKNOWN' };
 
+  if (apiError.status === 400) return { code: 'INVALID_FILTER', message: apiError.message, field: apiError.field };
   if (apiError.status === 403) {
     const code: AdminDashboardErrorCode = apiError.serverCode === 'inactive_account' ? 'INACTIVE_ACCOUNT' : 'FORBIDDEN';
     return { code, message: apiError.message };
@@ -132,10 +135,11 @@ export function createAdminDashboardClient(options: RealAdminDashboardClientOpti
   const { apiClient, staffAuthClient, getLocale } = options;
 
   return {
-    async getDashboard(): Promise<AdminDashboardSummary> {
+    async getDashboard(filters: AdminDashboardFilters = {}): Promise<AdminDashboardSummary> {
       try {
+        const query = buildDashboardQuery(filters);
         const result = await staffAuthClient.authenticatedDataRequest((token) =>
-          apiClient.get<DashboardResponse>('/admin/dashboard', { headers: { Authorization: `Bearer ${token}`, 'X-Locale': getLocale() } })
+          apiClient.get<DashboardResponse>(`/admin/dashboard${query}`, { headers: { Authorization: `Bearer ${token}`, 'X-Locale': getLocale() } })
         );
         if (!result) throw { code: 'UNKNOWN' } satisfies AdminDashboardError;
 

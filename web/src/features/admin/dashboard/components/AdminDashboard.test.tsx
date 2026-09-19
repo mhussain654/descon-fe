@@ -1,16 +1,21 @@
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MemoryRouter } from 'react-router';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createMockStaffAuthClient, MOCK_STAFF_ACCOUNTS, MOCK_STAFF_PASSWORD } from '../../../../../../shared/auth/staffAuthClient';
 import { LanguageProvider } from '../../../../contexts/LanguageContext';
 import { StaffAuthProvider } from '../../../../contexts/StaffAuthContext';
 import { adminDashboardClient } from '../../../../lib/admin-dashboard-client';
+import { adminCandidateClient } from '../../../../lib/admin-candidates-client';
 import type { AdminDashboardSummary } from '../../../../../../shared/adminDashboard/types';
 import { AdminDashboard } from './AdminDashboard';
 
 vi.mock('../../../../lib/admin-dashboard-client', () => ({
   adminDashboardClient: { getDashboard: vi.fn() },
+}));
+
+vi.mock('../../../../lib/admin-candidates-client', () => ({
+  adminCandidateClient: { getCountries: vi.fn(), getProjects: vi.fn(), getCrafts: vi.fn() },
 }));
 
 const ADMIN = MOCK_STAFF_ACCOUNTS.find((account) => account.role === 'admin')!;
@@ -78,8 +83,17 @@ async function renderAs(account: typeof ADMIN) {
 }
 
 describe('AdminDashboard', () => {
+  beforeEach(() => {
+    vi.mocked(adminCandidateClient.getCountries).mockResolvedValue([{ code: 'pk', name: 'Pakistan' }]);
+    vi.mocked(adminCandidateClient.getProjects).mockResolvedValue([{ code: 'lng', name: 'LNG Expansion' }]);
+    vi.mocked(adminCandidateClient.getCrafts).mockResolvedValue([{ code: 'welder', name: 'Welder' }]);
+  });
+
   afterEach(() => {
     vi.mocked(adminDashboardClient.getDashboard).mockReset();
+    vi.mocked(adminCandidateClient.getCountries).mockReset();
+    vi.mocked(adminCandidateClient.getProjects).mockReset();
+    vi.mocked(adminCandidateClient.getCrafts).mockReset();
   });
 
   it('renders the candidate workload, workflow queue, document review queue and payment summary', async () => {
@@ -175,5 +189,65 @@ describe('AdminDashboard', () => {
 
     expect(await screen.findByText('No upcoming activities in the next 7 days')).toBeInTheDocument();
     expect(screen.getByText('No recent stage changes yet')).toBeInTheDocument();
+  });
+
+  it('shows a next-action hint and a colored badge for each recently-updated candidate’s stage', async () => {
+    adminDashboardClient.getDashboard.mockResolvedValue(buildSummary());
+
+    await renderAs(ADMIN);
+
+    expect(await screen.findByText('Continue verification')).toBeInTheDocument();
+    expect(screen.getByText('Under Verification')).toBeInTheDocument();
+  });
+
+  it('re-fetches the dashboard scoped to the selected country/project/craft filters', async () => {
+    adminDashboardClient.getDashboard.mockResolvedValue(buildSummary());
+
+    await renderAs(ADMIN);
+    await screen.findByText('128');
+
+    fireEvent.change(screen.getByLabelText('Country'), { target: { value: 'pk' } });
+
+    await screen.findByText('128');
+    const lastCall = adminDashboardClient.getDashboard.mock.calls.at(-1)?.[0];
+    expect(lastCall).toEqual({ countryCode: 'pk', projectCode: undefined, craftCode: undefined });
+  });
+
+  it('links each section header to its full page', async () => {
+    adminDashboardClient.getDashboard.mockResolvedValue(buildSummary());
+
+    await renderAs(ADMIN);
+    await screen.findByText('128');
+
+    expect(screen.getByRole('link', { name: 'Review queue' })).toHaveAttribute('href', '/admin/document-reviews');
+    expect(screen.getByRole('link', { name: 'Transactions' })).toHaveAttribute('href', '/admin/finance/payments');
+    expect(screen.getByRole('link', { name: 'View all candidates' })).toHaveAttribute('href', '/admin');
+  });
+
+  it('shows a real, computed operational insight highlighting the largest requires-attention exception', async () => {
+    adminDashboardClient.getDashboard.mockResolvedValue(buildSummary());
+
+    await renderAs(ADMIN);
+
+    expect(await screen.findByText('Operational insight')).toBeInTheDocument();
+    expect(screen.getByText('3 rejected documents — Review and notify candidates.')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Review now' })).toHaveAttribute('href', '/admin/document-reviews?status=rejected');
+  });
+
+  it('falls back the insight to the real verification rate when nothing needs attention', async () => {
+    adminDashboardClient.getDashboard.mockResolvedValue(
+      buildSummary({
+        requiresAttention: [
+          { code: 'rejected_documents', count: 0 },
+          { code: 'failed_payment', count: 0 },
+          { code: 'overdue_qvc', count: 0 },
+          { code: 'callback_required', count: 0 },
+        ],
+      })
+    );
+
+    await renderAs(ADMIN);
+
+    expect(await screen.findByText('70.3% of candidates have completed verification.')).toBeInTheDocument();
   });
 });

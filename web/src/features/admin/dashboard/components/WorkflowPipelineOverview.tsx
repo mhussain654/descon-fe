@@ -1,7 +1,7 @@
 import { Link } from 'react-router';
 import { ProgressBar } from '../../../../design-system';
 import type { StatusSummaryRow } from '../../../../lib/admin-reports-client';
-import { PIPELINE_BUCKET_LABEL_KEYS, PIPELINE_BUCKET_ORDER, groupStagesByPipelineBucket } from '../workflowPipelineBuckets';
+import { PIPELINE_BUCKET_HEX, PIPELINE_BUCKET_LABEL_KEYS, PIPELINE_BUCKET_ORDER, groupStagesByPipelineBucket } from '../workflowPipelineBuckets';
 import type { TFn } from '../../reports/components/ReportTables';
 
 /**
@@ -27,7 +27,7 @@ export function WorkflowPipelineOverview({ workflowStageQueue, t }: { workflowSt
               <span className="font-medium text-text-primary">{label}</span>
               <span className="text-text-secondary">{count}</span>
             </div>
-            <ProgressBar value={percentage} label={label} />
+            <ProgressBar value={percentage} label={label} fillColor={PIPELINE_BUCKET_HEX[bucket]} />
           </div>
         );
       })}

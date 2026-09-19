@@ -7,6 +7,7 @@ import type {
   AdminDashboardClient,
   AdminDashboardError,
   AdminDashboardErrorCode,
+  AdminDashboardFilters,
   AdminDashboardSummary,
   CandidateWorkload,
   PaymentSummaryRow,
@@ -14,7 +15,15 @@ import type {
 import { apiClient } from './api-client';
 import { staffAuthClient } from './staff-auth-client';
 
-export type { AdminDashboardClient, AdminDashboardError, AdminDashboardErrorCode, AdminDashboardSummary, CandidateWorkload, PaymentSummaryRow };
+export type {
+  AdminDashboardClient,
+  AdminDashboardError,
+  AdminDashboardErrorCode,
+  AdminDashboardFilters,
+  AdminDashboardSummary,
+  CandidateWorkload,
+  PaymentSummaryRow,
+};
 
 const LANGUAGE_STORAGE_KEY = 'descon.language';
 

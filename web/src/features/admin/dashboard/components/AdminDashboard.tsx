@@ -1,6 +1,6 @@
-import { useEffect } from 'react';
+import { useCallback, useEffect } from 'react';
 import { Clock, Plane, Timer, Users } from 'lucide-react';
-import { Link } from 'react-router';
+import { Link, useSearchParams } from 'react-router';
 import { useLanguage } from '../../../../contexts/LanguageContext';
 import { useStaffAuth } from '../../../../contexts/StaffAuthContext';
 import { Card, ErrorState, ForbiddenState, LoadingState, OfflineState, StatTile } from '../../../../design-system';
@@ -8,6 +8,7 @@ import { ADMIN_DASHBOARD_ERROR_KEYS } from '../../../../../../shared/adminDashbo
 import { DOCUMENT_REVIEW_SUMMARY_ROWS } from '../../../../../../shared/adminDocumentReviews/statusLabels';
 import { ADMIN_PAYMENT_STATUS_KEYS, ADMIN_PAYMENT_STATUS_TONES } from '../../../../../../shared/adminPayments/paymentLabels';
 import type { AdminPaymentStatus } from '../../../../lib/admin-payments-client';
+import type { AdminDashboardFilters } from '../../../../lib/admin-dashboard-client';
 import type { Language, TranslationKey } from '../../../../../../shared/i18n/translations';
 import { stageLabel, type TFn } from '../../reports/components/ReportTables';
 import {
@@ -22,6 +23,9 @@ import { WorkflowPipelineOverview } from './WorkflowPipelineOverview';
 import { RequiresAttentionPanel } from './RequiresAttentionPanel';
 import { UpcomingActivitiesPanel } from './UpcomingActivitiesPanel';
 import { RecentlyUpdatedCandidatesTable } from './RecentlyUpdatedCandidatesTable';
+import { OperationalInsightBanner } from './OperationalInsightBanner';
+import { DashboardFilterBar } from './DashboardFilterBar';
+import { readDashboardFiltersFromSearchParams, writeDashboardFiltersToSearchParams } from '../adminDashboardUrlState';
 import { formatNumber } from '../../../../../../shared/i18n/locale';
 
 /**
@@ -33,7 +37,16 @@ import { formatNumber } from '../../../../../../shared/i18n/locale';
 export function AdminDashboard() {
   const { t, language } = useLanguage();
   const { hasPermission, signOut } = useStaffAuth();
-  const query = useAdminDashboard();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const filters = readDashboardFiltersFromSearchParams(searchParams);
+  const query = useAdminDashboard(filters);
+
+  const updateFilters = useCallback(
+    (patch: Partial<AdminDashboardFilters>) => {
+      setSearchParams(writeDashboardFiltersToSearchParams({ ...filters, ...patch }));
+    },
+    [filters, setSearchParams]
+  );
 
   useEffect(() => {
     if (query.error?.code === 'SESSION_EXPIRED') {
@@ -63,6 +76,8 @@ export function AdminDashboard() {
           </Link>
         ) : null}
       </div>
+
+      <DashboardFilterBar filters={filters} onChange={updateFilters} t={t} />
 
       <DashboardContent query={query} t={t} language={language} />
     </div>
@@ -129,6 +144,8 @@ function DashboardContent({
 
   return (
     <div className="flex flex-col gap-4">
+      <OperationalInsightBanner data={data} t={t} language={language} />
+
       <Card>
         <h2 className="text-sm font-semibold text-text-primary">{t('adminDashboardKeyMetricsTitle')}</h2>
         <p className="mb-2 text-xs text-text-secondary">{t('adminDashboardKeyMetricsSubtitle')}</p>
@@ -170,7 +187,12 @@ function DashboardContent({
       </Card>
 
       <Card>
-        <h2 className="text-sm font-semibold text-text-primary">{t('adminDashboardDocumentReviewQueueTitle')}</h2>
+        <div className="flex items-center justify-between">
+          <h2 className="text-sm font-semibold text-text-primary">{t('adminDashboardDocumentReviewQueueTitle')}</h2>
+          <Link to="/admin/document-reviews" className="text-sm font-medium text-brand hover:underline">
+            {t('adminDashboardReviewQueueLink')}
+          </Link>
+        </div>
         <p className="mb-2 text-xs text-text-secondary">{t('adminDashboardDocumentReviewQueueSubtitle')}</p>
         <div className="flex flex-col items-center gap-4 sm:flex-row">
           <CategoryDonutChart data={documentReviewChartData} />
@@ -193,7 +215,12 @@ function DashboardContent({
       </Card>
 
       <Card>
-        <h2 className="text-sm font-semibold text-text-primary">{t('adminDashboardPaymentSummaryTitle')}</h2>
+        <div className="flex items-center justify-between">
+          <h2 className="text-sm font-semibold text-text-primary">{t('adminDashboardPaymentSummaryTitle')}</h2>
+          <Link to="/admin/finance/payments" className="text-sm font-medium text-brand hover:underline">
+            {t('adminDashboardTransactionsLink')}
+          </Link>
+        </div>
         <p className="mb-2 text-xs text-text-secondary">{t('adminDashboardPaymentSummarySubtitle')}</p>
         <div className="flex flex-col items-center gap-4 sm:flex-row">
           <CategoryDonutChart data={paymentChartData} />
@@ -249,7 +276,12 @@ function DashboardContent({
         </Card>
 
         <Card>
-          <h2 className="text-sm font-semibold text-text-primary">{t('adminDashboardRecentlyUpdatedTitle')}</h2>
+          <div className="flex items-center justify-between">
+            <h2 className="text-sm font-semibold text-text-primary">{t('adminDashboardRecentlyUpdatedTitle')}</h2>
+            <Link to="/admin" className="text-sm font-medium text-brand hover:underline">
+              {t('adminDashboardViewAllCandidatesLink')}
+            </Link>
+          </div>
           <p className="mb-2 text-xs text-text-secondary">{t('adminDashboardRecentlyUpdatedSubtitle')}</p>
           <RecentlyUpdatedCandidatesTable rows={data.recentlyUpdatedCandidates} t={t} language={language} />
         </Card>
