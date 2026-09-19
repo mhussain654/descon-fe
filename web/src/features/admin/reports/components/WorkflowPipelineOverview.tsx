@@ -2,14 +2,15 @@ import { Link } from 'react-router';
 import { ProgressBar } from '../../../../design-system';
 import type { StatusSummaryRow } from '../../../../lib/admin-reports-client';
 import { PIPELINE_BUCKET_HEX, PIPELINE_BUCKET_LABEL_KEYS, PIPELINE_BUCKET_ORDER, groupStagesByPipelineBucket } from '../workflowPipelineBuckets';
-import type { TFn } from '../../reports/components/ReportTables';
+import type { TFn } from './ReportTables';
 
 /**
  * The 15-stage workflow queue rolled up into 5 pipeline phases (frontend-
  * only taxonomy, see workflowPipelineBuckets.ts) and rendered as horizontal
  * progress bars -- clearer than a donut/legend for exactly 5 ranked
  * buckets. The full 15-stage breakdown (CategoryBarChart) stays reachable
- * via "View all stages", not deleted.
+ * via "View all stages", not deleted. Shared by every dashboard (Admin/MPS/...)
+ * that has a 15-stage workflow_stage_queue to summarize, not duplicated per dashboard.
  */
 export function WorkflowPipelineOverview({ workflowStageQueue, t }: { workflowStageQueue: StatusSummaryRow[]; t: TFn }) {
   const totals = groupStagesByPipelineBucket(workflowStageQueue);

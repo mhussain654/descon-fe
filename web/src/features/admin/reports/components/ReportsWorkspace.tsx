@@ -174,7 +174,7 @@ function ReportTable({
     case 'status_summary':
       return <StatusSummaryTable rows={data.rows} t={t} />;
     case 'craft_summary':
-      return <CraftSummaryTable rows={data.rows} t={t} />;
+      return <CraftSummaryTable rows={data.rows} t={t} language={language} />;
     case 'conversion':
       return <ConversionTable rows={data.rows} t={t} />;
     case 'trend':

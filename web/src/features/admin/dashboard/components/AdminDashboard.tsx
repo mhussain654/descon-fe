@@ -19,13 +19,13 @@ import {
   TONE_TILE_CLASSNAME,
 } from '../../reports/components/ReportCharts';
 import { useAdminDashboard } from '../hooks/useAdminDashboard';
-import { WorkflowPipelineOverview } from './WorkflowPipelineOverview';
+import { WorkflowPipelineOverview } from '../../reports/components/WorkflowPipelineOverview';
 import { RequiresAttentionPanel } from './RequiresAttentionPanel';
 import { UpcomingActivitiesPanel } from './UpcomingActivitiesPanel';
 import { RecentlyUpdatedCandidatesTable } from './RecentlyUpdatedCandidatesTable';
 import { OperationalInsightBanner } from './OperationalInsightBanner';
-import { DashboardFilterBar } from './DashboardFilterBar';
-import { readDashboardFiltersFromSearchParams, writeDashboardFiltersToSearchParams } from '../adminDashboardUrlState';
+import { DashboardFilterBar } from '../../reports/components/DashboardFilterBar';
+import { readDashboardFiltersFromSearchParams, writeDashboardFiltersToSearchParams } from '../../reports/dashboardFiltersUrlState';
 import { formatNumber } from '../../../../../../shared/i18n/locale';
 
 /**

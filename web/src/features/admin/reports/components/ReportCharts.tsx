@@ -6,6 +6,7 @@ import {
   BarChart,
   CartesianGrid,
   Cell,
+  Legend,
   Pie,
   PieChart,
   ResponsiveContainer,
@@ -139,6 +140,52 @@ export function CategoryBarChart({ data }: { data: CategoryDatum[] }) {
               <Cell key={d.key} fill={CHART_TONE_HEX[d.tone ?? 'brand']} />
             ))}
           </Bar>
+        </BarChart>
+      </ResponsiveContainer>
+    </div>
+  );
+}
+
+export interface CraftSummaryDatum {
+  key: string;
+  label: string;
+  mobilized: number;
+  remaining: number;
+}
+
+/**
+ * The largest crafts by headcount, each as a two-segment stacked bar
+ * (mobilized vs. still in the pipeline) so the mobilization rate per craft
+ * reads at a glance -- not aria-hidden's usual "purely decorative" role
+ * here, since the split itself (not just the total) is the point; the
+ * Legend plus Tooltip carry that meaning for sighted users, and the
+ * adjacent table stays the complete, accessible per-craft breakdown for
+ * every craft, not just the ones shown here.
+ */
+export function CraftSummaryChart({
+  data,
+  mobilizedLabel,
+  remainingLabel,
+}: {
+  data: CraftSummaryDatum[];
+  /** Already-translated series names, shown in the legend/tooltip. */
+  mobilizedLabel: string;
+  remainingLabel: string;
+}) {
+  if (data.length === 0) return null;
+  const height = Math.max(180, data.length * 34) + 24;
+
+  return (
+    <div style={{ height }} aria-hidden="true">
+      <ResponsiveContainer width="100%" height="100%">
+        <BarChart data={data} layout="vertical" margin={{ left: 8, right: 16, top: 4, bottom: 4 }}>
+          <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke={GRID_STROKE} strokeOpacity={0.25} />
+          <XAxis type="number" allowDecimals={false} tick={AXIS_TICK_STYLE} axisLine={false} tickLine={false} />
+          <YAxis type="category" dataKey="label" width={150} tick={AXIS_TICK_STYLE} axisLine={false} tickLine={false} />
+          <Tooltip />
+          <Legend wrapperStyle={{ fontSize: 12 }} />
+          <Bar dataKey="mobilized" name={mobilizedLabel} stackId="craft" fill={CHART_TONE_HEX.success} maxBarSize={18} />
+          <Bar dataKey="remaining" name={remainingLabel} stackId="craft" fill={CHART_TONE_HEX.neutral} radius={[0, 4, 4, 0]} maxBarSize={18} />
         </BarChart>
       </ResponsiveContainer>
     </div>
