@@ -5,6 +5,7 @@ import {
   ScrollView,
   RefreshControl,
   TouchableOpacity,
+  Linking,
   useColorScheme,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -16,6 +17,7 @@ import {
   Clock,
   CheckCircle,
   AlertCircle,
+  GraduationCap,
 } from "lucide-react-native";
 import {
   useFonts,
@@ -29,6 +31,7 @@ import { useRefetchOnFocus } from "../../../hooks/useRefetchOnFocus";
 import { useCandidateProfile } from "../../../features/candidate/profile/hooks/useCandidateProfile";
 import { useCandidateDocuments } from "../../../features/candidate/documents/hooks/useCandidateDocuments";
 import { useApplicationProgress } from "../../../features/candidate/progress/hooks/useApplicationProgress";
+import { useTrainingSetting } from "../../../features/candidate/training/hooks/useTrainingSetting";
 import { resolveNextAction, NEXT_ACTION_KEYS } from "../../../../../shared/applicationProgress/nextAction";
 import { currentDashboardStage } from "../../../../../shared/applicationProgress/currentDashboardStage";
 import { LoadingState, ErrorState, OfflineState, SessionExpiredState, ForbiddenState } from "../../../design-system";
@@ -46,6 +49,12 @@ export default function DashboardScreen() {
   const profileQuery = useCandidateProfile();
   const checklistQuery = useCandidateDocuments();
   const progressQuery = useApplicationProgress();
+  // Deliberately not part of `isLoading`/`primaryError` below -- the
+  // Training quick action opens an external link directly (no intermediate
+  // screen), so a slow or failed fetch of that one link should never block
+  // the rest of the dashboard from rendering. The tile itself just stays
+  // disabled until the URL is available.
+  const trainingQuery = useTrainingSetting();
   useRefetchOnFocus(profileQuery.refetch, profileQuery.isFetching);
   useRefetchOnFocus(checklistQuery.refetch, checklistQuery.isFetching);
   useRefetchOnFocus(progressQuery.refetch, progressQuery.isFetching);
@@ -209,6 +218,14 @@ export default function DashboardScreen() {
       color: "#F59E0B",
       bgColor: isDark ? "#2E2416" : "#FFF7E6",
       onPress: () => router.push("/(tabs)/status"),
+    },
+    {
+      icon: GraduationCap,
+      label: t("viewTraining"),
+      color: "#8B5CF6",
+      bgColor: isDark ? "#2A1F3D" : "#F3E8FF",
+      onPress: () => Linking.openURL(trainingQuery.data.url),
+      disabled: !trainingQuery.data?.url,
     },
   ];
 

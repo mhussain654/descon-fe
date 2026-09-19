@@ -7,6 +7,7 @@ import { LanguageProvider } from "../../../contexts/LanguageContext";
 import { applicationProgressClient } from "../../../lib/application-progress-client";
 import { candidateWorkflowClient } from "../../../lib/candidate-workflow-client";
 import { candidateFlightDetailClient } from "../../../lib/candidate-flight-detail-client";
+import { candidateVisaDecisionsClient } from "../../../lib/candidate-visa-decisions-client";
 import { createQueryClientTestLifecycle } from "../../../testSupport/queryClientTestLifecycle";
 import StatusScreen from "./index";
 
@@ -52,6 +53,9 @@ jest.mock("../../../lib/candidate-workflow-client", () => ({
 }));
 jest.mock("../../../lib/candidate-flight-detail-client", () => ({
   candidateFlightDetailClient: { getFlightDetail: jest.fn(), requestTicketAccess: jest.fn() },
+}));
+jest.mock("../../../lib/candidate-visa-decisions-client", () => ({
+  candidateVisaDecisionsClient: { listVisaDecisions: jest.fn(), requestVisaCopyAccess: jest.fn() },
 }));
 
 function flightDetail(overrides = {}) {
@@ -127,6 +131,18 @@ function progressPayload(overrides = {}) {
   };
 }
 
+function visaDecision(overrides = {}) {
+  return {
+    id: "9b8a5883-70d5-4040-8823-424f4b4b669b",
+    outcomeCode: "issued",
+    decisionDate: "2026-09-05",
+    rejectionReasonCode: null,
+    visaCopyAttached: true,
+    createdAt: "2026-09-05T10:00:00Z",
+    ...overrides,
+  };
+}
+
 function historyPayload(overrides = {}) {
   return {
     items: [{ fromStage: null, toStage: CANONICAL_STAGES[0], occurredAt: "2026-08-01T00:00:00Z", reasonCode: null, details: null }],
@@ -144,6 +160,7 @@ const { createTestQueryClient, trackRender, cleanup } = createQueryClientTestLif
 // identical established convention.
 beforeEach(() => {
   candidateFlightDetailClient.getFlightDetail.mockResolvedValue(null);
+  candidateVisaDecisionsClient.listVisaDecisions.mockResolvedValue([]);
 });
 
 afterEach(async () => {
@@ -152,6 +169,8 @@ afterEach(async () => {
   jest.mocked(candidateWorkflowClient.getWorkflowHistory).mockReset();
   jest.mocked(candidateFlightDetailClient.getFlightDetail).mockReset();
   jest.mocked(candidateFlightDetailClient.requestTicketAccess).mockReset();
+  jest.mocked(candidateVisaDecisionsClient.listVisaDecisions).mockReset();
+  jest.mocked(candidateVisaDecisionsClient.requestVisaCopyAccess).mockReset();
   mockReplace.mockReset();
   // One test below persists "ur" via AsyncStorage -- without removing it
   // here, every test running after it in file order would silently render
@@ -465,6 +484,117 @@ describe("StatusScreen", () => {
       });
 
       expect(await screen.findByText("Your flight ticket has not been uploaded yet.")).toBeOnTheScreen();
+    });
+  });
+
+  describe("visa copy download", () => {
+    it("shows the visa outcome on the visa stage once the backend has recorded one, sourced from the visa decisions list", async () => {
+      applicationProgressClient.getProgress.mockResolvedValue(progressPayload({ workflow: workflowPayload({ timeline: timelineThrough(11) }) }));
+      candidateWorkflowClient.getWorkflowHistory.mockResolvedValue(historyPayload());
+      candidateVisaDecisionsClient.listVisaDecisions.mockResolvedValue([visaDecision()]);
+      renderStatusScreen();
+
+      await screen.findAllByText("Visa Issued / Visa Rejected");
+      // The stage title itself ("Visa Issued / Visa Rejected") also contains the word
+      // "Issued", so match on the outcome badge specifically ("Visa Outcome: ..."),
+      // not a bare /Issued/ regex against the whole row.
+      expect(within(stageRow("Visa Issued / Visa Rejected")).getByText(/Visa Outcome/).children.join("")).toContain("Issued");
+    });
+
+    it("shows no download action for a rejected decision, which never has a visa copy attached", async () => {
+      applicationProgressClient.getProgress.mockResolvedValue(progressPayload({ workflow: workflowPayload({ timeline: timelineThrough(11) }) }));
+      candidateWorkflowClient.getWorkflowHistory.mockResolvedValue(historyPayload());
+      candidateVisaDecisionsClient.listVisaDecisions.mockResolvedValue([
+        visaDecision({ outcomeCode: "rejected", rejectionReasonCode: "document_discrepancy", visaCopyAttached: false }),
+      ]);
+      renderStatusScreen();
+
+      await screen.findAllByText("Visa Issued / Visa Rejected");
+      expect(within(stageRow("Visa Issued / Visa Rejected")).queryByRole("button", { name: "Download Visa Copy" })).toBeNull();
+    });
+
+    it("shows a Download Visa Copy action once an issued decision has an attached copy", async () => {
+      applicationProgressClient.getProgress.mockResolvedValue(progressPayload({ workflow: workflowPayload({ timeline: timelineThrough(11) }) }));
+      candidateWorkflowClient.getWorkflowHistory.mockResolvedValue(historyPayload());
+      candidateVisaDecisionsClient.listVisaDecisions.mockResolvedValue([visaDecision()]);
+      renderStatusScreen();
+
+      await screen.findAllByText("Visa Issued / Visa Rejected");
+      expect(within(stageRow("Visa Issued / Visa Rejected")).getByRole("button", { name: "Download Visa Copy" })).toBeOnTheScreen();
+    });
+
+    it("requests a signed URL on press, for the correct decision id, and hands it to the OS via Linking.openURL", async () => {
+      const originalApiBaseUrl = process.env.EXPO_PUBLIC_API_BASE_URL;
+      process.env.EXPO_PUBLIC_API_BASE_URL = "http://localhost:3000/api/v1";
+      applicationProgressClient.getProgress.mockResolvedValue(progressPayload({ workflow: workflowPayload({ timeline: timelineThrough(11) }) }));
+      candidateWorkflowClient.getWorkflowHistory.mockResolvedValue(historyPayload());
+      candidateVisaDecisionsClient.listVisaDecisions.mockResolvedValue([visaDecision()]);
+      candidateVisaDecisionsClient.requestVisaCopyAccess.mockResolvedValue({
+        visaDecisionId: "9b8a5883-70d5-4040-8823-424f4b4b669b",
+        url: "/rails/active_storage/blobs/proxy/abc/visa.pdf",
+        expiresAt: new Date(Date.now() + 5 * 60 * 1000).toISOString(),
+      });
+      const openURL = jest.spyOn(Linking, "openURL").mockResolvedValue();
+      renderStatusScreen();
+
+      await screen.findAllByText("Visa Issued / Visa Rejected");
+      expect(candidateVisaDecisionsClient.requestVisaCopyAccess).not.toHaveBeenCalled();
+
+      await act(async () => {
+        fireEvent.press(within(stageRow("Visa Issued / Visa Rejected")).getByRole("button", { name: "Download Visa Copy" }));
+      });
+
+      await waitFor(() => expect(openURL).toHaveBeenCalledTimes(1));
+      expect(candidateVisaDecisionsClient.requestVisaCopyAccess).toHaveBeenCalledWith(
+        "candidate-access-token",
+        "9b8a5883-70d5-4040-8823-424f4b4b669b"
+      );
+      expect(openURL.mock.calls[0][0]).toContain("/rails/active_storage/blobs/proxy/abc/visa.pdf");
+      openURL.mockRestore();
+      process.env.EXPO_PUBLIC_API_BASE_URL = originalApiBaseUrl;
+    });
+
+    it("shows a generic error and never calls Linking.openURL when the signed URL does not resolve to our own API origin (fails closed)", async () => {
+      const originalApiBaseUrl = process.env.EXPO_PUBLIC_API_BASE_URL;
+      process.env.EXPO_PUBLIC_API_BASE_URL = "http://localhost:3000/api/v1";
+      applicationProgressClient.getProgress.mockResolvedValue(progressPayload({ workflow: workflowPayload({ timeline: timelineThrough(11) }) }));
+      candidateWorkflowClient.getWorkflowHistory.mockResolvedValue(historyPayload());
+      candidateVisaDecisionsClient.listVisaDecisions.mockResolvedValue([visaDecision()]);
+      candidateVisaDecisionsClient.requestVisaCopyAccess.mockResolvedValue({
+        visaDecisionId: "9b8a5883-70d5-4040-8823-424f4b4b669b",
+        url: "https://evil.example/visa.pdf",
+        expiresAt: new Date(Date.now() + 5 * 60 * 1000).toISOString(),
+      });
+      const openURL = jest.spyOn(Linking, "openURL").mockResolvedValue();
+      renderStatusScreen();
+
+      await screen.findAllByText("Visa Issued / Visa Rejected");
+      await act(async () => {
+        fireEvent.press(within(stageRow("Visa Issued / Visa Rejected")).getByRole("button", { name: "Download Visa Copy" }));
+      });
+
+      expect(await screen.findByText("Something went wrong.")).toBeOnTheScreen();
+      expect(openURL).not.toHaveBeenCalled();
+      openURL.mockRestore();
+      process.env.EXPO_PUBLIC_API_BASE_URL = originalApiBaseUrl;
+    });
+
+    it("shows a field error when the backend reports the visa copy isn't attached after all", async () => {
+      applicationProgressClient.getProgress.mockResolvedValue(progressPayload({ workflow: workflowPayload({ timeline: timelineThrough(11) }) }));
+      candidateWorkflowClient.getWorkflowHistory.mockResolvedValue(historyPayload());
+      candidateVisaDecisionsClient.listVisaDecisions.mockResolvedValue([visaDecision()]);
+      candidateVisaDecisionsClient.requestVisaCopyAccess.mockRejectedValue({
+        code: "VISA_COPY_NOT_ATTACHED",
+        message: "Your visa copy has not been uploaded yet.",
+      });
+      renderStatusScreen();
+
+      await screen.findAllByText("Visa Issued / Visa Rejected");
+      await act(async () => {
+        fireEvent.press(within(stageRow("Visa Issued / Visa Rejected")).getByRole("button", { name: "Download Visa Copy" }));
+      });
+
+      expect(await screen.findByText("Your visa copy has not been uploaded yet.")).toBeOnTheScreen();
     });
   });
 });

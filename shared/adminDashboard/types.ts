@@ -10,7 +10,7 @@
 //
 // Web-only (AGENTS.md: "administrative workflows remain web-focused").
 import type { DocumentReviewQueueSummary } from '../adminDocumentReviews/types';
-import type { StatusSummaryRow } from '../adminReports/types';
+import type { ConversionRow, StatusSummaryRow } from '../adminReports/types';
 
 export interface CandidateWorkload {
   totalActiveCandidates: number;
@@ -22,11 +22,57 @@ export interface PaymentSummaryRow {
   count: number;
 }
 
+export type RequiresAttentionCode = 'rejected_documents' | 'failed_payment' | 'overdue_qvc' | 'callback_required';
+
+/** One cross-source exception count -- rejected documents, failed payments, overdue QVC appointments, or calls awaiting a callback. */
+export interface RequiresAttentionRow {
+  code: RequiresAttentionCode;
+  count: number;
+}
+
+export type UpcomingActivityType = 'qvc_appointment' | 'flight_departure';
+
+/** One QVC appointment or flight departure in the next 7 days. Protection appearances are not yet included -- see descon-be's UpcomingActivitiesQuery. */
+export interface UpcomingActivityRow {
+  type: UpcomingActivityType;
+  occursOn: string;
+  candidateAssignmentPublicId: string;
+  referenceNumber: string;
+}
+
+export interface RecentlyUpdatedCandidateRow {
+  candidateFullName: string;
+  candidatePublicId: string;
+  candidateAssignmentPublicId: string;
+  referenceNumber: string;
+  workflowStageCode: string;
+  lastUpdatedAt: string;
+}
+
+/** One day's real event count for a sparkline-eligible KPI -- registrations/payments/mobilizations per day, not a point-in-time backlog size. Distinct from adminReports/types.ts's TrendPoint (a `period` bucket, not a single calendar `date`). */
+export interface KpiTrendPoint {
+  date: string;
+  count: number;
+}
+
+export interface KpiTrends {
+  activeCandidates: KpiTrendPoint[];
+  paidPayments: KpiTrendPoint[];
+  mobilized: KpiTrendPoint[];
+}
+
 export interface AdminDashboardSummary {
   candidateWorkload: CandidateWorkload;
   workflowStageQueue: StatusSummaryRow[];
   documentReviewQueue: DocumentReviewQueueSummary;
   paymentSummary: PaymentSummaryRow[];
+  conversionFunnel: ConversionRow[];
+  /** Null when no assignment in scope has more than one recorded workflow-stage transition yet. */
+  averageStageDurationDays: number | null;
+  requiresAttention: RequiresAttentionRow[];
+  upcomingActivities: UpcomingActivityRow[];
+  recentlyUpdatedCandidates: RecentlyUpdatedCandidateRow[];
+  kpiTrends: KpiTrends;
 }
 
 export type AdminDashboardErrorCode =
@@ -34,6 +80,7 @@ export type AdminDashboardErrorCode =
   | 'INACTIVE_ACCOUNT'
   | 'SESSION_EXPIRED'
   | 'RATE_LIMITED'
+  | 'INVALID_FILTER'
   | 'NETWORK_ERROR'
   | 'OFFLINE'
   | 'SERVER_ERROR'
@@ -43,8 +90,17 @@ export interface AdminDashboardError {
   code: AdminDashboardErrorCode;
   message?: string;
   retryAfterSeconds?: number;
+  /** Set on INVALID_FILTER -- e.g. "filter.country_code". */
+  field?: string;
+}
+
+/** Scopes every dashboard section to candidates whose current assignment matches -- see descon-be's Admin::Reports::DashboardFilterResolution. */
+export interface AdminDashboardFilters {
+  countryCode?: string;
+  projectCode?: string;
+  craftCode?: string;
 }
 
 export interface AdminDashboardClient {
-  getDashboard(): Promise<AdminDashboardSummary>;
+  getDashboard(filters?: AdminDashboardFilters): Promise<AdminDashboardSummary>;
 }

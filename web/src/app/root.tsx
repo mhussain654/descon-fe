@@ -268,7 +268,13 @@ export function Layout({ children }: { children: ReactNode }) {
         <link rel="icon" href="/favicon.png" />
         {LoadFontsSSR ? <LoadFontsSSR /> : null}
       </head>
-      <body>
+      {/* Explicit `font-inter` (not just relying on the `sans` theme default) is
+          required for `loadFontsFromTailwindSource` (plugins/loadFontsFromTailwindSource.ts)
+          to actually emit a Google Fonts <link> for it -- that plugin only scans
+          source for literal `font-*` class usage, never reads tailwind.config.js's
+          `theme.fontFamily.sans` value. Without this, the whole app was silently
+          falling back to the browser's generic system sans-serif the entire time. */}
+      <body className="font-inter">
         {/* AuthProvider, StaffAuthProvider (and now QueryClientProvider) live here,
             not in app/layout.jsx (like LanguageProvider), because plugins/layouts.ts
             wraps *every* page.jsx with its own fresh copy of layout.jsx's providers --

@@ -7,7 +7,17 @@
 // rationale (an error response must reach the caller intact).
 import type { ApiClient, ApiError } from '../api-client';
 import type { StaffAuthClient, StaffAuthError } from '../auth/staffTypes';
-import type { AdminDashboardClient, AdminDashboardError, AdminDashboardErrorCode, AdminDashboardSummary, PaymentSummaryRow } from './types';
+import { buildDashboardQuery } from './dashboardQueryParams';
+import type {
+  AdminDashboardClient,
+  AdminDashboardError,
+  AdminDashboardErrorCode,
+  AdminDashboardFilters,
+  AdminDashboardSummary,
+  PaymentSummaryRow,
+  RequiresAttentionRow,
+  UpcomingActivityRow,
+} from './types';
 
 export interface RealAdminDashboardClientOptions {
   apiClient: ApiClient;
@@ -27,6 +37,28 @@ interface DashboardResponse {
     near_expiry_pcc: number;
   };
   payment_summary: { code: string; count: number }[];
+  conversion_funnel: { code: string; count: number; percentage: number }[];
+  average_stage_duration_days: number | null;
+  requires_attention: { code: string; count: number }[];
+  upcoming_activities: {
+    type: string;
+    occurs_on: string;
+    candidate_assignment_public_id: string;
+    reference_number: string;
+  }[];
+  recently_updated_candidates: {
+    candidate_full_name: string;
+    candidate_public_id: string;
+    candidate_assignment_public_id: string;
+    reference_number: string;
+    workflow_stage_code: string;
+    last_updated_at: string;
+  }[];
+  kpi_trends: {
+    active_candidates: { date: string; count: number }[];
+    paid_payments: { date: string; count: number }[];
+    mobilized: { date: string; count: number }[];
+  };
 }
 
 function toDashboard(data: DashboardResponse): AdminDashboardSummary {
@@ -41,6 +73,28 @@ function toDashboard(data: DashboardResponse): AdminDashboardSummary {
       nearExpiryPcc: data.document_review_queue.near_expiry_pcc,
     },
     paymentSummary: data.payment_summary as PaymentSummaryRow[],
+    conversionFunnel: data.conversion_funnel,
+    averageStageDurationDays: data.average_stage_duration_days,
+    requiresAttention: data.requires_attention as RequiresAttentionRow[],
+    upcomingActivities: data.upcoming_activities.map((row) => ({
+      type: row.type,
+      occursOn: row.occurs_on,
+      candidateAssignmentPublicId: row.candidate_assignment_public_id,
+      referenceNumber: row.reference_number,
+    })) as UpcomingActivityRow[],
+    recentlyUpdatedCandidates: data.recently_updated_candidates.map((row) => ({
+      candidateFullName: row.candidate_full_name,
+      candidatePublicId: row.candidate_public_id,
+      candidateAssignmentPublicId: row.candidate_assignment_public_id,
+      referenceNumber: row.reference_number,
+      workflowStageCode: row.workflow_stage_code,
+      lastUpdatedAt: row.last_updated_at,
+    })),
+    kpiTrends: {
+      activeCandidates: data.kpi_trends.active_candidates,
+      paidPayments: data.kpi_trends.paid_payments,
+      mobilized: data.kpi_trends.mobilized,
+    },
   };
 }
 
@@ -66,6 +120,7 @@ function toDashboardError(error: unknown): AdminDashboardError {
   if (apiError.code === 'NETWORK_ERROR' || apiError.code === 'TIMEOUT') return { code: 'NETWORK_ERROR' };
   if (apiError.code === 'CANCELLED') return { code: 'UNKNOWN' };
 
+  if (apiError.status === 400) return { code: 'INVALID_FILTER', message: apiError.message, field: apiError.field };
   if (apiError.status === 403) {
     const code: AdminDashboardErrorCode = apiError.serverCode === 'inactive_account' ? 'INACTIVE_ACCOUNT' : 'FORBIDDEN';
     return { code, message: apiError.message };
@@ -80,10 +135,11 @@ export function createAdminDashboardClient(options: RealAdminDashboardClientOpti
   const { apiClient, staffAuthClient, getLocale } = options;
 
   return {
-    async getDashboard(): Promise<AdminDashboardSummary> {
+    async getDashboard(filters: AdminDashboardFilters = {}): Promise<AdminDashboardSummary> {
       try {
+        const query = buildDashboardQuery(filters);
         const result = await staffAuthClient.authenticatedDataRequest((token) =>
-          apiClient.get<DashboardResponse>('/admin/dashboard', { headers: { Authorization: `Bearer ${token}`, 'X-Locale': getLocale() } })
+          apiClient.get<DashboardResponse>(`/admin/dashboard${query}`, { headers: { Authorization: `Bearer ${token}`, 'X-Locale': getLocale() } })
         );
         if (!result) throw { code: 'UNKNOWN' } satisfies AdminDashboardError;
 

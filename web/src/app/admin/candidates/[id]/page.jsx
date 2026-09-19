@@ -7,6 +7,7 @@ import { WorkflowPanel } from "../../../../features/admin/workflow/components/Wo
 import { CandidateProfileCard } from "../../../../features/admin/candidates/components/CandidateProfileCard";
 import { CandidateDocumentsSummaryCard } from "../../../../features/admin/candidates/components/CandidateDocumentsSummaryCard";
 import { CandidatePaymentStatusCard } from "../../../../features/admin/candidates/components/CandidatePaymentStatusCard";
+import { CandidateAiCallsCard } from "../../../../features/admin/candidateAiCalls/components/CandidateAiCallsCard";
 
 // No auth guard existed here before MPS-F202/MPS-F203 -- see the identical
 // note in ../../page.jsx.
@@ -32,25 +33,25 @@ function CandidateDetails({ params }) {
   const { t } = useLanguage();
 
   return (
-    <div className="min-h-screen bg-surface-sunken">
-      <div className="mx-auto max-w-4xl px-4 py-8 sm:px-6">
-        <a href="/admin" className="mb-6 inline-flex items-center text-sm font-medium text-brand hover:underline">
-          <ArrowLeft className="me-2 h-4 w-4" />
-          {t("adminBackToDashboard")}
-        </a>
+    <div className="mx-auto max-w-4xl px-4 py-6 sm:px-6">
+      <a href="/admin" className="mb-6 inline-flex items-center text-sm font-medium text-brand hover:underline">
+        <ArrowLeft className="me-2 h-4 w-4" />
+        {t("adminBackToDashboard")}
+      </a>
 
-        <div className="space-y-6">
-          <CandidateProfileCard candidateId={params.id} />
+      <div className="space-y-6">
+        <CandidateProfileCard candidateId={params.id} />
 
-          <CandidatePaymentStatusCard candidateId={params.id} />
+        <CandidatePaymentStatusCard candidateId={params.id} />
 
-          <CandidateDocumentsSummaryCard candidateId={params.id} />
+        <CandidateDocumentsSummaryCard candidateId={params.id} />
 
-          {/* Workflow-transition panel (MPS-F501 Phases A-C). Calls the real
-              backend directly using this route's `params.id` as the
-              candidate_id, same as CandidateProfileCard above. */}
-          <WorkflowPanel candidateId={params.id} />
-        </div>
+        <CandidateAiCallsCard candidateId={params.id} />
+
+        {/* Workflow-transition panel (MPS-F501 Phases A-C). Calls the real
+            backend directly using this route's `params.id` as the
+            candidate_id, same as CandidateProfileCard above. */}
+        <WorkflowPanel candidateId={params.id} />
       </div>
     </div>
   );

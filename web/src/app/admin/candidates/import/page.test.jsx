@@ -93,6 +93,9 @@ describe("CandidateImportPage", () => {
     const withPermission = await signInAs(HR);
     renderAt("/admin", withPermission);
     expect(await screen.findByText("Candidates dashboard stub")).toBeInTheDocument();
+
+    // "Import candidates" lives inside the sidebar's "Administration" section,
+    // which is always fully expanded -- no toggle to click.
     expect(screen.getByRole("link", { name: "Import candidates" })).toBeInTheDocument();
   });
 

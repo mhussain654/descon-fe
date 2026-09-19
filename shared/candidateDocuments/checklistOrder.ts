@@ -36,3 +36,20 @@ export function sortByPrototypeOrder<T extends Pick<CandidateDocumentChecklistIt
 
   return [...checklist].sort((a, b) => priority(a.requirementCode) - priority(b.requirementCode));
 }
+
+// The candidate's identity documents (passport, both CNIC sides, next of kin
+// CNIC) read as one cluster at the top of the checklist -- BankDetailsPanel
+// renders between this cluster and the rest of the checklist, not above
+// everything, so identity-document upload isn't interrupted by an unrelated
+// bank-details form.
+const CNIC_CLUSTER_CODES = new Set(['passport', 'cnic_front', 'cnic_back', 'next_of_kin_cnic']);
+
+/** Splits an already-`sortByPrototypeOrder`-sorted checklist so callers can render BankDetailsPanel between the two groups, each still in prototype order. */
+export function splitAroundCnicCluster<T extends Pick<CandidateDocumentChecklistItem, 'requirementCode'>>(
+  checklist: T[]
+): { cnicClusterItems: T[]; remainingItems: T[] } {
+  return {
+    cnicClusterItems: checklist.filter((item) => CNIC_CLUSTER_CODES.has(item.requirementCode)),
+    remainingItems: checklist.filter((item) => !CNIC_CLUSTER_CODES.has(item.requirementCode)),
+  };
+}

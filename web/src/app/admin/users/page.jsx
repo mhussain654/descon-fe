@@ -7,6 +7,7 @@ import { RequireStaffAuth } from "../../../features/staffAuth/RequireStaffAuth";
 import {
   Badge,
   Button,
+  Card,
   ConfirmDialog,
   DataTable,
   Dialog,
@@ -23,18 +24,12 @@ import {
   ValidationMessage,
   toast,
 } from "../../../design-system";
-import { STAFF_ROLE_RANK } from "../../../../../shared/auth/staffTypes";
+import { STAFF_ROLE_LABEL_KEYS, STAFF_ROLE_RANK } from "../../../../../shared/auth/staffTypes";
 import { staffDirectoryClient } from "../../../lib/staff-directory-client";
 
 const ROLES = ["admin", "hr", "mps", "finance", "management"];
 const STATUSES = ["active", "invited", "suspended"];
-const ROLE_LABEL_KEYS = {
-  admin: "staffAdminRoleAdmin",
-  hr: "staffAdminRoleHr",
-  mps: "staffAdminRoleMps",
-  finance: "staffAdminRoleFinance",
-  management: "staffAdminRoleManagement",
-};
+const ROLE_LABEL_KEYS = STAFF_ROLE_LABEL_KEYS;
 const STATUS_LABEL_KEYS = {
   active: "staffAdminStatusActive",
   invited: "staffAdminStatusInvited",
@@ -233,33 +228,35 @@ function StaffUsersContent() {
         />
       </div>
 
-      <div className="mb-4 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-        <SearchField
-          value={query}
-          onValueChange={setQuery}
-          placeholder={t("staffAdminSearchPlaceholder")}
-          label={t("dsSearchLabel")}
-          clearLabel={t("staffAdminClearSearch")}
-        />
-        <div className="flex flex-wrap gap-2">
-          <FilterChip selected={roleFilter === null} onClick={() => setRoleFilter(null)}>
-            {t("staffAdminFilterAllRoles")}
-          </FilterChip>
-          {ROLES.map((role) => (
-            <FilterChip key={role} selected={roleFilter === role} onClick={() => setRoleFilter(role)}>
-              {t(ROLE_LABEL_KEYS[role])}
+      <Card className="mb-4">
+        <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+          <SearchField
+            value={query}
+            onValueChange={setQuery}
+            placeholder={t("staffAdminSearchPlaceholder")}
+            label={t("dsSearchLabel")}
+            clearLabel={t("staffAdminClearSearch")}
+          />
+          <div className="flex flex-wrap gap-2">
+            <FilterChip selected={roleFilter === null} onClick={() => setRoleFilter(null)}>
+              {t("staffAdminFilterAllRoles")}
             </FilterChip>
-          ))}
-          <FilterChip selected={statusFilter === null} onClick={() => setStatusFilter(null)}>
-            {t("staffAdminFilterAllStatuses")}
-          </FilterChip>
-          {STATUSES.map((status) => (
-            <FilterChip key={status} selected={statusFilter === status} onClick={() => setStatusFilter(status)}>
-              {t(STATUS_LABEL_KEYS[status])}
+            {ROLES.map((role) => (
+              <FilterChip key={role} selected={roleFilter === role} onClick={() => setRoleFilter(role)}>
+                {t(ROLE_LABEL_KEYS[role])}
+              </FilterChip>
+            ))}
+            <FilterChip selected={statusFilter === null} onClick={() => setStatusFilter(null)}>
+              {t("staffAdminFilterAllStatuses")}
             </FilterChip>
-          ))}
+            {STATUSES.map((status) => (
+              <FilterChip key={status} selected={statusFilter === status} onClick={() => setStatusFilter(status)}>
+                {t(STATUS_LABEL_KEYS[status])}
+              </FilterChip>
+            ))}
+          </div>
         </div>
-      </div>
+      </Card>
 
       {staffQuery.isLoading ? (
         <LoadingState message={t("loading")} />

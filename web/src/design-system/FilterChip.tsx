@@ -18,7 +18,7 @@ export function FilterChip({ selected, onClick, children }: FilterChipProps) {
       className={classNames(
         'inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-sm font-medium transition-colors',
         'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
-        selected ? 'bg-brand text-brand-on' : 'bg-surface-sunken text-text-secondary hover:bg-gray-200'
+        selected ? 'bg-brand text-brand-on' : 'bg-surface-sunken text-text-secondary hover:bg-borderStrong/40'
       )}
     >
       {selected ? <Check className="h-3.5 w-3.5" aria-hidden="true" /> : null}

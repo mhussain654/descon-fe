@@ -95,6 +95,11 @@ describe("DocumentReviewsPage", () => {
       renderAt("/admin/document-reviews", client);
 
       expect(await screen.findByRole("heading", { name: "Document Review Queue" })).toBeInTheDocument();
+      // Drain the query fully before the test ends -- otherwise a still-in-flight
+      // fetch can resolve during the next test and get recorded against this same
+      // module-level mock, which `afterEach` only resets the call log of, not any
+      // promise already underway.
+      await waitFor(() => expect(adminDocumentReviewsClient.getQueue).toHaveBeenCalledTimes(1));
     });
 
     it.each([

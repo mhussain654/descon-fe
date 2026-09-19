@@ -97,6 +97,13 @@ through these variables.
   soon" tile instead. `admin/page.jsx` links to `/admin/candidates/new`,
   which does not exist (resolves to the catch-all not-found route) — see the
   UX inventory for the recommended follow-up.
+- The admin portal's navigation shell (`web/src/app/components/staff-shell.tsx`)
+  was redesigned from a horizontal top bar with dropdown menus to a persistent
+  left sidebar (collapsing to a slide-in drawer below the `lg` breakpoint) as
+  part of a full admin-portal visual redesign — supersedes MPS-F902's original
+  top-nav grouping decision; see the admin-portal redesign plan for the full
+  scope (sidebar shell, dashboard charts, list/detail page restyling) and
+  status of each phase.
 - Two admin screens (`web/src/app/admin/page.jsx` and
   `web/src/app/admin/candidates/[id]/page.jsx`) still call an in-memory mock
   API (`web/src/app/api/*`, backed by `web/src/app/api/utils/mock-db.js`)

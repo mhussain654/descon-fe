@@ -1,11 +1,13 @@
 import { useEffect, useState } from 'react';
+import { AlertTriangle, Clock } from 'lucide-react';
 import { useLanguage } from '../../../../contexts/LanguageContext';
 import { useStaffAuth } from '../../../../contexts/StaffAuthContext';
 import { Card, ErrorState, ForbiddenState, LoadingState, OfflineState, Select, StatTile } from '../../../../design-system';
 import { MPS_DASHBOARD_ERROR_KEYS } from '../../../../../../shared/adminMpsDashboard/errorMessages';
 import type { TrendGranularity } from '../../../../lib/admin-mps-dashboard-client';
-import type { TranslationKey } from '../../../../../../shared/i18n/translations';
+import type { Language, TranslationKey } from '../../../../../../shared/i18n/translations';
 import { CraftSummaryTable, MobilizationTables, stageLabel, TrendTable, type TFn } from '../../reports/components/ReportTables';
+import { CategoryBarChart, TrendChart } from '../../reports/components/ReportCharts';
 import { useMpsDashboard } from '../hooks/useMpsDashboard';
 
 const GRANULARITY_OPTIONS: { value: TrendGranularity; labelKey: TranslationKey }[] = [
@@ -21,7 +23,7 @@ const GRANULARITY_OPTIONS: { value: TrendGranularity; labelKey: TranslationKey }
  * query's own FORBIDDEN state, same as PaymentTransactionList.tsx.
  */
 export function MpsDashboard() {
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
   const { signOut } = useStaffAuth();
   const [granularity, setGranularity] = useState<TrendGranularity>('monthly');
   const query = useMpsDashboard(granularity);
@@ -41,7 +43,7 @@ export function MpsDashboard() {
         <p className="text-sm text-text-secondary">{t('mpsDashboardSubtitle')}</p>
       </div>
 
-      <DashboardContent query={query} granularity={granularity} onGranularityChange={setGranularity} t={t} />
+      <DashboardContent query={query} granularity={granularity} onGranularityChange={setGranularity} t={t} language={language} />
     </div>
   );
 }
@@ -51,11 +53,13 @@ function DashboardContent({
   granularity,
   onGranularityChange,
   t,
+  language,
 }: {
   query: ReturnType<typeof useMpsDashboard>;
   granularity: TrendGranularity;
   onGranularityChange: (value: TrendGranularity) => void;
   t: TFn;
+  language: Language;
 }) {
   if (query.isLoading) {
     return <LoadingState message={t('loading')} />;
@@ -82,22 +86,31 @@ function DashboardContent({
   const data = query.data;
   if (!data) return null;
 
+  const workflowStageChartData = data.workflowStageQueue.map((row) => ({
+    key: row.code,
+    label: stageLabel(row.code, t),
+    value: row.count,
+  }));
+
   return (
     <div className="flex flex-col gap-4">
       <Card>
         <h2 className="mb-2 text-sm font-semibold text-text-primary">{t('mpsDashboardDelayedCasesTitle')}</h2>
         <div className="flex flex-wrap gap-2">
-          <StatTile value={data.delayedCases.delayed} label={t('mpsDashboardDelayed')} className="bg-[#FFF7E6] text-[#F59E0B]" />
-          <StatTile value={data.delayedCases.critical} label={t('mpsDashboardCritical')} className="bg-[#FEF2F2] text-[#EF4444]" />
+          <StatTile value={data.delayedCases.delayed} label={t('mpsDashboardDelayed')} className="bg-warning-subtle text-warning-emphasis" icon={<Clock />} />
+          <StatTile value={data.delayedCases.critical} label={t('mpsDashboardCritical')} className="bg-danger-subtle text-danger-emphasis" icon={<AlertTriangle />} />
         </div>
       </Card>
 
       <Card>
         <h2 className="text-sm font-semibold text-text-primary">{t('dashboardWorkflowStageQueueTitle')}</h2>
         <p className="mb-2 text-xs text-text-secondary">{t('dashboardWorkflowStageQueueSubtitle')}</p>
+        <div className="mb-4">
+          <CategoryBarChart data={workflowStageChartData} />
+        </div>
         <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 xl:grid-cols-4">
           {data.workflowStageQueue.map((row) => (
-            <StatTile key={row.code} value={row.count} label={stageLabel(row.code, t)} className="bg-[#F6F6F6] text-[#374151]" />
+            <StatTile key={row.code} value={row.count} label={stageLabel(row.code, t)} className="bg-surface-sunken text-text-secondary" />
           ))}
         </div>
       </Card>
@@ -118,6 +131,11 @@ function DashboardContent({
             options={GRANULARITY_OPTIONS.map((option) => ({ value: option.value, label: t(option.labelKey) }))}
           />
         </div>
+        {data.mobilizationTrend.length > 0 ? (
+          <Card className="mb-4">
+            <TrendChart rows={data.mobilizationTrend} granularity={granularity} language={language} />
+          </Card>
+        ) : null}
         <TrendTable rows={data.mobilizationTrend} t={t} />
       </div>
     </div>

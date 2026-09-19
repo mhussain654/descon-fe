@@ -7,6 +7,7 @@ import { LanguageProvider } from "../../contexts/LanguageContext";
 import { applicationProgressClient } from "../../lib/application-progress-client";
 import { candidateWorkflowClient } from "../../lib/candidate-workflow-client";
 import { candidateFlightDetailClient } from "../../lib/candidate-flight-detail-client";
+import { candidateVisaDecisionsClient } from "../../lib/candidate-visa-decisions-client";
 import StatusPage from "./page";
 
 vi.mock("../../lib/application-progress-client", () => ({
@@ -17,6 +18,9 @@ vi.mock("../../lib/candidate-workflow-client", () => ({
 }));
 vi.mock("../../lib/candidate-flight-detail-client", () => ({
   candidateFlightDetailClient: { getFlightDetail: vi.fn(), requestTicketAccess: vi.fn() },
+}));
+vi.mock("../../lib/candidate-visa-decisions-client", () => ({
+  candidateVisaDecisionsClient: { listVisaDecisions: vi.fn(), requestVisaCopyAccess: vi.fn() },
 }));
 
 function flightDetail(overrides = {}) {
@@ -97,6 +101,18 @@ function progressPayload(overrides = {}) {
   };
 }
 
+function visaDecision(overrides = {}) {
+  return {
+    id: "9b8a5883-70d5-4040-8823-424f4b4b669b",
+    outcomeCode: "issued",
+    decisionDate: "2026-09-05",
+    rejectionReasonCode: null,
+    visaCopyAttached: true,
+    createdAt: "2026-09-05T10:00:00Z",
+    ...overrides,
+  };
+}
+
 function historyPayload(overrides = {}) {
   return {
     items: [{ fromStage: null, toStage: CANONICAL_STAGES[0], occurredAt: "2026-08-01T00:00:00Z", reasonCode: null, details: null }],
@@ -168,6 +184,7 @@ describe("StatusPage", () => {
   // documents/page.test.jsx's identical established convention.
   beforeEach(() => {
     candidateFlightDetailClient.getFlightDetail.mockResolvedValue(null);
+    candidateVisaDecisionsClient.listVisaDecisions.mockResolvedValue([]);
   });
 
   afterEach(() => {
@@ -175,6 +192,8 @@ describe("StatusPage", () => {
     vi.mocked(candidateWorkflowClient.getWorkflowHistory).mockReset();
     vi.mocked(candidateFlightDetailClient.getFlightDetail).mockReset();
     vi.mocked(candidateFlightDetailClient.requestTicketAccess).mockReset();
+    vi.mocked(candidateVisaDecisionsClient.listVisaDecisions).mockReset();
+    vi.mocked(candidateVisaDecisionsClient.requestVisaCopyAccess).mockReset();
   });
 
   it("shows a loading state before progress resolves", async () => {
@@ -438,6 +457,87 @@ describe("StatusPage", () => {
       fireEvent.click(within(stageRow("Flight Details Uploaded")).getByRole("button", { name: "Download Ticket" }));
 
       expect(await screen.findByText("Your flight ticket has not been uploaded yet.")).toBeInTheDocument();
+    });
+  });
+
+  describe("visa copy download", () => {
+    it("shows the visa outcome on the visa stage once the backend has recorded one, sourced from the visa decisions list", async () => {
+      applicationProgressClient.getProgress.mockResolvedValue(progressPayload({ workflow: workflowPayload({ timeline: timelineThrough(11) }) }));
+      candidateWorkflowClient.getWorkflowHistory.mockResolvedValue(historyPayload());
+      candidateVisaDecisionsClient.listVisaDecisions.mockResolvedValue([visaDecision()]);
+      await signInAndNavigateToStatus();
+
+      await screen.findAllByText("Visa Issued / Visa Rejected");
+      const outcomeRow = stageRow("Visa Issued / Visa Rejected");
+      // The stage title itself ("Visa Issued / Visa Rejected") also contains the word
+      // "Issued", so match on the outcome badge specifically ("Visa Outcome: ..."),
+      // not a bare /Issued/ regex against the whole row.
+      expect(within(outcomeRow).getByText(/Visa Outcome/).textContent).toMatch(/Issued/);
+    });
+
+    it("shows no download action for a rejected decision, which never has a visa copy attached", async () => {
+      applicationProgressClient.getProgress.mockResolvedValue(progressPayload({ workflow: workflowPayload({ timeline: timelineThrough(11) }) }));
+      candidateWorkflowClient.getWorkflowHistory.mockResolvedValue(historyPayload());
+      candidateVisaDecisionsClient.listVisaDecisions.mockResolvedValue([
+        visaDecision({ outcomeCode: "rejected", rejectionReasonCode: "document_discrepancy", visaCopyAttached: false }),
+      ]);
+      await signInAndNavigateToStatus();
+
+      await screen.findAllByText("Visa Issued / Visa Rejected");
+      const outcomeRow = stageRow("Visa Issued / Visa Rejected");
+      expect(within(outcomeRow).getByText(/Visa Outcome/).textContent).toMatch(/Rejected/);
+      expect(within(outcomeRow).queryByRole("button", { name: "Download Visa Copy" })).not.toBeInTheDocument();
+    });
+
+    it("shows a Download Visa Copy action once an issued decision has an attached copy", async () => {
+      applicationProgressClient.getProgress.mockResolvedValue(progressPayload({ workflow: workflowPayload({ timeline: timelineThrough(11) }) }));
+      candidateWorkflowClient.getWorkflowHistory.mockResolvedValue(historyPayload());
+      candidateVisaDecisionsClient.listVisaDecisions.mockResolvedValue([visaDecision()]);
+      await signInAndNavigateToStatus();
+
+      await screen.findAllByText("Visa Issued / Visa Rejected");
+      expect(within(stageRow("Visa Issued / Visa Rejected")).getByRole("button", { name: "Download Visa Copy" })).toBeInTheDocument();
+    });
+
+    it("requests a signed URL on click, for the correct decision id, and renders it as an Open Visa Copy link, never eagerly fetching it on page load", async () => {
+      applicationProgressClient.getProgress.mockResolvedValue(progressPayload({ workflow: workflowPayload({ timeline: timelineThrough(11) }) }));
+      candidateWorkflowClient.getWorkflowHistory.mockResolvedValue(historyPayload());
+      candidateVisaDecisionsClient.listVisaDecisions.mockResolvedValue([visaDecision()]);
+      candidateVisaDecisionsClient.requestVisaCopyAccess.mockResolvedValue({
+        visaDecisionId: "9b8a5883-70d5-4040-8823-424f4b4b669b",
+        url: "/rails/active_storage/blobs/proxy/abc/visa.pdf",
+        expiresAt: new Date(Date.now() + 5 * 60 * 1000).toISOString(),
+      });
+      await signInAndNavigateToStatus();
+
+      await screen.findAllByText("Visa Issued / Visa Rejected");
+      expect(candidateVisaDecisionsClient.requestVisaCopyAccess).not.toHaveBeenCalled();
+
+      fireEvent.click(within(stageRow("Visa Issued / Visa Rejected")).getByRole("button", { name: "Download Visa Copy" }));
+
+      const link = await within(stageRow("Visa Issued / Visa Rejected")).findByRole("link", { name: "Open Visa Copy" });
+      expect(link).toHaveAttribute("href", expect.stringContaining("/rails/active_storage/blobs/proxy/abc/visa.pdf"));
+      expect(link).toHaveAttribute("target", "_blank");
+      expect(candidateVisaDecisionsClient.requestVisaCopyAccess).toHaveBeenCalledWith(
+        "candidate-access-token",
+        "9b8a5883-70d5-4040-8823-424f4b4b669b"
+      );
+    });
+
+    it("shows a field error when the backend reports the visa copy isn't attached after all", async () => {
+      applicationProgressClient.getProgress.mockResolvedValue(progressPayload({ workflow: workflowPayload({ timeline: timelineThrough(11) }) }));
+      candidateWorkflowClient.getWorkflowHistory.mockResolvedValue(historyPayload());
+      candidateVisaDecisionsClient.listVisaDecisions.mockResolvedValue([visaDecision()]);
+      candidateVisaDecisionsClient.requestVisaCopyAccess.mockRejectedValue({
+        code: "VISA_COPY_NOT_ATTACHED",
+        message: "Your visa copy has not been uploaded yet.",
+      });
+      await signInAndNavigateToStatus();
+
+      await screen.findAllByText("Visa Issued / Visa Rejected");
+      fireEvent.click(within(stageRow("Visa Issued / Visa Rejected")).getByRole("button", { name: "Download Visa Copy" }));
+
+      expect(await screen.findByText("Your visa copy has not been uploaded yet.")).toBeInTheDocument();
     });
   });
 });

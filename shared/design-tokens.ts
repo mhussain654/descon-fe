@@ -6,6 +6,14 @@
 // mirrored there with a comment pointing back here). Mobile imports this
 // module directly for its React Native StyleSheet-based components.
 //
+// The `text`/`surface`/`borderStrong` values below are this light theme's
+// values specifically. Web's admin portal additionally supports a dark theme
+// (see StaffShell's theme toggle) by re-declaring these same token names as
+// CSS variables in web/src/app/global.css (`:root` for light, `.dark` for
+// dark) -- the literal values here and in tailwind.config.js are the `:root`
+// (light) definitions. Mobile has no dark theme yet and stays on these literal
+// light values unchanged.
+//
 // Values mirror the approved prototype's existing visual language (see the
 // dashboard/status pages' `#0066CC` brand blue, `#10B981` success green,
 // `#F59E0B` warning amber, gray-200/500/900 neutrals) rather than inventing a
