@@ -5,7 +5,7 @@ import { Button, Card, ErrorState, ForbiddenState, LoadingState, OfflineState, S
 import { REPORT_ERROR_KEYS } from '../../../../../../shared/adminReports/errorMessages';
 import { REPORT_TYPE_LABEL_KEYS } from '../../../../../../shared/adminReports/reportTypeLabels';
 import type { ReportData, ReportExportFormat, ReportType, TrendGranularity } from '../../../../lib/admin-reports-client';
-import type { TranslationKey } from '../../../../../../shared/i18n/translations';
+import type { Language, TranslationKey } from '../../../../../../shared/i18n/translations';
 import { useReportData } from '../hooks/useReportData';
 import { useReportExport } from '../hooks/useReportExport';
 import { useReportTypes } from '../hooks/useReportTypes';
@@ -18,6 +18,7 @@ import {
   TrendTable,
   type TFn,
 } from './ReportTables';
+import { TrendChart } from './ReportCharts';
 
 const GRANULARITY_OPTIONS: { value: TrendGranularity; labelKey: TranslationKey }[] = [
   { value: 'daily', labelKey: 'reportsGranularityDaily' },
@@ -41,7 +42,7 @@ const ALL_REPORT_TYPES = Object.keys(REPORT_TYPE_LABEL_KEYS) as ReportType[];
  * PaymentTransactionList.tsx.
  */
 export function ReportsWorkspace() {
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
   const { signOut } = useStaffAuth();
   const [reportType, setReportType] = useState<ReportType>('status_summary');
   const [granularity, setGranularity] = useState<TrendGranularity>('monthly');
@@ -115,12 +116,22 @@ export function ReportsWorkspace() {
         ) : null}
       </Card>
 
-      <ReportContent query={dataQuery} t={t} />
+      <ReportContent query={dataQuery} t={t} language={language} granularity={granularity} />
     </div>
   );
 }
 
-function ReportContent({ query, t }: { query: ReturnType<typeof useReportData>; t: TFn }) {
+function ReportContent({
+  query,
+  t,
+  language,
+  granularity,
+}: {
+  query: ReturnType<typeof useReportData>;
+  t: TFn;
+  language: Language;
+  granularity: TrendGranularity;
+}) {
   if (query.isLoading) {
     return <LoadingState message={t('loading')} />;
   }
@@ -145,10 +156,20 @@ function ReportContent({ query, t }: { query: ReturnType<typeof useReportData>; 
 
   if (!query.data) return null;
 
-  return <ReportTable data={query.data} t={t} />;
+  return <ReportTable data={query.data} t={t} language={language} granularity={granularity} />;
 }
 
-function ReportTable({ data, t }: { data: ReportData; t: TFn }) {
+function ReportTable({
+  data,
+  t,
+  language,
+  granularity,
+}: {
+  data: ReportData;
+  t: TFn;
+  language: Language;
+  granularity: TrendGranularity;
+}) {
   switch (data.type) {
     case 'status_summary':
       return <StatusSummaryTable rows={data.rows} t={t} />;
@@ -157,7 +178,16 @@ function ReportTable({ data, t }: { data: ReportData; t: TFn }) {
     case 'conversion':
       return <ConversionTable rows={data.rows} t={t} />;
     case 'trend':
-      return <TrendTable rows={data.rows} t={t} />;
+      return (
+        <div className="flex flex-col gap-4">
+          {data.rows.length > 0 ? (
+            <Card>
+              <TrendChart rows={data.rows} granularity={granularity} language={language} />
+            </Card>
+          ) : null}
+          <TrendTable rows={data.rows} t={t} />
+        </div>
+      );
     case 'mobilization':
       return <MobilizationTables summary={data.summary} t={t} />;
     case 'outcome_tracking':

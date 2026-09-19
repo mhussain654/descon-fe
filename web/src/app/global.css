@@ -28,6 +28,68 @@
   --input: 220 13% 91%;
   --ring: 210 100% 40%;
   --radius: 0.75rem;
+
+  /* Semantic design-system neutrals (shared/design-tokens.ts `colors.text`/
+     `colors.surface`/`colors.borderStrong`), mirrored here as CSS variables
+     -- see web/tailwind.config.js's `text`/`surface`/`borderStrong` entries,
+     which reference these instead of a literal hex so they can be re-themed
+     by the `.dark` block below without touching every component that uses
+     them (bg-surface-raised, text-text-secondary, ...). Values match the
+     previous literal hex exactly, so light mode is visually unchanged. */
+  --text-primary: #111827;
+  --text-secondary: #6B7280;
+  --text-tertiary: #9CA3AF;
+  --text-disabled: #C1C5CB;
+  --text-inverse: #FFFFFF;
+  --surface-background: #F8F9FA;
+  --surface-raised: #FFFFFF;
+  --surface-sunken: #F3F4F6;
+  --border-strong: #D1D5DB;
+}
+
+/*
+ * Admin-portal dark theme (MPS admin redesign follow-up). Scoped to a `.dark`
+ * class applied only inside StaffShell (web/src/app/components/staff-shell.tsx)
+ * -- never on <html>/<body> -- so it only ever affects the staff admin portal,
+ * never the candidate-facing app, which hasn't been visually verified against
+ * these overrides. Values are chosen to match the sidebar's existing slate-900/
+ * slate-800 palette (see SIDEBAR_SURFACE_CLASSNAME) so the header/content area
+ * reads as one consistent dark surface rather than a mismatched patchwork.
+ */
+.dark {
+  --background: 222 47% 11%;
+  --foreground: 210 20% 98%;
+  --card: 217 33% 17%;
+  --card-foreground: 210 20% 98%;
+  --popover: 217 33% 17%;
+  --popover-foreground: 210 20% 98%;
+  --primary: 210 90% 58%;
+  --primary-foreground: 0 0% 100%;
+  --secondary: 217 33% 20%;
+  --secondary-foreground: 210 20% 98%;
+  --muted: 217 33% 20%;
+  --muted-foreground: 215 16% 65%;
+  --accent: 217 33% 22%;
+  --accent-foreground: 210 90% 70%;
+  --destructive: 0 72% 58%;
+  --destructive-foreground: 0 0% 100%;
+  --border: 217 19% 27%;
+  --input: 217 19% 27%;
+  --ring: 210 90% 58%;
+
+  --text-primary: #f1f5f9;
+  --text-secondary: #94a3b8;
+  --text-tertiary: #64748b;
+  --text-disabled: #475569;
+  --text-inverse: #0f172a;
+  --surface-background: #0f172a;
+  --surface-raised: #1e293b;
+  /* Only a little darker than --surface-raised (mirrors how light mode's
+     sunken/#F3F4F6 is only slightly darker than raised/#FFFFFF) -- an
+     earlier, much darker value made a "sunken" tile inside an already-dark
+     card read as a black hole rather than a subtle recessed chip. */
+  --surface-sunken: #172235;
+  --border-strong: #475569;
 }
 
 @layer base {

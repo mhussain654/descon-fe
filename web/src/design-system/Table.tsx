@@ -2,6 +2,7 @@
 // dependency, already themed via our CSS variables) rather than hand-rolling
 // table markup. Its outer `overflow-auto` wrapper is the small-screen
 // strategy AGENTS.md asks for ("controlled scrolling").
+import classNames from 'classnames';
 import {
   Table as TableRoot,
   TableBody,
@@ -31,6 +32,15 @@ export interface DataTableProps<T> {
   emptyState?: ReactNode;
 }
 
+// A tinted, small-caps header row -- the "modern SaaS table" treatment
+// referenced by this redesign's Admindek/Tailboard sources -- reads better
+// than the browser-default header row shadcn's table.mjs ships with. Set
+// here, once, so every one of the 8 admin list pages built on DataTable
+// picks it up automatically (Phase 2 of the admin portal redesign: "restyle
+// shared chrome once, apply consistently").
+const HEADER_ROW_CLASSNAME = 'bg-surface-sunken/60 hover:bg-surface-sunken/60';
+const HEADER_CELL_CLASSNAME = 'text-xs font-semibold uppercase tracking-wide text-text-secondary';
+
 /** Generic data table: columns + rows in, a horizontally-scrollable table (or empty state) out. */
 export function DataTable<T>({ columns, rows, getRowId, emptyState }: DataTableProps<T>) {
   if (rows.length === 0 && emptyState) {
@@ -40,9 +50,9 @@ export function DataTable<T>({ columns, rows, getRowId, emptyState }: DataTableP
   return (
     <TableRoot>
       <TableHeader>
-        <TableRow>
+        <TableRow className={HEADER_ROW_CLASSNAME}>
           {columns.map((column) => (
-            <TableHead key={column.key} className={column.headerClassName}>
+            <TableHead key={column.key} className={classNames(HEADER_CELL_CLASSNAME, column.headerClassName)}>
               {column.header}
             </TableHead>
           ))}

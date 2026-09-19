@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { ArrowLeft } from 'lucide-react';
 import { Link } from 'react-router';
 import { useLanguage } from '../../../../contexts/LanguageContext';
 import { useStaffAuth } from '../../../../contexts/StaffAuthContext';
@@ -85,7 +86,8 @@ export function PaymentDetail({ paymentId }: PaymentDetailProps) {
 
   return (
     <div className="mx-auto max-w-3xl space-y-5 px-4 py-6 sm:px-6">
-      <Link to="/admin/finance/payments" className="inline-block text-sm font-medium text-brand hover:underline">
+      <Link to="/admin/finance/payments" className="inline-flex items-center text-sm font-medium text-brand hover:underline">
+        <ArrowLeft className="me-2 h-4 w-4" aria-hidden="true" />
         {t('adminFinancePaymentBackToList')}
       </Link>
 

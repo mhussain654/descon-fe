@@ -1,4 +1,5 @@
 import { useEffect } from 'react';
+import { ArrowLeft } from 'lucide-react';
 import { Link } from 'react-router';
 import { useLanguage } from '../../../../contexts/LanguageContext';
 import { useStaffAuth } from '../../../../contexts/StaffAuthContext';
@@ -104,10 +105,15 @@ export function CandidateImportDetail({ importId }: CandidateImportDetailProps) 
   const hasErrorsToDownload = batch.rejectedRows + batch.skippedRows > 0;
 
   return (
-    <div className="space-y-5">
+    <div className="mx-auto max-w-3xl space-y-5 px-4 py-6 sm:px-6">
+      <Link to="/admin/candidates/import" className="inline-flex items-center text-sm font-medium text-brand hover:underline">
+        <ArrowLeft className="me-2 h-4 w-4" aria-hidden="true" />
+        {t('adminCandidateImportBackToImport')}
+      </Link>
+
       <Card>
         <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
-          <h2 className="text-lg font-semibold text-text-primary">{t('adminCandidateImportDetailTitle')}</h2>
+          <h1 className="text-lg font-semibold text-text-primary">{t('adminCandidateImportDetailTitle')}</h1>
           <Badge tone={STATUS_TONES[batch.status]}>{t(STATUS_LABEL_KEYS[batch.status])}</Badge>
         </div>
 
@@ -207,10 +213,6 @@ export function CandidateImportDetail({ importId }: CandidateImportDetailProps) 
       <Card>
         <ImportRowResultsTable rowResults={batch.rowResults} t={t} />
       </Card>
-
-      <Link to="/admin/candidates/import" className="inline-block text-sm font-medium text-brand hover:underline">
-        {t('adminCandidateImportBackToImport')}
-      </Link>
     </div>
   );
 }

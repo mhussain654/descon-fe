@@ -14,3 +14,16 @@ expect.extend(toHaveNoViolations);
 if (typeof document !== 'undefined' && !document.elementFromPoint) {
   document.elementFromPoint = () => null;
 }
+
+// jsdom doesn't implement ResizeObserver either; recharts' ResponsiveContainer
+// (web/src/client-integrations/recharts.jsx, first used in the admin portal's
+// Phase 1 dashboard charts) reads it unconditionally on mount. A no-op stub is
+// all tests need -- they assert on the chart's data/markup, never on real
+// resize behavior, which jsdom can't produce anyway.
+if (typeof window !== 'undefined' && !window.ResizeObserver) {
+  window.ResizeObserver = class ResizeObserver {
+    observe() {}
+    unobserve() {}
+    disconnect() {}
+  };
+}

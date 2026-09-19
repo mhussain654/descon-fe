@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { MemoryRouter, Route, Routes } from "react-router";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -94,9 +94,8 @@ describe("CandidateImportPage", () => {
     renderAt("/admin", withPermission);
     expect(await screen.findByText("Candidates dashboard stub")).toBeInTheDocument();
 
-    // "Import candidates" lives inside the "Administration" nav group.
-    fireEvent.click(screen.getByRole("button", { name: "Administration" }));
-
+    // "Import candidates" lives inside the sidebar's "Administration" section,
+    // which is always fully expanded -- no toggle to click.
     expect(screen.getByRole("link", { name: "Import candidates" })).toBeInTheDocument();
   });
 

@@ -24,14 +24,12 @@ function NewCandidateContent() {
   const { t } = useLanguage();
 
   return (
-    <div className="min-h-screen bg-surface-sunken">
-      <div className="mx-auto max-w-3xl px-4 py-8 sm:px-6">
-        <Link to="/admin" className="mb-4 inline-flex items-center text-sm font-medium text-brand hover:underline">
-          <ArrowLeft className="me-2 h-4 w-4" />
-          {t("adminBackToDashboard")}
-        </Link>
-        <CandidateCreateForm />
-      </div>
+    <div className="mx-auto max-w-3xl px-4 py-6 sm:px-6">
+      <Link to="/admin" className="mb-4 inline-flex items-center text-sm font-medium text-brand hover:underline">
+        <ArrowLeft className="me-2 h-4 w-4" />
+        {t("adminBackToDashboard")}
+      </Link>
+      <CandidateCreateForm />
     </div>
   );
 }

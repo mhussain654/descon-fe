@@ -1,4 +1,5 @@
 import { useCallback, useEffect } from 'react';
+import { Clock } from 'lucide-react';
 import { Link, useSearchParams } from 'react-router';
 import { useLanguage } from '../../../../contexts/LanguageContext';
 import { useStaffAuth } from '../../../../contexts/StaffAuthContext';
@@ -15,11 +16,17 @@ import {
   OfflineState,
   Pagination,
   RetryBanner,
+  StatTile,
   type DataTableColumn,
 } from '../../../../design-system';
 import { formatDate } from '../../../../../../shared/i18n/locale';
 import { ADMIN_DOCUMENT_REVIEW_ERROR_KEYS } from '../../../../../../shared/adminDocumentReviews/errorMessages';
 import { referenceDisplayName } from '../../../../../../shared/adminDocumentReviews/formatting';
+import {
+  CategoryDonutChart,
+  DOCUMENT_REVIEW_ROW_STYLE,
+  TONE_TILE_CLASSNAME,
+} from '../../reports/components/ReportCharts';
 import {
   DOCUMENT_REVIEW_SUMMARY_ROWS,
   FILTERABLE_QUEUE_STATUSES,
@@ -166,14 +173,31 @@ export function DocumentReviewQueue() {
       {query.data?.summary ? (
         <Card className="mb-4">
           <h2 className="mb-3 text-sm font-semibold text-text-primary">{t('adminDocumentReviewSummaryTitle')}</h2>
-          <dl className="flex flex-wrap gap-6">
-            {SUMMARY_ROWS.map((row) => (
-              <div key={row.key}>
-                <dt className="text-xs text-text-tertiary">{t(row.labelKey as TranslationKey)}</dt>
-                <dd className="text-xl font-semibold text-text-primary">{query.data?.summary[row.key] ?? 0}</dd>
-              </div>
-            ))}
-          </dl>
+          <div className="flex flex-col items-center gap-4 sm:flex-row">
+            <CategoryDonutChart
+              data={SUMMARY_ROWS.map((row) => ({
+                key: row.key,
+                label: t(row.labelKey as TranslationKey),
+                value: query.data?.summary[row.key] ?? 0,
+                tone: DOCUMENT_REVIEW_ROW_STYLE[row.key]?.tone,
+              }))}
+            />
+            <div className="flex flex-1 flex-wrap gap-2">
+              {SUMMARY_ROWS.map((row) => {
+                const style = DOCUMENT_REVIEW_ROW_STYLE[row.key];
+                const Icon = style?.icon ?? Clock;
+                return (
+                  <StatTile
+                    key={row.key}
+                    value={query.data?.summary[row.key] ?? 0}
+                    label={t(row.labelKey as TranslationKey)}
+                    className={TONE_TILE_CLASSNAME[style?.tone ?? 'neutral']}
+                    icon={<Icon />}
+                  />
+                );
+              })}
+            </div>
+          </div>
         </Card>
       ) : null}
 
