@@ -6,17 +6,17 @@ import type { TFn } from '../../reports/components/ReportTables';
 
 export function ManagementOutcomePanel({ summary, t, language }: { summary: OutcomeTracking; t: TFn; language: Language }) {
   const rows = [
-    { key: 'rejectedDocuments', label: t('reportOutcomeRejectedDocuments'), value: summary.rejectedDocuments, icon: FileX, tone: 'bg-danger-subtle text-danger-emphasis' },
-    { key: 'qvcReMedical', label: t('reportOutcomeQvcReMedical'), value: summary.qvcReMedical, icon: RefreshCw, tone: 'bg-warning-subtle text-warning-emphasis' },
-    { key: 'qvcRejected', label: t('reportOutcomeQvcRejected'), value: summary.qvcRejected, icon: XCircle, tone: 'bg-danger-subtle text-danger-emphasis' },
-    { key: 'qvcNoShow', label: t('reportOutcomeQvcNoShow'), value: summary.qvcNoShow, icon: UserX, tone: 'bg-surface-sunken text-text-secondary' },
-    { key: 'visaRejected', label: t('reportOutcomeVisaRejected'), value: summary.visaRejected, icon: XCircle, tone: 'bg-danger-subtle text-danger-emphasis' },
+    { key: 'rejectedDocuments', label: t('reportOutcomeRejectedDocuments'), value: summary.rejectedDocuments, icon: FileX, tone: 'bg-danger-subtle text-danger-emphasis', bar: 'bg-danger' },
+    { key: 'qvcReMedical', label: t('reportOutcomeQvcReMedical'), value: summary.qvcReMedical, icon: RefreshCw, tone: 'bg-warning-subtle text-warning-emphasis', bar: 'bg-warning' },
+    { key: 'qvcRejected', label: t('reportOutcomeQvcRejected'), value: summary.qvcRejected, icon: XCircle, tone: 'bg-danger-subtle text-danger-emphasis', bar: 'bg-danger' },
+    { key: 'qvcNoShow', label: t('reportOutcomeQvcNoShow'), value: summary.qvcNoShow, icon: UserX, tone: 'bg-surface-sunken text-text-secondary', bar: 'bg-text-tertiary' },
+    { key: 'visaRejected', label: t('reportOutcomeVisaRejected'), value: summary.visaRejected, icon: XCircle, tone: 'bg-danger-subtle text-danger-emphasis', bar: 'bg-danger' },
   ].sort((a, b) => b.value - a.value);
   const total = rows.reduce((sum, row) => sum + row.value, 0);
 
   return (
     <div className="flex flex-col gap-2">
-      {rows.map(({ key, label, value, icon: Icon, tone }) => {
+      {rows.map(({ key, label, value, icon: Icon, tone, bar }) => {
         const share = total > 0 ? (value / total) * 100 : 0;
         return (
           <div key={key} className="flex items-center gap-3 rounded-xl bg-surface-sunken/55 px-3 py-2.5">
@@ -29,7 +29,7 @@ export function ManagementOutcomePanel({ summary, t, language }: { summary: Outc
                 <span className="font-semibold tabular-nums text-text-primary">{formatNumber(value, language)}</span>
               </div>
               <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-surface-raised" aria-hidden="true">
-                <div className="h-full rounded-full bg-danger" style={{ width: `${share}%` }} />
+                <div className={`h-full rounded-full ${bar}`} style={{ width: `${share}%` }} />
               </div>
             </div>
           </div>
