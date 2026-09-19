@@ -156,38 +156,38 @@ function DashboardContent({
           <h2 id="dashboard-key-metrics" className="text-base font-semibold text-text-primary">{t('adminDashboardKeyMetricsTitle')}</h2>
           <p className="text-xs text-text-secondary">{t('adminDashboardKeyMetricsSubtitle')}</p>
         </div>
-        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4 2xl:gap-5">
           <StatTile
             value={data.candidateWorkload.totalActiveCandidates}
             label={t('adminDashboardTotalActiveCandidates')}
-            className="min-w-0 border-brand/10 bg-brand-subtle text-brand shadow-sm transition duration-200 hover:-translate-y-0.5 hover:shadow-md"
+            className="min-w-0 overflow-hidden border-border border-t-4 border-t-brand bg-surface-raised text-brand shadow-sm transition duration-200 hover:-translate-y-0.5 hover:shadow-md"
             icon={<Users />}
             trend={<Sparkline data={data.kpiTrends.activeCandidates} tone="brand" />}
           />
           <StatTile
             value={paidCount}
             label={t(ADMIN_PAYMENT_STATUS_KEYS.paid)}
-            className={`${TONE_TILE_CLASSNAME.success} min-w-0 shadow-sm transition duration-200 hover:-translate-y-0.5 hover:shadow-md`}
+            className="min-w-0 overflow-hidden border-border border-t-4 border-t-success bg-surface-raised text-success-emphasis shadow-sm transition duration-200 hover:-translate-y-0.5 hover:shadow-md"
             icon={<PaidIcon />}
             trend={<Sparkline data={data.kpiTrends.paidPayments} tone="success" />}
           />
           <StatTile
             value={mobilizedCount}
             label={stageLabel('mobilized', t)}
-            className={`${TONE_TILE_CLASSNAME.info} min-w-0 shadow-sm transition duration-200 hover:-translate-y-0.5 hover:shadow-md`}
+            className="min-w-0 overflow-hidden border-border border-t-4 border-t-info bg-surface-raised text-info-emphasis shadow-sm transition duration-200 hover:-translate-y-0.5 hover:shadow-md"
             icon={<Plane />}
             trend={<Sparkline data={data.kpiTrends.mobilized} tone="info" />}
           />
           <StatTile
             value={averageStageDurationDisplay}
             label={t('adminDashboardAverageStageDuration')}
-            className={`${TONE_TILE_CLASSNAME.neutral} min-w-0 shadow-sm transition duration-200 hover:-translate-y-0.5 hover:shadow-md`}
+            className="min-w-0 overflow-hidden border-border border-t-4 border-t-warning bg-surface-raised text-warning-emphasis shadow-sm transition duration-200 hover:-translate-y-0.5 hover:shadow-md"
             icon={<Timer />}
           />
         </div>
       </section>
 
-      <div className="grid items-start gap-4 xl:grid-cols-[minmax(0,1.45fr)_minmax(340px,0.75fr)]">
+      <div className="grid items-start gap-4 xl:grid-cols-[minmax(0,1.7fr)_minmax(320px,0.65fr)]">
         <Card className="shadow-sm">
           <h2 className="text-base font-semibold text-text-primary">{t('adminDashboardPipelineTitle')}</h2>
           <p className="mb-4 text-xs text-text-secondary">{t('adminDashboardPipelineSubtitle')}</p>
@@ -221,82 +221,80 @@ function DashboardContent({
         </Card>
       </div>
 
-      <div className="grid items-stretch gap-4 xl:grid-cols-2">
-      <Card className="shadow-sm">
-        <div className="flex items-center justify-between">
-          <h2 className="text-base font-semibold text-text-primary">{t('adminDashboardDocumentReviewQueueTitle')}</h2>
-          <Link to="/admin/document-reviews" className="text-sm font-medium text-brand hover:underline">
-            {t('adminDashboardReviewQueueLink')}
-          </Link>
-        </div>
-        <p className="mb-2 text-xs text-text-secondary">{t('adminDashboardDocumentReviewQueueSubtitle')}</p>
-        <div className="mt-4 flex flex-col items-center gap-5 sm:flex-row">
-          <CategoryDonutChart data={documentReviewChartData} />
-          <div className="grid w-full flex-1 grid-cols-2 gap-2 sm:grid-cols-3 xl:grid-cols-2 2xl:grid-cols-3">
-            {DOCUMENT_REVIEW_SUMMARY_ROWS.map((row) => {
-              const style = DOCUMENT_REVIEW_ROW_STYLE[row.key];
-              const Icon = style?.icon ?? Clock;
-              return (
-                <StatTile
-                  key={row.key}
-                  value={data.documentReviewQueue[row.key]}
-                  label={t(row.labelKey as TranslationKey)}
-                  className={TONE_TILE_CLASSNAME[style?.tone ?? 'neutral']}
-                  icon={<Icon />}
-                />
-              );
-            })}
+      <div className="grid items-stretch gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(300px,0.82fr)]">
+        <Card className="min-w-0 shadow-sm">
+          <div className="flex items-center justify-between">
+            <h2 className="text-base font-semibold text-text-primary">{t('adminDashboardDocumentReviewQueueTitle')}</h2>
+            <Link to="/admin/document-reviews" className="text-sm font-medium text-brand hover:underline">
+              {t('adminDashboardReviewQueueLink')}
+            </Link>
           </div>
-        </div>
-      </Card>
-
-      <Card className="shadow-sm">
-        <div className="flex items-center justify-between">
-          <h2 className="text-base font-semibold text-text-primary">{t('adminDashboardPaymentSummaryTitle')}</h2>
-          <Link to="/admin/finance/payments" className="text-sm font-medium text-brand hover:underline">
-            {t('adminDashboardTransactionsLink')}
-          </Link>
-        </div>
-        <p className="mb-2 text-xs text-text-secondary">{t('adminDashboardPaymentSummarySubtitle')}</p>
-        <div className="mt-4 flex flex-col items-center gap-5 sm:flex-row">
-          <CategoryDonutChart data={paymentChartData} />
-          <div className="grid w-full flex-1 grid-cols-2 gap-2">
-            {data.paymentSummary.map((row) => {
-              const code = row.code as AdminPaymentStatus;
-              const Icon = PAYMENT_STATUS_ICON[code] ?? Clock;
-              return (
-                <StatTile
-                  key={row.code}
-                  value={row.count}
-                  label={t((ADMIN_PAYMENT_STATUS_KEYS[code] ?? 'candidateDocumentsStatusUnknown') as TranslationKey)}
-                  className={TONE_TILE_CLASSNAME[ADMIN_PAYMENT_STATUS_TONES[code] ?? 'neutral']}
-                  icon={<Icon />}
-                />
-              );
-            })}
+          <p className="mb-2 text-xs text-text-secondary">{t('adminDashboardDocumentReviewQueueSubtitle')}</p>
+          <div className="mt-4 flex flex-col items-center gap-5 sm:flex-row xl:flex-col 2xl:flex-row">
+            <CategoryDonutChart data={documentReviewChartData} />
+            <div className="grid w-full flex-1 grid-cols-2 gap-2 sm:grid-cols-3 xl:grid-cols-2">
+              {DOCUMENT_REVIEW_SUMMARY_ROWS.map((row) => {
+                const style = DOCUMENT_REVIEW_ROW_STYLE[row.key];
+                const Icon = style?.icon ?? Clock;
+                return (
+                  <StatTile
+                    key={row.key}
+                    value={data.documentReviewQueue[row.key]}
+                    label={t(row.labelKey as TranslationKey)}
+                    className={TONE_TILE_CLASSNAME[style?.tone ?? 'neutral']}
+                    icon={<Icon />}
+                  />
+                );
+              })}
+            </div>
           </div>
-        </div>
-      </Card>
-      </div>
-
-      <div className="grid items-stretch gap-4 xl:grid-cols-[minmax(320px,0.75fr)_minmax(0,1.25fr)]">
-        <Card className="shadow-sm">
-          <h2 className="text-base font-semibold text-text-primary">{t('adminDashboardUpcomingActivitiesTitle')}</h2>
-          <p className="mb-2 text-xs text-text-secondary">{t('adminDashboardUpcomingActivitiesSubtitle')}</p>
-          <UpcomingActivitiesPanel rows={data.upcomingActivities} t={t} language={language} />
         </Card>
 
         <Card className="min-w-0 shadow-sm">
           <div className="flex items-center justify-between">
-            <h2 className="text-base font-semibold text-text-primary">{t('adminDashboardRecentlyUpdatedTitle')}</h2>
-            <Link to="/admin" className="text-sm font-medium text-brand hover:underline">
-              {t('adminDashboardViewAllCandidatesLink')}
+            <h2 className="text-base font-semibold text-text-primary">{t('adminDashboardPaymentSummaryTitle')}</h2>
+            <Link to="/admin/finance/payments" className="text-sm font-medium text-brand hover:underline">
+              {t('adminDashboardTransactionsLink')}
             </Link>
           </div>
-          <p className="mb-2 text-xs text-text-secondary">{t('adminDashboardRecentlyUpdatedSubtitle')}</p>
-          <RecentlyUpdatedCandidatesTable rows={data.recentlyUpdatedCandidates} t={t} language={language} />
+          <p className="mb-2 text-xs text-text-secondary">{t('adminDashboardPaymentSummarySubtitle')}</p>
+          <div className="mt-4 flex flex-col items-center gap-5 sm:flex-row xl:flex-col 2xl:flex-row">
+            <CategoryDonutChart data={paymentChartData} />
+            <div className="grid w-full flex-1 grid-cols-2 gap-2">
+              {data.paymentSummary.map((row) => {
+                const code = row.code as AdminPaymentStatus;
+                const Icon = PAYMENT_STATUS_ICON[code] ?? Clock;
+                return (
+                  <StatTile
+                    key={row.code}
+                    value={row.count}
+                    label={t((ADMIN_PAYMENT_STATUS_KEYS[code] ?? 'candidateDocumentsStatusUnknown') as TranslationKey)}
+                    className={TONE_TILE_CLASSNAME[ADMIN_PAYMENT_STATUS_TONES[code] ?? 'neutral']}
+                    icon={<Icon />}
+                  />
+                );
+              })}
+            </div>
+          </div>
+        </Card>
+
+        <Card className="min-w-0 shadow-sm">
+          <h2 className="text-base font-semibold text-text-primary">{t('adminDashboardUpcomingActivitiesTitle')}</h2>
+          <p className="mb-3 text-xs text-text-secondary">{t('adminDashboardUpcomingActivitiesSubtitle')}</p>
+          <UpcomingActivitiesPanel rows={data.upcomingActivities} t={t} language={language} />
         </Card>
       </div>
+
+      <Card className="min-w-0 overflow-hidden shadow-sm [&_tbody_tr:nth-child(even)]:bg-surface-sunken/45 [&_tbody_tr]:transition-colors [&_tbody_tr:hover]:bg-brand-subtle/40">
+        <div className="flex items-center justify-between">
+          <h2 className="text-base font-semibold text-text-primary">{t('adminDashboardRecentlyUpdatedTitle')}</h2>
+          <Link to="/admin" className="text-sm font-medium text-brand hover:underline">
+            {t('adminDashboardViewAllCandidatesLink')}
+          </Link>
+        </div>
+        <p className="mb-2 text-xs text-text-secondary">{t('adminDashboardRecentlyUpdatedSubtitle')}</p>
+        <RecentlyUpdatedCandidatesTable rows={data.recentlyUpdatedCandidates} t={t} language={language} />
+      </Card>
     </div>
   );
 }

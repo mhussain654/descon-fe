@@ -13,7 +13,7 @@ export function RequiresAttentionPanel({ rows, t }: { rows: RequiresAttentionRow
   }
 
   return (
-    <ul className="flex flex-col divide-y divide-border-default">
+    <ul className="flex flex-col gap-2">
       {rows.map((row) => {
         const Icon = ATTENTION_ICON[row.code];
         const linkPath = ATTENTION_LINK_PATH[row.code];
@@ -40,11 +40,14 @@ export function RequiresAttentionPanel({ rows, t }: { rows: RequiresAttentionRow
         return (
           <li key={row.code}>
             {linkPath ? (
-              <Link to={linkPath} className="flex items-center gap-3 py-2.5 hover:bg-surface-sunken/60">
+              <Link
+                to={linkPath}
+                className="flex items-center gap-3 rounded-xl bg-surface-sunken/60 px-3 py-3 transition-colors hover:bg-danger-subtle/60"
+              >
                 {content}
               </Link>
             ) : (
-              <div className="flex items-center gap-3 py-2.5">{content}</div>
+              <div className="flex items-center gap-3 rounded-xl bg-surface-sunken/60 px-3 py-3">{content}</div>
             )}
           </li>
         );

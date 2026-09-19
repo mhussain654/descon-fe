@@ -13,13 +13,16 @@ import type { TFn } from '../../reports/components/ReportTables';
  */
 export function WorkflowPipelineOverview({ workflowStageQueue, t }: { workflowStageQueue: StatusSummaryRow[]; t: TFn }) {
   const totals = groupStagesByPipelineBucket(workflowStageQueue);
-  const grandTotal = workflowStageQueue.reduce((sum, row) => sum + row.count, 0);
+  const largestBucketTotal = Math.max(...PIPELINE_BUCKET_ORDER.map((bucket) => totals[bucket]), 0);
 
   return (
-    <div className="flex flex-col gap-4">
+    <div className="flex flex-col gap-4 [&_[role=progressbar]]:h-3">
       {PIPELINE_BUCKET_ORDER.map((bucket) => {
         const count = totals[bucket];
-        const percentage = grandTotal > 0 ? (count / grandTotal) * 100 : 0;
+        // This is a ranked comparison, not a completion percentage. Normalizing
+        // against the largest phase lets the bars use the available card width
+        // while the adjacent number remains the exact candidate count.
+        const percentage = largestBucketTotal > 0 ? (count / largestBucketTotal) * 100 : 0;
         const label = t(PIPELINE_BUCKET_LABEL_KEYS[bucket]);
         return (
           <div key={bucket}>
