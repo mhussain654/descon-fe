@@ -1,86 +1,93 @@
 import { Building2, Globe } from 'lucide-react';
-import { Card } from '../../../../design-system';
+import { Link } from 'react-router';
+import { Card, EmptyState } from '../../../../design-system';
 import { formatNumber } from '../../../../../../shared/i18n/locale';
 import type { Language } from '../../../../../../shared/i18n/translations';
 import type { MobilizationRow, MobilizationSummary } from '../../../../lib/admin-mps-dashboard-client';
 import type { TFn } from '../../reports/components/ReportTables';
 
-function HighlightTile({
+function BreakdownList({
   icon: Icon,
   label,
-  row,
+  rows,
   total,
   emptyText,
-  t,
   language,
 }: {
   icon: typeof Globe;
   label: string;
-  row: MobilizationRow | null;
+  rows: MobilizationRow[];
   total: number;
   emptyText: string;
-  t: TFn;
   language: Language;
 }) {
-  const percentage = row && total > 0 ? (row.count / total) * 100 : 0;
+  const visibleRows = rows.slice(0, 5);
+  const largestCount = Math.max(...visibleRows.map((row) => row.count), 0);
 
   return (
     <div className="rounded-xl bg-surface-sunken/60 p-4">
-      <div className="mb-2 flex items-center gap-2 text-xs font-medium text-text-secondary">
+      <div className="mb-4 flex items-center gap-2 text-xs font-medium text-text-secondary">
         <Icon className="h-4 w-4" aria-hidden="true" />
         {label}
       </div>
-      {row ? (
-        <>
-          <p className="text-lg font-semibold text-text-primary">{row.name}</p>
-          <p className="text-xs text-text-secondary">
-            {formatNumber(row.count, language)} · {formatNumber(percentage, language, { maximumFractionDigits: 1 })}%
-          </p>
-        </>
+      {visibleRows.length > 0 ? (
+        <div className="flex flex-col gap-3">
+          {visibleRows.map((row, index) => {
+            const share = total > 0 ? (row.count / total) * 100 : 0;
+            const width = largestCount > 0 ? (row.count / largestCount) * 100 : 0;
+            return (
+              <div key={`${row.code}-${index}`}>
+                <div className="mb-1 flex items-center justify-between gap-3 text-xs">
+                  <span className={index === 0 ? 'font-semibold text-text-primary' : 'text-text-primary'}>{row.name}</span>
+                  <span className="tabular-nums text-text-secondary">
+                    {formatNumber(row.count, language)} · {formatNumber(share, language, { maximumFractionDigits: 1 })}%
+                  </span>
+                </div>
+                <div className="h-2 overflow-hidden rounded-full bg-surface-raised" aria-hidden="true">
+                  <div className="h-full rounded-full bg-brand" style={{ width: `${width}%` }} />
+                </div>
+              </div>
+            );
+          })}
+        </div>
       ) : (
-        <p className="text-sm text-text-secondary">{emptyText}</p>
+        <EmptyState title={emptyText} />
       )}
     </div>
   );
 }
 
-/**
- * "At a glance" highlight of the single largest country/project by
- * mobilized headcount -- MobilizationQuery already returns both lists
- * sorted by count descending, so the first row of each is the top one, no
- * new backend work needed. Additive to, never a replacement for, the full
- * per-country/per-project breakdown MobilizationTables already renders
- * below this -- collapsing to "just the top one" would drop real
- * information the full tables still show.
- */
+/** Compact ranked country/project breakdown; Reports remains the complete view. */
 export function MobilizationMix({ summary, t, language }: { summary: MobilizationSummary; t: TFn; language: Language }) {
-  const totalMobilized = summary.byCountry.reduce((sum, row) => sum + row.count, 0);
-  const topCountry = summary.byCountry[0] ?? null;
-  const topProject = summary.byProject[0] ?? null;
+  const countryTotal = summary.byCountry.reduce((sum, row) => sum + row.count, 0);
+  const projectTotal = summary.byProject.reduce((sum, row) => sum + row.count, 0);
 
   return (
     <Card className="shadow-sm">
       <h2 className="text-base font-semibold text-text-primary">{t('mpsDashboardMobilizationMixTitle')}</h2>
       <p className="mb-4 text-xs text-text-secondary">{t('mpsDashboardMobilizationMixSubtitle')}</p>
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-        <HighlightTile
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+        <BreakdownList
           icon={Globe}
-          label={t('mpsDashboardTopCountry')}
-          row={topCountry}
-          total={totalMobilized}
+          label={t('mpsDashboardMobilizationByCountryTitle')}
+          rows={summary.byCountry}
+          total={countryTotal}
           emptyText={t('mpsDashboardMobilizationMixEmpty')}
-          t={t}
           language={language}
         />
-        <HighlightTile
+        <BreakdownList
           icon={Building2}
-          label={t('mpsDashboardTopProject')}
-          row={topProject}
-          total={totalMobilized}
+          label={t('mpsDashboardMobilizationByProjectTitle')}
+          rows={summary.byProject}
+          total={projectTotal}
           emptyText={t('mpsDashboardMobilizationMixEmpty')}
-          t={t}
           language={language}
         />
+      </div>
+      <div className="mt-3 flex justify-end">
+        <Link to="/admin/reports" className="text-xs font-medium text-brand hover:underline">
+          {t('mpsDashboardMobilizationViewReport')}
+        </Link>
       </div>
     </Card>
   );

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { AlertTriangle, Clock, Plane } from 'lucide-react';
+import { AlertTriangle, Clock, Plane, ShieldCheck } from 'lucide-react';
 import { useSearchParams } from 'react-router';
 import { useLanguage } from '../../../../contexts/LanguageContext';
 import { useStaffAuth } from '../../../../contexts/StaffAuthContext';
@@ -8,16 +8,18 @@ import { MPS_DASHBOARD_ERROR_KEYS } from '../../../../../../shared/adminMpsDashb
 import type { MpsDashboardFilters, TrendGranularity } from '../../../../lib/admin-mps-dashboard-client';
 import { formatNumber } from '../../../../../../shared/i18n/locale';
 import type { Language, TranslationKey } from '../../../../../../shared/i18n/translations';
-import { CraftSummaryTable, MobilizationTables, stageLabel, TrendTable, type TFn } from '../../reports/components/ReportTables';
-import { CategoryBarChart, CraftSummaryChart, TrendChart } from '../../reports/components/ReportCharts';
+import { stageLabel, type TFn } from '../../reports/components/ReportTables';
+import { TrendChart } from '../../reports/components/ReportCharts';
 import { DashboardFilterBar } from '../../reports/components/DashboardFilterBar';
 import { readDashboardFiltersFromSearchParams, writeDashboardFiltersToSearchParams } from '../../reports/dashboardFiltersUrlState';
 import { groupStagesByPipelineBucket } from '../../reports/workflowPipelineBuckets';
+import { WorkflowPipelineOverview } from '../../reports/components/WorkflowPipelineOverview';
 import { useMpsDashboard } from '../hooks/useMpsDashboard';
 import { MpsOperationalInsightBanner } from './MpsOperationalInsightBanner';
 import { MpsRequiresAttentionPanel } from './MpsRequiresAttentionPanel';
 import { MobilizationMix } from './MobilizationMix';
 import { LatestMobilizationCard } from './LatestMobilizationCard';
+import { CraftPerformancePanel } from './CraftPerformancePanel';
 
 const GRANULARITY_OPTIONS: { value: TrendGranularity; labelKey: TranslationKey }[] = [
   { value: 'daily', labelKey: 'reportsGranularityDaily' },
@@ -28,9 +30,6 @@ const GRANULARITY_OPTIONS: { value: TrendGranularity; labelKey: TranslationKey }
 const KPI_TILE_CLASSNAME =
   'min-w-0 overflow-hidden border-border border-t-4 bg-surface-raised shadow-sm transition duration-200 hover:-translate-y-0.5 hover:shadow-md';
 
-/** CraftSummaryQuery already returns rows sorted by total headcount descending, so the first N are the largest crafts -- capped here purely so the chart stays readable with real seed data's 20-30+ distinct crafts. The table below still lists every craft. */
-const CRAFT_CHART_LIMIT = 8;
-
 /**
  * The MPS dashboard (MPS-802): pipeline/status queues, delayed/critical
  * case counts, craft-wise and mobilization summaries, and the mobilization
@@ -39,11 +38,9 @@ const CRAFT_CHART_LIMIT = 8;
  * Structured the same way as AdminDashboard.tsx (hero banner, filter bar,
  * insight banner, KPI tile row, requires-attention panel, elevated cards) --
  * see that component's own comments for the reasoning behind each piece,
- * this one doesn't repeat it. Deliberately keeps its own full 15-stage
- * breakdown (CategoryBarChart) rather than reusing AdminDashboard's
- * rolled-up 5-phase WorkflowPipelineOverview -- both read the same
- * workflow_stage_queue data, so showing the identical rolled-up chart on
- * both pages was a real duplicate, not a restructure.
+ * this one doesn't repeat it. The dashboard uses the five-phase pipeline
+ * summary for fast scanning; the complete 15-stage breakdown stays in the
+ * reports workspace.
  */
 export function MpsDashboard() {
   const { t, language } = useLanguage();
@@ -130,17 +127,6 @@ function DashboardContent({
   const qvcVisaStageCount = groupStagesByPipelineBucket(data.workflowStageQueue).qvcVisaProtection;
   const mobilizationRate = totalInPipeline > 0 ? (mobilizedCount / totalInPipeline) * 100 : 0;
   const mobilizationRateDisplay = formatNumber(mobilizationRate, language, { maximumFractionDigits: 1 });
-  const workflowStageChartData = data.workflowStageQueue.map((row) => ({
-    key: row.code,
-    label: stageLabel(row.code, t),
-    value: row.count,
-  }));
-  const craftChartData = data.craftSummary.slice(0, CRAFT_CHART_LIMIT).map((row) => ({
-    key: row.code,
-    label: row.name,
-    mobilized: row.mobilized,
-    remaining: row.total - row.mobilized,
-  }));
   const documentsUploadedConversion = data.conversionFunnel.find((row) => row.code === 'documents_uploaded');
   const verifiedConversion = data.conversionFunnel.find((row) => row.code === 'verified');
 
@@ -172,11 +158,12 @@ function DashboardContent({
             value={qvcVisaStageCount}
             label={t('mpsDashboardQvcVisaStage')}
             className={`${KPI_TILE_CLASSNAME} border-t-brand text-brand`}
+            icon={<ShieldCheck />}
           />
           <StatTile
             value={mobilizedCount}
             label={stageLabel('mobilized', t)}
-            className={`${KPI_TILE_CLASSNAME} border-t-info text-info-emphasis`}
+            className={`${KPI_TILE_CLASSNAME} border-t-success text-success-emphasis`}
             icon={<Plane />}
             trend={
               <p className="text-[11px] text-text-secondary">
@@ -191,14 +178,7 @@ function DashboardContent({
         <Card className="shadow-sm">
           <h2 className="text-base font-semibold text-text-primary">{t('dashboardWorkflowStageQueueTitle')}</h2>
           <p className="mb-4 text-xs text-text-secondary">{t('dashboardWorkflowStageQueueSubtitle')}</p>
-          <div className="mb-4">
-            <CategoryBarChart data={workflowStageChartData} />
-          </div>
-          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 xl:grid-cols-4">
-            {data.workflowStageQueue.map((row) => (
-              <StatTile key={row.code} value={row.count} label={stageLabel(row.code, t)} className="bg-surface-sunken text-text-secondary" />
-            ))}
-          </div>
+          <WorkflowPipelineOverview workflowStageQueue={data.workflowStageQueue} t={t} />
           {documentsUploadedConversion || verifiedConversion ? (
             <div className="mt-5 flex flex-wrap gap-x-6 gap-y-2 rounded-xl bg-surface-sunken px-4 py-3 text-sm">
               {documentsUploadedConversion ? (
@@ -234,18 +214,10 @@ function DashboardContent({
       <Card className="shadow-sm">
         <h2 className="text-base font-semibold text-text-primary">{t('mpsDashboardCraftSummaryTitle')}</h2>
         <p className="mb-4 text-xs text-text-secondary">{t('mpsDashboardCraftSummarySubtitle')}</p>
-        {craftChartData.length > 0 ? (
-          <div className="mb-5 rounded-xl bg-surface-sunken/60 p-4">
-            <p className="mb-2 text-xs font-medium text-text-secondary">{t('mpsDashboardCraftSummaryChartTitle')}</p>
-            <CraftSummaryChart data={craftChartData} mobilizedLabel={stageLabel('mobilized', t)} remainingLabel={t('mpsDashboardCraftRemaining')} />
-          </div>
-        ) : null}
-        <CraftSummaryTable rows={data.craftSummary} t={t} language={language} />
+        <CraftPerformancePanel rows={data.craftSummary} t={t} language={language} />
       </Card>
 
       <MobilizationMix summary={data.mobilization} t={t} language={language} />
-
-      <MobilizationTables summary={data.mobilization} t={t} />
 
       <div className="grid items-start gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(280px,0.55fr)]">
         <Card className="shadow-sm">
@@ -263,7 +235,6 @@ function DashboardContent({
               <TrendChart rows={data.mobilizationTrend} granularity={granularity} language={language} />
             </div>
           ) : null}
-          <TrendTable rows={data.mobilizationTrend} t={t} />
         </Card>
 
         <LatestMobilizationCard latestMobilization={data.latestMobilization} t={t} language={language} />

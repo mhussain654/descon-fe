@@ -95,7 +95,7 @@ describe('MpsDashboard', () => {
     expect(screen.getAllByText('Electrician').length).toBeGreaterThan(0);
     expect(screen.getAllByText('Qatar').length).toBeGreaterThan(0);
     expect(screen.getAllByText('Project One').length).toBeGreaterThan(0);
-    expect(screen.getByText('2026-06-01')).toBeInTheDocument();
+    expect(screen.getByText('Mobilization trend')).toBeInTheDocument();
   });
 
   it('shows the key-metrics KPI row (delayed/critical/QVC & visa stage/mobilized with rate)', async () => {
@@ -113,7 +113,7 @@ describe('MpsDashboard', () => {
     expect(headings.indexOf('Key metrics')).toBeLessThan(headings.indexOf('Workflow stage queue'));
     expect(headings.indexOf('Workflow stage queue')).toBeLessThan(headings.indexOf('Craft-wise summary'));
     expect(headings.indexOf('Craft-wise summary')).toBeLessThan(headings.indexOf('Mobilization mix'));
-    expect(headings.indexOf('Mobilization mix')).toBeLessThan(headings.indexOf('Mobilization by country'));
+    expect(headings.indexOf('Mobilization mix')).toBeLessThan(headings.indexOf('Mobilization trend'));
   });
 
   it('shows a real, computed operational insight (critical count + pipeline concentration)', async () => {
@@ -146,16 +146,16 @@ describe('MpsDashboard', () => {
     expect(screen.getByText(/Mobilization rate/)).toBeInTheDocument();
   });
 
-  it('shows a mobilization-mix highlight (top country/project) above the full mobilization tables', async () => {
+  it('shows compact country and project mobilization rankings without duplicate tables', async () => {
     adminMpsDashboardClient.getDashboard.mockResolvedValue(summary());
 
     await renderAs(MPS);
     await screen.findByText('QVC & visa stage');
 
-    expect(screen.getByText('Top country')).toBeInTheDocument();
-    expect(screen.getByText('Top project')).toBeInTheDocument();
     expect(screen.getByText('Mobilization by country')).toBeInTheDocument();
     expect(screen.getByText('Mobilization by project')).toBeInTheDocument();
+    expect(screen.getAllByText('Qatar')).toHaveLength(1);
+    expect(screen.getAllByText('Project One')).toHaveLength(1);
   });
 
   it('shows the latest mobilization card with a link to the candidate', async () => {
@@ -212,7 +212,7 @@ describe('MpsDashboard', () => {
     );
   });
 
-  it('shows a mobilization-rate chart for the largest crafts, above the full craft table (with a Rate column)', async () => {
+  it('shows a bounded craft performance table with proportional bars and a full-report link', async () => {
     adminMpsDashboardClient.getDashboard.mockResolvedValue(summary());
 
     await renderAs(MPS);
@@ -221,16 +221,33 @@ describe('MpsDashboard', () => {
     expect(screen.getByText('Largest crafts by headcount')).toBeInTheDocument();
     expect(screen.getByText('Rate')).toBeInTheDocument();
     expect(screen.getByText('37.5%')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'View full craft report' })).toHaveAttribute('href', '/admin/reports');
   });
 
-  it('skips the craft chart (but still renders the table) when there is no craft data', async () => {
+  it('limits the dashboard craft ranking to eight rows', async () => {
+    const craftSummary = Array.from({ length: 10 }, (_, index) => ({
+      code: `craft-${index + 1}`,
+      name: `Craft ${index + 1}`,
+      total: 20 - index,
+      mobilized: index === 0 ? 2 : 0,
+    }));
+    adminMpsDashboardClient.getDashboard.mockResolvedValue(summary({ craftSummary }));
+
+    await renderAs(MPS);
+    await screen.findByText('QVC & visa stage');
+
+    expect(screen.getByText('Craft 8')).toBeInTheDocument();
+    expect(screen.queryByText('Craft 9')).not.toBeInTheDocument();
+  });
+
+  it('shows an empty state when there is no craft data', async () => {
     adminMpsDashboardClient.getDashboard.mockResolvedValue(summary({ craftSummary: [] }));
 
     await renderAs(MPS);
     await screen.findByText('QVC & visa stage');
 
-    expect(screen.queryByText('Largest crafts by headcount')).not.toBeInTheDocument();
     expect(screen.getByText('Craft-wise summary')).toBeInTheDocument();
+    expect(screen.getByText('Nothing to show yet')).toBeInTheDocument();
   });
 
   it('shows the FORBIDDEN state for a staff member without view_mps_dashboard', async () => {
