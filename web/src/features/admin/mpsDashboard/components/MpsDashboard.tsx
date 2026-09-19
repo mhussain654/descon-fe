@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
-import { AlertTriangle, Clock, Plane, ShieldCheck } from 'lucide-react';
-import { useSearchParams } from 'react-router';
+import { AlertTriangle, ArrowRight, Clock, Plane, ShieldCheck } from 'lucide-react';
+import { Link, useSearchParams } from 'react-router';
 import { useLanguage } from '../../../../contexts/LanguageContext';
 import { useStaffAuth } from '../../../../contexts/StaffAuthContext';
 import { Card, ErrorState, ForbiddenState, LoadingState, OfflineState, Select, StatTile } from '../../../../design-system';
@@ -70,10 +70,19 @@ export function MpsDashboard() {
       <div className="relative mb-5 overflow-hidden rounded-2xl bg-brand shadow-md">
         <div aria-hidden="true" className="absolute -right-14 -top-20 h-52 w-52 rounded-full border-[28px] border-white/10" />
         <div aria-hidden="true" className="absolute -bottom-16 right-40 h-36 w-36 rounded-full bg-white/5" />
-        <div className="relative px-6 py-7 lg:px-8">
-          <p className="mb-2 text-xs font-semibold uppercase tracking-widest text-white/70">{t('mpsDashboardHeroEyebrow')}</p>
-          <h1 className="text-2xl font-semibold tracking-tight text-white sm:text-3xl">{t('mpsDashboardTitle')}</h1>
-          <p className="mt-1 max-w-2xl text-sm leading-6 text-white/80">{t('mpsDashboardSubtitle')}</p>
+        <div className="relative flex flex-col gap-5 px-6 py-7 sm:flex-row sm:items-center sm:justify-between lg:px-8">
+          <div className="max-w-2xl">
+            <p className="mb-2 text-xs font-semibold uppercase tracking-widest text-white/70">{t('mpsDashboardHeroEyebrow')}</p>
+            <h1 className="text-2xl font-semibold tracking-tight text-white sm:text-3xl">{t('mpsDashboardTitle')}</h1>
+            <p className="mt-1 text-sm leading-6 text-white/80">{t('mpsDashboardSubtitle')}</p>
+          </div>
+          <Link
+            to="/admin/reports"
+            className="inline-flex h-11 shrink-0 items-center justify-center gap-2 rounded-xl bg-white px-5 text-sm font-semibold text-brand shadow-sm transition hover:-translate-y-0.5 hover:bg-white/95 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-brand"
+          >
+            {t('mpsDashboardViewReports')}
+            <ArrowRight className="h-4 w-4 rtl:rotate-180" aria-hidden="true" />
+          </Link>
         </div>
       </div>
 
@@ -234,7 +243,11 @@ function DashboardContent({
             <div className="mb-4">
               <TrendChart rows={data.mobilizationTrend} granularity={granularity} language={language} />
             </div>
-          ) : null}
+          ) : (
+            <div className="flex min-h-56 items-center justify-center rounded-xl bg-surface-sunken text-sm text-text-secondary">
+              {t('mpsDashboardTrendEmpty')}
+            </div>
+          )}
         </Card>
 
         <LatestMobilizationCard latestMobilization={data.latestMobilization} t={t} language={language} />

@@ -96,6 +96,15 @@ describe('MpsDashboard', () => {
     expect(screen.getAllByText('Qatar').length).toBeGreaterThan(0);
     expect(screen.getAllByText('Project One').length).toBeGreaterThan(0);
     expect(screen.getByText('Mobilization trend')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /View operational reports/ })).toHaveAttribute('href', '/admin/reports');
+  });
+
+  it('shows an intentional empty state when the mobilization trend has no data', async () => {
+    adminMpsDashboardClient.getDashboard.mockResolvedValue(summary({ mobilizationTrend: [] }));
+
+    await renderAs(MPS);
+
+    expect(await screen.findByText('No mobilization activity for this period')).toBeInTheDocument();
   });
 
   it('shows the key-metrics KPI row (delayed/critical/QVC & visa stage/mobilized with rate)', async () => {
