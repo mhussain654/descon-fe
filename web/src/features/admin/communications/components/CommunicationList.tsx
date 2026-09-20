@@ -1,5 +1,6 @@
-import { useCallback, useEffect } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Link, useSearchParams } from 'react-router';
+import { ArrowDownLeft, ArrowUpRight, ChevronDown, MessageSquareText, PhoneCall, Radio, SlidersHorizontal } from 'lucide-react';
 import { useLanguage } from '../../../../contexts/LanguageContext';
 import { useStaffAuth } from '../../../../contexts/StaffAuthContext';
 import {
@@ -46,6 +47,7 @@ export function CommunicationList() {
   const { filters, sort, page } = readCommunicationListStateFromSearchParams(searchParams);
 
   const query = useCommunicationList(filters, sort, page);
+  const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
 
   useEffect(() => {
     if (query.error?.code === 'SESSION_EXPIRED') {
@@ -135,14 +137,67 @@ export function CommunicationList() {
     },
   ];
 
+  const items = query.data?.items ?? [];
+  const pageSummary = {
+    total: query.data?.pagination.totalCount ?? 0,
+    outbound: items.filter((item) => item.directionCode === 'outbound').length,
+    inbound: items.filter((item) => item.directionCode === 'inbound').length,
+    aiCalls: items.filter((item) => item.channelCode === 'ai_voice_call').length,
+  };
+
   return (
-    <div className="mx-auto max-w-[1400px] px-4 py-6 sm:px-6">
-      <div className="mb-6">
-        <h1 className="text-2xl font-semibold text-text-primary">{t('adminCommunicationTitle')}</h1>
-        <p className="text-sm text-text-secondary">{t('adminCommunicationSubtitle')}</p>
+    <div className="mx-auto max-w-[1400px] px-4 py-5 sm:px-6 sm:py-6">
+      <div className="relative mb-5 overflow-hidden rounded-2xl bg-brand shadow-md">
+        <div aria-hidden="true" className="absolute -right-14 -top-20 h-52 w-52 rounded-full border-[28px] border-white/10" />
+        <div aria-hidden="true" className="absolute -bottom-16 right-40 h-36 w-36 rounded-full bg-white/5" />
+        <div className="relative flex items-center gap-4 px-6 py-7 lg:px-8">
+          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-white/15 text-white">
+            <MessageSquareText className="h-5 w-5" aria-hidden="true" />
+          </div>
+          <div className="max-w-3xl">
+            <p className="mb-1 text-xs font-semibold uppercase tracking-widest text-white/70">{t('adminCommunicationEyebrow')}</p>
+            <h1 className="text-2xl font-semibold tracking-tight text-white sm:text-3xl">{t('adminCommunicationTitle')}</h1>
+            <p className="mt-1 text-sm leading-6 text-white/80">{t('adminCommunicationSubtitle')}</p>
+          </div>
+        </div>
       </div>
 
-      <Card className="mb-4">
+      {!query.isLoading && query.data ? (
+        <div className="mb-5 grid grid-cols-2 gap-3 lg:grid-cols-4">
+          {[
+            { label: t('adminCommunicationMetricTotal'), value: pageSummary.total, icon: Radio, style: 'border-t-brand bg-brand-subtle/45 text-brand' },
+            { label: t('adminCommunicationMetricOutbound'), value: pageSummary.outbound, icon: ArrowUpRight, style: 'border-t-info bg-info-subtle/55 text-info-emphasis' },
+            { label: t('adminCommunicationMetricInbound'), value: pageSummary.inbound, icon: ArrowDownLeft, style: 'border-t-success bg-success-subtle/55 text-success-emphasis' },
+            { label: t('adminCommunicationMetricAiCalls'), value: pageSummary.aiCalls, icon: PhoneCall, style: 'border-t-warning bg-warning-subtle/60 text-warning-emphasis' },
+          ].map(({ label, value, icon: Icon, style }) => (
+            <div key={label} className={`rounded-xl border border-border border-t-4 p-4 shadow-sm ${style}`}>
+              <div className="mb-3 flex items-center justify-between gap-3">
+                <span className="text-xs font-semibold uppercase tracking-wide text-text-secondary">{label}</span>
+                <Icon className="h-4 w-4" aria-hidden="true" />
+              </div>
+              <div className="text-2xl font-semibold tracking-tight text-text-primary">{value}</div>
+            </div>
+          ))}
+        </div>
+      ) : null}
+
+      <Card className="mb-5 p-5">
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <h2 className="font-semibold text-text-primary">{t('adminCommunicationFilterTitle')}</h2>
+            <p className="text-xs text-text-secondary">{t('adminCommunicationFilterDescription')}</p>
+          </div>
+          <button
+            type="button"
+            onClick={() => setShowAdvancedFilters((current) => !current)}
+            className="inline-flex min-h-10 items-center gap-2 rounded-lg border border-border px-3 text-sm font-medium text-text-secondary transition hover:bg-surface-sunken"
+            aria-expanded={showAdvancedFilters}
+          >
+            <SlidersHorizontal className="h-4 w-4" aria-hidden="true" />
+            {t('adminCommunicationAdvancedFilters')}
+            <ChevronDown className={`h-4 w-4 transition-transform ${showAdvancedFilters ? 'rotate-180' : ''}`} aria-hidden="true" />
+          </button>
+        </div>
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <Input
             label={t('adminCommunicationFilterChannelLabel')}
@@ -169,39 +224,30 @@ export function CommunicationList() {
             onChange={(event) => updateFilters({ status: event.target.value || undefined })}
           />
           <Input
-            label={t('adminCommunicationFilterAssignmentLabel')}
-            placeholder={t('adminCommunicationFilterAssignmentPlaceholder')}
-            value={filters.candidateAssignment ?? ''}
-            onChange={(event) => updateFilters({ candidateAssignment: event.target.value || undefined })}
-          />
-          <Input
             label={t('adminCommunicationFilterCandidateLabel')}
             placeholder={t('adminCommunicationFilterCandidatePlaceholder')}
             value={filters.candidate ?? ''}
             onChange={(event) => updateFilters({ candidate: event.target.value || undefined })}
           />
-          <Input
-            type="date"
-            label={t('adminCommunicationFilterFromLabel')}
-            value={filters.occurredFrom ?? ''}
-            onChange={(event) => updateFilters({ occurredFrom: event.target.value || undefined })}
-          />
-          <Input
-            type="date"
-            label={t('adminCommunicationFilterToLabel')}
-            value={filters.occurredTo ?? ''}
-            onChange={(event) => updateFilters({ occurredTo: event.target.value || undefined })}
-          />
-          <Select
-            label={t('adminCommunicationSortLabel')}
-            value={sort ?? ''}
-            onChange={(event) => updateFilters({}, (event.target.value || undefined) as CommunicationListSort | undefined)}
-            options={[
-              { value: '', label: t('adminCommunicationSortCreatedDesc') },
-              { value: 'created_at', label: t('adminCommunicationSortCreatedAsc') },
-            ]}
-          />
         </div>
+        {showAdvancedFilters ? (
+          <div className="mt-4 grid grid-cols-1 gap-4 border-t border-border-subtle pt-4 sm:grid-cols-2 lg:grid-cols-4">
+            <Input
+              label={t('adminCommunicationFilterAssignmentLabel')}
+              placeholder={t('adminCommunicationFilterAssignmentPlaceholder')}
+              value={filters.candidateAssignment ?? ''}
+              onChange={(event) => updateFilters({ candidateAssignment: event.target.value || undefined })}
+            />
+            <Input type="date" label={t('adminCommunicationFilterFromLabel')} value={filters.occurredFrom ?? ''} onChange={(event) => updateFilters({ occurredFrom: event.target.value || undefined })} />
+            <Input type="date" label={t('adminCommunicationFilterToLabel')} value={filters.occurredTo ?? ''} onChange={(event) => updateFilters({ occurredTo: event.target.value || undefined })} />
+            <Select
+              label={t('adminCommunicationSortLabel')}
+              value={sort ?? ''}
+              onChange={(event) => updateFilters({}, (event.target.value || undefined) as CommunicationListSort | undefined)}
+              options={[{ value: '', label: t('adminCommunicationSortCreatedDesc') }, { value: 'created_at', label: t('adminCommunicationSortCreatedAsc') }]}
+            />
+          </div>
+        ) : null}
         {hasActiveFilters ? (
           <div className="mt-4">
             <button type="button" onClick={clearFilters} className="text-sm font-medium text-brand hover:underline">

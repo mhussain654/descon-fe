@@ -23,6 +23,7 @@ import type { SystemBackup } from '../../../../lib/admin-system-backups-client';
 import type { TranslationKey } from '../../../../../../shared/i18n/translations';
 import { useSystemBackupList } from '../hooks/useSystemBackupList';
 import { useBackupDownload } from '../hooks/useBackupDownload';
+import { CheckCircle2, DatabaseBackup, Download, HardDrive, XCircle } from 'lucide-react';
 
 const STATUS_TONE = {
   succeeded: 'success',
@@ -83,6 +84,7 @@ export function SystemBackupList() {
             loading={isDownloading && downloadingId === row.id}
             onClick={() => downloadBackup(row.id)}
           >
+            <Download className="me-1.5 h-4 w-4" aria-hidden="true" />
             {t('adminSystemBackupDownloadAction')}
           </Button>
         ) : (
@@ -92,11 +94,10 @@ export function SystemBackupList() {
   ];
 
   return (
-    <div className="mx-auto max-w-[1200px] px-4 py-6 sm:px-6">
-      <div className="mb-6">
-        <h1 className="text-2xl font-semibold text-text-primary">{t('adminSystemBackupTitle')}</h1>
-        <p className="text-sm text-text-secondary">{t('adminSystemBackupSubtitle')}</p>
-      </div>
+    <div className="mx-auto max-w-[1200px] px-4 py-5 sm:px-6 sm:py-6">
+      <div className="relative mb-5 overflow-hidden rounded-2xl bg-brand shadow-md"><div aria-hidden="true" className="absolute -right-14 -top-20 h-52 w-52 rounded-full border-[28px] border-white/10" /><div className="relative flex items-center gap-4 px-6 py-7 lg:px-8"><div className="flex h-11 w-11 items-center justify-center rounded-xl bg-white/15 text-white"><DatabaseBackup className="h-5 w-5" /></div><div><p className="mb-1 text-xs font-semibold uppercase tracking-widest text-white/70">{t('adminSystemBackupEyebrow')}</p><h1 className="text-2xl font-semibold tracking-tight text-white sm:text-3xl">{t('adminSystemBackupTitle')}</h1><p className="mt-1 text-sm text-white/80">{t('adminSystemBackupSubtitle')}</p></div></div></div>
+
+      {query.data ? <div className="mb-5 grid grid-cols-1 gap-3 sm:grid-cols-3"><BackupMetric icon={HardDrive} label={t('adminSystemBackupMetricTotal')} value={query.data.pagination.totalCount} className="border-t-brand bg-brand-subtle/45 text-brand" /><BackupMetric icon={CheckCircle2} label={t('adminSystemBackupMetricSucceeded')} value={query.data.items.filter((item) => item.status === 'succeeded').length} className="border-t-success bg-success-subtle/55 text-success-emphasis" /><BackupMetric icon={XCircle} label={t('adminSystemBackupMetricFailed')} value={query.data.items.filter((item) => item.status === 'failed').length} className="border-t-danger bg-danger-subtle/55 text-danger-emphasis" /></div> : null}
 
       {downloadError ? (
         <div className="mb-4">
@@ -109,6 +110,10 @@ export function SystemBackupList() {
       <ListContent query={query} columns={columns} page={pageNumber} onPageChange={setPageNumber} t={t} />
     </div>
   );
+}
+
+function BackupMetric({ icon: Icon, label, value, className }: { icon: typeof HardDrive; label: string; value: number; className: string }) {
+  return <div className={`rounded-xl border border-border border-t-4 p-4 shadow-sm ${className}`}><div className="mb-3 flex items-center justify-between gap-3"><span className="text-xs font-semibold uppercase tracking-wide text-text-secondary">{label}</span><Icon className="h-4 w-4" /></div><div className="text-2xl font-semibold text-text-primary">{value}</div></div>;
 }
 
 interface ListContentProps {

@@ -2,24 +2,28 @@ import { Link } from 'react-router';
 import { ProgressBar } from '../../../../design-system';
 import type { StatusSummaryRow } from '../../../../lib/admin-reports-client';
 import { PIPELINE_BUCKET_HEX, PIPELINE_BUCKET_LABEL_KEYS, PIPELINE_BUCKET_ORDER, groupStagesByPipelineBucket } from '../workflowPipelineBuckets';
-import type { TFn } from '../../reports/components/ReportTables';
+import type { TFn } from './ReportTables';
 
 /**
  * The 15-stage workflow queue rolled up into 5 pipeline phases (frontend-
  * only taxonomy, see workflowPipelineBuckets.ts) and rendered as horizontal
  * progress bars -- clearer than a donut/legend for exactly 5 ranked
  * buckets. The full 15-stage breakdown (CategoryBarChart) stays reachable
- * via "View all stages", not deleted.
+ * via "View all stages", not deleted. Shared by every dashboard (Admin/MPS/...)
+ * that has a 15-stage workflow_stage_queue to summarize, not duplicated per dashboard.
  */
 export function WorkflowPipelineOverview({ workflowStageQueue, t }: { workflowStageQueue: StatusSummaryRow[]; t: TFn }) {
   const totals = groupStagesByPipelineBucket(workflowStageQueue);
-  const grandTotal = workflowStageQueue.reduce((sum, row) => sum + row.count, 0);
+  const largestBucketTotal = Math.max(...PIPELINE_BUCKET_ORDER.map((bucket) => totals[bucket]), 0);
 
   return (
-    <div className="flex flex-col gap-4">
+    <div className="flex flex-col gap-4 [&_[role=progressbar]]:h-3">
       {PIPELINE_BUCKET_ORDER.map((bucket) => {
         const count = totals[bucket];
-        const percentage = grandTotal > 0 ? (count / grandTotal) * 100 : 0;
+        // This is a ranked comparison, not a completion percentage. Normalizing
+        // against the largest phase lets the bars use the available card width
+        // while the adjacent number remains the exact candidate count.
+        const percentage = largestBucketTotal > 0 ? (count / largestBucketTotal) * 100 : 0;
         const label = t(PIPELINE_BUCKET_LABEL_KEYS[bucket]);
         return (
           <div key={bucket}>

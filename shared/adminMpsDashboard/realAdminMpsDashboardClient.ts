@@ -8,8 +8,17 @@
 // intact).
 import type { ApiClient, ApiError } from '../api-client';
 import type { StaffAuthClient, StaffAuthError } from '../auth/staffTypes';
-import type { CraftSummaryRow, StatusSummaryRow, TrendPoint } from '../adminReports/types';
-import type { MpsDashboardClient, MpsDashboardError, MpsDashboardErrorCode, MpsDashboardSummary, TrendGranularity } from './types';
+import type { ConversionRow, CraftSummaryRow, StatusSummaryRow, TrendPoint } from '../adminReports/types';
+import { buildMpsDashboardQuery } from './mpsDashboardQueryParams';
+import type {
+  LatestMobilization,
+  MpsDashboardClient,
+  MpsDashboardError,
+  MpsDashboardErrorCode,
+  MpsDashboardFilters,
+  MpsDashboardSummary,
+  TrendGranularity,
+} from './types';
 
 export interface RealAdminMpsDashboardClientOptions {
   apiClient: ApiClient;
@@ -24,12 +33,40 @@ interface MobilizationRowResponse {
   count: number;
 }
 
+interface LatestMobilizationResponse {
+  candidate_full_name: string;
+  candidate_public_id: string;
+  candidate_assignment_public_id: string;
+  reference_number: string;
+  country_name: string;
+  project_name: string;
+  craft_name: string;
+  mobilized_at: string;
+}
+
 interface DashboardResponse {
   workflow_stage_queue: StatusSummaryRow[];
   delayed_cases: { delayed: number; critical: number };
   craft_summary: CraftSummaryRow[];
   mobilization: { by_country: MobilizationRowResponse[]; by_project: MobilizationRowResponse[] };
   mobilization_trend: TrendPoint[];
+  conversion_funnel: ConversionRow[];
+  latest_mobilization: LatestMobilizationResponse | null;
+}
+
+function toLatestMobilization(row: LatestMobilizationResponse | null): LatestMobilization | null {
+  if (!row) return null;
+
+  return {
+    candidateFullName: row.candidate_full_name,
+    candidatePublicId: row.candidate_public_id,
+    candidateAssignmentPublicId: row.candidate_assignment_public_id,
+    referenceNumber: row.reference_number,
+    countryName: row.country_name,
+    projectName: row.project_name,
+    craftName: row.craft_name,
+    mobilizedAt: row.mobilized_at,
+  };
 }
 
 function toDashboard(data: DashboardResponse): MpsDashboardSummary {
@@ -39,6 +76,8 @@ function toDashboard(data: DashboardResponse): MpsDashboardSummary {
     craftSummary: data.craft_summary,
     mobilization: { byCountry: data.mobilization.by_country, byProject: data.mobilization.by_project },
     mobilizationTrend: data.mobilization_trend,
+    conversionFunnel: data.conversion_funnel,
+    latestMobilization: toLatestMobilization(data.latest_mobilization),
   };
 }
 
@@ -79,8 +118,8 @@ export function createAdminMpsDashboardClient(options: RealAdminMpsDashboardClie
   const { apiClient, staffAuthClient, getLocale } = options;
 
   return {
-    async getDashboard(granularity?: TrendGranularity): Promise<MpsDashboardSummary> {
-      const query = granularity ? `?granularity=${encodeURIComponent(granularity)}` : '';
+    async getDashboard(granularity?: TrendGranularity, filters: MpsDashboardFilters = {}): Promise<MpsDashboardSummary> {
+      const query = buildMpsDashboardQuery(filters, granularity);
       try {
         const result = await staffAuthClient.authenticatedDataRequest((token) =>
           apiClient.get<DashboardResponse>(`/admin/mps_dashboard${query}`, {

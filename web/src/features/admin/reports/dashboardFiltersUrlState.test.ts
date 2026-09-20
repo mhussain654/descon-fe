@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { readDashboardFiltersFromSearchParams, writeDashboardFiltersToSearchParams } from './adminDashboardUrlState';
+import { readDashboardFiltersFromSearchParams, writeDashboardFiltersToSearchParams } from './dashboardFiltersUrlState';
 
-describe('adminDashboardUrlState', () => {
+describe('dashboardFiltersUrlState', () => {
   it('reads no filters from empty search params', () => {
     expect(readDashboardFiltersFromSearchParams(new URLSearchParams())).toEqual({
       countryCode: undefined,
