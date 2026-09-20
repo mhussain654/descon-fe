@@ -544,7 +544,15 @@ export const translations = {
 
     // Communications log (MPS-F706)
     adminCommunicationTitle: 'Communications',
+    adminCommunicationEyebrow: 'Engagement log',
     adminCommunicationSubtitle: 'A read-only record of every SMS, email, notification and AI voice call sent or received about a candidate.',
+    adminCommunicationMetricTotal: 'Total records',
+    adminCommunicationMetricOutbound: 'Outbound on page',
+    adminCommunicationMetricInbound: 'Inbound on page',
+    adminCommunicationMetricAiCalls: 'AI calls on page',
+    adminCommunicationFilterTitle: 'Find a communication',
+    adminCommunicationFilterDescription: 'Filter the audit trail by channel, direction, status or candidate.',
+    adminCommunicationAdvancedFilters: 'Advanced filters',
     adminCommunicationColumnCreated: 'Created',
     adminCommunicationColumnChannel: 'Channel',
     adminCommunicationColumnDirection: 'Direction',
@@ -635,7 +643,13 @@ export const translations = {
 
     // Workflow-stage AI call scripts (MPS-708/MPS-F706)
     adminWorkflowStageCallScriptTitle: 'AI call scripts',
+    adminWorkflowStageCallScriptEyebrow: 'Conversation content',
     adminWorkflowStageCallScriptSubtitle: 'Edit the opening line an automated AI call uses for each workflow stage.',
+    adminWorkflowStageCallScriptMetricTotal: 'Workflow scripts',
+    adminWorkflowStageCallScriptMetricActive: 'Active scripts',
+    adminWorkflowStageCallScriptMetricBilingual: 'Bilingual scripts',
+    adminWorkflowStageCallScriptLibraryTitle: 'Workflow script library',
+    adminWorkflowStageCallScriptLibraryDescription: 'Review English and Urdu announcements, activation status and ownership in one place.',
     adminWorkflowStageCallScriptActive: 'Active',
     adminWorkflowStageCallScriptInactive: 'Inactive',
     adminWorkflowStageCallScriptLanguageEn: 'English',
@@ -662,7 +676,16 @@ export const translations = {
 
     // AI call operational settings / rate limits (MPS-712/MPS-F706)
     adminAiCallSettingsTitle: 'AI call settings',
+    adminAiCallSettingsEyebrow: 'Operational controls',
     adminAiCallSettingsSubtitle: 'Business-tunable rate limits and calling hours for AI voice calls. Leave a field blank to use the platform default.',
+    adminAiCallSettingsDailySummary: 'Daily call limit',
+    adminAiCallSettingsWindowSummary: 'Calling window',
+    adminAiCallSettingsDurationSummary: 'Maximum duration',
+    adminAiCallSettingsMinutesShort: 'min',
+    adminAiCallSettingsLimitsTitle: 'Call safeguards and limits',
+    adminAiCallSettingsLimitsDescription: 'Control call frequency, daily volume and maximum conversation duration.',
+    adminAiCallSettingsCallingWindowTitle: 'Permitted calling window',
+    adminAiCallSettingsCallingWindowDescription: 'Set the hours during which outbound AI calls may be placed.',
     adminAiCallSettingsCooldownLabel: 'Outbound trigger cooldown (minutes)',
     adminAiCallSettingsDailyLimitLabel: 'Daily outbound call limit',
     adminAiCallSettingsAdminRateLimitLabel: 'Admin trigger rate limit (per hour)',
@@ -1934,7 +1957,15 @@ export const translations = {
 
     // Communications log (MPS-F706)
     adminCommunicationTitle: 'مواصلات',
+    adminCommunicationEyebrow: 'رابطے کا ریکارڈ',
     adminCommunicationSubtitle: 'کسی امیدوار کے بارے میں بھیجے یا موصول ہونے والے ہر SMS، ای میل، اطلاع اور AI صوتی کال کا صرف پڑھنے کے قابل ریکارڈ۔',
+    adminCommunicationMetricTotal: 'کل ریکارڈز',
+    adminCommunicationMetricOutbound: 'صفحے پر آؤٹ باؤنڈ',
+    adminCommunicationMetricInbound: 'صفحے پر ان باؤنڈ',
+    adminCommunicationMetricAiCalls: 'صفحے پر AI کالز',
+    adminCommunicationFilterTitle: 'مواصلت تلاش کریں',
+    adminCommunicationFilterDescription: 'ذریعہ، سمت، حیثیت یا امیدوار کے لحاظ سے ریکارڈ فلٹر کریں۔',
+    adminCommunicationAdvancedFilters: 'مزید فلٹرز',
     adminCommunicationColumnCreated: 'تاریخ',
     adminCommunicationColumnChannel: 'ذریعہ',
     adminCommunicationColumnDirection: 'سمت',
@@ -2024,7 +2055,13 @@ export const translations = {
 
     // Workflow-stage AI call scripts (MPS-708/MPS-F706)
     adminWorkflowStageCallScriptTitle: 'AI کال اسکرپٹس',
+    adminWorkflowStageCallScriptEyebrow: 'گفتگو کا مواد',
     adminWorkflowStageCallScriptSubtitle: 'ہر ورک فلو مرحلے کے لیے خودکار AI کال کی ابتدائی لائن میں ترمیم کریں۔',
+    adminWorkflowStageCallScriptMetricTotal: 'ورک فلو اسکرپٹس',
+    adminWorkflowStageCallScriptMetricActive: 'فعال اسکرپٹس',
+    adminWorkflowStageCallScriptMetricBilingual: 'دو لسانی اسکرپٹس',
+    adminWorkflowStageCallScriptLibraryTitle: 'ورک فلو اسکرپٹ لائبریری',
+    adminWorkflowStageCallScriptLibraryDescription: 'انگریزی اور اردو اعلانات، فعالیت اور ذمہ داری ایک جگہ دیکھیں۔',
     adminWorkflowStageCallScriptActive: 'فعال',
     adminWorkflowStageCallScriptInactive: 'غیر فعال',
     adminWorkflowStageCallScriptLanguageEn: 'انگریزی',
@@ -2051,7 +2088,16 @@ export const translations = {
 
     // AI call operational settings / rate limits (MPS-712/MPS-F706)
     adminAiCallSettingsTitle: 'AI کال کی ترتیبات',
+    adminAiCallSettingsEyebrow: 'آپریشنل کنٹرولز',
     adminAiCallSettingsSubtitle: 'AI صوتی کالز کے لیے کاروباری طور پر قابل ترتیب حد بندیاں اور کالنگ کے اوقات۔ پلیٹ فارم کا ڈیفالٹ استعمال کرنے کے لیے فیلڈ خالی چھوڑیں۔',
+    adminAiCallSettingsDailySummary: 'یومیہ کال کی حد',
+    adminAiCallSettingsWindowSummary: 'کالنگ ونڈو',
+    adminAiCallSettingsDurationSummary: 'زیادہ سے زیادہ دورانیہ',
+    adminAiCallSettingsMinutesShort: 'منٹ',
+    adminAiCallSettingsLimitsTitle: 'کال کی حفاظت اور حدود',
+    adminAiCallSettingsLimitsDescription: 'کال کی فریکوئنسی، یومیہ تعداد اور زیادہ سے زیادہ گفتگو کا دورانیہ کنٹرول کریں۔',
+    adminAiCallSettingsCallingWindowTitle: 'اجازت یافتہ کالنگ ونڈو',
+    adminAiCallSettingsCallingWindowDescription: 'وہ اوقات مقرر کریں جن میں آؤٹ باؤنڈ AI کالز کی جا سکتی ہیں۔',
     adminAiCallSettingsCooldownLabel: 'آؤٹ باؤنڈ ٹرگر کول ڈاؤن (منٹ)',
     adminAiCallSettingsDailyLimitLabel: 'یومیہ آؤٹ باؤنڈ کال کی حد',
     adminAiCallSettingsAdminRateLimitLabel: 'ایڈمن ٹرگر ریٹ لمٹ (فی گھنٹہ)',
