@@ -950,6 +950,8 @@ export const translations = {
     adminDocumentReviewFilterSubtitle: 'Choose the statuses that need attention now.',
     adminDocumentReviewAdvancedFilters: 'Advanced filters',
     adminDocumentReviewSummaryTitle: 'Queue summary',
+    adminDocumentReviewSummarySubtitle: 'Current document distribution across the review workflow.',
+    adminDocumentReviewTotalLabel: 'documents',
     adminDocumentReviewFilterStatusLabel: 'Status',
     adminDocumentReviewFilterCandidateIdLabel: 'Candidate ID',
     adminDocumentReviewFilterProjectLabel: 'Project code',
@@ -2311,6 +2313,8 @@ export const translations = {
     // Admin document review workspace (MPS-F402)
     adminReviewStatePartiallyReviewed: 'جزوی طور پر جائزہ لیا گیا',
     adminDocumentReviewQueueTitle: 'دستاویزات کے جائزے کی قطار',
+    adminDocumentReviewSummarySubtitle: 'جائزے کے عمل میں دستاویزات کی موجودہ تقسیم۔',
+    adminDocumentReviewTotalLabel: 'دستاویزات',
     adminDocumentReviewEyebrow: 'تعمیل کا ورک اسپیس',
     adminDocumentReviewSubtitle: 'جمع شدہ دستاویزات کو ترجیح دیں، مسائل حل کریں اور امیدواروں کی دستاویزات کو آگے بڑھائیں۔',
     adminDocumentReviewFilterTitle: 'جائزے کی قطار',
