@@ -11,6 +11,7 @@ import { useCsvTemplateDownload } from '../hooks/useCsvTemplateDownload';
 import { REQUIRED_HEADERS } from '../schemas/csvFile';
 import { CsvFileField } from './CsvFileField';
 import { CandidateImportPreviewPanel } from './CandidateImportPreviewPanel';
+import { Download, FileSpreadsheet, History, UploadCloud } from 'lucide-react';
 
 const FILE_VALIDATION_ERROR_KEYS: Record<string, TranslationKey> = {
   FILE_REQUIRED: 'adminCandidateImportFileRequiredError',
@@ -44,18 +45,11 @@ export function CandidateImportForm() {
   }, [wizard.preflightMutation.error, wizard.commitMutation.error, signOut]);
 
   return (
-    <div className="mx-auto max-w-3xl px-4 py-6 sm:px-6">
-      <div className="mb-6 flex flex-wrap items-start justify-between gap-2">
-        <div>
-          <h1 className="text-2xl font-semibold text-text-primary">{t('adminCandidateImportTitle')}</h1>
-          <p className="text-sm text-text-secondary">{t('adminCandidateImportSubtitle')}</p>
-        </div>
-        <Link to="/admin/candidates/import/history" className="text-sm font-medium text-brand hover:underline">
-          {t('adminCandidateImportViewHistory')}
-        </Link>
-      </div>
+    <div className="mx-auto max-w-[1000px] px-4 py-5 sm:px-6 sm:py-6">
+      <div className="relative mb-5 overflow-hidden rounded-2xl bg-brand shadow-md"><div aria-hidden="true" className="absolute -right-14 -top-20 h-52 w-52 rounded-full border-[28px] border-white/10" /><div className="relative flex flex-col gap-5 px-6 py-7 sm:flex-row sm:items-center sm:justify-between lg:px-8"><div className="flex items-center gap-4"><div className="flex h-11 w-11 items-center justify-center rounded-xl bg-white/15 text-white"><UploadCloud className="h-5 w-5" /></div><div><p className="mb-1 text-xs font-semibold uppercase tracking-widest text-white/70">{t('adminCandidateImportEyebrow')}</p><h1 className="text-2xl font-semibold tracking-tight text-white sm:text-3xl">{t('adminCandidateImportTitle')}</h1><p className="mt-1 text-sm text-white/80">{t('adminCandidateImportSubtitle')}</p></div></div><Link to="/admin/candidates/import/history" className="inline-flex min-h-10 items-center justify-center gap-2 rounded-xl border border-white/25 bg-white/10 px-4 text-sm font-medium text-white hover:bg-white/20"><History className="h-4 w-4" />{t('adminCandidateImportViewHistory')}</Link></div></div>
 
-      <Card className="mb-5">
+      <Card className="mb-5 border-t-4 border-t-info">
+        <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-xl bg-info-subtle text-info-emphasis"><FileSpreadsheet className="h-5 w-5" /></div>
         <h2 className="mb-2 text-base font-semibold text-text-primary">{t('adminCandidateImportInstructionsTitle')}</h2>
         <p className="mb-4 text-sm text-text-secondary">{t('adminCandidateImportInstructionsDescription')}</p>
         <h3 className="mb-1 text-sm font-semibold text-text-primary">{t('adminCandidateImportRequiredHeadersTitle')}</h3>
@@ -69,6 +63,7 @@ export function CandidateImportForm() {
           loading={templateDownload.isPending}
           disabled={templateDownload.isPending}
         >
+          <Download className="me-1.5 h-4 w-4" />
           {templateDownload.isPending ? t('adminCandidateImportDownloadingTemplate') : t('adminCandidateImportDownloadTemplate')}
         </Button>
         {templateDownload.isError ? (

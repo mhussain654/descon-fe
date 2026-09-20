@@ -23,6 +23,7 @@ import type { TranslationKey } from '../../../../../../shared/i18n/translations'
 import type { CandidateImportBatchSummary, CandidateImportHistoryFilters, CandidateImportStatus } from '../../../../lib/candidate-import-client';
 import { useCandidateImportHistory } from '../hooks/useCandidateImportHistory';
 import { DEFAULT_PAGE_SIZE, readHistoryStateFromSearchParams, writeHistoryStateToSearchParams } from '../historyUrlState';
+import { ArrowLeft, FileClock } from 'lucide-react';
 
 const STATUSES: CandidateImportStatus[] = ['queued', 'processing', 'completed', 'partial', 'failed', 'invalidated'];
 
@@ -98,13 +99,8 @@ export function CandidateImportHistoryList() {
   ];
 
   return (
-    <div className="mx-auto max-w-[1200px] px-4 py-6 sm:px-6">
-      <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
-        <h1 className="text-2xl font-semibold text-text-primary">{t('adminCandidateImportHistoryTitle')}</h1>
-        <Link to="/admin/candidates/import" className="text-sm font-medium text-brand hover:underline">
-          {t('adminCandidateImportBackToImport')}
-        </Link>
-      </div>
+    <div className="mx-auto max-w-[1200px] px-4 py-5 sm:px-6 sm:py-6">
+      <div className="relative mb-5 overflow-hidden rounded-2xl bg-brand shadow-md"><div aria-hidden="true" className="absolute -right-14 -top-20 h-52 w-52 rounded-full border-[28px] border-white/10" /><div className="relative flex flex-col gap-5 px-6 py-7 sm:flex-row sm:items-center sm:justify-between lg:px-8"><div className="flex items-center gap-4"><div className="flex h-11 w-11 items-center justify-center rounded-xl bg-white/15 text-white"><FileClock className="h-5 w-5" /></div><div><p className="mb-1 text-xs font-semibold uppercase tracking-widest text-white/70">{t('adminCandidateImportHistoryEyebrow')}</p><h1 className="text-2xl font-semibold tracking-tight text-white sm:text-3xl">{t('adminCandidateImportHistoryTitle')}</h1></div></div><Link to="/admin/candidates/import" className="inline-flex min-h-10 items-center justify-center rounded-xl border border-white/25 bg-white/10 px-4 text-sm font-medium text-white hover:bg-white/20"><ArrowLeft className="me-2 h-4 w-4" />{t('adminCandidateImportBackToImport')}</Link></div></div>
 
       <Card className="mb-4">
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
