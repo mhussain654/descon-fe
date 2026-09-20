@@ -26,6 +26,7 @@ import {
 } from "../../../design-system";
 import { STAFF_ROLE_LABEL_KEYS, STAFF_ROLE_RANK } from "../../../../../shared/auth/staffTypes";
 import { staffDirectoryClient } from "../../../lib/staff-directory-client";
+import { ShieldCheck, UserCheck, UserPlus, Users } from "lucide-react";
 
 const ROLES = ["admin", "hr", "mps", "finance", "management"];
 const STATUSES = ["active", "invited", "suspended"];
@@ -209,26 +210,45 @@ function StaffUsersContent() {
   ];
 
   return (
-    <div className="mx-auto max-w-[1600px] px-4 py-6 sm:px-6">
-      <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="text-2xl font-semibold text-text-primary">{t("staffAdminTitle")}</h1>
-          <p className="text-sm text-text-secondary">{t("staffAdminSubtitle")}</p>
+    <div className="mx-auto max-w-[1400px] px-4 py-5 sm:px-6 sm:py-6">
+      <div className="relative mb-5 overflow-hidden rounded-2xl bg-brand shadow-md">
+        <div aria-hidden="true" className="absolute -right-14 -top-20 h-52 w-52 rounded-full border-[28px] border-white/10" />
+        <div aria-hidden="true" className="absolute -bottom-16 right-40 h-36 w-36 rounded-full bg-white/5" />
+        <div className="relative flex flex-col gap-5 px-6 py-7 sm:flex-row sm:items-center sm:justify-between lg:px-8">
+          <div className="flex items-center gap-4">
+            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-white/15 text-white"><Users className="h-5 w-5" /></div>
+            <div>
+              <p className="mb-1 text-xs font-semibold uppercase tracking-widest text-white/70">{t("staffAdminEyebrow")}</p>
+              <h1 className="text-2xl font-semibold tracking-tight text-white sm:text-3xl">{t("staffAdminTitle")}</h1>
+              <p className="mt-1 text-sm text-white/80">{t("staffAdminSubtitle")}</p>
+            </div>
+          </div>
+          <div className="[&_button]:border-white/30 [&_button]:bg-white [&_button]:text-brand">
+            <InviteDialog
+              open={inviteOpen}
+              onOpenChange={(open) => {
+                setInviteOpen(open);
+                if (!open) inviteMutation.reset();
+              }}
+              onInvite={(input) => inviteMutation.mutate(input)}
+              isSubmitting={inviteMutation.isPending}
+              error={inviteError}
+              t={t}
+            />
+          </div>
         </div>
-        <InviteDialog
-          open={inviteOpen}
-          onOpenChange={(open) => {
-            setInviteOpen(open);
-            if (!open) inviteMutation.reset();
-          }}
-          onInvite={(input) => inviteMutation.mutate(input)}
-          isSubmitting={inviteMutation.isPending}
-          error={inviteError}
-          t={t}
-        />
       </div>
 
-      <Card className="mb-4">
+      {!staffQuery.isLoading && !staffQuery.isError ? (
+        <div className="mb-5 grid grid-cols-2 gap-3 lg:grid-cols-4">
+          <StaffMetric icon={Users} label={t("staffAdminMetricTotal")} value={staff.length} className="border-t-brand bg-brand-subtle/45 text-brand" />
+          <StaffMetric icon={UserCheck} label={t("staffAdminMetricActive")} value={staff.filter((member) => member.status === "active").length} className="border-t-success bg-success-subtle/55 text-success-emphasis" />
+          <StaffMetric icon={UserPlus} label={t("staffAdminMetricInvited")} value={staff.filter((member) => member.status === "invited").length} className="border-t-info bg-info-subtle/55 text-info-emphasis" />
+          <StaffMetric icon={ShieldCheck} label={t("staffAdminMetricAdmins")} value={staff.filter((member) => member.role === "admin").length} className="border-t-warning bg-warning-subtle/55 text-warning-emphasis" />
+        </div>
+      ) : null}
+
+      <Card className="mb-5 p-5">
         <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
           <SearchField
             value={query}
@@ -326,6 +346,15 @@ function StaffUsersContent() {
       >
         {statusError ? <ValidationMessage tone="error">{statusError.message}</ValidationMessage> : null}
       </ConfirmDialog>
+    </div>
+  );
+}
+
+function StaffMetric({ icon: Icon, label, value, className }) {
+  return (
+    <div className={`rounded-xl border border-border border-t-4 p-4 shadow-sm ${className}`}>
+      <div className="mb-3 flex items-center justify-between gap-3"><span className="text-xs font-semibold uppercase tracking-wide text-text-secondary">{label}</span><Icon className="h-4 w-4" /></div>
+      <div className="text-2xl font-semibold tracking-tight text-text-primary">{value}</div>
     </div>
   );
 }
