@@ -253,6 +253,12 @@ export const translations = {
 
     // Admin candidate list workspace (MPS-F303)
     adminCandidateListTitle: 'Candidates',
+    adminCandidateListEyebrow: 'Candidate management',
+    adminCandidateListSubtitle: 'Search, monitor, and manage candidates throughout the deployment workflow.',
+    adminCandidateListFilterTitle: 'Find candidates',
+    adminCandidateListFilterSubtitle: 'Use search and filters to narrow the candidate directory.',
+    adminCandidateListResultsLabel: 'candidates',
+    adminCandidateListResultsHint: 'Select a candidate to view their full profile',
     adminCandidateListSearchLabel: 'Search',
     adminCandidateListSearchPlaceholder: 'Search by name, CNIC, passport, or reference number',
     adminCandidateListFilterStatusLabel: 'Status',
@@ -1613,6 +1619,12 @@ export const translations = {
 
     // Admin candidate list workspace (MPS-F303)
     adminCandidateListTitle: 'امیدوار',
+    adminCandidateListEyebrow: 'امیدواروں کا انتظام',
+    adminCandidateListSubtitle: 'تعیناتی کے پورے عمل میں امیدواروں کو تلاش کریں، مانیٹر کریں اور منظم کریں۔',
+    adminCandidateListFilterTitle: 'امیدوار تلاش کریں',
+    adminCandidateListFilterSubtitle: 'امیدواروں کی فہرست محدود کرنے کے لیے تلاش اور فلٹرز استعمال کریں۔',
+    adminCandidateListResultsLabel: 'امیدوار',
+    adminCandidateListResultsHint: 'مکمل پروفائل دیکھنے کے لیے امیدوار منتخب کریں',
     adminCandidateListSearchLabel: 'تلاش کریں',
     adminCandidateListSearchPlaceholder: 'نام، شناختی کارڈ، پاسپورٹ، یا حوالہ نمبر سے تلاش کریں',
     adminCandidateListFilterStatusLabel: 'حیثیت',
