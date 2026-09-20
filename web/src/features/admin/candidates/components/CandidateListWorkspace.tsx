@@ -1,6 +1,6 @@
 import { useCallback, useEffect } from 'react';
 import { Link, useSearchParams } from 'react-router';
-import { Plus, SlidersHorizontal, Users } from 'lucide-react';
+import { SlidersHorizontal, Users } from 'lucide-react';
 import { useLanguage } from '../../../../contexts/LanguageContext';
 import { useStaffAuth } from '../../../../contexts/StaffAuthContext';
 import {
@@ -18,7 +18,6 @@ import {
   Select,
   type DataTableColumn,
 } from '../../../../design-system';
-import { formatDate } from '../../../../../../shared/i18n/locale';
 import { ADMIN_CANDIDATE_ERROR_KEYS } from '../../../../../../shared/adminCandidates/errorMessages';
 import type { AdminCandidateDetail, AdminCandidateListFilters, AdminCandidateListSort } from '../../../../lib/admin-candidates-client';
 import type { TranslationKey } from '../../../../../../shared/i18n/translations';
@@ -39,7 +38,7 @@ const SORT_OPTIONS: { value: AdminCandidateListSort; labelKey: TranslationKey }[
 
 /** The full admin candidate list workspace: search, filters, sort and pagination, all backed by the URL -- mirrors DocumentReviewQueue.tsx's identical structure. */
 export function CandidateListWorkspace() {
-  const { t, language } = useLanguage();
+  const { t } = useLanguage();
   const { hasPermission, signOut } = useStaffAuth();
   const [searchParams, setSearchParams] = useSearchParams();
   const { filters, sort, page } = readCandidateListStateFromSearchParams(searchParams);
@@ -121,11 +120,6 @@ export function CandidateListWorkspace() {
       header: t('adminCandidateListColumnStage'),
       render: (row) => (row.assignment ? <Badge tone="info">{row.assignment.currentWorkflowStage.name}</Badge> : t('notAvailable')),
     },
-    {
-      key: 'created',
-      header: t('adminCandidateListColumnCreated'),
-      render: (row) => formatDate(row.createdAt, language, { dateStyle: 'medium' }),
-    },
   ];
 
   return (
@@ -144,7 +138,6 @@ export function CandidateListWorkspace() {
               to="/admin/candidates/new"
               className="inline-flex h-11 shrink-0 items-center justify-center gap-2 rounded-xl bg-white px-5 text-sm font-semibold text-brand shadow-sm transition hover:-translate-y-0.5 hover:bg-white/95 hover:shadow-md"
             >
-              <Plus className="h-4 w-4" aria-hidden="true" />
               {t('adminAddCandidate')}
             </Link>
           ) : null}
@@ -161,8 +154,8 @@ export function CandidateListWorkspace() {
             <p className="text-xs text-text-secondary">{t('adminCandidateListFilterSubtitle')}</p>
           </div>
         </div>
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <div className="lg:col-span-2">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          <div>
           <Input
             label={t('adminCandidateListSearchLabel')}
             placeholder={t('adminCandidateListSearchPlaceholder')}
