@@ -1,5 +1,6 @@
 import { useCallback, useEffect } from 'react';
 import { Link, useSearchParams } from 'react-router';
+import { Plus, SlidersHorizontal, Users } from 'lucide-react';
 import { useLanguage } from '../../../../contexts/LanguageContext';
 import { useStaffAuth } from '../../../../contexts/StaffAuthContext';
 import {
@@ -81,22 +82,40 @@ export function CandidateListWorkspace() {
       key: 'candidate',
       header: t('adminCandidateListColumnCandidate'),
       render: (row) => (
-        <Link to={`/admin/candidates/${row.id}`} className="font-medium text-brand hover:underline">
-          <div>{row.fullName}</div>
-          <div className="text-xs font-normal text-text-tertiary">{row.id}</div>
-        </Link>
+        <div className="flex min-w-[190px] items-center gap-3">
+          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-brand-subtle text-sm font-semibold text-brand">
+            {row.fullName.trim().charAt(0).toUpperCase() || 'C'}
+          </div>
+          <div className="min-w-0">
+            <Link to={`/admin/candidates/${row.id}`} className="block truncate font-semibold text-brand hover:underline">
+              {row.fullName}
+            </Link>
+            <div className="mt-0.5 text-xs text-text-tertiary">{row.cnic}</div>
+          </div>
+        </div>
       ),
     },
-    { key: 'cnic', header: t('adminCandidateListColumnCnic'), render: (row) => row.cnic },
     { key: 'mobile', header: t('adminCandidateListColumnMobile'), render: (row) => row.mobileNumber },
     {
       key: 'reference',
       header: t('adminCandidateListColumnReference'),
       render: (row) => row.assignment?.referenceNumber ?? t('notAvailable'),
     },
-    { key: 'country', header: t('adminCandidateListColumnCountry'), render: (row) => row.assignment?.country.name ?? t('notAvailable') },
-    { key: 'project', header: t('adminCandidateListColumnProject'), render: (row) => row.assignment?.project.name ?? t('notAvailable') },
-    { key: 'craft', header: t('adminCandidateListColumnCraft'), render: (row) => row.assignment?.craft.name ?? t('notAvailable') },
+    {
+      key: 'assignment',
+      header: t('adminDocumentReviewColumnAssignment'),
+      render: (row) =>
+        row.assignment ? (
+          <div className="min-w-[170px]">
+            <div className="font-medium text-text-primary">{row.assignment.project.name}</div>
+            <div className="mt-0.5 text-xs text-text-tertiary">
+              {row.assignment.country.name} · {row.assignment.craft.name}
+            </div>
+          </div>
+        ) : (
+          t('notAvailable')
+        ),
+    },
     {
       key: 'stage',
       header: t('adminCandidateListColumnStage'),
@@ -110,27 +129,47 @@ export function CandidateListWorkspace() {
   ];
 
   return (
-    <div className="mx-auto max-w-[1600px] px-4 py-6 sm:px-6">
-      <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
-        <h1 className="text-2xl font-semibold text-text-primary">{t('adminCandidateListTitle')}</h1>
-        {hasPermission('manage_candidates') ? (
-          <Link
-            to="/admin/candidates/new"
-            className="inline-flex h-10 items-center rounded-xl bg-brand px-4 text-sm font-medium text-white hover:bg-brand/90"
-          >
-            {t('adminAddCandidate')}
-          </Link>
-        ) : null}
+    <div className="mx-auto max-w-[1400px] px-4 py-5 sm:px-6 sm:py-6">
+      <div className="relative mb-5 overflow-hidden rounded-2xl bg-brand shadow-md">
+        <div aria-hidden="true" className="absolute -right-14 -top-20 h-52 w-52 rounded-full border-[28px] border-white/10" />
+        <div aria-hidden="true" className="absolute -bottom-16 right-40 h-36 w-36 rounded-full bg-white/5" />
+        <div className="relative flex flex-col gap-5 px-6 py-7 sm:flex-row sm:items-center sm:justify-between lg:px-8">
+          <div className="max-w-2xl">
+            <p className="mb-2 text-xs font-semibold uppercase tracking-widest text-white/70">{t('adminCandidateListEyebrow')}</p>
+            <h1 className="text-2xl font-semibold tracking-tight text-white sm:text-3xl">{t('adminCandidateListTitle')}</h1>
+            <p className="mt-1 text-sm leading-6 text-white/80">{t('adminCandidateListSubtitle')}</p>
+          </div>
+          {hasPermission('manage_candidates') ? (
+            <Link
+              to="/admin/candidates/new"
+              className="inline-flex h-11 shrink-0 items-center justify-center gap-2 rounded-xl bg-white px-5 text-sm font-semibold text-brand shadow-sm transition hover:-translate-y-0.5 hover:bg-white/95 hover:shadow-md"
+            >
+              <Plus className="h-4 w-4" aria-hidden="true" />
+              {t('adminAddCandidate')}
+            </Link>
+          ) : null}
+        </div>
       </div>
 
-      <Card className="mb-4">
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+      <Card className="mb-5 p-5">
+        <div className="mb-4 flex items-center gap-3">
+          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-brand-subtle text-brand">
+            <SlidersHorizontal className="h-4 w-4" aria-hidden="true" />
+          </div>
+          <div>
+            <h2 className="font-semibold text-text-primary">{t('adminCandidateListFilterTitle')}</h2>
+            <p className="text-xs text-text-secondary">{t('adminCandidateListFilterSubtitle')}</p>
+          </div>
+        </div>
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="lg:col-span-2">
           <Input
             label={t('adminCandidateListSearchLabel')}
             placeholder={t('adminCandidateListSearchPlaceholder')}
             value={searchDraft}
             onChange={(event) => setSearchDraft(event.target.value)}
           />
+          </div>
           <Select
             label={t('adminCandidateListFilterStatusLabel')}
             value={filters.status ?? ''}
@@ -246,7 +285,17 @@ function ListContent({ query, columns, page, onPageChange, hasActiveFilters, t }
           <RetryBanner message={t('adminCandidateListLoadError')} retryLabel={t('retry')} onRetry={() => query.refetch()} />
         </div>
       ) : null}
-      <Card noPadding>
+      <div className="mb-3 flex flex-wrap items-center justify-between gap-3 px-1">
+        <div className="flex items-center gap-2 text-sm text-text-secondary">
+          <Users className="h-4 w-4 text-brand" aria-hidden="true" />
+          <span>
+            <strong className="font-semibold text-text-primary">{pagination?.totalCount ?? items.length}</strong>{' '}
+            {t('adminCandidateListResultsLabel')}
+          </span>
+        </div>
+        <span className="text-xs text-text-tertiary">{t('adminCandidateListResultsHint')}</span>
+      </div>
+      <Card noPadding className="min-w-0 overflow-hidden [&_tbody_tr:nth-child(even)]:bg-surface-sunken/45 [&_tbody_tr]:transition-colors [&_tbody_tr:hover]:bg-brand-subtle/40">
         <DataTable columns={columns} rows={items} getRowId={(row) => row.id} />
       </Card>
       {pagination ? (
