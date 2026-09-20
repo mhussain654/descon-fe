@@ -120,8 +120,8 @@ describe('MpsDashboard', () => {
 
     const headings = [...container.querySelectorAll('h2')].map((heading) => heading.textContent);
     expect(headings.indexOf('Key metrics')).toBeLessThan(headings.indexOf('Workflow stage queue'));
-    expect(headings.indexOf('Workflow stage queue')).toBeLessThan(headings.indexOf('Craft-wise summary'));
-    expect(headings.indexOf('Craft-wise summary')).toBeLessThan(headings.indexOf('Mobilization mix'));
+    expect(headings.indexOf('Workflow stage queue')).toBeLessThan(headings.indexOf('Craft/Trade wise summary'));
+    expect(headings.indexOf('Craft/Trade wise summary')).toBeLessThan(headings.indexOf('Mobilization mix'));
     expect(headings.indexOf('Mobilization mix')).toBeLessThan(headings.indexOf('Mobilization trend'));
   });
 
@@ -255,7 +255,7 @@ describe('MpsDashboard', () => {
     await renderAs(MPS);
     await screen.findByText('QVC & visa stage');
 
-    expect(screen.getByText('Craft-wise summary')).toBeInTheDocument();
+    expect(screen.getByText('Craft/Trade wise summary')).toBeInTheDocument();
     expect(screen.getByText('Nothing to show yet')).toBeInTheDocument();
   });
 
