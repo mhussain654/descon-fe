@@ -24,7 +24,6 @@ import type { TranslationKey } from '../../../../../../shared/i18n/translations'
 import { CANONICAL_WORKFLOW_STAGE_CODES, WORKFLOW_STAGE_LABEL_KEYS } from '../../../../../../shared/adminWorkflow/canonicalStages';
 import { useDebouncedUrlFilter } from '../../documentReviews/hooks/useDebouncedUrlFilter';
 import { useCandidateList } from '../hooks/useCandidateList';
-import { useCountries, useCrafts, useProjects } from '../hooks/useReferenceData';
 import { readCandidateListStateFromSearchParams, writeCandidateListStateToSearchParams } from '../candidateListUrlState';
 
 const SORT_OPTIONS: { value: AdminCandidateListSort; labelKey: TranslationKey }[] = [
@@ -44,9 +43,6 @@ export function CandidateListWorkspace() {
   const { filters, sort, page } = readCandidateListStateFromSearchParams(searchParams);
 
   const query = useCandidateList(filters, sort, page);
-  const countriesQuery = useCountries();
-  const projectsQuery = useProjects();
-  const craftsQuery = useCrafts();
 
   // See DocumentReviewQueue.tsx's identical comment -- a confirmed-dead
   // session or a deactivated account must end the local session so
@@ -177,33 +173,6 @@ export function CandidateListWorkspace() {
             value={sort ?? ''}
             onChange={(event) => updateFilters({}, (event.target.value || undefined) as AdminCandidateListSort | undefined)}
             options={[{ value: '', label: t('adminCandidateListSortNewest') }, ...SORT_OPTIONS.map((option) => ({ value: option.value, label: t(option.labelKey) }))]}
-          />
-          <Select
-            label={t('adminCandidateListFilterCountryLabel')}
-            value={filters.countryCode ?? ''}
-            onChange={(event) => updateFilters({ countryCode: event.target.value || undefined })}
-            options={[
-              { value: '', label: t('adminCandidateListFilterAllCountries') },
-              ...(countriesQuery.data ?? []).map((item) => ({ value: item.code, label: item.name })),
-            ]}
-          />
-          <Select
-            label={t('adminCandidateListFilterProjectLabel')}
-            value={filters.projectCode ?? ''}
-            onChange={(event) => updateFilters({ projectCode: event.target.value || undefined })}
-            options={[
-              { value: '', label: t('adminCandidateListFilterAllProjects') },
-              ...(projectsQuery.data ?? []).map((item) => ({ value: item.code, label: item.name })),
-            ]}
-          />
-          <Select
-            label={t('adminCandidateListFilterCraftLabel')}
-            value={filters.craftCode ?? ''}
-            onChange={(event) => updateFilters({ craftCode: event.target.value || undefined })}
-            options={[
-              { value: '', label: t('adminCandidateListFilterAllCrafts') },
-              ...(craftsQuery.data ?? []).map((item) => ({ value: item.code, label: item.name })),
-            ]}
           />
         </div>
         {hasActiveFilters ? (
