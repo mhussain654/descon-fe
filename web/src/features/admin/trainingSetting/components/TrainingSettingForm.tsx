@@ -5,6 +5,7 @@ import { Button, Card, ErrorState, ForbiddenState, HelperText, Input, LoadingSta
 import { formatDate } from '../../../../../../shared/i18n/locale';
 import { useTrainingSetting } from '../hooks/useTrainingSetting';
 import { useUpdateTrainingSetting } from '../hooks/useUpdateTrainingSetting';
+import { Link2, Save } from 'lucide-react';
 
 /** The training-link singleton settings form. Always directly editable -- mirrors AiCallOperationalSettingsForm.tsx's identical "no separate view mode" rationale. */
 export function TrainingSettingForm() {
@@ -53,8 +54,9 @@ export function TrainingSettingForm() {
   const errorMessage = mutation.isError && mutation.error.code === 'VALIDATION_FAILED' ? mutation.error.message : undefined;
 
   return (
-    <Card>
-      <div className="space-y-4">
+    <Card className="overflow-hidden p-0">
+      <div className="flex items-center gap-3 border-b border-border-subtle bg-surface-sunken px-5 py-4"><span className="flex h-9 w-9 items-center justify-center rounded-xl bg-brand-subtle text-brand"><Link2 className="h-4 w-4" /></span><div><h2 className="font-semibold text-text-primary">{t('adminTrainingSettingCardTitle')}</h2><p className="text-xs text-text-secondary">{t('adminTrainingSettingCardDescription')}</p></div></div>
+      <div className="space-y-4 p-5">
         <Input
           type="url"
           label={t('adminTrainingSettingUrlLabel')}
@@ -72,6 +74,7 @@ export function TrainingSettingForm() {
             {formatDate(settings.updatedAt, language, { dateStyle: 'medium', timeStyle: 'short' })}
           </HelperText>
           <Button onClick={handleSave} loading={mutation.isPending}>
+            <Save className="me-1.5 h-4 w-4" />
             {t('adminTrainingSettingSaveAction')}
           </Button>
         </div>
