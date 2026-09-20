@@ -16,15 +16,14 @@ import {
   OfflineState,
   Pagination,
   RetryBanner,
-  StatTile,
   type DataTableColumn,
 } from '../../../../design-system';
 import { formatDate } from '../../../../../../shared/i18n/locale';
 import { ADMIN_DOCUMENT_REVIEW_ERROR_KEYS } from '../../../../../../shared/adminDocumentReviews/errorMessages';
 import { referenceDisplayName } from '../../../../../../shared/adminDocumentReviews/formatting';
 import {
+  CategoryDonutChart,
   DOCUMENT_REVIEW_ROW_STYLE,
-  TONE_TILE_CLASSNAME,
 } from '../../reports/components/ReportCharts';
 import {
   DOCUMENT_REVIEW_SUMMARY_ROWS,
@@ -44,6 +43,14 @@ const QUEUE_STATUS_TONES = { ...REVIEW_STATE_TONES, ...QUEUE_STATUS_FILTER_ONLY_
 >;
 
 const SUMMARY_ROWS = DOCUMENT_REVIEW_SUMMARY_ROWS;
+const SUMMARY_CARD_STYLE = {
+  brand: 'border-t-brand bg-brand-subtle/55 text-brand',
+  success: 'border-t-success bg-success-subtle/65 text-success-emphasis',
+  warning: 'border-t-warning bg-warning-subtle/70 text-warning-emphasis',
+  danger: 'border-t-danger bg-danger-subtle/65 text-danger-emphasis',
+  info: 'border-t-info bg-info-subtle/65 text-info-emphasis',
+  neutral: 'border-t-text-tertiary bg-surface-sunken text-text-secondary',
+} as const;
 import type { TranslationKey } from '../../../../../../shared/i18n/translations';
 import { datetimeLocalValueToIso, isoToDatetimeLocalValue } from '../dateTimeLocalInput';
 import { useDebouncedUrlFilter } from '../hooks/useDebouncedUrlFilter';
@@ -184,24 +191,51 @@ export function DocumentReviewQueue() {
       </div>
 
       {query.data?.summary ? (
-        <div className="mb-5">
-          <h2 className="mb-2 text-sm font-semibold text-text-primary">{t('adminDocumentReviewSummaryTitle')}</h2>
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
-            {SUMMARY_ROWS.map((row) => {
-              const style = DOCUMENT_REVIEW_ROW_STYLE[row.key];
-              const Icon = style?.icon ?? Clock;
-              return (
-                <StatTile
-                  key={row.key}
-                  value={query.data?.summary[row.key] ?? 0}
-                  label={t(row.labelKey as TranslationKey)}
-                  className={`${TONE_TILE_CLASSNAME[style?.tone ?? 'neutral']} min-h-0 px-4 py-3`}
-                  icon={<Icon />}
-                />
-              );
-            })}
+        <Card className="mb-5 p-5">
+          <div className="mb-3 flex items-end justify-between gap-4">
+            <div>
+              <h2 className="font-semibold text-text-primary">{t('adminDocumentReviewSummaryTitle')}</h2>
+              <p className="text-xs text-text-secondary">{t('adminDocumentReviewSummarySubtitle')}</p>
+            </div>
           </div>
-        </div>
+          <div className="grid items-center gap-5 lg:grid-cols-[170px_minmax(0,1fr)]">
+            <div className="relative mx-auto">
+              <CategoryDonutChart
+                data={SUMMARY_ROWS.map((row) => ({
+                  key: row.key,
+                  label: t(row.labelKey as TranslationKey),
+                  value: query.data?.summary[row.key] ?? 0,
+                  tone: DOCUMENT_REVIEW_ROW_STYLE[row.key]?.tone,
+                }))}
+              />
+              <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center">
+                <span className="text-2xl font-bold tracking-tight text-text-primary">
+                  {SUMMARY_ROWS.reduce((total, row) => total + (query.data?.summary[row.key] ?? 0), 0)}
+                </span>
+                <span className="text-[11px] font-medium text-text-tertiary">{t('adminDocumentReviewTotalLabel')}</span>
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-5">
+              {SUMMARY_ROWS.map((row) => {
+                const style = DOCUMENT_REVIEW_ROW_STYLE[row.key];
+                const tone = style?.tone ?? 'neutral';
+                const Icon = style?.icon ?? Clock;
+                return (
+                  <div
+                    key={row.key}
+                    className={`relative overflow-hidden rounded-xl border border-border border-t-4 px-4 py-4 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md ${SUMMARY_CARD_STYLE[tone]}`}
+                  >
+                    <div className="mb-3 flex h-8 w-8 items-center justify-center rounded-lg bg-surface-raised/75">
+                      <Icon className="h-4 w-4" aria-hidden="true" />
+                    </div>
+                    <div className="text-3xl font-bold tracking-tight">{query.data?.summary[row.key] ?? 0}</div>
+                    <div className="mt-0.5 text-xs font-semibold text-text-secondary">{t(row.labelKey as TranslationKey)}</div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </Card>
       ) : null}
 
       <Card className="mb-5 p-5">
