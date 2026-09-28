@@ -136,10 +136,17 @@ export interface CandidateImportHistoryPagination {
   totalPages: number;
 }
 
+/** Zero-filled count for one batch status, scoped by every active filter except `status`. */
+export interface CandidateImportStatusSummaryRow {
+  code: CandidateImportStatus;
+  count: number;
+}
+
 export interface CandidateImportHistoryResult {
   items: CandidateImportBatchSummary[];
   pagination: CandidateImportHistoryPagination;
   appliedFilters: Record<string, string>;
+  summary: CandidateImportStatusSummaryRow[];
 }
 
 /** The real, backend-served, permission-checked CSV template -- not client-generated (the required/optional/template-version headers are the parser's actual current contract, which the FE must never hand-maintain a stale copy of). Reused for the error-export download, which is the same "fetch text + a filename" shape. */

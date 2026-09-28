@@ -85,6 +85,10 @@ describe('createAdminCommunicationsClient (real)', () => {
           successEnvelope([communicationPayload()], {
             pagination: { page: 1, per_page: 20, total_count: 1, total_pages: 1 },
             applied_filters: { channel: 'ai_voice_call' },
+            summary: [
+              { code: 'inbound', count: 0 },
+              { code: 'outbound', count: 1 },
+            ],
           })
         );
       });
@@ -138,6 +142,10 @@ describe('createAdminCommunicationsClient (real)', () => {
       ]);
       expect(result.pagination).toEqual({ page: 1, perPage: 20, totalCount: 1, totalPages: 1 });
       expect(result.appliedFilters).toEqual({ channel: 'ai_voice_call' });
+      expect(result.summary).toEqual([
+        { code: 'inbound', count: 0 },
+        { code: 'outbound', count: 1 },
+      ]);
     });
 
     it('maps an absent candidate_assignment/initiated_by to undefined, not null, for an unidentified inbound call', async () => {

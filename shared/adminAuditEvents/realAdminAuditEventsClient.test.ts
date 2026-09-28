@@ -77,6 +77,10 @@ describe('createAdminAuditEventsClient (real)', () => {
           successEnvelope([auditEventPayload()], {
             pagination: { page: 1, per_page: 20, total_count: 1, total_pages: 1 },
             applied_filters: { entity_type: 'CandidateDocument' },
+            summary: [
+              { code: 'CandidateDocument', count: 2 },
+              { code: 'Payment', count: 1 },
+            ],
           })
         );
       });
@@ -114,6 +118,10 @@ describe('createAdminAuditEventsClient (real)', () => {
       ]);
       expect(result.pagination).toEqual({ page: 1, perPage: 20, totalCount: 1, totalPages: 1 });
       expect(result.appliedFilters).toEqual({ entity_type: 'CandidateDocument' });
+      expect(result.summary).toEqual([
+        { code: 'CandidateDocument', count: 2 },
+        { code: 'Payment', count: 1 },
+      ]);
     });
 
     it('maps an absent actor to undefined, not null, for a system-triggered event', async () => {

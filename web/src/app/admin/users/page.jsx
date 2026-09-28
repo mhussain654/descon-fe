@@ -21,6 +21,7 @@ import {
   LoadingState,
   SearchField,
   Select,
+  StatTile,
   ValidationMessage,
   toast,
 } from "../../../design-system";
@@ -241,10 +242,10 @@ function StaffUsersContent() {
 
       {!staffQuery.isLoading && !staffQuery.isError ? (
         <div className="mb-5 grid grid-cols-2 gap-3 lg:grid-cols-4">
-          <StaffMetric icon={Users} label={t("staffAdminMetricTotal")} value={staff.length} className="border-t-brand bg-brand-subtle/45 text-brand" />
-          <StaffMetric icon={UserCheck} label={t("staffAdminMetricActive")} value={staff.filter((member) => member.status === "active").length} className="border-t-success bg-success-subtle/55 text-success-emphasis" />
-          <StaffMetric icon={UserPlus} label={t("staffAdminMetricInvited")} value={staff.filter((member) => member.status === "invited").length} className="border-t-info bg-info-subtle/55 text-info-emphasis" />
-          <StaffMetric icon={ShieldCheck} label={t("staffAdminMetricAdmins")} value={staff.filter((member) => member.role === "admin").length} className="border-t-warning bg-warning-subtle/55 text-warning-emphasis" />
+          <StatTile icon={<Users />} label={t("staffAdminMetricTotal")} value={staff.length} className="border-border border-t-4 border-t-brand bg-brand-subtle/45 text-brand" />
+          <StatTile icon={<UserCheck />} label={t("staffAdminMetricActive")} value={staff.filter((member) => member.status === "active").length} className="border-border border-t-4 border-t-success bg-success-subtle/55 text-success-emphasis" />
+          <StatTile icon={<UserPlus />} label={t("staffAdminMetricInvited")} value={staff.filter((member) => member.status === "invited").length} className="border-border border-t-4 border-t-info bg-info-subtle/55 text-info-emphasis" />
+          <StatTile icon={<ShieldCheck />} label={t("staffAdminMetricAdmins")} value={staff.filter((member) => member.role === "admin").length} className="border-border border-t-4 border-t-warning bg-warning-subtle/55 text-warning-emphasis" />
         </div>
       ) : null}
 
@@ -346,15 +347,6 @@ function StaffUsersContent() {
       >
         {statusError ? <ValidationMessage tone="error">{statusError.message}</ValidationMessage> : null}
       </ConfirmDialog>
-    </div>
-  );
-}
-
-function StaffMetric({ icon: Icon, label, value, className }) {
-  return (
-    <div className={`rounded-xl border border-border border-t-4 p-4 shadow-sm ${className}`}>
-      <div className="mb-3 flex items-center justify-between gap-3"><span className="text-xs font-semibold uppercase tracking-wide text-text-secondary">{label}</span><Icon className="h-4 w-4" /></div>
-      <div className="text-2xl font-semibold tracking-tight text-text-primary">{value}</div>
     </div>
   );
 }

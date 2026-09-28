@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { ChevronDown, ClipboardList, FileSearch, ShieldCheck, SlidersHorizontal, UserRound } from 'lucide-react';
+import { ChevronDown, ClipboardList, ShieldCheck, SlidersHorizontal } from 'lucide-react';
 import { useSearchParams } from 'react-router';
 import { useLanguage } from '../../../../contexts/LanguageContext';
 import { useStaffAuth } from '../../../../contexts/StaffAuthContext';
@@ -20,8 +20,9 @@ import {
 } from '../../../../design-system';
 import { formatDate } from '../../../../../../shared/i18n/locale';
 import { AUDIT_EVENT_ERROR_KEYS } from '../../../../../../shared/adminAuditEvents/errorMessages';
-import type { AuditEvent, AuditEventListFilters, AuditEventListSort } from '../../../../lib/admin-audit-events-client';
+import type { AuditEvent, AuditEventEntityTypeSummaryRow, AuditEventListFilters, AuditEventListSort } from '../../../../lib/admin-audit-events-client';
 import type { TranslationKey } from '../../../../../../shared/i18n/translations';
+import { CategoryBarChart } from '../../reports/components/ReportCharts';
 import { useAuditEventList } from '../hooks/useAuditEventList';
 import { approvedMetadataEntries } from '../auditEventMetadata';
 import {
@@ -144,12 +145,12 @@ export function AuditEventList() {
       </div>
 
       {query.data ? (
-        <div className="mb-5 grid grid-cols-1 gap-3 sm:grid-cols-3">
+        <div className="mb-5 sm:max-w-xs">
           <AuditMetric icon={ShieldCheck} label={t('adminAuditEventMetricTotal')} value={query.data.pagination.totalCount} className="border-t-brand bg-brand-subtle/45 text-brand" />
-          <AuditMetric icon={UserRound} label={t('adminAuditEventMetricActors')} value={new Set(query.data.items.map((item) => item.actor?.id).filter(Boolean)).size} className="border-t-success bg-success-subtle/55 text-success-emphasis" />
-          <AuditMetric icon={FileSearch} label={t('adminAuditEventMetricActions')} value={new Set(query.data.items.map((item) => item.actionCode)).size} className="border-t-info bg-info-subtle/55 text-info-emphasis" />
         </div>
       ) : null}
+
+      <TopEntityTypesCard summary={query.data?.summary} t={t} />
 
       <Card className="mb-5 p-5">
         <div className="mb-4 flex items-center justify-between gap-3"><div><h2 className="font-semibold text-text-primary">{t('adminAuditEventFilterTitle')}</h2><p className="text-xs text-text-secondary">{t('adminAuditEventFilterDescription')}</p></div><button type="button" onClick={() => setShowAdvancedFilters((current) => !current)} className="inline-flex min-h-10 items-center gap-2 rounded-lg border border-border px-3 text-sm font-medium text-text-secondary hover:bg-surface-sunken" aria-expanded={showAdvancedFilters}><SlidersHorizontal className="h-4 w-4" />{t('adminAuditEventAdvancedFilters')}<ChevronDown className={`h-4 w-4 transition-transform ${showAdvancedFilters ? 'rotate-180' : ''}`} /></button></div>
@@ -197,6 +198,34 @@ export function AuditEventList() {
 
 function AuditMetric({ icon: Icon, label, value, className }: { icon: typeof ShieldCheck; label: string; value: number; className: string }) {
   return <div className={`rounded-xl border border-border border-t-4 p-4 shadow-sm ${className}`}><div className="mb-3 flex items-center justify-between gap-3"><span className="text-xs font-semibold uppercase tracking-wide text-text-secondary">{label}</span><Icon className="h-4 w-4" /></div><div className="text-2xl font-semibold text-text-primary">{value}</div></div>;
+}
+
+/**
+ * Top 8 observed entity types by count, descending -- real, backend-computed
+ * data (Admin::AuditEvents::IndexQuery#summary), not zero-filled (entity_type
+ * has no fixed enum). Not a page-scoped approximation over the current
+ * page's rows, unlike the metrics this replaced.
+ */
+function TopEntityTypesCard({ summary, t }: { summary?: AuditEventEntityTypeSummaryRow[]; t: (key: TranslationKey) => string }) {
+  if (!summary || summary.length === 0) return null;
+
+  const chartData = summary.map((row) => ({ key: row.code, label: row.code, value: row.count }));
+
+  return (
+    <Card className="mb-5 p-5">
+      <h2 className="mb-1 font-semibold text-text-primary">{t('adminAuditEventTopEntityTypesTitle')}</h2>
+      <p className="mb-4 text-xs text-text-secondary">{t('adminAuditEventTopEntityTypesSubtitle')}</p>
+      <CategoryBarChart data={chartData} />
+      {/* The chart above is aria-hidden/decorative; this list is the accessible source of truth. */}
+      <ul className="mt-4 flex flex-wrap gap-2">
+        {chartData.map((row) => (
+          <li key={row.key} className="rounded-lg bg-surface-sunken px-3 py-1.5 text-xs text-text-secondary">
+            <span className="font-semibold text-text-primary">{row.value}</span> {row.label}
+          </li>
+        ))}
+      </ul>
+    </Card>
+  );
 }
 
 interface ListContentProps {

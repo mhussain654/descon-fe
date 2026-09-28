@@ -1,7 +1,8 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import { isSessionValid } from '../../../shared/auth/session';
-import type { AuthSession, ConsentStatus } from '../../../shared/auth/types';
+import { isSessionDueForRefresh, isSessionValid } from '../../../shared/auth/session';
+import type { AuthSession, CandidateAuthClient, ConsentStatus } from '../../../shared/auth/types';
+import { candidateAuthClient } from '../lib/auth-client';
 
 export type AuthStatus = 'unauthenticated' | 'authenticated';
 export type LogoutReason = 'manual' | 'expired';
@@ -36,18 +37,30 @@ const EXPIRY_CHECK_INTERVAL_MS = 5000;
  * landed yet. Once that lands, `session` collapses to "ask the server
  * whether the cookie is still valid" rather than holding a token.
  */
-export function AuthProvider({ children }: { children: ReactNode }) {
+export function AuthProvider({
+  children,
+  client = candidateAuthClient,
+}: {
+  children: ReactNode;
+  client?: CandidateAuthClient;
+}) {
   const [session, setSession] = useState<AuthSession | null>(null);
+  // Bumped by login/logout so a refresh that was in flight when the session
+  // changed can't resurrect (or overwrite) the new state when it resolves.
+  const generationRef = useRef(0);
+  const refreshInFlightRef = useRef(false);
   const [sessionExpired, setSessionExpired] = useState(false);
   const queryClient = useQueryClient();
 
   const login = useCallback((next: AuthSession) => {
+    generationRef.current += 1;
     setSession(next);
     setSessionExpired(false);
   }, []);
 
   const logout = useCallback(
     (reason: LogoutReason = 'manual') => {
+      generationRef.current += 1;
       setSession(null);
       setSessionExpired(reason === 'expired');
       // Candidate-sensitive query data must not survive into whatever the
@@ -76,6 +89,33 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }, EXPIRY_CHECK_INTERVAL_MS);
     return () => clearInterval(interval);
   }, [session, logout]);
+
+  // Renews the access token shortly before it expires so an active
+  // candidate isn't sent back to the OTP screen every few minutes. Only a
+  // server-confirmed rejection of the refresh token ends the session; a
+  // transient failure (offline, network, rate limit) is retried on the next
+  // tick, and the check above still logs out if the token actually lapses.
+  useEffect(() => {
+    if (!session) return undefined;
+    const interval = setInterval(async () => {
+      if (refreshInFlightRef.current || !isSessionDueForRefresh(session)) return;
+
+      const generation = generationRef.current;
+      refreshInFlightRef.current = true;
+      try {
+        const refreshed = await client.refreshSession(session.refreshToken);
+        if (generationRef.current !== generation) return;
+        setSession(refreshed);
+      } catch (error) {
+        if (generationRef.current === generation && (error as { code?: string })?.code === 'SESSION_EXPIRED') {
+          logout('expired');
+        }
+      } finally {
+        refreshInFlightRef.current = false;
+      }
+    }, EXPIRY_CHECK_INTERVAL_MS);
+    return () => clearInterval(interval);
+  }, [session, client, logout]);
 
   const status: AuthStatus = session && isSessionValid(session) ? 'authenticated' : 'unauthenticated';
 

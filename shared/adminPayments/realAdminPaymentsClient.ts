@@ -185,6 +185,13 @@ function toAppliedFilters(raw: unknown): Record<string, string> {
   );
 }
 
+function toStatusSummary(raw: unknown): PaymentListResult['summary'] {
+  if (!Array.isArray(raw)) return [];
+  return raw
+    .filter((row): row is { code: unknown; count: unknown } => !!row && typeof row === 'object')
+    .map((row) => ({ code: row.code as AdminPaymentStatus, count: typeof row.count === 'number' ? row.count : 0 }));
+}
+
 /** A StaffAuthError (from the 401 refresh-and-retry path) has no `status`; anything else here is the raw ApiError authenticatedDataRequest rethrew unchanged. */
 function isStaffAuthError(error: unknown): error is StaffAuthError {
   return !!error && typeof error === 'object' && 'code' in error && !('status' in error);
@@ -249,11 +256,12 @@ export function createAdminPaymentsClient(options: RealAdminPaymentsClientOption
         if (!result) throw { code: 'UNKNOWN' } satisfies AdminPaymentError;
 
         const items = Array.isArray(result.data) ? result.data.map(toSummary) : [];
-        const meta = result.meta as { pagination?: unknown; applied_filters?: unknown } | undefined;
+        const meta = result.meta as { pagination?: unknown; applied_filters?: unknown; summary?: unknown } | undefined;
         return {
           items,
           pagination: toPagination(meta?.pagination),
           appliedFilters: toAppliedFilters(meta?.applied_filters),
+          summary: toStatusSummary(meta?.summary),
         };
       } catch (error) {
         throw toAdminPaymentError(error);

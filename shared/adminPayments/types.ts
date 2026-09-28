@@ -126,10 +126,17 @@ export interface PaymentListPagination {
   totalPages: number;
 }
 
+/** Zero-filled count for one payment status, scoped by every active filter except `status`. */
+export interface PaymentStatusSummaryRow {
+  code: AdminPaymentStatus;
+  count: number;
+}
+
 export interface PaymentListResult {
   items: PaymentSummary[];
   pagination: PaymentListPagination;
   appliedFilters: Record<string, string>;
+  summary: PaymentStatusSummaryRow[];
 }
 
 /** Only one of these three fields is ever correctable in one request -- see Admin::Payments::CorrectionService for exactly why each is restricted this way. */

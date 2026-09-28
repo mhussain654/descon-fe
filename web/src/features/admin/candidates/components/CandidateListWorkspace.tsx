@@ -19,12 +19,49 @@ import {
   type DataTableColumn,
 } from '../../../../design-system';
 import { ADMIN_CANDIDATE_ERROR_KEYS } from '../../../../../../shared/adminCandidates/errorMessages';
-import type { AdminCandidateDetail, AdminCandidateListFilters, AdminCandidateListSort } from '../../../../lib/admin-candidates-client';
+import type {
+  AdminCandidateDetail,
+  AdminCandidateListFilters,
+  AdminCandidateListSort,
+  AdminCandidateStatusSummaryRow,
+} from '../../../../lib/admin-candidates-client';
 import type { TranslationKey } from '../../../../../../shared/i18n/translations';
 import { CANONICAL_WORKFLOW_STAGE_CODES, WORKFLOW_STAGE_LABEL_KEYS } from '../../../../../../shared/adminWorkflow/canonicalStages';
+import { CategoryBarChart } from '../../reports/components/ReportCharts';
 import { useDebouncedUrlFilter } from '../../documentReviews/hooks/useDebouncedUrlFilter';
 import { useCandidateList } from '../hooks/useCandidateList';
 import { readCandidateListStateFromSearchParams, writeCandidateListStateToSearchParams } from '../candidateListUrlState';
+
+function stageLabel(code: string, t: (key: TranslationKey) => string): string {
+  const key = WORKFLOW_STAGE_LABEL_KEYS[code as (typeof CANONICAL_WORKFLOW_STAGE_CODES)[number]] as TranslationKey | undefined;
+  return key ? t(key) : code;
+}
+
+function CandidateStatusSummaryCard({ summary, t }: { summary?: AdminCandidateStatusSummaryRow[]; t: (key: TranslationKey) => string }) {
+  if (!summary || summary.length === 0) return null;
+
+  const hasAnyCount = summary.some((row) => row.count > 0);
+  if (!hasAnyCount) return null;
+
+  const chartData = summary.map((row) => ({ key: row.code, label: stageLabel(row.code, t), value: row.count }));
+
+  return (
+    <Card className="mb-5 p-5">
+      <h2 className="mb-1 font-semibold text-text-primary">{t('adminCandidateListStatusSummaryTitle')}</h2>
+      <p className="mb-4 text-xs text-text-secondary">{t('adminCandidateListStatusSummarySubtitle')}</p>
+      <CategoryBarChart data={chartData} />
+      {/* The chart above is aria-hidden/decorative; this grid is the accessible source of truth for every stage count. */}
+      <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5">
+        {chartData.map((row) => (
+          <div key={row.key} className="rounded-lg bg-surface-sunken px-3 py-2">
+            <p className="text-lg font-semibold text-text-primary">{row.value}</p>
+            <p className="text-xs text-text-secondary">{row.label}</p>
+          </div>
+        ))}
+      </div>
+    </Card>
+  );
+}
 
 const SORT_OPTIONS: { value: AdminCandidateListSort; labelKey: TranslationKey }[] = [
   { value: '-created_at', labelKey: 'adminCandidateListSortNewest' },
@@ -139,6 +176,8 @@ export function CandidateListWorkspace() {
           ) : null}
         </div>
       </div>
+
+      <CandidateStatusSummaryCard summary={query.data?.summary} t={t} />
 
       <Card className="mb-5 p-5">
         <div className="mb-4 flex items-center gap-3">

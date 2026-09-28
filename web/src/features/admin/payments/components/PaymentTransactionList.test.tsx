@@ -48,8 +48,12 @@ function paymentSummary(overrides: Record<string, unknown> = {}) {
   };
 }
 
-function listResult(items: Array<ReturnType<typeof paymentSummary>>, pagination = { page: 1, perPage: 20, totalCount: items.length, totalPages: 1 }) {
-  return { items, pagination, appliedFilters: {} };
+function listResult(
+  items: Array<ReturnType<typeof paymentSummary>>,
+  pagination = { page: 1, perPage: 20, totalCount: items.length, totalPages: 1 },
+  summary: Array<{ code: string; count: number }> = []
+) {
+  return { items, pagination, appliedFilters: {}, summary };
 }
 
 async function renderAt(path: string, account: typeof FINANCE) {
@@ -107,13 +111,38 @@ describe('PaymentTransactionList', () => {
       expect(await screen.findByText('Ahmed Ali')).toBeInTheDocument();
       expect(screen.getByText('DES-001001')).toBeInTheDocument();
       // Intl.NumberFormat separates the currency symbol from the amount with
-      // a non-breaking space, not a plain one -- match either.
-      expect(screen.getByText(/^Rs\s*1,500$/)).toBeInTheDocument();
+      // a non-breaking space, not a plain one -- match either. Also appears
+      // in the page's own "Visible paid" summary tile, so scope to >=1.
+      expect(screen.getAllByText(/^Rs\s*1,500$/).length).toBeGreaterThan(0);
       // "Paid"/"Clean" also appear as filter-select options, so scope to the row's own Badge.
       expect(screen.getAllByText('Paid').length).toBeGreaterThan(0);
       expect(screen.getByText('kuickpay')).toBeInTheDocument();
       expect(screen.getAllByText('Clean').length).toBeGreaterThan(0);
       expect(screen.queryByText(/\d{5}-\d{7}-\d/)).not.toBeInTheDocument();
+    });
+
+    it('shows the real, table-wide payment-status summary from the backend', async () => {
+      adminPaymentsClient.listPayments.mockResolvedValue(
+        listResult([paymentSummary()], undefined, [
+          { code: 'checkout_pending', count: 0 },
+          { code: 'paid', count: 9 },
+          { code: 'failed', count: 2 },
+          { code: 'cancelled', count: 0 },
+        ])
+      );
+      await renderAt('/admin/finance/payments', FINANCE);
+
+      expect(await screen.findByText('Payment status summary')).toBeInTheDocument();
+      expect(screen.getByText('9')).toBeInTheDocument();
+      expect(screen.getByText('2')).toBeInTheDocument();
+    });
+
+    it('omits the payment-status summary card when the backend returns no summary', async () => {
+      adminPaymentsClient.listPayments.mockResolvedValue(listResult([paymentSummary()]));
+      await renderAt('/admin/finance/payments', FINANCE);
+
+      await screen.findByText('Ahmed Ali');
+      expect(screen.queryByText('Payment status summary')).not.toBeInTheDocument();
     });
 
     it('links each row to its payment detail page', async () => {

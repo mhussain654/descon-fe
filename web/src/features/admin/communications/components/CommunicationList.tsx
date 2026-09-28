@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Link, useSearchParams } from 'react-router';
-import { ArrowDownLeft, ArrowUpRight, ChevronDown, MessageSquareText, PhoneCall, Radio, SlidersHorizontal } from 'lucide-react';
+import { ArrowDownLeft, ArrowUpRight, ChevronDown, MessageSquareText, Radio, SlidersHorizontal } from 'lucide-react';
 import { useLanguage } from '../../../../contexts/LanguageContext';
 import { useStaffAuth } from '../../../../contexts/StaffAuthContext';
 import {
@@ -137,13 +137,16 @@ export function CommunicationList() {
     },
   ];
 
-  const items = query.data?.items ?? [];
-  const pageSummary = {
-    total: query.data?.pagination.totalCount ?? 0,
-    outbound: items.filter((item) => item.directionCode === 'outbound').length,
-    inbound: items.filter((item) => item.directionCode === 'inbound').length,
-    aiCalls: items.filter((item) => item.channelCode === 'ai_voice_call').length,
-  };
+  const total = query.data?.pagination.totalCount ?? 0;
+  // channel/status have no fixed enum on the backend (see
+  // Admin::Communications::IndexQuery#summary), so only direction gets a
+  // real, table-wide, zero-filled count here -- deliberately not a
+  // per-page approximation like this row used to compute for
+  // outbound/inbound (or a fabricated "AI calls" count with no accurate
+  // backend source at all).
+  const summary = query.data?.summary ?? [];
+  const outbound = summary.find((row) => row.code === 'outbound')?.count ?? 0;
+  const inbound = summary.find((row) => row.code === 'inbound')?.count ?? 0;
 
   return (
     <div className="mx-auto max-w-[1400px] px-4 py-5 sm:px-6 sm:py-6">
@@ -163,12 +166,11 @@ export function CommunicationList() {
       </div>
 
       {!query.isLoading && query.data ? (
-        <div className="mb-5 grid grid-cols-2 gap-3 lg:grid-cols-4">
+        <div className="mb-5 grid grid-cols-1 gap-3 sm:grid-cols-3">
           {[
-            { label: t('adminCommunicationMetricTotal'), value: pageSummary.total, icon: Radio, style: 'border-t-brand bg-brand-subtle/45 text-brand' },
-            { label: t('adminCommunicationMetricOutbound'), value: pageSummary.outbound, icon: ArrowUpRight, style: 'border-t-info bg-info-subtle/55 text-info-emphasis' },
-            { label: t('adminCommunicationMetricInbound'), value: pageSummary.inbound, icon: ArrowDownLeft, style: 'border-t-success bg-success-subtle/55 text-success-emphasis' },
-            { label: t('adminCommunicationMetricAiCalls'), value: pageSummary.aiCalls, icon: PhoneCall, style: 'border-t-warning bg-warning-subtle/60 text-warning-emphasis' },
+            { label: t('adminCommunicationMetricTotal'), value: total, icon: Radio, style: 'border-t-brand bg-brand-subtle/45 text-brand' },
+            { label: t('adminCommunicationMetricOutbound'), value: outbound, icon: ArrowUpRight, style: 'border-t-info bg-info-subtle/55 text-info-emphasis' },
+            { label: t('adminCommunicationMetricInbound'), value: inbound, icon: ArrowDownLeft, style: 'border-t-success bg-success-subtle/55 text-success-emphasis' },
           ].map(({ label, value, icon: Icon, style }) => (
             <div key={label} className={`rounded-xl border border-border border-t-4 p-4 shadow-sm ${style}`}>
               <div className="mb-3 flex items-center justify-between gap-3">

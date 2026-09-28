@@ -83,6 +83,30 @@ shared convention across both:
 Neither app should ever contain a hardcoded production API URL — always go
 through these variables.
 
+## Candidate session and refresh
+
+The candidate access token lasts 15 minutes, but candidates are not asked for a
+new SMS OTP that often. Web and mobile both renew the session through
+`POST /api/v1/candidate/auth/refresh` (`refreshSession` in
+`shared/auth/realCandidateAuthClient.ts`):
+
+- The `AuthProvider` on each platform checks every 5 seconds and renews the
+  session once the access token is within 60 seconds of expiring. The refresh
+  token is single-use; each renewal returns a new pair.
+- Only a server-confirmed rejection of the refresh token (401/403) signs the
+  candidate out. Offline or network errors keep the session and retry on the
+  next tick.
+- **Mobile** persists the session in `expo-secure-store`. If the access token
+  lapsed while the app was closed, launch renews it from the stored refresh
+  token instead of showing the login screen. The refresh token is valid for 30
+  days from its last use (backend `CANDIDATE_REFRESH_TOKEN_EXPIRY_DAYS`), so
+  candidates who open the app at least monthly stay signed in.
+- **Web** keeps the session in memory only, so it is renewed while the tab is
+  open, but a page reload still returns to the login screen.
+- The mobile `AuthProvider` takes the client as a prop (`client`); the app root
+  (`mobile/src/app/_layout.jsx`) passes the real one. Without it, an expired
+  stored session is discarded.
+
 ## Project structure notes
 
 - Candidate and admin routes (web: `/`, `/login`, `/dashboard`,

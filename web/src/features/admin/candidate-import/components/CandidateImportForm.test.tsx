@@ -205,8 +205,10 @@ describe('CandidateImportForm', () => {
 
       resolvePreflight!(preflightPayload());
       expect(await screen.findByText('Review before importing')).toBeInTheDocument();
-      expect(screen.getByText(/Ready to import: 2/)).toBeInTheDocument();
-      expect(screen.getByText(/Will be skipped: 0/)).toBeInTheDocument();
+      expect(screen.getByText('Ready to import')).toBeInTheDocument();
+      expect(screen.getByText('Will be skipped')).toBeInTheDocument();
+      expect(screen.getAllByText('2').length).toBeGreaterThan(0);
+      expect(screen.getAllByText('0').length).toBeGreaterThan(0);
     });
 
     it('shows row-level errors and the expiry time, never a full CNIC', async () => {

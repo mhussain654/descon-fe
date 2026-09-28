@@ -9,8 +9,11 @@ import type { TFn } from './ReportTables';
  * only taxonomy, see workflowPipelineBuckets.ts) and rendered as horizontal
  * progress bars -- clearer than a donut/legend for exactly 5 ranked
  * buckets. The full 15-stage breakdown (CategoryBarChart) stays reachable
- * via "View all stages", not deleted. Shared by every dashboard (Admin/MPS/...)
- * that has a 15-stage workflow_stage_queue to summarize, not duplicated per dashboard.
+ * via "View all stages", not deleted. Used by AdminDashboard.tsx only --
+ * deliberately NOT reused on MpsDashboard.tsx, since both dashboards'
+ * workflow_stage_queue data is identical when unfiltered and sharing this
+ * exact component on both pages previously read as a literal duplicate bug.
+ * MpsDashboard.tsx renders its own full 15-stage CategoryBarChart instead.
  */
 export function WorkflowPipelineOverview({ workflowStageQueue, t }: { workflowStageQueue: StatusSummaryRow[]; t: TFn }) {
   const totals = groupStagesByPipelineBucket(workflowStageQueue);

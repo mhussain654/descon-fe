@@ -9,11 +9,10 @@ import type { MpsDashboardFilters, TrendGranularity } from '../../../../lib/admi
 import { formatNumber } from '../../../../../../shared/i18n/locale';
 import type { Language, TranslationKey } from '../../../../../../shared/i18n/translations';
 import { stageLabel, type TFn } from '../../reports/components/ReportTables';
-import { TrendChart } from '../../reports/components/ReportCharts';
+import { CategoryBarChart, TrendChart } from '../../reports/components/ReportCharts';
 import { DashboardFilterBar } from '../../reports/components/DashboardFilterBar';
 import { readDashboardFiltersFromSearchParams, writeDashboardFiltersToSearchParams } from '../../reports/dashboardFiltersUrlState';
 import { groupStagesByPipelineBucket } from '../../reports/workflowPipelineBuckets';
-import { WorkflowPipelineOverview } from '../../reports/components/WorkflowPipelineOverview';
 import { useMpsDashboard } from '../hooks/useMpsDashboard';
 import { MpsOperationalInsightBanner } from './MpsOperationalInsightBanner';
 import { MpsRequiresAttentionPanel } from './MpsRequiresAttentionPanel';
@@ -38,9 +37,12 @@ const KPI_TILE_CLASSNAME =
  * Structured the same way as AdminDashboard.tsx (hero banner, filter bar,
  * insight banner, KPI tile row, requires-attention panel, elevated cards) --
  * see that component's own comments for the reasoning behind each piece,
- * this one doesn't repeat it. The dashboard uses the five-phase pipeline
- * summary for fast scanning; the complete 15-stage breakdown stays in the
- * reports workspace.
+ * this one doesn't repeat it. Deliberately does NOT reuse
+ * WorkflowPipelineOverview's 5-bucket rollup here (that stays exclusive to
+ * AdminDashboard.tsx) -- both dashboards' workflow_stage_queue data is
+ * identical when unfiltered, and sharing the exact same chart component on
+ * both pages previously read as a literal duplicate bug report. This
+ * dashboard gets its own full 15-stage breakdown instead.
  */
 export function MpsDashboard() {
   const { t, language } = useLanguage();
@@ -138,6 +140,7 @@ function DashboardContent({
   const mobilizationRateDisplay = formatNumber(mobilizationRate, language, { maximumFractionDigits: 1 });
   const documentsUploadedConversion = data.conversionFunnel.find((row) => row.code === 'documents_uploaded');
   const verifiedConversion = data.conversionFunnel.find((row) => row.code === 'verified');
+  const workflowChartData = data.workflowStageQueue.map((row) => ({ key: row.code, label: stageLabel(row.code, t), value: row.count }));
 
   return (
     <div className="flex flex-col gap-5">
@@ -187,7 +190,16 @@ function DashboardContent({
         <Card className="shadow-sm">
           <h2 className="text-base font-semibold text-text-primary">{t('dashboardWorkflowStageQueueTitle')}</h2>
           <p className="mb-4 text-xs text-text-secondary">{t('dashboardWorkflowStageQueueSubtitle')}</p>
-          <WorkflowPipelineOverview workflowStageQueue={data.workflowStageQueue} t={t} />
+          <CategoryBarChart data={workflowChartData} />
+          {/* The chart above is aria-hidden/decorative; this grid is the accessible source of truth for every stage count, same convention as every other chart+data pairing in ReportCharts.tsx. */}
+          <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-3">
+            {workflowChartData.map((row) => (
+              <div key={row.key} className="rounded-lg bg-surface-sunken px-3 py-2">
+                <p className="text-lg font-semibold text-text-primary">{row.value}</p>
+                <p className="text-xs text-text-secondary">{row.label}</p>
+              </div>
+            ))}
+          </div>
           {documentsUploadedConversion || verifiedConversion ? (
             <div className="mt-5 flex flex-wrap gap-x-6 gap-y-2 rounded-xl bg-surface-sunken px-4 py-3 text-sm">
               {documentsUploadedConversion ? (

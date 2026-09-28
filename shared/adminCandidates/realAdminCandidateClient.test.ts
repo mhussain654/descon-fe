@@ -149,6 +149,10 @@ describe('createAdminCandidateClient (real)', () => {
           successEnvelope([candidateDetailResponse()], {
             pagination: { page: 2, per_page: 20, total_count: 45, total_pages: 3 },
             applied_filters: { status: 'fee_pending' },
+            summary: [
+              { code: 'registered', count: 12 },
+              { code: 'fee_pending', count: 3 },
+            ],
           })
         );
       });
@@ -166,6 +170,10 @@ describe('createAdminCandidateClient (real)', () => {
       expect(result.items[0].id).toBe('candidate-1');
       expect(result.pagination).toEqual({ page: 2, perPage: 20, totalCount: 45, totalPages: 3 });
       expect(result.appliedFilters).toEqual({ status: 'fee_pending' });
+      expect(result.summary).toEqual([
+        { code: 'registered', count: 12 },
+        { code: 'fee_pending', count: 3 },
+      ]);
     });
 
     it('sends no query string at all when no filters, sort or page are given', async () => {

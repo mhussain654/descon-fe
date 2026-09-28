@@ -174,11 +174,18 @@ export interface AdminCandidatePagination {
  * same Admin::CandidateSerializer, so there is no separate slimmer "summary"
  * type to define here (do not invent one the backend doesn't return).
  */
+/** Zero-filled count for one canonical workflow stage, scoped by every active filter except `status`. */
+export interface AdminCandidateStatusSummaryRow {
+  code: string;
+  count: number;
+}
+
 export interface AdminCandidateListResult {
   items: AdminCandidateDetail[];
   pagination: AdminCandidatePagination;
   /** Echoes back which filters the backend actually applied (Admin::Candidates::IndexQuery#applied_filters) -- informational only, never used to drive UI state (the URL already owns that). */
   appliedFilters: Record<string, string>;
+  summary: AdminCandidateStatusSummaryRow[];
 }
 
 export interface AdminCandidateClient {

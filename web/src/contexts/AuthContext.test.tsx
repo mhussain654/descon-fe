@@ -2,7 +2,22 @@ import { act, render, screen } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import type { ReactElement } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import type { AuthSession, CandidateAuthClient } from '../../../shared/auth/types';
 import { AuthProvider, useAuth } from './AuthContext';
+
+function stubClient(refreshSession: CandidateAuthClient['refreshSession']): CandidateAuthClient {
+  return { requestOtp: vi.fn(), resendOtp: vi.fn(), verifyOtp: vi.fn(), refreshSession };
+}
+
+const REFRESHED: AuthSession = {
+  accessToken: 'token-2',
+  refreshToken: 'refresh-2',
+  candidateId: 'candidate_refreshed',
+  candidateName: 'Ahmed Ali',
+  preferredLocale: 'en',
+  expiresAt: new Date(Date.now() + 15 * 60_000).toISOString(),
+  consent: { currentPolicyVersion: 'v1', accepted: true, acceptedAt: null },
+};
 
 function renderWithProviders(ui: ReactElement) {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
@@ -112,7 +127,7 @@ describe('AuthProvider', () => {
 
   it('detects the session going stale while the app is open and flags it as an expiry', () => {
     renderWithProviders(
-      <AuthProvider>
+      <AuthProvider client={stubClient(() => Promise.reject({ code: 'NETWORK_ERROR' }))}>
         <Probe />
       </AuthProvider>
     );
@@ -125,6 +140,65 @@ describe('AuthProvider', () => {
 
     expect(screen.getByText('status:unauthenticated')).toBeInTheDocument();
     expect(screen.getByText('expired:true')).toBeInTheDocument();
+  });
+
+  it('renews the session shortly before the access token expires, without a new OTP', async () => {
+    const refreshSession = vi.fn().mockResolvedValue(REFRESHED);
+    renderWithProviders(
+      <AuthProvider client={stubClient(refreshSession)}>
+        <Probe />
+      </AuthProvider>
+    );
+    act(() => screen.getByRole('button', { name: 'login-short' }).click());
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(6000);
+    });
+
+    expect(refreshSession).toHaveBeenCalledWith('refresh');
+    expect(screen.getByText('status:authenticated')).toBeInTheDocument();
+    expect(screen.getByText('candidate:candidate_refreshed')).toBeInTheDocument();
+  });
+
+  it('ends the session as expired when the server rejects the refresh token', async () => {
+    const refreshSession = vi.fn().mockRejectedValue({ code: 'SESSION_EXPIRED' });
+    renderWithProviders(
+      <AuthProvider client={stubClient(refreshSession)}>
+        <Probe />
+      </AuthProvider>
+    );
+    act(() => screen.getByRole('button', { name: 'login' }).click());
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(6000);
+    });
+
+    expect(screen.getByText('status:unauthenticated')).toBeInTheDocument();
+    expect(screen.getByText('expired:true')).toBeInTheDocument();
+  });
+
+  it('keeps the session and retries when the refresh fails transiently', async () => {
+    const refreshSession = vi
+      .fn()
+      .mockRejectedValueOnce({ code: 'NETWORK_ERROR' })
+      .mockResolvedValue(REFRESHED);
+    renderWithProviders(
+      <AuthProvider client={stubClient(refreshSession)}>
+        <Probe />
+      </AuthProvider>
+    );
+    act(() => screen.getByRole('button', { name: 'login' }).click());
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(5000);
+    });
+    expect(screen.getByText('status:authenticated')).toBeInTheDocument();
+    expect(screen.getByText('candidate:candidate_1')).toBeInTheDocument();
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(5000);
+    });
+    expect(screen.getByText('candidate:candidate_refreshed')).toBeInTheDocument();
   });
 
   it('throws when useAuth is used outside AuthProvider', () => {

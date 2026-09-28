@@ -43,7 +43,7 @@ export function createMockCandidateAuthClient(options: MockCandidateAuthClientOp
   // Keyed by CNIC, matching the real backend (request/verify both re-key off
   // the CNIC itself -- there is no server-issued challenge id).
   const challenges = new Map<string, MockChallenge>();
-
+  const sessionsByRefreshToken = new Map<string, AuthSession>();
   const wait = () => (delayMs > 0 ? new Promise((resolve) => setTimeout(resolve, delayMs)) : Promise.resolve());
   const requireOnline = () => {
     if (!isOnline()) throw { code: 'OFFLINE' } satisfies AuthError;
@@ -126,7 +126,7 @@ export function createMockCandidateAuthClient(options: MockCandidateAuthClientOp
       }
 
       challenges.delete(cnic);
-      return {
+      const session = {
         accessToken: `mock_${randomId()}`,
         refreshToken: `mock_refresh_${randomId()}`,
         candidateId: `candidate_${cnic}`,
@@ -137,6 +137,27 @@ export function createMockCandidateAuthClient(options: MockCandidateAuthClientOp
         // mock exercises the same post-login gate the real backend enforces.
         consent: { currentPolicyVersion: MOCK_POLICY_VERSION, accepted: false, acceptedAt: null },
       } satisfies AuthSession;
+      sessionsByRefreshToken.set(session.refreshToken, session);
+      return session;
+    },
+
+    async refreshSession(refreshToken) {
+      await wait();
+      requireOnline();
+
+      // Single-use, like the real backend: a rotated token is gone.
+      const previous = sessionsByRefreshToken.get(refreshToken);
+      if (!previous) throw { code: 'SESSION_EXPIRED' } satisfies AuthError;
+      sessionsByRefreshToken.delete(refreshToken);
+
+      const next = {
+        ...previous,
+        accessToken: `mock_${randomId()}`,
+        refreshToken: `mock_refresh_${randomId()}`,
+        expiresAt: new Date(Date.now() + 60 * 60 * 1000).toISOString(),
+      } satisfies AuthSession;
+      sessionsByRefreshToken.set(next.refreshToken, next);
+      return next;
     },
   };
 }
@@ -154,5 +175,6 @@ export function createUnavailableCandidateAuthClient(): CandidateAuthClient {
     requestOtp: fail,
     resendOtp: fail,
     verifyOtp: fail,
+    refreshSession: fail,
   };
 }

@@ -99,6 +99,21 @@ describe('MpsDashboard', () => {
     expect(screen.getByRole('link', { name: /View operational reports/ })).toHaveAttribute('href', '/admin/reports');
   });
 
+  it('shows its own full per-stage workflow breakdown, not the 5-bucket rollup AdminDashboard uses', async () => {
+    adminMpsDashboardClient.getDashboard.mockResolvedValue(summary());
+
+    await renderAs(MPS);
+
+    // Locks in the fix for a regression that shipped twice: this dashboard
+    // must render actual per-stage labels/counts (e.g. "Registered"/"12"),
+    // not AdminDashboard's WorkflowPipelineOverview 5-bucket rollup labels
+    // (e.g. "Registration"), which produce byte-identical numbers to
+    // AdminDashboard's own pipeline card when both are unfiltered.
+    expect(await screen.findByText('Registered')).toBeInTheDocument();
+    expect(screen.getByText('12')).toBeInTheDocument();
+    expect(screen.queryByText('Registration')).not.toBeInTheDocument();
+  });
+
   it('shows an intentional empty state when the mobilization trend has no data', async () => {
     adminMpsDashboardClient.getDashboard.mockResolvedValue(summary({ mobilizationTrend: [] }));
 

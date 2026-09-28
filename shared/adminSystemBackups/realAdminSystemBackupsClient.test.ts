@@ -68,7 +68,14 @@ describe('createAdminSystemBackupsClient (real)', () => {
         seenUrl = String(url);
         seenHeaders = (init as RequestInit)?.headers as Record<string, string>;
         return jsonResponse(
-          successEnvelope([backupPayload()], { pagination: { page: 1, per_page: 20, total_count: 1, total_pages: 1 } })
+          successEnvelope([backupPayload()], {
+            pagination: { page: 1, per_page: 20, total_count: 1, total_pages: 1 },
+            summary: [
+              { code: 'in_progress', count: 0 },
+              { code: 'succeeded', count: 1 },
+              { code: 'failed', count: 0 },
+            ],
+          })
         );
       });
 
@@ -90,6 +97,19 @@ describe('createAdminSystemBackupsClient (real)', () => {
         },
       ]);
       expect(result.pagination).toEqual({ page: 1, perPage: 20, totalCount: 1, totalPages: 1 });
+      expect(result.summary).toEqual([
+        { code: 'in_progress', count: 0 },
+        { code: 'succeeded', count: 1 },
+        { code: 'failed', count: 0 },
+      ]);
+    });
+
+    it('defaults summary to an empty array when meta has none', async () => {
+      stubFetch(async () => jsonResponse(successEnvelope([backupPayload()])));
+
+      const result = await buildClient().listBackups({});
+
+      expect(result.summary).toEqual([]);
     });
 
     it('sends page.number and page.size as query params when given', async () => {

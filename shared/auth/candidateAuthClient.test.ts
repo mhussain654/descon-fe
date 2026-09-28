@@ -123,4 +123,16 @@ describe('createMockCandidateAuthClient', () => {
       Date.now = originalNow;
     }
   });
+
+  it('refreshSession rotates the token, and a used token cannot be reused', async () => {
+    const client = createMockCandidateAuthClient({ delayMs: 0 });
+    await client.requestOtp(CNIC);
+    const first = await client.verifyOtp(CNIC, MOCK_VALID_OTP);
+
+    const second = await client.refreshSession(first.refreshToken);
+
+    expect(second.refreshToken).not.toBe(first.refreshToken);
+    expect(second.accessToken).not.toBe(first.accessToken);
+    await expect(client.refreshSession(first.refreshToken)).rejects.toEqual({ code: 'SESSION_EXPIRED' });
+  });
 });

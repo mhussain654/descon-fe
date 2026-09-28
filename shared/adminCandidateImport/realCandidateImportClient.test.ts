@@ -486,6 +486,14 @@ describe('createCandidateImportClient (real)', () => {
           meta: {
             pagination: { page: 2, per_page: 20, total_count: 45, total_pages: 3 },
             applied_filters: { status: 'completed' },
+            summary: [
+              { code: 'queued', count: 0 },
+              { code: 'processing', count: 0 },
+              { code: 'completed', count: 5 },
+              { code: 'partial', count: 0 },
+              { code: 'failed', count: 1 },
+              { code: 'invalidated', count: 0 },
+            ],
           },
           errors: [],
         });
@@ -501,6 +509,14 @@ describe('createCandidateImportClient (real)', () => {
       expect(result.items[0].id).toBe('import-1');
       expect(result.pagination).toEqual({ page: 2, perPage: 20, totalCount: 45, totalPages: 3 });
       expect(result.appliedFilters).toEqual({ status: 'completed' });
+      expect(result.summary).toEqual([
+        { code: 'queued', count: 0 },
+        { code: 'processing', count: 0 },
+        { code: 'completed', count: 5 },
+        { code: 'partial', count: 0 },
+        { code: 'failed', count: 1 },
+        { code: 'invalidated', count: 0 },
+      ]);
     });
 
     it('sends no query string at all when no filters or page are given', async () => {
@@ -524,6 +540,7 @@ describe('createCandidateImportClient (real)', () => {
 
       expect(result.items).toEqual([]);
       expect(result.appliedFilters).toEqual({});
+      expect(result.summary).toEqual([]);
     });
 
     it('maps a 403 to FORBIDDEN', async () => {

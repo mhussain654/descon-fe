@@ -56,9 +56,10 @@ function batchSummary(overrides: Record<string, unknown> = {}) {
 
 function historyResult(
   items: Array<ReturnType<typeof batchSummary>>,
-  pagination = { page: 1, perPage: 20, totalCount: items.length, totalPages: 1 }
+  pagination = { page: 1, perPage: 20, totalCount: items.length, totalPages: 1 },
+  summary: Array<{ code: string; count: number }> = []
 ) {
-  return { items, pagination, appliedFilters: {} };
+  return { items, pagination, appliedFilters: {}, summary };
 }
 
 function renderAt(path: string, client: Awaited<ReturnType<typeof signedInClient>>) {
@@ -120,6 +121,33 @@ describe('CandidateImportHistoryList', () => {
       expect(await screen.findByText('candidates.csv')).toBeInTheDocument();
       expect(screen.getAllByText('Completed').length).toBeGreaterThan(0);
       expect(screen.getAllByRole('cell', { name: '2' }).length).toBe(2);
+    });
+
+    it('shows the batch-status summary card when the backend returns non-zero counts', async () => {
+      candidateImportClient.listImportHistory.mockResolvedValue(
+        historyResult([batchSummary()], undefined, [
+          { code: 'queued', count: 0 },
+          { code: 'processing', count: 0 },
+          { code: 'completed', count: 5 },
+          { code: 'partial', count: 0 },
+          { code: 'failed', count: 1 },
+          { code: 'invalidated', count: 0 },
+        ])
+      );
+      const client = await signedInClient();
+      renderAt('/admin/candidates/import/history', client);
+
+      expect(await screen.findByText('Batch status summary')).toBeInTheDocument();
+      expect(screen.getByText('5')).toBeInTheDocument();
+    });
+
+    it('omits the summary card when the backend returns no summary (or all zero counts)', async () => {
+      candidateImportClient.listImportHistory.mockResolvedValue(historyResult([batchSummary()]));
+      const client = await signedInClient();
+      renderAt('/admin/candidates/import/history', client);
+
+      await screen.findByText('candidates.csv');
+      expect(screen.queryByText('Batch status summary')).not.toBeInTheDocument();
     });
 
     it('links each row to its import detail page', async () => {

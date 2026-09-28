@@ -26,13 +26,29 @@ import {
   RECONCILIATION_STATE_KEYS,
   RECONCILIATION_STATE_TONES,
 } from '../../../../../../shared/adminPayments/paymentLabels';
-import type { AdminPaymentStatus, PaymentListFilters, PaymentListSort, PaymentSummary } from '../../../../lib/admin-payments-client';
+import type {
+  AdminPaymentStatus,
+  PaymentListFilters,
+  PaymentListSort,
+  PaymentStatusSummaryRow,
+  PaymentSummary,
+} from '../../../../lib/admin-payments-client';
 import type { TranslationKey } from '../../../../../../shared/i18n/translations';
+import { CategoryDonutChart, PAYMENT_STATUS_ICON } from '../../reports/components/ReportCharts';
 import { useDebouncedUrlFilter } from '../../documentReviews/hooks/useDebouncedUrlFilter';
 import { usePaymentList } from '../hooks/usePaymentList';
 import { DEFAULT_PAGE_SIZE, readPaymentListStateFromSearchParams, writePaymentListStateToSearchParams } from '../paymentListUrlState';
 
 const STATUSES: AdminPaymentStatus[] = ['checkout_pending', 'paid', 'failed', 'cancelled'];
+
+// Literal class strings, not templated from a tone variable -- Tailwind's
+// JIT scanner needs each class name written out in source (AGENTS.md).
+const STATUS_TILE_CLASSNAME: Record<'success' | 'warning' | 'danger' | 'neutral', string> = {
+  success: 'border-t-success bg-success-subtle/55 text-success-emphasis',
+  warning: 'border-t-warning bg-warning-subtle/55 text-warning-emphasis',
+  danger: 'border-t-danger bg-danger-subtle/55 text-danger-emphasis',
+  neutral: 'border-t-border bg-surface-sunken text-text-secondary',
+};
 
 const SORT_OPTIONS: { value: PaymentListSort; labelKey: TranslationKey }[] = [
   { value: '-created_at', labelKey: 'adminFinancePaymentSortCreatedDesc' },
@@ -150,6 +166,8 @@ export function PaymentTransactionList() {
         </div>
       </div>
 
+      <PaymentStatusSummaryCard summary={query.data?.summary} t={t} />
+
       <Card className="mb-5 p-5">
         <div className="mb-4 flex items-center gap-3">
           <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-brand-subtle text-brand">
@@ -257,6 +275,50 @@ export function PaymentTransactionList() {
         language={language}
       />
     </div>
+  );
+}
+
+function PaymentStatusSummaryCard({ summary, t }: { summary?: PaymentStatusSummaryRow[]; t: (key: TranslationKey) => string }) {
+  if (!summary || summary.length === 0) return null;
+
+  const hasAnyCount = summary.some((row) => row.count > 0);
+  if (!hasAnyCount) return null;
+
+  return (
+    <Card className="mb-5 p-5">
+      <h2 className="mb-3 font-semibold text-text-primary">{t('adminFinancePaymentStatusSummaryTitle')}</h2>
+      <div className="grid items-center gap-5 sm:grid-cols-[170px_minmax(0,1fr)]">
+        <div className="relative mx-auto">
+          <CategoryDonutChart
+            data={summary.map((row) => ({
+              key: row.code,
+              label: t(ADMIN_PAYMENT_STATUS_KEYS[row.code]),
+              value: row.count,
+              tone: ADMIN_PAYMENT_STATUS_TONES[row.code],
+            }))}
+          />
+          <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center">
+            <span className="text-2xl font-bold tracking-tight text-text-primary">{summary.reduce((sum, row) => sum + row.count, 0)}</span>
+            <span className="text-[11px] font-medium text-text-tertiary">{t('adminFinancePaymentTransactionsLabel')}</span>
+          </div>
+        </div>
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+          {summary.map((row) => {
+            const Icon = PAYMENT_STATUS_ICON[row.code];
+            const tone = ADMIN_PAYMENT_STATUS_TONES[row.code];
+            return (
+              <div key={row.code} className={`rounded-xl border border-t-4 p-4 shadow-sm ${STATUS_TILE_CLASSNAME[tone]}`}>
+                <div className="mb-3 flex items-center justify-between gap-3">
+                  <span className="text-xs font-semibold uppercase tracking-wide text-text-secondary">{t(ADMIN_PAYMENT_STATUS_KEYS[row.code])}</span>
+                  <Icon className="h-4 w-4" aria-hidden="true" />
+                </div>
+                <div className="text-2xl font-semibold text-text-primary">{row.count}</div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </Card>
   );
 }
 

@@ -110,6 +110,13 @@ function toAppliedFilters(raw: unknown): Record<string, string> {
   );
 }
 
+function toSummary(raw: unknown): CommunicationListResult['summary'] {
+  if (!Array.isArray(raw)) return [];
+  return raw
+    .filter((row): row is { code: unknown; count: unknown } => !!row && typeof row === 'object')
+    .map((row) => ({ code: row.code as 'inbound' | 'outbound', count: typeof row.count === 'number' ? row.count : 0 }));
+}
+
 /** A StaffAuthError (from the 401 refresh-and-retry path) has no `status`; anything else here is the raw ApiError authenticatedDataRequest rethrew unchanged. */
 function isStaffAuthError(error: unknown): error is StaffAuthError {
   return !!error && typeof error === 'object' && 'code' in error && !('status' in error);
@@ -166,11 +173,12 @@ export function createAdminCommunicationsClient(options: RealAdminCommunications
         if (!result) throw { code: 'UNKNOWN' } satisfies CommunicationError;
 
         const items = Array.isArray(result.data) ? result.data.map(toCommunication) : [];
-        const meta = result.meta as { pagination?: unknown; applied_filters?: unknown } | undefined;
+        const meta = result.meta as { pagination?: unknown; applied_filters?: unknown; summary?: unknown } | undefined;
         return {
           items,
           pagination: toPagination(meta?.pagination),
           appliedFilters: toAppliedFilters(meta?.applied_filters),
+          summary: toSummary(meta?.summary),
         };
       } catch (error) {
         throw toCommunicationError(error);
