@@ -269,11 +269,34 @@ describe("DashboardPage", () => {
     candidateProfileClient.getProfile.mockResolvedValue(profilePayload());
     candidateDocumentsClient.getChecklist.mockResolvedValue([checklistItem({ status: "verified" })]);
     applicationProgressClient.getProgress.mockResolvedValue(
-      progress({ documents: documentsSummary({ submissionState: "verified", missing: 0, verified: 1 }) })
+      progress({
+        currentWorkflowStage: { code: "verified", name: "Verified" },
+        documents: documentsSummary({ submissionState: "verified", missing: 0, verified: 1 }),
+      })
     );
     await signInAndNavigateToDashboard();
 
     expect(await screen.findByText("Verification complete")).toBeInTheDocument();
+  });
+
+  // Regression: documents.submissionState stays "verified" forever once
+  // verification happens, even long after the candidate moved on to a later
+  // stage. Without gating on the *current* workflow stage too, this kept
+  // announcing "Verification complete" as the next action while the
+  // candidate's real next step (e.g. paying the fee) went unmentioned.
+  it("does not re-announce verification once the candidate has moved past the verified stage", async () => {
+    candidateProfileClient.getProfile.mockResolvedValue(profilePayload());
+    candidateDocumentsClient.getChecklist.mockResolvedValue([checklistItem({ status: "verified" })]);
+    applicationProgressClient.getProgress.mockResolvedValue(
+      progress({
+        currentWorkflowStage: { code: "fee_pending", name: "Fee Pending" },
+        documents: documentsSummary({ submissionState: "verified", missing: 0, verified: 1 }),
+      })
+    );
+    await signInAndNavigateToDashboard();
+
+    expect(await screen.findByText(/Continue with your application: Fee Pending/)).toBeInTheDocument();
+    expect(screen.queryByText("Verification complete")).not.toBeInTheDocument();
   });
 
   it("renders the quick-action links to documents, status, and payment", async () => {

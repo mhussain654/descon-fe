@@ -133,7 +133,9 @@ describe("ProfileScreen", () => {
     expect(await screen.findByText("Ahmed Ali")).toBeOnTheScreen();
     expect(screen.getByText("42101-*******-1")).toBeOnTheScreen();
     expect(screen.getAllByText("DES-001001").length).toBeGreaterThan(0);
-    expect(screen.getByText("Documents pending")).toBeOnTheScreen();
+    // Now rendered twice -- Status and Current stage both source the same
+    // localized workflow-stage name (candidateStatusLabel) once their codes match.
+    expect(screen.getAllByText("Documents pending").length).toBe(2);
 
     expect(screen.queryByText("42101-1234567-1")).toBeNull();
   });

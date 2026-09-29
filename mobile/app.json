@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "Descon Manpower",
+    "name": "Descon MPS",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
@@ -66,9 +66,10 @@
         "sitemap": false
       },
       "eas": {
-        "projectId": "6e7d472b-5842-4900-b28a-bfaed8972b75"
-      }
+        "projectId": "33f621ae-0512-4815-b90a-8e8af6df0c87"
+      },
+      "contactEmail": "info.mps@descon.com"
     },
-    "owner": "mhussain654"
+    "owner": "descon-mps"
   }
 }

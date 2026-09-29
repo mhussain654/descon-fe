@@ -2,10 +2,13 @@ import { resolveNextAction, NEXT_ACTION_KEYS } from './nextAction';
 import type { ApplicationProgress } from './types';
 import type { CandidateDocumentChecklistItem } from '../candidateDocuments/types';
 
-function progress(overrides: Partial<ApplicationProgress['documents']> = {}): ApplicationProgress {
+function progress(
+  overrides: Partial<ApplicationProgress['documents']> = {},
+  stage: ApplicationProgress['currentWorkflowStage'] = { code: 'documents_pending', name: 'Documents pending' }
+): ApplicationProgress {
   return {
     candidateStatus: 'registered',
-    currentWorkflowStage: { code: 'documents_pending', name: 'Documents pending' },
+    currentWorkflowStage: stage,
     documents: {
       requiredTotal: 1,
       missing: 0,
@@ -87,9 +90,28 @@ describe('resolveNextAction', () => {
     expect(resolveNextAction(progress({ pendingReview: 1 }), checklist)).toEqual({ kind: 'awaiting_review' });
   });
 
-  it('signals verified once the backend reports the submission state as verified', () => {
+  it('signals verified once the backend reports the submission state as verified and the candidate is at the verified stage', () => {
     const checklist = [item({ status: 'verified' })];
-    expect(resolveNextAction(progress({ verified: 1, submissionState: 'verified' }), checklist)).toEqual({ kind: 'verified' });
+    const result = resolveNextAction(
+      progress({ verified: 1, submissionState: 'verified' }, { code: 'verified', name: 'Verified' }),
+      checklist
+    );
+    expect(result).toEqual({ kind: 'verified' });
+  });
+
+  // Regression: documents.submissionState stays 'verified' forever once
+  // verification happens, even long after the candidate moved on to a later
+  // stage (fee_pending, fee_paid, ...). Without gating on the *current*
+  // workflow stage too, this kept announcing "Verification complete" as the
+  // next action while the candidate's real next step (paying the fee) went
+  // unmentioned.
+  it('does not re-announce verification once the candidate has moved past the verified stage', () => {
+    const checklist = [item({ status: 'verified' })];
+    const result = resolveNextAction(
+      progress({ verified: 1, submissionState: 'verified' }, { code: 'fee_pending', name: 'Fee Pending' }),
+      checklist
+    );
+    expect(result).toEqual({ kind: 'workflow_stage', requirementName: 'Fee Pending' });
   });
 
   it('falls back to the workflow stage when nothing else applies', () => {

@@ -31,7 +31,7 @@ import { useRefetchOnFocus } from "../../../hooks/useRefetchOnFocus";
 import { useCandidateProfile } from "../../../features/candidate/profile/hooks/useCandidateProfile";
 import { useApplicationProgress } from "../../../features/candidate/progress/hooks/useApplicationProgress";
 import { LoadingState, ErrorState, OfflineState, SessionExpiredState, ForbiddenState } from "../../../design-system";
-import { humanizeStatusCode } from "../../../../../shared/candidateProfile/formatting";
+import { candidateStatusLabel } from "../../../../../shared/candidateProfile/formatting";
 import { CANDIDATE_PROFILE_ERROR_KEYS } from "../../../../../shared/candidateProfile/errorMessages";
 import {
   APPLICATION_SUBMISSION_STATE_KEYS,
@@ -230,7 +230,7 @@ export default function ProfileScreen() {
 
           <InfoRow icon={User} label={t("candidateProfileMaskedCnicLabel")} value={profile.maskedCnic} />
           <InfoRow icon={FileText} label={t("candidateProfileReferenceNumberLabel")} value={profile.referenceNumber ?? notAssignedYet} />
-          <InfoRow icon={CheckCircle} label={t("candidateProfileStatusLabel")} value={humanizeStatusCode(profile.candidateStatus)} />
+          <InfoRow icon={CheckCircle} label={t("candidateProfileStatusLabel")} value={candidateStatusLabel(profile)} />
           <InfoRow
             icon={Flag}
             label={t("candidateProfileWorkflowStageLabel")}

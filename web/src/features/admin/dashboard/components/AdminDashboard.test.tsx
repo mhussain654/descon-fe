@@ -151,7 +151,7 @@ describe('AdminDashboard', () => {
 
     await renderAs(ADMIN);
 
-    expect(await screen.findByText('Rejected documents')).toBeInTheDocument();
+    expect(await screen.findByText('Candidates with rejected documents')).toBeInTheDocument();
     expect(screen.getByText('Overdue QVC appointments')).toBeInTheDocument();
     expect(screen.getByText('Callback required')).toBeInTheDocument();
   });
@@ -230,7 +230,7 @@ describe('AdminDashboard', () => {
     await renderAs(ADMIN);
 
     expect(await screen.findByText('Operational insight')).toBeInTheDocument();
-    expect(screen.getByText('3 rejected documents — Review and notify candidates.')).toBeInTheDocument();
+    expect(screen.getByText('3 candidates with rejected documents — Review and notify candidates.')).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Review now' })).toHaveAttribute('href', '/admin/document-reviews?status=rejected');
   });
 

@@ -51,7 +51,17 @@ export function resolveNextAction(
   const documents = progress.documents;
   if (documents.canSubmit) return { kind: 'ready_to_submit' };
   if (documents.pendingReview > 0) return { kind: 'awaiting_review' };
-  if (documents.submissionState === 'verified') return { kind: 'verified' };
+  // `documents.submissionState` stays 'verified' forever once verification
+  // happens -- nothing un-verifies it as the candidate moves on to later
+  // stages (fee_pending, fee_paid, ...). Without gating on the *current*
+  // workflow stage too, this step would keep announcing "verification
+  // complete" as the next action long after it stopped being the next
+  // anything, hiding the real next step (e.g. paying the fee) behind a
+  // stale message. Only step 7's workflow_stage fallback should fire once
+  // the candidate has moved past the verified stage itself.
+  if (documents.submissionState === 'verified' && progress.currentWorkflowStage?.code === 'verified') {
+    return { kind: 'verified' };
+  }
 
   return { kind: 'workflow_stage', requirementName: progress.currentWorkflowStage?.name };
 }
