@@ -11,6 +11,10 @@ import type {
   CandidateDocumentsClient,
   CandidateDocumentsError,
   CandidateDocumentsErrorCode,
+  DocumentAccess,
+  DocumentAccessDisposition,
+  DocumentAccessError,
+  DocumentAccessErrorCode,
   PccComplianceDisplayStatus,
   UploadDocumentParams,
 } from './types';
@@ -35,6 +39,12 @@ interface CandidateDocumentChecklistItemResponse {
   status: string;
   replacement_allowed: boolean;
   document: CandidateDocumentMetadataResponse | null;
+}
+
+interface DocumentAccessResponse {
+  document_id: string;
+  url: string;
+  expires_at: string;
 }
 
 export interface RealCandidateDocumentsClientOptions {
@@ -114,6 +124,39 @@ function toChecklist(data: unknown): CandidateDocumentChecklistItem[] {
   return data.map(toChecklistItem).filter((item): item is CandidateDocumentChecklistItem => item !== null);
 }
 
+function toDocumentAccess(data: DocumentAccessResponse): DocumentAccess {
+  return { documentId: data.document_id, url: data.url, expiresAt: data.expires_at };
+}
+
+/** Maps the backend's ErrorItem.code (see openapi.yaml's /candidate/documents/{document_id}/access 404/422 examples) to the document-access error taxonomy. */
+const SERVER_CODE_TO_ACCESS_ERROR: Record<string, DocumentAccessErrorCode> = {
+  inactive_account: 'INACTIVE_ACCOUNT',
+  document_attachment_missing: 'DOCUMENT_ATTACHMENT_MISSING',
+};
+
+function toDocumentAccessError(error: unknown): DocumentAccessError {
+  const apiError = error as ApiError;
+  if (!apiError || typeof apiError !== 'object' || !('code' in apiError)) {
+    return { code: 'UNKNOWN' };
+  }
+
+  if (apiError.code === 'OFFLINE') return { code: 'OFFLINE' };
+  if (apiError.code === 'NETWORK_ERROR' || apiError.code === 'TIMEOUT') return { code: 'NETWORK_ERROR' };
+  if (apiError.code === 'CANCELLED') return { code: 'UNKNOWN' };
+
+  if (apiError.status === 401) return { code: 'SESSION_EXPIRED' };
+
+  const mapped = apiError.serverCode ? SERVER_CODE_TO_ACCESS_ERROR[apiError.serverCode] : undefined;
+  if (mapped) return { code: mapped, message: apiError.message };
+
+  if (apiError.status === 403) return { code: 'INACTIVE_ACCOUNT' };
+  if (apiError.status === 404) return { code: 'NOT_FOUND', message: apiError.message };
+  if (apiError.status === 429) return { code: 'RATE_LIMITED', retryAfterSeconds: apiError.retryAfterSeconds };
+  if (apiError.status >= 500) return { code: 'SERVER_ERROR' };
+
+  return { code: 'UNKNOWN', message: apiError.message };
+}
+
 /** Maps the backend's ErrorItem.code (see openapi.yaml's /candidate/documents 422/409/403 examples) to the shared error taxonomy. */
 const SERVER_CODE_TO_ERROR: Record<string, CandidateDocumentsErrorCode> = {
   inactive_account: 'INACTIVE_ACCOUNT',
@@ -190,6 +233,24 @@ export function createCandidateDocumentsClient(options: RealCandidateDocumentsCl
           throw error;
         }
         throw toDocumentsError(error);
+      }
+    },
+
+    async requestDocumentAccess(
+      accessToken: string,
+      documentId: string,
+      disposition?: DocumentAccessDisposition
+    ): Promise<DocumentAccess> {
+      try {
+        const data = await apiClient.post<DocumentAccessResponse>(
+          `/candidate/documents/${documentId}/access`,
+          disposition ? { disposition } : undefined,
+          { headers: { Authorization: `Bearer ${accessToken}`, 'X-Locale': getLocale() } }
+        );
+        if (!data) throw { code: 'UNKNOWN' } satisfies DocumentAccessError;
+        return toDocumentAccess(data);
+      } catch (error) {
+        throw toDocumentAccessError(error);
       }
     },
   };

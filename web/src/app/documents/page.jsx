@@ -1,11 +1,12 @@
 import { useEffect } from "react";
 import { useNavigate } from "react-router";
-import { Upload, CheckCircle, XCircle, Clock, ChevronRight, ChevronLeft } from "lucide-react";
+import { Upload, CheckCircle, XCircle, Clock, ChevronRight, ChevronLeft, Eye } from "lucide-react";
 import UserShell from "../components/user-shell";
 import { useAuth } from "../../contexts/AuthContext";
 import { useLanguage } from "../../contexts/LanguageContext";
 import { useCandidateDocuments } from "../../features/candidate/documents/hooks/useCandidateDocuments";
 import { useDocumentUpload } from "../../features/candidate/documents/hooks/useDocumentUpload";
+import { useDocumentAccess } from "../../features/candidate/documents/hooks/useDocumentAccess";
 import { useApplicationProgress } from "../../features/candidate/progress/hooks/useApplicationProgress";
 import { useSubmitDocuments } from "../../features/candidate/progress/hooks/useSubmitDocuments";
 import { DocumentUploadPanel } from "../../features/candidate/documents/components/DocumentUploadPanel";
@@ -14,6 +15,7 @@ import {
   Button,
   ConfirmDialog,
   EmptyState,
+  IconButton,
   LoadingState,
   ErrorState,
   OfflineState,
@@ -23,9 +25,11 @@ import {
   ValidationMessage,
 } from "../../design-system";
 import { CANDIDATE_DOCUMENTS_ERROR_KEYS } from "../../../../shared/candidateDocuments/errorMessages";
+import { DOCUMENT_ACCESS_ERROR_KEYS } from "../../../../shared/candidateDocuments/documentAccessErrorMessages";
 import { APPLICATION_PROGRESS_ERROR_KEYS } from "../../../../shared/applicationProgress/errorMessages";
 import { PCC_COMPLIANCE_STATUS_KEYS } from "../../../../shared/candidateDocuments/statusLabels";
 import { sortByPrototypeOrder, splitAroundCnicCluster } from "../../../../shared/candidateDocuments/checklistOrder";
+import { resolveDocumentAccessUrl } from "../../lib/resolveDocumentAccessUrl";
 
 const RETRYABLE_ERROR_CODES = new Set(["OFFLINE", "NETWORK_ERROR", "SERVER_ERROR", "RATE_LIMITED", "IN_PROGRESS", "CONFLICT"]);
 
@@ -46,26 +50,27 @@ export default function DocumentsPage() {
   const progressQuery = useApplicationProgress();
   const upload = useDocumentUpload();
   const submit = useSubmitDocuments();
+  const documentAccess = useDocumentAccess();
 
   const returnToSignIn = () => {
     logout("expired");
     navigate("/login", { replace: true });
   };
 
-  // Only the upload and submit mutations auto-end the session here -- their
-  // errors have no dedicated confirmation screen of their own (they surface
-  // inline in the upload panel / confirm dialog). The checklist query's own
-  // SESSION_EXPIRED/INACTIVE_ACCOUNT render their dedicated
-  // SessionExpiredState/ForbiddenState below, which end the session only
-  // once the candidate confirms via that screen's own action -- never
-  // silently out from under them.
+  // Only the upload, submit and document-access requests auto-end the
+  // session here -- their errors have no dedicated confirmation screen of
+  // their own (they surface inline in the upload panel / confirm dialog /
+  // document row). The checklist query's own SESSION_EXPIRED/INACTIVE_ACCOUNT
+  // render their dedicated SessionExpiredState/ForbiddenState below, which
+  // end the session only once the candidate confirms via that screen's own
+  // action -- never silently out from under them.
   useEffect(() => {
-    const code = upload.mutation.error?.code ?? submit.mutation.error?.code;
+    const code = upload.mutation.error?.code ?? submit.mutation.error?.code ?? documentAccess.error?.code;
     if (code === "SESSION_EXPIRED" || code === "INACTIVE_ACCOUNT") {
       returnToSignIn();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [upload.mutation.error, submit.mutation.error]);
+  }, [upload.mutation.error, submit.mutation.error, documentAccess.error]);
 
   const documents = progressQuery.data?.documents;
   const stats = {
@@ -167,6 +172,7 @@ export default function DocumentsPage() {
               isActive={upload.activeRequirementCode === item.requirementCode}
               isAnyUploadPending={upload.mutation.isPending}
               upload={upload}
+              documentAccess={documentAccess}
             />
           ))}
         </div>
@@ -183,6 +189,7 @@ export default function DocumentsPage() {
               isActive={upload.activeRequirementCode === item.requirementCode}
               isAnyUploadPending={upload.mutation.isPending}
               upload={upload}
+              documentAccess={documentAccess}
             />
           ))}
         </div>
@@ -221,13 +228,20 @@ export default function DocumentsPage() {
 }
 
 
-function DocumentRow({ item, language, t, isActive, isAnyUploadPending, upload }) {
+function DocumentRow({ item, language, t, isActive, isAnyUploadPending, upload, documentAccess }) {
   const config = STATUS_CONFIG[item.status] ?? STATUS_CONFIG.unknown;
   const StatusIcon = config.icon;
   const canUpload = item.status === "missing";
   const canReplace = item.document !== null && item.replacementAllowed;
   const hasAction = canUpload || canReplace;
+  const canView = item.document !== null;
   const complianceStatus = item.document?.complianceStatus;
+
+  const isViewingThisRow = documentAccess.isRequesting && documentAccess.lastRequestedDocumentId === item.document?.id;
+  const hasResolvedAccessForThisRow =
+    documentAccess.access?.documentId === item.document?.id && !documentAccess.isExpired;
+  const rowAccessError =
+    documentAccess.error && documentAccess.lastRequestedDocumentId === item.document?.id ? documentAccess.error : null;
 
   const statusLine = [
     t(config.labelKey),
@@ -248,6 +262,8 @@ function DocumentRow({ item, language, t, isActive, isAnyUploadPending, upload }
   };
 
   const actionLabel = t(canUpload ? "candidateDocumentsUploadAction" : "candidateDocumentsReplaceAction");
+  const viewLabel = t("candidateDocumentsViewAction");
+  const openLabel = t("candidateDocumentsOpenAction");
   const Chevron = language === "ur" ? ChevronLeft : ChevronRight;
 
   const rowContent = (
@@ -265,20 +281,55 @@ function DocumentRow({ item, language, t, isActive, isAnyUploadPending, upload }
 
   return (
     <div className="mb-3 rounded-xl border border-gray-200 bg-white p-4">
-      {hasAction ? (
-        <button
-          type="button"
-          onClick={handleClick}
-          disabled={isAnyUploadPending && !isActive}
-          aria-label={actionLabel}
-          className="flex w-full items-center text-start disabled:cursor-not-allowed disabled:opacity-60"
-        >
-          {rowContent}
-          <Chevron size={20} className="text-gray-400" />
-        </button>
-      ) : (
-        <div className="flex w-full items-center">{rowContent}</div>
-      )}
+      <div className="flex w-full items-center">
+        {hasAction ? (
+          <button
+            type="button"
+            onClick={handleClick}
+            disabled={isAnyUploadPending && !isActive}
+            aria-label={actionLabel}
+            className="flex min-w-0 flex-1 items-center text-start disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            {rowContent}
+          </button>
+        ) : (
+          <div className="flex min-w-0 flex-1 items-center">{rowContent}</div>
+        )}
+
+        {canView ? (
+          hasResolvedAccessForThisRow ? (
+            <a
+              href={resolveDocumentAccessUrl(documentAccess.access.url, import.meta.env.VITE_API_BASE_URL ?? "")}
+              target="_blank"
+              rel="noopener noreferrer"
+              aria-label={openLabel}
+              title={openLabel}
+              className="ms-2 inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-[#0066CC] hover:bg-gray-100"
+            >
+              <Eye size={18} />
+            </a>
+          ) : (
+            <span className="ms-2 shrink-0">
+              <IconButton
+                icon={<Eye size={18} />}
+                label={viewLabel}
+                variant="ghost"
+                size="sm"
+                loading={isViewingThisRow}
+                onClick={() => documentAccess.requestDocumentAccess(item.document.id)}
+              />
+            </span>
+          )
+        ) : null}
+
+        {hasAction ? <Chevron size={20} className="shrink-0 text-gray-400" /> : null}
+      </div>
+
+      {rowAccessError ? (
+        <ValidationMessage tone="error">
+          {rowAccessError.message || t(DOCUMENT_ACCESS_ERROR_KEYS[rowAccessError.code])}
+        </ValidationMessage>
+      ) : null}
 
       {isActive ? (
         <DocumentUploadPanel

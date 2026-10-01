@@ -6,7 +6,6 @@ import { useLanguage } from "../../contexts/LanguageContext";
 import { Button, CnicField, OtpField, RetryBanner, ValidationMessage, toast } from "../../design-system";
 import { AUTH_ERROR_KEYS, CNIC_FIELD_ERROR_KEYS } from "../../../../shared/auth/errorMessages";
 import { formatCountdown } from "../../../../shared/auth/cnicOtpFlow";
-import { formatCnic } from "../../../../shared/cnic";
 import { OTP_LENGTH } from "../../../../shared/auth/types";
 import { useCnicOtpFlow } from "../../../../shared/auth/useCnicOtpFlow";
 import { candidateAuthClient } from "../../lib/auth-client";
@@ -131,9 +130,7 @@ export default function LoginPage() {
               <ValidationMessage tone="error">
                 {isCnicRateLimited
                   ? `${t("authRetryAvailableInPrefix")} ${formatCountdown(secondsUntilRateLimitCleared ?? 0)}`
-                  : otpError.code === "CNIC_NOT_FOUND"
-                    ? `${t(AUTH_ERROR_KEYS.CNIC_NOT_FOUND)}: ${formatCnic(cnic)}`
-                    : t(AUTH_ERROR_KEYS[otpError.code])}
+                  : otpError.message || t(AUTH_ERROR_KEYS[otpError.code])}
               </ValidationMessage>
             ) : null}
             <Button

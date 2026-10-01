@@ -103,8 +103,40 @@ export interface UploadDocumentParams {
   idempotencyKey: string;
 }
 
+/** `inline` opens the document for viewing; `attachment` prompts the device/browser to download and save it. */
+export type DocumentAccessDisposition = 'inline' | 'attachment';
+
+export interface DocumentAccess {
+  documentId: string;
+  /** A relative, Rails-internal path (`only_path: true`) -- resolve against the API origin, not the full base URL, before using it (see resolveDocumentAccessUrl.ts). */
+  url: string;
+  /** ISO 8601. */
+  expiresAt: string;
+}
+
+export type DocumentAccessErrorCode =
+  /** 404 -- the document id doesn't exist, isn't owned by this candidate, or has been superseded by a newer version. */
+  | 'NOT_FOUND'
+  /** 422 `document_attachment_missing` -- the document record exists but its file attachment is unavailable. */
+  | 'DOCUMENT_ATTACHMENT_MISSING'
+  | 'INACTIVE_ACCOUNT'
+  | 'SESSION_EXPIRED'
+  | 'RATE_LIMITED'
+  | 'NETWORK_ERROR'
+  | 'OFFLINE'
+  | 'SERVER_ERROR'
+  | 'UNKNOWN';
+
+export interface DocumentAccessError {
+  code: DocumentAccessErrorCode;
+  message?: string;
+  retryAfterSeconds?: number;
+}
+
 export interface CandidateDocumentsClient {
   /** The candidate's own session access token -- the only thing that determines whose checklist comes back; there is no id parameter to tamper with. */
   getChecklist(accessToken: string): Promise<CandidateDocumentChecklistItem[]>;
   uploadDocument(params: UploadDocumentParams): Promise<CandidateDocumentChecklistItem>;
+  /** Requests a short-lived signed URL for one of the candidate's own already-uploaded documents, so they can view/download it at any time -- mirrors requestVisaCopyAccess/requestTicketAccess exactly. `disposition` defaults to 'inline' server-side when omitted. */
+  requestDocumentAccess(accessToken: string, documentId: string, disposition?: DocumentAccessDisposition): Promise<DocumentAccess>;
 }

@@ -73,7 +73,12 @@ function toAuthError(error: unknown): AuthError {
   }
 
   const mapped = apiError.serverCode ? SERVER_CODE_TO_AUTH_ERROR[apiError.serverCode] : undefined;
-  if (mapped) return { code: mapped };
+  if (mapped) {
+    // Only CNIC_NOT_FOUND carries the server's message through -- see
+    // AuthError.message's own doc comment for why that one code needs it
+    // (every other mapped code stays purely code-keyed, by design).
+    return mapped === 'CNIC_NOT_FOUND' ? { code: mapped, message: apiError.message } : { code: mapped };
+  }
 
   // 422 (malformed CNIC/OTP shape) reaching here means client-side
   // validation let something through the server rejected -- fold it into

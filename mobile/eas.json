@@ -15,7 +15,7 @@
 			"distribution": "internal",
 			"env": {
 				"EXPO_USE_PRECOMPILED_MODULES": "0",
-				"EXPO_PUBLIC_API_BASE_URL": "https://2d47-182-185-151-38.ngrok-free.app/api/v1"
+				"EXPO_PUBLIC_API_BASE_URL": "https://4632-182-185-151-38.ngrok-free.app/api/v1"
 			}
 		},
 		"production": {

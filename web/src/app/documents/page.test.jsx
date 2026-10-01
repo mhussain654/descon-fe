@@ -12,7 +12,7 @@ import { candidateBankDetailsClient } from "../../lib/candidate-bank-details-cli
 import DocumentsPage from "./page";
 
 vi.mock("../../lib/candidate-documents-client", () => ({
-  candidateDocumentsClient: { getChecklist: vi.fn(), uploadDocument: vi.fn() },
+  candidateDocumentsClient: { getChecklist: vi.fn(), uploadDocument: vi.fn(), requestDocumentAccess: vi.fn() },
 }));
 vi.mock("../../lib/application-progress-client", () => ({
   applicationProgressClient: { getProgress: vi.fn(), submitDocuments: vi.fn() },
@@ -221,6 +221,7 @@ describe("DocumentsPage", () => {
   afterEach(() => {
     vi.mocked(candidateDocumentsClient.getChecklist).mockReset();
     vi.mocked(candidateDocumentsClient.uploadDocument).mockReset();
+    vi.mocked(candidateDocumentsClient.requestDocumentAccess).mockReset();
     vi.mocked(applicationProgressClient.getProgress).mockReset();
     vi.mocked(applicationProgressClient.submitDocuments).mockReset();
     vi.mocked(candidateBankDetailsClient.getBankDetail).mockReset();
@@ -415,14 +416,91 @@ describe("DocumentsPage", () => {
     expect(screen.queryByText("passport", { exact: true })).not.toBeInTheDocument();
   });
 
-  it("never presents a download or preview action for any document", async () => {
+  it("presents a View action for any document that has a file attached, so the candidate can always see what they submitted", async () => {
     candidateDocumentsClient.getChecklist.mockResolvedValue([item({ status: "verified", document: uploadedDocument() })]);
     applicationProgressClient.getProgress.mockResolvedValue(progress());
     await signInAndNavigateToDocuments();
 
     await screen.findByText("Passport");
-    expect(screen.queryByRole("button", { name: /download/i })).not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: /preview/i })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "View" })).toBeInTheDocument();
+  });
+
+  it("does not present a View action for a document with no file attached yet", async () => {
+    candidateDocumentsClient.getChecklist.mockResolvedValue([item({ status: "missing", document: null })]);
+    applicationProgressClient.getProgress.mockResolvedValue(progress());
+    await signInAndNavigateToDocuments();
+
+    await screen.findByText("Passport");
+    expect(screen.queryByRole("button", { name: "View" })).not.toBeInTheDocument();
+  });
+
+  it("requests a signed URL on View, for the correct document id, and renders it as an Open document link, never eagerly fetching it on page load", async () => {
+    candidateDocumentsClient.getChecklist.mockResolvedValue([
+      item({ status: "verified", document: uploadedDocument(), replacementAllowed: false }),
+    ]);
+    applicationProgressClient.getProgress.mockResolvedValue(progress());
+    candidateDocumentsClient.requestDocumentAccess.mockResolvedValue({
+      documentId: "30fcedd6-7fe6-4d12-a5ae-f6b5ef3d91dd",
+      url: "/rails/active_storage/blobs/proxy/abc/passport.pdf",
+      expiresAt: new Date(Date.now() + 5 * 60 * 1000).toISOString(),
+    });
+    await signInAndNavigateToDocuments();
+
+    await screen.findByText("Passport");
+    expect(candidateDocumentsClient.requestDocumentAccess).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByRole("button", { name: "View" }));
+
+    const link = await screen.findByRole("link", { name: "Open document" });
+    expect(link).toHaveAttribute("href", expect.stringContaining("/rails/active_storage/blobs/proxy/abc/passport.pdf"));
+    expect(link).toHaveAttribute("target", "_blank");
+    expect(candidateDocumentsClient.requestDocumentAccess).toHaveBeenCalledWith(
+      "candidate-access-token",
+      "30fcedd6-7fe6-4d12-a5ae-f6b5ef3d91dd"
+    );
+  });
+
+  it("shows both Replace and View actions for a rejected document that still has an attached file", async () => {
+    candidateDocumentsClient.getChecklist.mockResolvedValue([
+      item({ status: "rejected", document: uploadedDocument(), replacementAllowed: true }),
+    ]);
+    applicationProgressClient.getProgress.mockResolvedValue(progress());
+    await signInAndNavigateToDocuments();
+
+    await screen.findByText("Passport");
+    expect(screen.getByRole("button", { name: "Replace" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "View" })).toBeInTheDocument();
+  });
+
+  it("shows a field error when the backend reports the document's attachment is missing after all", async () => {
+    candidateDocumentsClient.getChecklist.mockResolvedValue([
+      item({ status: "verified", document: uploadedDocument(), replacementAllowed: false }),
+    ]);
+    applicationProgressClient.getProgress.mockResolvedValue(progress());
+    candidateDocumentsClient.requestDocumentAccess.mockRejectedValue({
+      code: "DOCUMENT_ATTACHMENT_MISSING",
+      message: "The requested document file is unavailable.",
+    });
+    await signInAndNavigateToDocuments();
+
+    await screen.findByText("Passport");
+    fireEvent.click(screen.getByRole("button", { name: "View" }));
+
+    expect(await screen.findByText("The requested document file is unavailable.")).toBeInTheDocument();
+  });
+
+  it("ends the session and returns to sign-in when viewing a document fails because the session expired", async () => {
+    candidateDocumentsClient.getChecklist.mockResolvedValue([
+      item({ status: "verified", document: uploadedDocument(), replacementAllowed: false }),
+    ]);
+    applicationProgressClient.getProgress.mockResolvedValue(progress());
+    candidateDocumentsClient.requestDocumentAccess.mockRejectedValue({ code: "SESSION_EXPIRED" });
+    await signInAndNavigateToDocuments();
+
+    await screen.findByText("Passport");
+    fireEvent.click(screen.getByRole("button", { name: "View" }));
+
+    expect(await screen.findByText("Login screen")).toBeInTheDocument();
   });
 
   it("shows a session-expired state and returns to sign-in on the confirming action", async () => {

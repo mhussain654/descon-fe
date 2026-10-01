@@ -1,17 +1,19 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { View, Text, ScrollView, RefreshControl, TouchableOpacity, Pressable, useColorScheme } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
 import { useRouter } from "expo-router";
-import { Upload, CheckCircle, XCircle, Clock, ChevronRight, ChevronLeft } from "lucide-react-native";
+import { Upload, CheckCircle, XCircle, Clock, ChevronRight, ChevronLeft, Eye, Download } from "lucide-react-native";
 import { useAuth } from "../../../contexts/AuthContext";
 import { useLanguage } from "../../../contexts/LanguageContext";
 import { useRefetchOnFocus } from "../../../hooks/useRefetchOnFocus";
 import { useCandidateDocuments } from "../../../features/candidate/documents/hooks/useCandidateDocuments";
 import { useDocumentUpload } from "../../../features/candidate/documents/hooks/useDocumentUpload";
+import { useDocumentAccess } from "../../../features/candidate/documents/hooks/useDocumentAccess";
 import { useApplicationProgress } from "../../../features/candidate/progress/hooks/useApplicationProgress";
 import { useSubmitDocuments } from "../../../features/candidate/progress/hooks/useSubmitDocuments";
 import { DocumentUploadPanel } from "../../../features/candidate/documents/components/DocumentUploadPanel";
+import { DocumentViewPanel } from "../../../features/candidate/documents/components/DocumentViewPanel";
 import { BankDetailsPanel } from "../../../features/candidate/documents/components/BankDetailsPanel";
 import {
   Button,
@@ -26,6 +28,7 @@ import {
   getFontFamily,
 } from "../../../design-system";
 import { CANDIDATE_DOCUMENTS_ERROR_KEYS } from "../../../../../shared/candidateDocuments/errorMessages";
+import { DOCUMENT_ACCESS_ERROR_KEYS } from "../../../../../shared/candidateDocuments/documentAccessErrorMessages";
 import { APPLICATION_PROGRESS_ERROR_KEYS } from "../../../../../shared/applicationProgress/errorMessages";
 import { PCC_COMPLIANCE_STATUS_KEYS } from "../../../../../shared/candidateDocuments/statusLabels";
 import { sortByPrototypeOrder, splitAroundCnicCluster } from "../../../../../shared/candidateDocuments/checklistOrder";
@@ -51,6 +54,12 @@ export default function DocumentsScreen() {
   const progressQuery = useApplicationProgress();
   const upload = useDocumentUpload();
   const submit = useSubmitDocuments();
+  const documentAccess = useDocumentAccess();
+  // Only one document's View/Download panel is expanded at a time, mirroring
+  // the upload accordion's own single-active-row convention -- keeps the
+  // screen uncluttered for candidates who may not be used to multiple
+  // simultaneously expanded sections.
+  const [viewOpenRequirementCode, setViewOpenRequirementCode] = useState(null);
   useRefetchOnFocus(checklistQuery.refetch, checklistQuery.isFetching);
   useRefetchOnFocus(progressQuery.refetch, progressQuery.isFetching);
 
@@ -59,20 +68,20 @@ export default function DocumentsScreen() {
     router.replace("/login");
   };
 
-  // Only the upload and submit mutations auto-end the session here -- their
-  // errors have no dedicated confirmation screen of their own (they surface
-  // inline in the upload panel / confirm dialog). The checklist query's own
-  // SESSION_EXPIRED/INACTIVE_ACCOUNT render their dedicated
-  // SessionExpiredState/ForbiddenState below, which end the session only
-  // once the candidate confirms via that screen's own action -- never
-  // silently out from under them.
+  // Only the upload, submit and document-access requests auto-end the
+  // session here -- their errors have no dedicated confirmation screen of
+  // their own (they surface inline in the upload panel / confirm dialog /
+  // document row). The checklist query's own SESSION_EXPIRED/INACTIVE_ACCOUNT
+  // render their dedicated SessionExpiredState/ForbiddenState below, which
+  // end the session only once the candidate confirms via that screen's own
+  // action -- never silently out from under them.
   useEffect(() => {
-    const code = upload.mutation.error?.code ?? submit.mutation.error?.code;
+    const code = upload.mutation.error?.code ?? submit.mutation.error?.code ?? documentAccess.error?.code;
     if (code === "SESSION_EXPIRED" || code === "INACTIVE_ACCOUNT") {
       returnToSignIn();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [upload.mutation.error, submit.mutation.error]);
+  }, [upload.mutation.error, submit.mutation.error, documentAccess.error]);
 
   const documents = progressQuery.data?.documents;
   const stats = {
@@ -211,6 +220,11 @@ export default function DocumentsScreen() {
               isActive={upload.activeRequirementCode === item.requirementCode}
               isAnyUploadPending={upload.mutation.isPending}
               upload={upload}
+              documentAccess={documentAccess}
+              isViewOpen={viewOpenRequirementCode === item.requirementCode}
+              onToggleView={() =>
+                setViewOpenRequirementCode((current) => (current === item.requirementCode ? null : item.requirementCode))
+              }
             />
           ))}
         </View>
@@ -229,6 +243,11 @@ export default function DocumentsScreen() {
               isActive={upload.activeRequirementCode === item.requirementCode}
               isAnyUploadPending={upload.mutation.isPending}
               upload={upload}
+              documentAccess={documentAccess}
+              isViewOpen={viewOpenRequirementCode === item.requirementCode}
+              onToggleView={() =>
+                setViewOpenRequirementCode((current) => (current === item.requirementCode ? null : item.requirementCode))
+              }
             />
           ))}
         </View>
@@ -312,13 +331,35 @@ function StatTile({ value, labelKey, color, labelColor, bg, isDark, language, t 
   );
 }
 
-function DocumentRow({ item, isDark, language, t, isActive, isAnyUploadPending, upload }) {
+function DocumentRow({
+  item,
+  isDark,
+  language,
+  t,
+  isActive,
+  isAnyUploadPending,
+  upload,
+  documentAccess,
+  isViewOpen,
+  onToggleView,
+}) {
   const config = STATUS_CONFIG[item.status] ?? STATUS_CONFIG.unknown;
   const StatusIcon = config.icon;
   const canUpload = item.status === "missing";
   const canReplace = item.document !== null && item.replacementAllowed;
   const hasAction = canUpload || canReplace;
+  const canView = item.document !== null;
+  // A document can be both replaceable and viewable at once (e.g. a
+  // rejected document the candidate may still want to look at before
+  // replacing it) -- the row's main tap target stays reserved for
+  // Upload/Replace in that case, and View/Download is reached via the
+  // small icon pair below instead of the full-row expand.
+  const isViewOnly = canView && !hasAction;
   const complianceStatus = item.document?.complianceStatus;
+
+  const isRequestingThisRow = documentAccess.isRequesting && documentAccess.targetDocumentId === item.document?.id;
+  const rowAccessError =
+    documentAccess.error && documentAccess.targetDocumentId === item.document?.id ? documentAccess.error : null;
 
   const statusLine = [
     t(config.labelKey),
@@ -330,6 +371,10 @@ function DocumentRow({ item, isDark, language, t, isActive, isAnyUploadPending, 
     .join(" • ");
 
   const handlePress = () => {
+    if (isViewOnly) {
+      onToggleView();
+      return;
+    }
     if (isAnyUploadPending && !isActive) return;
     if (isActive) {
       upload.cancelUpload();
@@ -338,10 +383,30 @@ function DocumentRow({ item, isDark, language, t, isActive, isAnyUploadPending, 
     upload.startUpload(item.requirementCode);
   };
 
-  const actionLabel = t(canUpload ? "candidateDocumentsUploadAction" : "candidateDocumentsReplaceAction");
-  const Chevron = language === "ur" ? ChevronLeft : ChevronRight;
+  const handleQuickView = () => {
+    if (isRequestingThisRow || !item.document) return;
+    documentAccess.viewDocument(item.document.id);
+  };
 
-  const rowContent = (
+  const handleQuickDownload = () => {
+    if (isRequestingThisRow || !item.document) return;
+    documentAccess.downloadDocument(item.document.id);
+  };
+
+  // For a view-only row, the row itself is just the expand/collapse toggle
+  // (the actual View/Download actions live in the panel it reveals) -- its
+  // accessible name is the document's own name, not "View"/"Download",
+  // so it never collides with the buttons inside the panel it expands.
+  const actionLabel = isViewOnly
+    ? item.name
+    : t(canUpload ? "candidateDocumentsUploadAction" : "candidateDocumentsReplaceAction");
+  const viewLabel = t("candidateDocumentsViewAction");
+  const downloadLabel = t("candidateDocumentsDownloadAction");
+  const Chevron = language === "ur" ? ChevronLeft : ChevronRight;
+  const rowIsExpandable = hasAction || isViewOnly;
+  const rowIsExpanded = isViewOnly ? isViewOpen : isActive;
+
+  const mainContent = (
     <View style={{ flexDirection: "row", alignItems: "center" }}>
       <View
         style={{
@@ -367,8 +432,6 @@ function DocumentRow({ item, isDark, language, t, isActive, isAnyUploadPending, 
           </Text>
         ) : null}
       </View>
-
-      {hasAction ? <Chevron size={20} color={isDark ? "#6B7280" : "#9CA3AF"} /> : null}
     </View>
   );
 
@@ -383,20 +446,74 @@ function DocumentRow({ item, isDark, language, t, isActive, isAnyUploadPending, 
         borderColor: isDark ? "#333333" : "#E5E7EB",
       }}
     >
-      {hasAction ? (
-        <Pressable
-          onPress={handlePress}
-          disabled={isAnyUploadPending && !isActive}
-          accessibilityRole="button"
-          accessibilityLabel={actionLabel}
-        >
-          {rowContent}
-        </Pressable>
-      ) : (
-        rowContent
-      )}
+      <View style={{ flexDirection: "row", alignItems: "center" }}>
+        {rowIsExpandable ? (
+          <Pressable
+            style={{ flex: 1 }}
+            onPress={handlePress}
+            disabled={!isViewOnly && isAnyUploadPending && !isActive}
+            accessibilityRole="button"
+            accessibilityLabel={actionLabel}
+          >
+            {mainContent}
+          </Pressable>
+        ) : (
+          <View style={{ flex: 1 }}>{mainContent}</View>
+        )}
 
-      {isActive ? (
+        {/* Quick icon pair, only for the rare case a document is both
+            replaceable and viewable -- the row's tap target above is
+            already claimed by Replace, so View/Download need their own
+            small affordance here instead of the expand panel below. */}
+        {canView && hasAction ? (
+          <>
+            <Pressable
+              onPress={handleQuickView}
+              disabled={isRequestingThisRow}
+              accessibilityRole="button"
+              accessibilityLabel={viewLabel}
+              style={{ paddingHorizontal: 6, paddingVertical: 8, marginStart: 4 }}
+            >
+              <Eye size={20} color={isRequestingThisRow ? (isDark ? "#4B5563" : "#D1D5DB") : "#0066CC"} />
+            </Pressable>
+            <Pressable
+              onPress={handleQuickDownload}
+              disabled={isRequestingThisRow}
+              accessibilityRole="button"
+              accessibilityLabel={downloadLabel}
+              style={{ paddingHorizontal: 6, paddingVertical: 8 }}
+            >
+              <Download size={20} color={isRequestingThisRow ? (isDark ? "#4B5563" : "#D1D5DB") : "#0066CC"} />
+            </Pressable>
+          </>
+        ) : null}
+
+        {rowIsExpandable ? <Chevron size={20} color={isDark ? "#6B7280" : "#9CA3AF"} /> : null}
+      </View>
+
+      {/* The quick-icon dual-action row (replaceable AND viewable) has no
+          expand panel to show its own error inside, so it surfaces here
+          directly under the row. The view-only expand panel below owns its
+          own error display instead, mirroring how DocumentUploadPanel shows
+          its upload error inline. */}
+      {rowAccessError && !isViewOnly ? (
+        <ValidationMessage tone="error" language={language}>
+          {rowAccessError.message ?? t(DOCUMENT_ACCESS_ERROR_KEYS[rowAccessError.code])}
+        </ValidationMessage>
+      ) : null}
+
+      {rowIsExpanded && isViewOnly ? (
+        <DocumentViewPanel
+          isRequesting={isRequestingThisRow}
+          error={rowAccessError}
+          onView={handleQuickView}
+          onDownload={handleQuickDownload}
+          t={t}
+          language={language}
+        />
+      ) : null}
+
+      {rowIsExpanded && !isViewOnly ? (
         <DocumentUploadPanel
           labelText={t(canUpload ? "candidateDocumentsUploadAction" : "candidateDocumentsReplaceAction")}
           document={upload.document}

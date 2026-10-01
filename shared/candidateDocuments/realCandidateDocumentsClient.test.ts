@@ -491,3 +491,145 @@ describe('createCandidateDocumentsClient (real) -- uploadDocument', () => {
     ).rejects.toEqual({ code: 'NETWORK_ERROR' });
   });
 });
+
+function documentAccessPayload(overrides: Record<string, unknown> = {}) {
+  return {
+    document_id: '30fcedd6-7fe6-4d12-a5ae-f6b5ef3d91dd',
+    url: '/rails/active_storage/blobs/proxy/abc/passport.pdf',
+    expires_at: '2026-08-26T12:05:00Z',
+    ...overrides,
+  };
+}
+
+describe('createCandidateDocumentsClient (real) -- requestDocumentAccess', () => {
+  it('posts to the document-specific access path with the bearer token and locale, mapping the response to camelCase', async () => {
+    let seenUrl: string | undefined;
+    let seenInit: RequestInit | undefined;
+    stubFetch(async (url, init) => {
+      seenUrl = url as string;
+      seenInit = init as RequestInit;
+      return jsonResponse(successEnvelope(documentAccessPayload()));
+    });
+
+    const client = buildClient('ur');
+    const result = await client.requestDocumentAccess('candidate-access-token', '30fcedd6-7fe6-4d12-a5ae-f6b5ef3d91dd');
+
+    expect(seenUrl).toBe('http://example.test/api/v1/candidate/documents/30fcedd6-7fe6-4d12-a5ae-f6b5ef3d91dd/access');
+    expect(seenInit?.method).toBe('POST');
+    const headers = seenInit?.headers as Record<string, string>;
+    expect(headers.Authorization).toBe('Bearer candidate-access-token');
+    expect(headers['X-Locale']).toBe('ur');
+    expect(result).toEqual({
+      documentId: '30fcedd6-7fe6-4d12-a5ae-f6b5ef3d91dd',
+      url: '/rails/active_storage/blobs/proxy/abc/passport.pdf',
+      expiresAt: '2026-08-26T12:05:00Z',
+    });
+  });
+
+  it('sends no body when no disposition is requested, leaving the server to default to inline', async () => {
+    let seenInit: RequestInit | undefined;
+    stubFetch(async (_url, init) => {
+      seenInit = init as RequestInit;
+      return jsonResponse(successEnvelope(documentAccessPayload()));
+    });
+
+    const client = buildClient();
+    await client.requestDocumentAccess('token', '30fcedd6-7fe6-4d12-a5ae-f6b5ef3d91dd');
+
+    expect(seenInit?.body).toBeUndefined();
+  });
+
+  it('sends the requested disposition as a JSON body', async () => {
+    let seenInit: RequestInit | undefined;
+    stubFetch(async (_url, init) => {
+      seenInit = init as RequestInit;
+      return jsonResponse(successEnvelope(documentAccessPayload()));
+    });
+
+    const client = buildClient();
+    await client.requestDocumentAccess('token', '30fcedd6-7fe6-4d12-a5ae-f6b5ef3d91dd', 'attachment');
+
+    expect(seenInit?.body).toBe(JSON.stringify({ disposition: 'attachment' }));
+    const headers = seenInit?.headers as Record<string, string>;
+    expect(headers['Content-Type']).toBe('application/json');
+  });
+
+  it('maps a 404 to NOT_FOUND -- a foreign, unrelated or superseded document id', async () => {
+    stubFetch(async () => jsonResponse(errorEnvelope([{ code: 'not_found', message: 'Not found.' }]), { status: 404 }));
+
+    const client = buildClient();
+    await expect(client.requestDocumentAccess('token', 'some-id')).rejects.toEqual({
+      code: 'NOT_FOUND',
+      message: 'Not found.',
+    });
+  });
+
+  it('maps a 422 document_attachment_missing to DOCUMENT_ATTACHMENT_MISSING, preserving the localized server message', async () => {
+    stubFetch(async () =>
+      jsonResponse(errorEnvelope([{ code: 'document_attachment_missing', message: 'The requested document file is unavailable.' }]), {
+        status: 422,
+      })
+    );
+
+    const client = buildClient();
+    await expect(client.requestDocumentAccess('token', 'some-id')).rejects.toEqual({
+      code: 'DOCUMENT_ATTACHMENT_MISSING',
+      message: 'The requested document file is unavailable.',
+    });
+  });
+
+  it('maps a 403 inactive_account to INACTIVE_ACCOUNT', async () => {
+    stubFetch(async () => jsonResponse(errorEnvelope([{ code: 'inactive_account', message: 'Inactive.' }]), { status: 403 }));
+
+    const client = buildClient();
+    await expect(client.requestDocumentAccess('token', 'some-id')).rejects.toEqual({
+      code: 'INACTIVE_ACCOUNT',
+      message: 'Inactive.',
+    });
+  });
+
+  it('maps a 401 to SESSION_EXPIRED', async () => {
+    stubFetch(async () => jsonResponse(errorEnvelope([{ code: 'unauthorized', message: 'Expired.' }]), { status: 401 }));
+
+    const client = buildClient();
+    await expect(client.requestDocumentAccess('token', 'some-id')).rejects.toEqual({ code: 'SESSION_EXPIRED' });
+  });
+
+  it('maps a 429 to RATE_LIMITED with the Retry-After seconds', async () => {
+    stubFetch(async () =>
+      jsonResponse(errorEnvelope([{ code: 'rate_limited', message: 'Too many requests.' }]), {
+        status: 429,
+        headers: { 'Content-Type': 'application/json', 'Retry-After': '20' },
+      })
+    );
+
+    const client = buildClient();
+    await expect(client.requestDocumentAccess('token', 'some-id')).rejects.toEqual({ code: 'RATE_LIMITED', retryAfterSeconds: 20 });
+  });
+
+  it('maps a 5xx to SERVER_ERROR', async () => {
+    stubFetch(async () => new Response('Internal Server Error', { status: 500 }));
+
+    const client = buildClient();
+    await expect(client.requestDocumentAccess('token', 'some-id')).rejects.toEqual({ code: 'SERVER_ERROR' });
+  });
+
+  it('maps a network failure to NETWORK_ERROR', async () => {
+    stubFetch(async () => {
+      throw new TypeError('Failed to fetch');
+    });
+
+    const client = buildClient();
+    await expect(client.requestDocumentAccess('token', 'some-id')).rejects.toEqual({ code: 'NETWORK_ERROR' });
+  });
+
+  it('maps offline to OFFLINE', async () => {
+    const apiClient = createApiClient({ baseUrl: 'http://example.test/api/v1', isOnline: () => false });
+    const client = createCandidateDocumentsClient({ apiClient, getLocale: () => 'en' });
+    stubFetch(async () => {
+      throw new TypeError('Failed to fetch');
+    });
+
+    await expect(client.requestDocumentAccess('token', 'some-id')).rejects.toEqual({ code: 'OFFLINE' });
+  });
+});

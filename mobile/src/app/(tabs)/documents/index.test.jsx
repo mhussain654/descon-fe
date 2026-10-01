@@ -64,7 +64,7 @@ jest.mock("expo-image-picker", () => ({
 }));
 
 jest.mock("../../../lib/candidate-documents-client", () => ({
-  candidateDocumentsClient: { getChecklist: jest.fn(), uploadDocument: jest.fn() },
+  candidateDocumentsClient: { getChecklist: jest.fn(), uploadDocument: jest.fn(), requestDocumentAccess: jest.fn() },
 }));
 jest.mock("../../../lib/application-progress-client", () => ({
   applicationProgressClient: { getProgress: jest.fn(), submitDocuments: jest.fn() },
@@ -194,6 +194,7 @@ afterEach(async () => {
   await cleanup();
   jest.mocked(candidateDocumentsClient.getChecklist).mockReset();
   jest.mocked(candidateDocumentsClient.uploadDocument).mockReset();
+  jest.mocked(candidateDocumentsClient.requestDocumentAccess).mockReset();
   jest.mocked(applicationProgressClient.getProgress).mockReset();
   jest.mocked(applicationProgressClient.submitDocuments).mockReset();
   jest.mocked(candidateBankDetailsClient.getBankDetail).mockReset();
@@ -295,6 +296,176 @@ describe("DocumentsScreen", () => {
     await screen.findByText("Passport");
     expect(screen.queryByRole("button", { name: "Upload" })).toBeNull();
     expect(screen.queryByRole("button", { name: "Replace" })).toBeNull();
+  });
+
+  it("does not show an expandable View/Download row for a document with no file attached yet", async () => {
+    candidateDocumentsClient.getChecklist.mockResolvedValue([item({ status: "missing", document: null })]);
+    applicationProgressClient.getProgress.mockResolvedValue(progress());
+    renderDocumentsScreen();
+
+    await screen.findByText("Passport");
+    expect(screen.queryByRole("button", { name: "View" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Download" })).toBeNull();
+  });
+
+  it("expands a view-only document row on tap to reveal View and Download actions, collapsing on a second tap", async () => {
+    candidateDocumentsClient.getChecklist.mockResolvedValue([
+      item({ status: "verified", document: uploadedDocument(), replacementAllowed: false }),
+    ]);
+    applicationProgressClient.getProgress.mockResolvedValue(progress());
+    renderDocumentsScreen();
+
+    await screen.findByText("Passport");
+    expect(screen.queryByRole("button", { name: "View" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Download" })).toBeNull();
+
+    fireEvent.press(screen.getByRole("button", { name: "Passport" }));
+
+    expect(await screen.findByRole("button", { name: "View" })).toBeOnTheScreen();
+    expect(screen.getByRole("button", { name: "Download" })).toBeOnTheScreen();
+
+    fireEvent.press(screen.getByRole("button", { name: "Passport" }));
+    await waitFor(() => expect(screen.queryByRole("button", { name: "View" })).toBeNull());
+  });
+
+  it("requests a signed URL on View and hands it to the OS via Linking.openURL, for a document with no other action", async () => {
+    const originalApiBaseUrl = process.env.EXPO_PUBLIC_API_BASE_URL;
+    process.env.EXPO_PUBLIC_API_BASE_URL = "http://localhost:3000/api/v1";
+    candidateDocumentsClient.getChecklist.mockResolvedValue([
+      item({ status: "verified", document: uploadedDocument(), replacementAllowed: false }),
+    ]);
+    applicationProgressClient.getProgress.mockResolvedValue(progress());
+    candidateDocumentsClient.requestDocumentAccess.mockResolvedValue({
+      documentId: "30fcedd6-7fe6-4d12-a5ae-f6b5ef3d91dd",
+      url: "/rails/active_storage/blobs/proxy/abc/passport.pdf",
+      expiresAt: new Date(Date.now() + 5 * 60 * 1000).toISOString(),
+    });
+    const openURL = jest.spyOn(Linking, "openURL").mockResolvedValue();
+    renderDocumentsScreen();
+
+    await screen.findByText("Passport");
+    fireEvent.press(screen.getByRole("button", { name: "Passport" }));
+    await act(async () => {
+      fireEvent.press(await screen.findByRole("button", { name: "View" }));
+    });
+
+    await waitFor(() => expect(openURL).toHaveBeenCalledTimes(1));
+    expect(candidateDocumentsClient.requestDocumentAccess).toHaveBeenCalledWith(
+      "candidate-access-token",
+      "30fcedd6-7fe6-4d12-a5ae-f6b5ef3d91dd",
+      "inline"
+    );
+    expect(openURL.mock.calls[0][0]).toContain("/rails/active_storage/blobs/proxy/abc/passport.pdf");
+    openURL.mockRestore();
+    process.env.EXPO_PUBLIC_API_BASE_URL = originalApiBaseUrl;
+  });
+
+  it("requests an attachment-disposition signed URL on Download", async () => {
+    const originalApiBaseUrl = process.env.EXPO_PUBLIC_API_BASE_URL;
+    process.env.EXPO_PUBLIC_API_BASE_URL = "http://localhost:3000/api/v1";
+    candidateDocumentsClient.getChecklist.mockResolvedValue([
+      item({ status: "verified", document: uploadedDocument(), replacementAllowed: false }),
+    ]);
+    applicationProgressClient.getProgress.mockResolvedValue(progress());
+    candidateDocumentsClient.requestDocumentAccess.mockResolvedValue({
+      documentId: "30fcedd6-7fe6-4d12-a5ae-f6b5ef3d91dd",
+      url: "/rails/active_storage/blobs/proxy/abc/passport.pdf?disposition=attachment",
+      expiresAt: new Date(Date.now() + 5 * 60 * 1000).toISOString(),
+    });
+    const openURL = jest.spyOn(Linking, "openURL").mockResolvedValue();
+    renderDocumentsScreen();
+
+    await screen.findByText("Passport");
+    fireEvent.press(screen.getByRole("button", { name: "Passport" }));
+    await act(async () => {
+      fireEvent.press(await screen.findByRole("button", { name: "Download" }));
+    });
+
+    await waitFor(() => expect(openURL).toHaveBeenCalledTimes(1));
+    expect(candidateDocumentsClient.requestDocumentAccess).toHaveBeenCalledWith(
+      "candidate-access-token",
+      "30fcedd6-7fe6-4d12-a5ae-f6b5ef3d91dd",
+      "attachment"
+    );
+    openURL.mockRestore();
+    process.env.EXPO_PUBLIC_API_BASE_URL = originalApiBaseUrl;
+  });
+
+  it("shows both Replace and View/Download actions directly, with no expand step, for a rejected document that still has an attached file", async () => {
+    candidateDocumentsClient.getChecklist.mockResolvedValue([
+      item({ status: "rejected", document: uploadedDocument({ rejectionReason: "Photo is blurry." }), replacementAllowed: true }),
+    ]);
+    applicationProgressClient.getProgress.mockResolvedValue(progress());
+    renderDocumentsScreen();
+
+    await screen.findByText("Passport");
+    expect(screen.getByRole("button", { name: "Replace" })).toBeOnTheScreen();
+    expect(screen.getByRole("button", { name: "View" })).toBeOnTheScreen();
+    expect(screen.getByRole("button", { name: "Download" })).toBeOnTheScreen();
+  });
+
+  it("shows a generic error and never calls Linking.openURL when the signed URL does not resolve to our own API origin (fails closed)", async () => {
+    const originalApiBaseUrl = process.env.EXPO_PUBLIC_API_BASE_URL;
+    process.env.EXPO_PUBLIC_API_BASE_URL = "http://localhost:3000/api/v1";
+    candidateDocumentsClient.getChecklist.mockResolvedValue([
+      item({ status: "verified", document: uploadedDocument(), replacementAllowed: false }),
+    ]);
+    applicationProgressClient.getProgress.mockResolvedValue(progress());
+    candidateDocumentsClient.requestDocumentAccess.mockResolvedValue({
+      documentId: "30fcedd6-7fe6-4d12-a5ae-f6b5ef3d91dd",
+      url: "https://evil.example/passport.pdf",
+      expiresAt: new Date(Date.now() + 5 * 60 * 1000).toISOString(),
+    });
+    const openURL = jest.spyOn(Linking, "openURL").mockResolvedValue();
+    renderDocumentsScreen();
+
+    await screen.findByText("Passport");
+    fireEvent.press(screen.getByRole("button", { name: "Passport" }));
+    await act(async () => {
+      fireEvent.press(await screen.findByRole("button", { name: "View" }));
+    });
+
+    expect(await screen.findByText("Something went wrong.")).toBeOnTheScreen();
+    expect(openURL).not.toHaveBeenCalled();
+    openURL.mockRestore();
+    process.env.EXPO_PUBLIC_API_BASE_URL = originalApiBaseUrl;
+  });
+
+  it("shows the specific error inside the expanded panel when the backend reports the document's attachment is missing", async () => {
+    candidateDocumentsClient.getChecklist.mockResolvedValue([
+      item({ status: "verified", document: uploadedDocument(), replacementAllowed: false }),
+    ]);
+    applicationProgressClient.getProgress.mockResolvedValue(progress());
+    candidateDocumentsClient.requestDocumentAccess.mockRejectedValue({
+      code: "DOCUMENT_ATTACHMENT_MISSING",
+      message: "The requested document file is unavailable.",
+    });
+    renderDocumentsScreen();
+
+    await screen.findByText("Passport");
+    fireEvent.press(screen.getByRole("button", { name: "Passport" }));
+    await act(async () => {
+      fireEvent.press(await screen.findByRole("button", { name: "View" }));
+    });
+
+    expect(await screen.findByText("The requested document file is unavailable.")).toBeOnTheScreen();
+  });
+
+  it("ends the session and returns to sign-in when viewing a document fails because the session expired", async () => {
+    candidateDocumentsClient.getChecklist.mockResolvedValue([
+      item({ status: "verified", document: uploadedDocument(), replacementAllowed: false }),
+    ]);
+    applicationProgressClient.getProgress.mockResolvedValue(progress());
+    candidateDocumentsClient.requestDocumentAccess.mockRejectedValue({ code: "SESSION_EXPIRED" });
+    renderDocumentsScreen();
+
+    await screen.findByText("Passport");
+    fireEvent.press(screen.getByRole("button", { name: "Passport" }));
+    await act(async () => {
+      fireEvent.press(await screen.findByRole("button", { name: "View" }));
+    });
+
+    await waitFor(() => expect(mockReplace).toHaveBeenCalledWith("/login"));
   });
 
   it("shows the rejection reason for a rejected document", async () => {

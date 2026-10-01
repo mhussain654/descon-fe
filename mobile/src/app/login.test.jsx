@@ -188,11 +188,13 @@ describe('LoginScreen', () => {
 
   // Client-approved, deliberate exception to the usual non-enumerating
   // response -- see shared/auth/types.ts's AuthErrorCode doc comment.
-  it('shows a not-found error naming the entered CNIC when it matches no candidate', async () => {
+  it('shows the not-found error message the backend sends, verbatim, naming the submitted CNIC', async () => {
     globalThis.fetch = jest.fn(() =>
       Promise.resolve(
         new Response(
-          JSON.stringify({ errors: [{ code: 'candidate_cnic_not_found', message: "We couldn't find your record with this CNIC." }] }),
+          JSON.stringify({
+            errors: [{ code: 'candidate_cnic_not_found', message: "We couldn't find your record with this CNIC: 12345-1234567-1" }],
+          }),
           { status: 404, headers: { 'Content-Type': 'application/json' } }
         )
       )
@@ -203,6 +205,34 @@ describe('LoginScreen', () => {
     fireEvent.press(screen.getByRole('button', { name: 'Send OTP' }));
 
     expect(await screen.findByText("We couldn't find your record with this CNIC: 12345-1234567-1")).toBeOnTheScreen();
+  });
+
+  // Regression: the message used to be reconstructed client-side by
+  // appending the *live* CNIC field value -- so once the candidate started
+  // typing a correction, the still-displayed error silently relabeled
+  // itself to whatever was now typed instead of what was actually
+  // submitted. The backend-provided message must stay frozen regardless.
+  it('keeps the not-found message frozen on the originally-submitted CNIC after the candidate starts typing a correction', async () => {
+    globalThis.fetch = jest.fn(() =>
+      Promise.resolve(
+        new Response(
+          JSON.stringify({
+            errors: [{ code: 'candidate_cnic_not_found', message: "We couldn't find your record with this CNIC: 12345-1234567-1" }],
+          }),
+          { status: 404, headers: { 'Content-Type': 'application/json' } }
+        )
+      )
+    );
+    renderLoginScreen();
+
+    fireEvent.changeText(await screen.findByLabelText('CNIC Number'), '1234512345671');
+    fireEvent.press(screen.getByRole('button', { name: 'Send OTP' }));
+    await screen.findByText("We couldn't find your record with this CNIC: 12345-1234567-1");
+
+    fireEvent.changeText(screen.getByLabelText('CNIC Number'), '9999912345671');
+
+    expect(screen.getByText("We couldn't find your record with this CNIC: 12345-1234567-1")).toBeOnTheScreen();
+    expect(screen.queryByText(/99999-1234567-1/)).toBeNull();
   });
 
   describe('server-enforced rate limiting (Retry-After)', () => {

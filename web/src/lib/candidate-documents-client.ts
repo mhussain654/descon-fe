@@ -11,6 +11,9 @@ import type {
   CandidateDocumentsError,
   CandidateDocumentsErrorCode,
   CandidateDocumentStatus,
+  DocumentAccess,
+  DocumentAccessError,
+  DocumentAccessErrorCode,
 } from '../../../shared/candidateDocuments/types';
 import { apiClient } from './api-client';
 
@@ -23,6 +26,9 @@ export type {
   CandidateDocumentsError,
   CandidateDocumentsErrorCode,
   CandidateDocumentStatus,
+  DocumentAccess,
+  DocumentAccessError,
+  DocumentAccessErrorCode,
 };
 
 const LANGUAGE_STORAGE_KEY = 'descon.language';

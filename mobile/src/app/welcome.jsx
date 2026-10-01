@@ -12,19 +12,46 @@ import { RequireGuest } from "../features/auth/RequireGuest";
 // Each option's own label always renders in its own language/script -- "اردو"
 // here regardless of which language is currently active -- the standard
 // pattern real apps use for a language switcher, so a candidate who can't yet
-// read the active language can still recognize and pick their own.
+// read the active language can still recognize and pick their own. The
+// card's own internal layout mirrors per-card too (independent of the app's
+// global RTL state, which only ever reflects the *active* language and so
+// can't correctly orient two cards representing two different languages at
+// once): the Urdu card's text is right-aligned and sits snug against the
+// checkmark on the right, instead of the fixed left-to-right arrangement
+// that reads oddly for Urdu's own script.
 function LanguageOptionCard({ active, label, labelLanguage, hint, onPress }) {
+  const isRtl = labelLanguage === "ur";
   return (
     <Pressable
       onPress={onPress}
       accessibilityRole="button"
       accessibilityState={{ selected: active }}
-      style={[styles.languageCard, active ? styles.languageCardActive : styles.languageCardInactive]}
+      style={[
+        styles.languageCard,
+        active ? styles.languageCardActive : styles.languageCardInactive,
+        isRtl && styles.languageCardRtl,
+      ]}
     >
       <View style={styles.languageCardLeft}>
-        <View>
-          <Text style={[styles.languageLabel, { fontFamily: getFontFamily(labelLanguage, "semibold") }]}>{label}</Text>
-          <Text style={[styles.languageHint, { fontFamily: getFontFamily(labelLanguage, "regular") }]}>{hint}</Text>
+        <View style={isRtl && styles.languageCardTextRtl}>
+          <Text
+            style={[
+              styles.languageLabel,
+              { fontFamily: getFontFamily(labelLanguage, "semibold") },
+              isRtl && styles.textRight,
+            ]}
+          >
+            {label}
+          </Text>
+          <Text
+            style={[
+              styles.languageHint,
+              { fontFamily: getFontFamily(labelLanguage, "regular") },
+              isRtl && styles.textRight,
+            ]}
+          >
+            {hint}
+          </Text>
         </View>
       </View>
       {active ? (
@@ -147,9 +174,16 @@ const styles = StyleSheet.create({
   },
   languageCardActive: { backgroundColor: colors.brand.subtle, borderColor: colors.brand.default },
   languageCardInactive: { backgroundColor: colors.surface.sunken, borderColor: colors.border.default },
+  // Mirrors the row for Urdu: the checkmark moves to the far left and the
+  // text block to the far right (space-between is inherited unchanged from
+  // languageCard, so a single child -- the inactive, checkmark-less case --
+  // still lands at the row's start, which row-reverse makes the right side).
+  languageCardRtl: { flexDirection: "row-reverse" },
   languageCardLeft: { flexDirection: "row", alignItems: "center", gap: spacing[3] },
+  languageCardTextRtl: { alignItems: "flex-end" },
   languageLabel: { fontSize: 16, fontWeight: fontWeights.semibold, color: colors.text.primary },
   languageHint: { fontSize: 13, color: colors.text.secondary, marginTop: 2 },
+  textRight: { textAlign: "right" },
   languageCheck: {
     width: 24,
     height: 24,

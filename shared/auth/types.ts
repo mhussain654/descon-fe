@@ -46,6 +46,23 @@ export interface AuthError {
   code: AuthErrorCode;
   /** Set for RESEND_COOLDOWN and RATE_LIMITED, so the UI can show an accurate countdown instead of a fixed guess. */
   retryAfterSeconds?: number;
+  /**
+   * Narrow, deliberate exception to this module's usual "localize from
+   * `code` alone, never trust a raw server message" rule (see
+   * `AuthErrorCode`'s own doc comment for why that rule exists). Only ever
+   * meaningfully set for `CNIC_NOT_FOUND`, whose text needs to name the
+   * exact CNIC that was actually submitted -- the backend freezes that
+   * value into this message at the moment the candidate record lookup
+   * fails, which a frontend-side template interpolating the *live* CNIC
+   * input field cannot do (that value keeps changing as the candidate types
+   * a correction, so the displayed error would silently relabel itself to
+   * whatever is currently typed instead of what was actually looked up).
+   * UI code should prefer this when present and fall back to the usual
+   * `code`-keyed translation otherwise, mirroring the same
+   * `error.message || t(KEYS[code])` pattern already used for payment
+   * errors elsewhere in this codebase.
+   */
+  message?: string;
 }
 
 /**

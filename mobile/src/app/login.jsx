@@ -21,7 +21,6 @@ import {
 import { colors, fontWeights, radii, spacing } from "../design-system/tokens";
 import { AUTH_ERROR_KEYS, CNIC_FIELD_ERROR_KEYS } from "../../../shared/auth/errorMessages";
 import { formatCountdown } from "../../../shared/auth/cnicOtpFlow";
-import { formatCnic } from "../../../shared/cnic";
 import { OTP_LENGTH } from "../../../shared/auth/types";
 import { useCnicOtpFlow } from "../../../shared/auth/useCnicOtpFlow";
 import { candidateAuthClient } from "../lib/auth-client";
@@ -187,9 +186,7 @@ export default function LoginScreen() {
                     <ValidationMessage tone="error" language={language}>
                       {isCnicRateLimited
                         ? `${t("authRetryAvailableInPrefix")} ${formatCountdown(secondsUntilRateLimitCleared ?? 0)}`
-                        : otpError.code === "CNIC_NOT_FOUND"
-                          ? `${t(AUTH_ERROR_KEYS.CNIC_NOT_FOUND)}: ${formatCnic(cnic)}`
-                          : t(AUTH_ERROR_KEYS[otpError.code])}
+                        : otpError.message || t(AUTH_ERROR_KEYS[otpError.code])}
                     </ValidationMessage>
                   ) : null}
                   <Button
