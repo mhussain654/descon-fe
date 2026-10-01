@@ -213,7 +213,7 @@ describe("DashboardScreen", () => {
 
     expect(await screen.findByText("Ahmed Ali")).toBeOnTheScreen();
     expect(screen.getByText("DES-001001")).toBeOnTheScreen();
-    expect(screen.getByText("Documents Uploaded (In Progress)")).toBeOnTheScreen();
+    expect(screen.getByText("Documents Uploaded")).toBeOnTheScreen();
     expect(screen.getByText("13% complete")).toBeOnTheScreen();
   });
 
@@ -229,9 +229,9 @@ describe("DashboardScreen", () => {
     renderDashboardScreen();
 
     expect(await screen.findByText("33% complete")).toBeOnTheScreen();
-    // "Verified" now legitimately appears twice once fully verified -- the
-    // green chip, and the current-status line's stage name (no longer
-    // ambiguous with the in-progress case, which appends "(In Progress)").
+    // "Verified" legitimately appears twice once fully verified -- the green
+    // chip, and the current-status line's stage name (the dashboard no
+    // longer appends an "(In Progress)" suffix to any stage name).
     expect(screen.getAllByText("Verified")).toHaveLength(2);
   });
 
@@ -247,13 +247,26 @@ describe("DashboardScreen", () => {
     expect(screen.queryByText("Verified")).toBeNull();
   });
 
-  it("prompts to upload the missing required document as the highest-priority next step", async () => {
+  it("prompts to upload required documents generically when nothing has been submitted yet", async () => {
     candidateProfileClient.getProfile.mockResolvedValue(profilePayload());
     candidateDocumentsClient.getChecklist.mockResolvedValue([checklistItem({ status: "missing" })]);
     applicationProgressClient.getProgress.mockResolvedValue(progress());
     renderDashboardScreen();
 
-    expect(await screen.findByText(/Upload your missing document: Passport/)).toBeOnTheScreen();
+    expect(await screen.findByText(/Upload your required documents/)).toBeOnTheScreen();
+    expect(screen.queryByText(/Passport/)).toBeNull();
+  });
+
+  it("prompts to upload the specific missing required document once some documents are already submitted", async () => {
+    candidateProfileClient.getProfile.mockResolvedValue(profilePayload());
+    candidateDocumentsClient.getChecklist.mockResolvedValue([
+      checklistItem({ status: "uploaded" }),
+      checklistItem({ requirementCode: "cnic", name: "CNIC", status: "missing" }),
+    ]);
+    applicationProgressClient.getProgress.mockResolvedValue(progress());
+    renderDashboardScreen();
+
+    expect(await screen.findByText(/Upload your missing document: CNIC/)).toBeOnTheScreen();
   });
 
   it("prompts to replace a rejected, replaceable required document ahead of a missing one", async () => {
@@ -286,7 +299,7 @@ describe("DashboardScreen", () => {
   // verification happens, even long after the candidate moved on to a later
   // stage. Without gating on the *current* workflow stage too, this kept
   // announcing "Verification complete" as the next action while the
-  // candidate's real next step (e.g. paying the fee) went unmentioned.
+  // candidate's real next step (paying the fee) went unmentioned.
   it("does not re-announce verification once the candidate has moved past the verified stage", async () => {
     candidateProfileClient.getProfile.mockResolvedValue(profilePayload());
     candidateDocumentsClient.getChecklist.mockResolvedValue([checklistItem({ status: "verified" })]);
@@ -298,8 +311,30 @@ describe("DashboardScreen", () => {
     );
     renderDashboardScreen();
 
-    expect(await screen.findByText(/Continue with your application: Fee Pending/)).toBeOnTheScreen();
+    expect(await screen.findByText("Pay Fee")).toBeOnTheScreen();
     expect(screen.queryByText("Verification complete")).toBeNull();
+  });
+
+  it("navigates to payment when Next Steps is tapped, and highlights the matching quick-action tile", async () => {
+    candidateProfileClient.getProfile.mockResolvedValue(profilePayload());
+    candidateDocumentsClient.getChecklist.mockResolvedValue([checklistItem({ status: "verified" })]);
+    applicationProgressClient.getProgress.mockResolvedValue(
+      progress({
+        currentWorkflowStage: { code: "fee_pending", name: "Fee Pending" },
+        documents: documentsSummary({ submissionState: "verified", missing: 0, verified: 1 }),
+      })
+    );
+    renderDashboardScreen();
+
+    const nextStepsButton = await screen.findByRole("button", { name: "Pay Fee" });
+    expect(screen.getByText("You're here")).toBeOnTheScreen();
+    const makePaymentTile = screen.getByRole("button", { name: "Make Payment" });
+    expect(makePaymentTile.props.accessibilityState).toMatchObject({ selected: true });
+    const uploadDocumentsTile = screen.getByRole("button", { name: "Upload Documents" });
+    expect(uploadDocumentsTile.props.accessibilityState).toMatchObject({ selected: false });
+
+    fireEvent.press(nextStepsButton);
+    expect(mockPush).toHaveBeenCalledWith("/payment");
   });
 
   it("navigates to the documents, payment, and status screens from the quick-action tiles", async () => {

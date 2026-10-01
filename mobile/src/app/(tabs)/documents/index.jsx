@@ -4,12 +4,6 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
 import { useRouter } from "expo-router";
 import { Upload, CheckCircle, XCircle, Clock, ChevronRight, ChevronLeft } from "lucide-react-native";
-import {
-  useFonts,
-  Inter_400Regular,
-  Inter_500Medium,
-  Inter_600SemiBold,
-} from "@expo-google-fonts/inter";
 import { useAuth } from "../../../contexts/AuthContext";
 import { useLanguage } from "../../../contexts/LanguageContext";
 import { useRefetchOnFocus } from "../../../hooks/useRefetchOnFocus";
@@ -29,6 +23,7 @@ import {
   SessionExpiredState,
   ForbiddenState,
   ValidationMessage,
+  getFontFamily,
 } from "../../../design-system";
 import { CANDIDATE_DOCUMENTS_ERROR_KEYS } from "../../../../../shared/candidateDocuments/errorMessages";
 import { APPLICATION_PROGRESS_ERROR_KEYS } from "../../../../../shared/applicationProgress/errorMessages";
@@ -71,10 +66,6 @@ export default function DocumentsScreen() {
   // SessionExpiredState/ForbiddenState below, which end the session only
   // once the candidate confirms via that screen's own action -- never
   // silently out from under them.
-  // Placed above the `fontsLoaded` early return below -- every hook here
-  // must run on every render regardless of that gate, or React sees a
-  // different hook order between the "still loading fonts" render and every
-  // render after it (Rules of Hooks).
   useEffect(() => {
     const code = upload.mutation.error?.code ?? submit.mutation.error?.code;
     if (code === "SESSION_EXPIRED" || code === "INACTIVE_ACCOUNT") {
@@ -82,16 +73,6 @@ export default function DocumentsScreen() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [upload.mutation.error, submit.mutation.error]);
-
-  const [fontsLoaded] = useFonts({
-    Inter_400Regular,
-    Inter_500Medium,
-    Inter_600SemiBold,
-  });
-
-  if (!fontsLoaded) {
-    return null;
-  }
 
   const documents = progressQuery.data?.documents;
   const stats = {
@@ -101,8 +82,18 @@ export default function DocumentsScreen() {
   };
 
   const renderBody = () => {
-    if (checklistQuery.isLoading) {
-      return <LoadingState message={t("loading")} />;
+    // `isPending`, not `isLoading` -- a disabled query (auth not yet
+    // restored) has `isLoading: false` (v5: isLoading = isPending &&
+    // isFetching, and a disabled query never reaches isFetching) but is
+    // just as "no data yet" as one that's actively fetching. Gating on
+    // `isLoading` alone let that brief disabled window fall through to the
+    // `checklist.length === 0` branch below (checklistQuery.data is
+    // undefined -- `?? []` -- while disabled), incorrectly mounting the
+    // empty-state/BankDetailsPanel tree, then unmounting it the instant
+    // auth resolved and isLoading flipped true -- a mount/unmount churn
+    // that could wedge later query notifications.
+    if (checklistQuery.isPending) {
+      return <LoadingState message={t("loading")} language={language} />;
     }
     const error = checklistQuery.error;
     if (error?.code === "SESSION_EXPIRED") {
@@ -112,6 +103,7 @@ export default function DocumentsScreen() {
           description={t("dsSessionExpiredDescription")}
           actionLabel={t("dsSessionExpiredAction")}
           onAction={returnToSignIn}
+          language={language}
         />
       );
     }
@@ -122,6 +114,7 @@ export default function DocumentsScreen() {
           description={t("candidateProfileInactiveAccountDescription")}
           actionLabel={t("candidateProfileInactiveAccountAction")}
           onAction={returnToSignIn}
+          language={language}
         />
       );
     }
@@ -132,6 +125,7 @@ export default function DocumentsScreen() {
           description={t("dsOfflineDescription")}
           retryLabel={t("retry")}
           onRetry={() => checklistQuery.refetch()}
+          language={language}
         />
       );
     }
@@ -141,6 +135,7 @@ export default function DocumentsScreen() {
           message={t(CANDIDATE_DOCUMENTS_ERROR_KEYS[error.code])}
           retryLabel={t("retry")}
           onRetry={() => checklistQuery.refetch()}
+          language={language}
         />
       );
     }
@@ -152,7 +147,11 @@ export default function DocumentsScreen() {
       return (
         <>
           <BankDetailsPanel isDark={isDark} t={t} language={language} onSessionEnd={returnToSignIn} />
-          <EmptyState title={t("candidateDocumentsEmptyTitle")} description={t("candidateDocumentsEmptyDescription")} />
+          <EmptyState
+            title={t("candidateDocumentsEmptyTitle")}
+            description={t("candidateDocumentsEmptyDescription")}
+            language={language}
+          />
         </>
       );
     }
@@ -168,6 +167,7 @@ export default function DocumentsScreen() {
             labelColor="#10B981"
             bg={isDark ? "#1A2E1A" : "#E6F9F0"}
             isDark={isDark}
+            language={language}
             t={t}
           />
           <StatTile
@@ -177,6 +177,7 @@ export default function DocumentsScreen() {
             labelColor="#F59E0B"
             bg={isDark ? "#2E2416" : "#FFF7E6"}
             isDark={isDark}
+            language={language}
             t={t}
           />
           <StatTile
@@ -185,13 +186,14 @@ export default function DocumentsScreen() {
             color="#6B7280"
             bg={isDark ? "#1E1E1E" : "#F6F6F6"}
             isDark={isDark}
+            language={language}
             t={t}
           />
         </View>
 
         {documents?.canSubmit ? (
           <View style={{ marginBottom: 20 }}>
-            <Button onPress={submit.openConfirm} disabled={submit.mutation.isPending}>
+            <Button onPress={submit.openConfirm} disabled={submit.mutation.isPending} language={language}>
               {t("applicationProgressSubmitAction")}
             </Button>
           </View>
@@ -249,7 +251,7 @@ export default function DocumentsScreen() {
           borderBottomColor: isDark ? "#333333" : "#F0F0F0",
         }}
       >
-        <Text style={{ fontSize: 28, fontFamily: "Inter_600SemiBold", color: isDark ? "#FFFFFF" : "#000000" }}>
+        <Text style={{ fontSize: 28, fontFamily: getFontFamily(language, "semibold"), color: isDark ? "#FFFFFF" : "#000000" }}>
           {t("documents")}
         </Text>
       </View>
@@ -285,9 +287,10 @@ export default function DocumentsScreen() {
         cancelLabel={t("applicationProgressConfirmCancel")}
         onConfirm={submit.confirm}
         isConfirming={submit.mutation.isPending}
+        language={language}
       >
         {submit.mutation.error && ["OFFLINE", "NETWORK_ERROR", "SERVER_ERROR", "RATE_LIMITED", "IN_PROGRESS", "CONFLICT"].includes(submit.mutation.error.code) ? (
-          <ValidationMessage tone="error">
+          <ValidationMessage tone="error" language={language}>
             {submit.mutation.error.message ?? t(APPLICATION_PROGRESS_ERROR_KEYS[submit.mutation.error.code])}
           </ValidationMessage>
         ) : null}
@@ -296,12 +299,12 @@ export default function DocumentsScreen() {
   );
 }
 
-function StatTile({ value, labelKey, color, labelColor, bg, isDark, t }) {
+function StatTile({ value, labelKey, color, labelColor, bg, isDark, language, t }) {
   return (
     <View style={{ flex: 1, paddingHorizontal: 4 }}>
       <View style={{ backgroundColor: bg, borderRadius: 12, padding: 12, alignItems: "center" }}>
-        <Text style={{ fontSize: 24, fontFamily: "Inter_600SemiBold", color, marginBottom: 2 }}>{value}</Text>
-        <Text style={{ fontSize: 11, fontFamily: "Inter_400Regular", color: labelColor ?? (isDark ? "#FFFFFF" : "#000000") }}>
+        <Text style={{ fontSize: 24, fontFamily: getFontFamily(language, "semibold"), color, marginBottom: 2 }}>{value}</Text>
+        <Text style={{ fontSize: 11, fontFamily: getFontFamily(language, "regular"), color: labelColor ?? (isDark ? "#FFFFFF" : "#000000") }}>
           {t(labelKey)}
         </Text>
       </View>
@@ -354,12 +357,12 @@ function DocumentRow({ item, isDark, language, t, isActive, isAnyUploadPending, 
       </View>
 
       <View style={{ flex: 1, marginStart: 12 }}>
-        <Text style={{ fontSize: 15, fontFamily: "Inter_500Medium", color: isDark ? "#FFFFFF" : "#000000", marginBottom: 2 }}>
+        <Text style={{ fontSize: 15, fontFamily: getFontFamily(language, "medium"), color: isDark ? "#FFFFFF" : "#000000", marginBottom: 2 }}>
           {item.name}
         </Text>
-        <Text style={{ fontSize: 13, fontFamily: "Inter_400Regular", color: config.color }}>{statusLine}</Text>
+        <Text style={{ fontSize: 13, fontFamily: getFontFamily(language, "regular"), color: config.color }}>{statusLine}</Text>
         {item.document?.rejectionReason ? (
-          <Text style={{ fontSize: 12, fontFamily: "Inter_400Regular", color: "#EF4444", marginTop: 4 }}>
+          <Text style={{ fontSize: 12, fontFamily: getFontFamily(language, "regular"), color: "#EF4444", marginTop: 4 }}>
             {item.document.rejectionReason}
           </Text>
         ) : null}

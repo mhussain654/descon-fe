@@ -35,6 +35,7 @@ export const translations = {
     // Candidate authentication (MPS-F201)
     authCnicRequiredError: 'Enter your CNIC to continue.',
     authCnicFormatError: 'Enter a valid 13-digit CNIC.',
+    authCnicNotFoundError: "We couldn't find your record with this CNIC",
     authOtpRequestFailedError: "We couldn't send a code right now. Please try again.",
     authOtpInvalidError: 'Incorrect code. Please try again.',
     authOtpExpiredError: 'This code has expired.',
@@ -66,6 +67,7 @@ export const translations = {
     makePaymentDesc: 'Complete any pending onboarding fee payments.',
     waitingForVerification: 'Waiting for document verification by the HR team.',
     quickActions: 'Quick Actions',
+    currentStep: "You're here",
 
     // Candidate KuickPay payment journey (MPS-F601)
     paymentAmountLabel: 'Onboarding fee',
@@ -947,11 +949,13 @@ export const translations = {
     applicationProgressTitle: 'Application progress',
     applicationProgressNextActionTitle: 'Next step',
     applicationProgressNextActionRejectedReplaceable: 'Replace your rejected document',
+    applicationProgressNextActionNoDocuments: 'Upload your required documents',
     applicationProgressNextActionMissing: 'Upload your missing document',
     applicationProgressNextActionExpiredPcc: 'Replace your expired police character certificate',
     applicationProgressNextActionReadyToSubmit: 'Your documents are ready to submit',
     applicationProgressNextActionAwaitingReview: 'Your documents are awaiting review',
     applicationProgressNextActionVerified: 'Verification complete',
+    applicationProgressNextActionPayFee: 'Pay Fee',
     applicationProgressNextActionWorkflowFallback: 'Continue with your application',
     candidateProfileDocumentsSectionTitle: 'Document verification',
     pullToRefresh: 'Pull to refresh',
@@ -1472,6 +1476,7 @@ export const translations = {
     // Candidate authentication (MPS-F201)
     authCnicRequiredError: 'جاری رکھنے کے لیے اپنا شناختی کارڈ نمبر درج کریں۔',
     authCnicFormatError: '13 ہندسوں کا درست شناختی کارڈ نمبر درج کریں۔',
+    authCnicNotFoundError: 'ہمیں اس شناختی کارڈ نمبر سے آپ کا ریکارڈ نہیں ملا',
     authOtpRequestFailedError: 'ابھی کوڈ نہیں بھیجا جا سکا۔ براہ کرم دوبارہ کوشش کریں۔',
     authOtpInvalidError: 'غلط کوڈ۔ براہ کرم دوبارہ کوشش کریں۔',
     authOtpExpiredError: 'اس کوڈ کی میعاد ختم ہو چکی ہے۔',
@@ -1503,6 +1508,7 @@ export const translations = {
     makePaymentDesc: 'کوئی بھی زیر التواء آن بورڈنگ فیس کی ادائیگی مکمل کریں۔',
     waitingForVerification: 'ایچ آر ٹیم کی جانب سے دستاویز کی تصدیق کا انتظار ہے۔',
     quickActions: 'فوری اقدامات',
+    currentStep: 'آپ یہاں ہیں',
 
     // Candidate KuickPay payment journey (MPS-F601)
     paymentAmountLabel: 'آن بورڈنگ فیس',
@@ -2380,11 +2386,13 @@ export const translations = {
     applicationProgressTitle: 'درخواست کی پیش رفت',
     applicationProgressNextActionTitle: 'اگلا مرحلہ',
     applicationProgressNextActionRejectedReplaceable: 'اپنی مسترد شدہ دستاویز کو تبدیل کریں',
+    applicationProgressNextActionNoDocuments: 'اپنی مطلوبہ دستاویزات اپ لوڈ کریں',
     applicationProgressNextActionMissing: 'اپنی غائب دستاویز اپ لوڈ کریں',
     applicationProgressNextActionExpiredPcc: 'اپنا میعاد ختم ہونے والا کریکٹر سرٹیفکیٹ تبدیل کریں',
     applicationProgressNextActionReadyToSubmit: 'آپ کی دستاویزات جمع کرانے کے لیے تیار ہیں',
     applicationProgressNextActionAwaitingReview: 'آپ کی دستاویزات جائزے کے منتظر ہیں',
     applicationProgressNextActionVerified: 'تصدیق مکمل ہو گئی',
+    applicationProgressNextActionPayFee: 'فیس ادا کریں',
     applicationProgressNextActionWorkflowFallback: 'اپنی درخواست کے ساتھ جاری رکھیں',
     candidateProfileDocumentsSectionTitle: 'دستاویزات کی تصدیق',
     pullToRefresh: 'تازہ کرنے کے لیے کھینچیں',

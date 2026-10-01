@@ -14,7 +14,7 @@ const TEST_SAFE_AREA_METRICS = {
 };
 
 jest.mock('expo-router', () => ({
-  useRouter: () => ({ replace: jest.fn() }),
+  useRouter: () => ({ replace: jest.fn(), push: jest.fn() }),
   Redirect: ({ href }) => {
     const { Text: MockText } = jest.requireActual('react-native');
     return <MockText>redirect:{href}</MockText>;

@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
 import { StyleSheet, Text, View, type StyleProp, type ViewStyle } from 'react-native';
 import { colors, fontWeights, radii, spacing } from './tokens';
+import { getFontFamily } from './fonts';
 
 export interface CardProps {
   children: ReactNode;
@@ -18,12 +19,15 @@ export function CardHeader({ children }: { children: ReactNode }) {
   return <View style={styles.header}>{children}</View>;
 }
 
-export function CardTitle({ children }: { children: string }) {
-  return <Text style={styles.title}>{children}</Text>;
+// Neither of these calls `useLanguage()` (see README's "Localization"
+// section) -- the caller already has the active language and passes it
+// through; 'en' keeps every existing call site that doesn't pass it unaffected.
+export function CardTitle({ children, language = 'en' }: { children: string; language?: 'en' | 'ur' }) {
+  return <Text style={[styles.title, { fontFamily: getFontFamily(language, 'semibold') }]}>{children}</Text>;
 }
 
-export function CardDescription({ children }: { children: string }) {
-  return <Text style={styles.description}>{children}</Text>;
+export function CardDescription({ children, language = 'en' }: { children: string; language?: 'en' | 'ur' }) {
+  return <Text style={[styles.description, { fontFamily: getFontFamily(language, 'regular') }]}>{children}</Text>;
 }
 
 const styles = StyleSheet.create({

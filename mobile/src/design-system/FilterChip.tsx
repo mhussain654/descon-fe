@@ -1,15 +1,18 @@
 import { Check } from 'lucide-react-native';
 import { Pressable, StyleSheet, Text } from 'react-native';
 import { colors, fontWeights, radii, spacing } from './tokens';
+import { getFontFamily } from './fonts';
 
 export interface FilterChipProps {
   selected: boolean;
   onPress: () => void;
   children: string;
+  /** Which font family renders the label -- this component never calls `useLanguage()` itself (see README's "Localization" section); the caller passes the active language through. */
+  language?: 'en' | 'ur';
 }
 
 /** Toggleable filter pill, e.g. a stage filter above a candidate list. */
-export function FilterChip({ selected, onPress, children }: FilterChipProps) {
+export function FilterChip({ selected, onPress, children, language = 'en' }: FilterChipProps) {
   return (
     <Pressable
       onPress={onPress}
@@ -21,7 +24,11 @@ export function FilterChip({ selected, onPress, children }: FilterChipProps) {
       ]}
     >
       {selected ? <Check size={14} color={colors.brand.on} /> : null}
-      <Text style={[styles.text, { color: selected ? colors.brand.on : colors.text.secondary }]}>{children}</Text>
+      <Text
+        style={[styles.text, { color: selected ? colors.brand.on : colors.text.secondary, fontFamily: getFontFamily(language, 'medium') }]}
+      >
+        {children}
+      </Text>
     </Pressable>
   );
 }

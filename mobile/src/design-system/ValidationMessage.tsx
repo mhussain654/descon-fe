@@ -1,12 +1,15 @@
 import { AlertCircle, CheckCircle2 } from 'lucide-react-native';
 import { StyleSheet, Text, View } from 'react-native';
 import { colors, spacing } from './tokens';
+import { getFontFamily } from './fonts';
 
 export type ValidationTone = 'error' | 'success';
 
 export interface ValidationMessageProps {
   children: string;
   tone?: ValidationTone;
+  /** Which font family renders the text -- this component never calls `useLanguage()` itself (see README's "Localization" section); the caller passes the active language through. */
+  language?: 'en' | 'ur';
 }
 
 const TONE_COLOR: Record<ValidationTone, string> = {
@@ -15,14 +18,14 @@ const TONE_COLOR: Record<ValidationTone, string> = {
 };
 
 /** Field-level validation feedback. Pairs an icon with the text so meaning doesn't rely on color alone. */
-export function ValidationMessage({ children, tone = 'error' }: ValidationMessageProps) {
+export function ValidationMessage({ children, tone = 'error', language = 'en' }: ValidationMessageProps) {
   const Icon = tone === 'error' ? AlertCircle : CheckCircle2;
   const color = TONE_COLOR[tone];
 
   return (
     <View style={styles.row} accessibilityRole="alert">
       <Icon size={16} color={color} style={styles.icon} />
-      <Text style={[styles.text, { color }]}>{children}</Text>
+      <Text style={[styles.text, { color, fontFamily: getFontFamily(language, 'regular') }]}>{children}</Text>
     </View>
   );
 }

@@ -8,6 +8,7 @@ import { AuthProvider } from "../contexts/AuthContext";
 import { candidateAuthClient } from "../lib/auth-client";
 import { LanguageProvider } from "../contexts/LanguageContext";
 import { Toaster } from "../design-system/toast";
+import { useAppFonts } from "../design-system/fonts";
 SplashScreen.preventAutoHideAsync();
 
 // The standard TanStack Query React Native recipe: without this, the
@@ -44,9 +45,13 @@ const queryClient = new QueryClient({
 });
 
 export default function RootLayout() {
+  const fontsLoaded = useAppFonts();
+
   useEffect(() => {
-    SplashScreen.hideAsync();
-  }, []);
+    if (fontsLoaded) SplashScreen.hideAsync();
+  }, [fontsLoaded]);
+
+  if (!fontsLoaded) return null;
 
   return (
     <LanguageProvider>

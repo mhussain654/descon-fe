@@ -139,6 +139,20 @@ describe('LoginPage', () => {
     expect(alert.className).not.toMatch(/truncate|overflow-hidden/);
   });
 
+  // Client-approved, deliberate exception to the usual non-enumerating
+  // response -- see shared/auth/types.ts's AuthErrorCode doc comment.
+  it('shows a not-found error naming the entered CNIC when it matches no candidate', async () => {
+    vi.spyOn(candidateAuthClient, 'requestOtp').mockRejectedValueOnce({ code: 'CNIC_NOT_FOUND' });
+    renderLoginPage();
+
+    fireEvent.change(screen.getByLabelText('CNIC Number'), { target: { value: '1234512345671' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Send OTP' }));
+
+    expect(await screen.findByText("We couldn't find your record with this CNIC: 12345-1234567-1")).toBeInTheDocument();
+
+    vi.restoreAllMocks();
+  });
+
   describe('server-enforced rate limiting (Retry-After)', () => {
     afterEach(() => {
       vi.restoreAllMocks();

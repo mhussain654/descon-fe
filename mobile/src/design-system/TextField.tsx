@@ -4,6 +4,7 @@ import { HelperText } from './HelperText';
 import { Label } from './Label';
 import { colors, radii, spacing } from './tokens';
 import { ValidationMessage } from './ValidationMessage';
+import { getFontFamily } from './fonts';
 
 export interface TextFieldProps extends Omit<TextInputProps, 'style'> {
   /** Already-translated label text. */
@@ -14,18 +15,24 @@ export interface TextFieldProps extends Omit<TextInputProps, 'style'> {
   helperText?: string;
   /** Already-translated validation message. When set, the field is styled as invalid. */
   errorMessage?: string;
+  /** Which font family renders the label/input/helper/error text -- this component never calls `useLanguage()` itself (see README's "Localization" section); the caller passes the active language through. */
+  language?: 'en' | 'ur';
 }
 
 /** Base text field: label, input, helper text and validation message wired together. */
 export const TextField = forwardRef<TextInput, TextFieldProps>(function TextField(
-  { label, requirementText, helperText, errorMessage, editable, ...props },
+  { label, requirementText, helperText, errorMessage, editable, language = 'en', ...props },
   ref
 ) {
   const hasError = Boolean(errorMessage);
 
   return (
     <View>
-      {label ? <Label requirementText={requirementText}>{label}</Label> : null}
+      {label ? (
+        <Label requirementText={requirementText} language={language}>
+          {label}
+        </Label>
+      ) : null}
       <TextInput
         {...props}
         ref={ref}
@@ -35,14 +42,16 @@ export const TextField = forwardRef<TextInput, TextFieldProps>(function TextFiel
         accessibilityState={{ disabled: editable === false }}
         style={[
           styles.input,
-          { borderColor: hasError ? colors.danger.default : colors.border.default },
+          { borderColor: hasError ? colors.danger.default : colors.border.default, fontFamily: getFontFamily(language, 'regular') },
           editable === false && styles.disabled,
         ]}
       />
       {errorMessage ? (
-        <ValidationMessage tone="error">{errorMessage}</ValidationMessage>
+        <ValidationMessage tone="error" language={language}>
+          {errorMessage}
+        </ValidationMessage>
       ) : helperText ? (
-        <HelperText>{helperText}</HelperText>
+        <HelperText language={language}>{helperText}</HelperText>
       ) : null}
     </View>
   );

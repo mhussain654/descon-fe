@@ -2,6 +2,7 @@ import { AlertTriangle } from 'lucide-react-native';
 import { StyleSheet, Text, View } from 'react-native';
 import { Button } from './Button';
 import { colors, radii, spacing } from './tokens';
+import { getFontFamily } from './fonts';
 
 export interface RetryBannerProps {
   /** Already-translated message, e.g. "Showing saved data -- couldn't refresh." */
@@ -9,6 +10,8 @@ export interface RetryBannerProps {
   /** Already-translated retry button label, e.g. `t('retry')`. */
   retryLabel: string;
   onRetry: () => void;
+  /** Which font family renders the text -- this component never calls `useLanguage()` itself (see README's "Localization" section); the caller passes the active language through. */
+  language?: 'en' | 'ur';
 }
 
 /**
@@ -16,14 +19,14 @@ export interface RetryBannerProps {
  * usable cached data is still on screen. Use ErrorState instead when there
  * is no cached data to fall back to.
  */
-export function RetryBanner({ message, retryLabel, onRetry }: RetryBannerProps) {
+export function RetryBanner({ message, retryLabel, onRetry, language = 'en' }: RetryBannerProps) {
   return (
     <View style={styles.container} accessibilityRole="text">
       <View style={styles.messageRow}>
         <AlertTriangle size={16} color={colors.warning.emphasis} />
-        <Text style={styles.message}>{message}</Text>
+        <Text style={[styles.message, { fontFamily: getFontFamily(language, 'regular') }]}>{message}</Text>
       </View>
-      <Button variant="text" size="sm" onPress={onRetry}>
+      <Button variant="text" size="sm" onPress={onRetry} language={language}>
         {retryLabel}
       </Button>
     </View>

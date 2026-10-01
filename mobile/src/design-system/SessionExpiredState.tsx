@@ -11,10 +11,12 @@ export interface SessionExpiredStateProps {
   /** Already-translated action label, e.g. `t('dsSessionExpiredAction')`. */
   actionLabel: string;
   onAction: () => void;
+  /** Which font family renders the text -- this component never calls `useLanguage()` itself (see README's "Localization" section); the caller passes the active language through. */
+  language?: 'en' | 'ur';
 }
 
 /** Full-section state for an expired/invalidated session, prompting re-authentication. */
-export function SessionExpiredState({ title, description, actionLabel, onAction }: SessionExpiredStateProps) {
+export function SessionExpiredState({ title, description, actionLabel, onAction, language = 'en' }: SessionExpiredStateProps) {
   return (
     <View accessibilityRole="alert" accessibilityLiveRegion="assertive">
       <StatePanel
@@ -23,6 +25,7 @@ export function SessionExpiredState({ title, description, actionLabel, onAction 
         description={description}
         actionLabel={actionLabel}
         onAction={onAction}
+        language={language}
       />
     </View>
   );

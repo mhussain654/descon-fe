@@ -5,11 +5,15 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
 import { useRouter } from "expo-router";
 import { useLanguage } from "../contexts/LanguageContext";
-import { Button } from "../design-system";
+import { Button, getFontFamily } from "../design-system";
 import { colors, fontWeights, radii, spacing } from "../design-system/tokens";
 import { RequireGuest } from "../features/auth/RequireGuest";
 
-function LanguageOptionCard({ active, flag, label, hint, onPress }) {
+// Each option's own label always renders in its own language/script -- "اردو"
+// here regardless of which language is currently active -- the standard
+// pattern real apps use for a language switcher, so a candidate who can't yet
+// read the active language can still recognize and pick their own.
+function LanguageOptionCard({ active, label, labelLanguage, hint, onPress }) {
   return (
     <Pressable
       onPress={onPress}
@@ -18,12 +22,9 @@ function LanguageOptionCard({ active, flag, label, hint, onPress }) {
       style={[styles.languageCard, active ? styles.languageCardActive : styles.languageCardInactive]}
     >
       <View style={styles.languageCardLeft}>
-        <Text style={styles.languageFlag} accessibilityElementsHidden importantForAccessibility="no">
-          {flag}
-        </Text>
         <View>
-          <Text style={styles.languageLabel}>{label}</Text>
-          <Text style={styles.languageHint}>{hint}</Text>
+          <Text style={[styles.languageLabel, { fontFamily: getFontFamily(labelLanguage, "semibold") }]}>{label}</Text>
+          <Text style={[styles.languageHint, { fontFamily: getFontFamily(labelLanguage, "regular") }]}>{hint}</Text>
         </View>
       </View>
       {active ? (
@@ -41,7 +42,10 @@ export default function WelcomeScreen() {
   const { t, language, setLanguage } = useLanguage();
 
   const handleContinue = () => {
-    router.replace("/login");
+    // `push`, not `replace` -- login's own Back control needs a history
+    // entry to return to (it was calling `router.back()` with nowhere to
+    // go, silently no-op-ing, when this used `replace`).
+    router.push("/login");
   };
 
   return (
@@ -69,25 +73,28 @@ export default function WelcomeScreen() {
           </View>
 
           <View style={styles.titleBlock}>
-            <Text style={styles.title}>{t("welcomeTitle")}</Text>
-            <Text style={styles.message}>{t("welcomeMessage")}</Text>
+            <Text style={[styles.title, { fontFamily: getFontFamily(language, "semibold") }]}>{t("welcomeTitle")}</Text>
+            <Text style={[styles.message, { fontFamily: getFontFamily(language, "regular") }]}>{t("welcomeMessage")}</Text>
           </View>
 
           <View style={styles.languageBlock}>
-            <Text style={styles.selectLabel}>{t("selectLanguage")}</Text>
+            <Text style={[styles.selectLabel, { fontFamily: getFontFamily(language, "medium") }]}>{t("selectLanguage")}</Text>
             <View style={styles.languageList}>
+              {/* Each card's label/hint always renders in that language's own
+                  script, never translated into the currently active language --
+                  the standard self-identifying pattern for a language switcher. */}
               <LanguageOptionCard
                 active={language === "en"}
-                flag="🇬🇧"
-                label={t("englishLabel")}
-                hint={t("englishHint")}
+                labelLanguage="en"
+                label="English"
+                hint="Continue in English"
                 onPress={() => setLanguage("en")}
               />
               <LanguageOptionCard
                 active={language === "ur"}
-                flag="🇵🇰"
-                label={t("urduLabel")}
-                hint={t("urduHint")}
+                labelLanguage="ur"
+                label="اردو"
+                hint="اردو میں جاری رکھیں"
                 onPress={() => setLanguage("ur")}
               />
             </View>
@@ -99,7 +106,7 @@ export default function WelcomeScreen() {
             {t("continue")}
           </Button>
 
-          <Text style={styles.footer}>{t("companyFooter")}</Text>
+          <Text style={[styles.footer, { fontFamily: getFontFamily(language, "regular") }]}>{t("companyFooter")}</Text>
         </ScrollView>
       </View>
     </RequireGuest>
@@ -141,7 +148,6 @@ const styles = StyleSheet.create({
   languageCardActive: { backgroundColor: colors.brand.subtle, borderColor: colors.brand.default },
   languageCardInactive: { backgroundColor: colors.surface.sunken, borderColor: colors.border.default },
   languageCardLeft: { flexDirection: "row", alignItems: "center", gap: spacing[3] },
-  languageFlag: { fontSize: 24 },
   languageLabel: { fontSize: 16, fontWeight: fontWeights.semibold, color: colors.text.primary },
   languageHint: { fontSize: 13, color: colors.text.secondary, marginTop: 2 },
   languageCheck: {

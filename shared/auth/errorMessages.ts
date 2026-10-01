@@ -12,6 +12,12 @@ export const CNIC_FIELD_ERROR_KEYS: Record<CnicFieldError, string> = {
 };
 
 export const AUTH_ERROR_KEYS: Record<AuthErrorCode, string> = {
+  // Deliberately rendered without the CNIC's own value baked into the
+  // translated string -- the call site appends `: <the CNIC the candidate
+  // actually typed>` itself (same "label: value" pattern already used for
+  // e.g. the dashboard's next-action message), so the string stays a plain
+  // translatable prefix instead of needing i18n-wide interpolation support.
+  CNIC_NOT_FOUND: 'authCnicNotFoundError',
   OTP_REQUEST_FAILED: 'authOtpRequestFailedError',
   OTP_INVALID: 'authOtpInvalidError',
   OTP_EXPIRED: 'authOtpExpiredError',

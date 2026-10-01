@@ -17,6 +17,8 @@ export interface OtpFieldProps {
   errorMessage?: string;
   editable?: boolean;
   autoFocus?: boolean;
+  /** Which font family renders `helperText`/`errorMessage` -- this component never calls `useLanguage()` itself (see README's "Localization" section); the caller passes the active language through. The digit boxes themselves always use the Latin/numeral rendering regardless (see README's RTL section -- an OTP is a numeral, not prose). */
+  language?: 'en' | 'ur';
 }
 
 /**
@@ -34,6 +36,7 @@ export function OtpField({
   errorMessage,
   editable,
   autoFocus,
+  language = 'en',
 }: OtpFieldProps) {
   const [isFocused, setFocused] = useState(false);
   const hasError = Boolean(errorMessage);
@@ -94,9 +97,11 @@ export function OtpField({
         />
       </View>
       {errorMessage ? (
-        <ValidationMessage tone="error">{errorMessage}</ValidationMessage>
+        <ValidationMessage tone="error" language={language}>
+          {errorMessage}
+        </ValidationMessage>
       ) : helperText ? (
-        <HelperText>{helperText}</HelperText>
+        <HelperText language={language}>{helperText}</HelperText>
       ) : null}
     </View>
   );

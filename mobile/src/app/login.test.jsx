@@ -186,6 +186,25 @@ describe('LoginScreen', () => {
     expect(message.props.numberOfLines).toBeUndefined();
   });
 
+  // Client-approved, deliberate exception to the usual non-enumerating
+  // response -- see shared/auth/types.ts's AuthErrorCode doc comment.
+  it('shows a not-found error naming the entered CNIC when it matches no candidate', async () => {
+    globalThis.fetch = jest.fn(() =>
+      Promise.resolve(
+        new Response(
+          JSON.stringify({ errors: [{ code: 'candidate_cnic_not_found', message: "We couldn't find your record with this CNIC." }] }),
+          { status: 404, headers: { 'Content-Type': 'application/json' } }
+        )
+      )
+    );
+    renderLoginScreen();
+
+    fireEvent.changeText(await screen.findByLabelText('CNIC Number'), '1234512345671');
+    fireEvent.press(screen.getByRole('button', { name: 'Send OTP' }));
+
+    expect(await screen.findByText("We couldn't find your record with this CNIC: 12345-1234567-1")).toBeOnTheScreen();
+  });
+
   describe('server-enforced rate limiting (Retry-After)', () => {
     it('shows a live countdown and disables Send OTP after the CNIC step is rate-limited', async () => {
       globalThis.fetch = jest.fn(() => Promise.resolve(rateLimitedResponse(30)));

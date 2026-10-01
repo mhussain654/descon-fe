@@ -16,10 +16,12 @@ import {
   RetryBanner,
   ValidationMessage,
   toast,
+  getFontFamily,
 } from "../design-system";
 import { colors, fontWeights, radii, spacing } from "../design-system/tokens";
 import { AUTH_ERROR_KEYS, CNIC_FIELD_ERROR_KEYS } from "../../../shared/auth/errorMessages";
 import { formatCountdown } from "../../../shared/auth/cnicOtpFlow";
+import { formatCnic } from "../../../shared/cnic";
 import { OTP_LENGTH } from "../../../shared/auth/types";
 import { useCnicOtpFlow } from "../../../shared/auth/useCnicOtpFlow";
 import { candidateAuthClient } from "../lib/auth-client";
@@ -27,7 +29,7 @@ import { candidateAuthClient } from "../lib/auth-client";
 export default function LoginScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
   const { login, sessionExpired, acknowledgeSessionExpired } = useAuth();
 
   const onAuthenticated = useCallback(
@@ -142,15 +144,17 @@ export default function LoginScreen() {
             onPress={() => (step === "otp" ? backToCnic() : router.back())}
             style={styles.backButton}
           >
-            <Text style={styles.backText}>{t("back")}</Text>
+            <Text style={[styles.backText, { fontFamily: getFontFamily(language, "medium") }]}>{t("back")}</Text>
           </TouchableOpacity>
 
           <View style={styles.titleBlock}>
             <View style={styles.logoBadge}>
               <Shield size={32} color={colors.brand.on} strokeWidth={2} />
             </View>
-            <Text style={styles.title}>{step === "cnic" ? t("login") : t("verifyOTP")}</Text>
-            <Text style={styles.message}>
+            <Text style={[styles.title, { fontFamily: getFontFamily(language, "semibold") }]}>
+              {step === "cnic" ? t("login") : t("verifyOTP")}
+            </Text>
+            <Text style={[styles.message, { fontFamily: getFontFamily(language, "regular") }]}>
               {step === "cnic"
                 ? t("loginMessage")
                 : `${t("otpSentMessage")}${challenge?.maskedDestination ? ` ${challenge.maskedDestination}` : ""}`}
@@ -167,6 +171,7 @@ export default function LoginScreen() {
                 errorMessage={cnicError ? t(CNIC_FIELD_ERROR_KEYS[cnicError]) : undefined}
                 editable={!isSubmittingCnic}
                 autoFocus
+                language={language}
               />
               {isCnicOffline ? (
                 <OfflineState
@@ -174,14 +179,17 @@ export default function LoginScreen() {
                   description={t("dsOfflineDescription")}
                   retryLabel={t("retry")}
                   onRetry={submitCnic}
+                  language={language}
                 />
               ) : (
                 <>
                   {!cnicError && otpError ? (
-                    <ValidationMessage tone="error">
+                    <ValidationMessage tone="error" language={language}>
                       {isCnicRateLimited
                         ? `${t("authRetryAvailableInPrefix")} ${formatCountdown(secondsUntilRateLimitCleared ?? 0)}`
-                        : t(AUTH_ERROR_KEYS[otpError.code])}
+                        : otpError.code === "CNIC_NOT_FOUND"
+                          ? `${t(AUTH_ERROR_KEYS.CNIC_NOT_FOUND)}: ${formatCnic(cnic)}`
+                          : t(AUTH_ERROR_KEYS[otpError.code])}
                     </ValidationMessage>
                   ) : null}
                   <Button
@@ -191,6 +199,7 @@ export default function LoginScreen() {
                     loading={isSubmittingCnic}
                     disabled={isCnicRateLimited}
                     onPress={submitCnic}
+                    language={language}
                   >
                     {t("sendOTP")}
                   </Button>
@@ -207,10 +216,11 @@ export default function LoginScreen() {
                 editable={!otpFieldDisabled}
                 errorMessage={genericOtpErrorMessage ?? undefined}
                 autoFocus
+                language={language}
               />
 
               {!isExpired && !isLockedOut && !isOtpOffline ? (
-                <Text style={styles.countdown}>
+                <Text style={[styles.countdown, { fontFamily: getFontFamily(language, "regular") }]}>
                   {t("authCodeExpiresInPrefix")} {formatCountdown(secondsUntilExpiry ?? 0)}
                 </Text>
               ) : null}
@@ -221,6 +231,7 @@ export default function LoginScreen() {
                   description={t("dsOfflineDescription")}
                   retryLabel={t("retry")}
                   onRetry={retryOtpAction}
+                  language={language}
                 />
               ) : (
                 <>
@@ -229,6 +240,7 @@ export default function LoginScreen() {
                       message={t("authOtpExpiredDescription")}
                       retryLabel={t("resendOTP")}
                       onRetry={resendOtpAndTrack}
+                      language={language}
                     />
                   ) : null}
                   {isLockedOut ? (
@@ -236,6 +248,7 @@ export default function LoginScreen() {
                       message={t("authOtpMaxAttemptsDescription")}
                       retryLabel={t("resendOTP")}
                       onRetry={resendOtpAndTrack}
+                      language={language}
                     />
                   ) : null}
 
@@ -246,21 +259,29 @@ export default function LoginScreen() {
                     loading={isSubmittingOtp}
                     disabled={otpFieldDisabled || otp.length !== OTP_LENGTH}
                     onPress={() => submitOtpAndTrack()}
+                    language={language}
                   >
                     {t("verifyAndLogin")}
                   </Button>
 
                   {!isExpired && !isLockedOut ? (
                     isResendRateLimited ? (
-                      <Text style={styles.resendCountdown}>
+                      <Text style={[styles.resendCountdown, { fontFamily: getFontFamily(language, "regular") }]}>
                         {t("authResendAvailableInPrefix")} {formatCountdown(secondsUntilRateLimitCleared ?? 0)}
                       </Text>
                     ) : secondsUntilResendAvailable > 0 ? (
-                      <Text style={styles.resendCountdown}>
+                      <Text style={[styles.resendCountdown, { fontFamily: getFontFamily(language, "regular") }]}>
                         {t("authResendAvailableInPrefix")} {formatCountdown(secondsUntilResendAvailable)}
                       </Text>
                     ) : (
-                      <Button variant="outline" size="lg" fullWidth loading={isResending} onPress={resendOtpAndTrack}>
+                      <Button
+                        variant="outline"
+                        size="lg"
+                        fullWidth
+                        loading={isResending}
+                        onPress={resendOtpAndTrack}
+                        language={language}
+                      >
                         {t("resendOTP")}
                       </Button>
                     )
@@ -268,7 +289,7 @@ export default function LoginScreen() {
                 </>
               )}
 
-              <Button variant="text" size="sm" fullWidth onPress={backToCnic}>
+              <Button variant="text" size="sm" fullWidth onPress={backToCnic} language={language}>
                 {t("authChangeCnic")}
               </Button>
             </View>

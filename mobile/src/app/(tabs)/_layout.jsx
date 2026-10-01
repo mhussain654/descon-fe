@@ -3,6 +3,7 @@ import { useColorScheme } from "react-native";
 import { Home, FileText, Clock, User } from "lucide-react-native";
 import { RequireAuth } from "../../features/auth/RequireAuth";
 import { useLanguage } from "../../contexts/LanguageContext";
+import { getFontFamily } from "../../design-system";
 
 // Every candidate tab renders through this layout, so guarding here protects
 // dashboard/documents/status/profile in one place (AGENTS.md / MPS-F201:
@@ -19,7 +20,7 @@ export default function TabLayout() {
 function TabNavigator() {
   const colorScheme = useColorScheme();
   const isDark = colorScheme === "dark";
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
 
   return (
     <Tabs
@@ -36,6 +37,7 @@ function TabNavigator() {
         tabBarLabelStyle: {
           fontSize: 11,
           fontWeight: "500",
+          fontFamily: getFontFamily(language, "medium"),
         },
       }}
     >

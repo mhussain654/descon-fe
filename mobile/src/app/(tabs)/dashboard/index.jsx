@@ -19,12 +19,6 @@ import {
   AlertCircle,
   GraduationCap,
 } from "lucide-react-native";
-import {
-  useFonts,
-  Inter_400Regular,
-  Inter_500Medium,
-  Inter_600SemiBold,
-} from "@expo-google-fonts/inter";
 import { useAuth } from "../../../contexts/AuthContext";
 import { useLanguage } from "../../../contexts/LanguageContext";
 import { useRefetchOnFocus } from "../../../hooks/useRefetchOnFocus";
@@ -34,7 +28,31 @@ import { useApplicationProgress } from "../../../features/candidate/progress/hoo
 import { useTrainingSetting } from "../../../features/candidate/training/hooks/useTrainingSetting";
 import { resolveNextAction, NEXT_ACTION_KEYS } from "../../../../../shared/applicationProgress/nextAction";
 import { currentDashboardStage } from "../../../../../shared/applicationProgress/currentDashboardStage";
-import { LoadingState, ErrorState, OfflineState, SessionExpiredState, ForbiddenState } from "../../../design-system";
+import { LoadingState, ErrorState, OfflineState, SessionExpiredState, ForbiddenState, getFontFamily } from "../../../design-system";
+
+// Where tapping "Next Steps" (and, correspondingly, which Quick Action tile
+// gets highlighted as the candidate's current one) should navigate to, per
+// `NextActionKind`. Every document-related kind goes to Documents; `pay_fee`
+// (nextAction.ts's own dedicated kind for the fee_pending stage) goes to
+// Payment; every other stage falls back to Status, since those are
+// staff/system-driven waits with no dedicated screen of their own.
+function resolveNextActionRoute(nextActionKind) {
+  switch (nextActionKind) {
+    case "rejected_replaceable":
+    case "no_documents_uploaded":
+    case "missing_required":
+    case "expired_pcc_replaceable":
+    case "ready_to_submit":
+      return "/(tabs)/documents";
+    case "pay_fee":
+      return "/payment";
+    case "workflow_stage":
+    case "awaiting_review":
+    case "verified":
+    default:
+      return "/(tabs)/status";
+  }
+}
 import { CANDIDATE_PROFILE_ERROR_KEYS } from "../../../../../shared/candidateProfile/errorMessages";
 import { CANDIDATE_DOCUMENTS_ERROR_KEYS } from "../../../../../shared/candidateDocuments/errorMessages";
 import { APPLICATION_PROGRESS_ERROR_KEYS } from "../../../../../shared/applicationProgress/errorMessages";
@@ -44,7 +62,7 @@ export default function DashboardScreen() {
   const router = useRouter();
   const colorScheme = useColorScheme();
   const isDark = colorScheme === "dark";
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
   const { logout } = useAuth();
   const profileQuery = useCandidateProfile();
   const checklistQuery = useCandidateDocuments();
@@ -83,16 +101,6 @@ export default function DashboardScreen() {
     }
   }, [profileQuery.refetch, checklistQuery.refetch, progressQuery.refetch]);
 
-  const [fontsLoaded] = useFonts({
-    Inter_400Regular,
-    Inter_500Medium,
-    Inter_600SemiBold,
-  });
-
-  if (!fontsLoaded) {
-    return null;
-  }
-
   // Dashboard composes 3 independent queries (profile, checklist, progress)
   // -- a SESSION_EXPIRED/INACTIVE_ACCOUNT from *any* of them must win over a
   // merely transient error (offline/network/server) from another, or the
@@ -114,13 +122,18 @@ export default function DashboardScreen() {
     errorSources.find((source) => source.error);
   const primaryError = primarySource?.error ?? null;
   const primaryErrorKeys = primarySource?.keys ?? CANDIDATE_PROFILE_ERROR_KEYS;
-  const isLoading = profileQuery.isLoading || checklistQuery.isLoading || progressQuery.isLoading;
+  // `isPending`, not `isLoading` -- a query disabled while auth is still
+  // restoring has `isLoading: false` (v5: isLoading = isPending &&
+  // isFetching, never true while disabled) but is just as "no data yet" as
+  // one that's actively fetching. Gating on `isLoading` alone let that brief
+  // disabled window fall through past this check with stale/undefined data.
+  const isLoading = profileQuery.isPending || checklistQuery.isPending || progressQuery.isPending;
 
   if (isLoading) {
     return (
       <View style={{ flex: 1, backgroundColor: isDark ? "#121212" : "#F8F9FA" }}>
         <StatusBar style={isDark ? "light" : "dark"} />
-        <LoadingState message={t("loading")} />
+        <LoadingState message={t("loading")} language={language} />
       </View>
     );
   }
@@ -133,6 +146,7 @@ export default function DashboardScreen() {
           description={t("dsSessionExpiredDescription")}
           actionLabel={t("dsSessionExpiredAction")}
           onAction={returnToSignIn}
+          language={language}
         />
       </View>
     );
@@ -146,6 +160,7 @@ export default function DashboardScreen() {
           description={t("candidateProfileInactiveAccountDescription")}
           actionLabel={t("candidateProfileInactiveAccountAction")}
           onAction={returnToSignIn}
+          language={language}
         />
       </View>
     );
@@ -159,6 +174,7 @@ export default function DashboardScreen() {
           description={t("dsOfflineDescription")}
           retryLabel={t("retry")}
           onRetry={handleRefresh}
+          language={language}
         />
       </View>
     );
@@ -167,7 +183,7 @@ export default function DashboardScreen() {
     return (
       <View style={{ flex: 1, backgroundColor: isDark ? "#121212" : "#F8F9FA" }}>
         <StatusBar style={isDark ? "light" : "dark"} />
-        <ErrorState message={t(primaryErrorKeys[primaryError.code])} retryLabel={t("retry")} onRetry={handleRefresh} />
+        <ErrorState message={t(primaryErrorKeys[primaryError.code])} retryLabel={t("retry")} onRetry={handleRefresh} language={language} />
       </View>
     );
   }
@@ -175,7 +191,7 @@ export default function DashboardScreen() {
     return (
       <View style={{ flex: 1, backgroundColor: isDark ? "#121212" : "#F8F9FA" }}>
         <StatusBar style={isDark ? "light" : "dark"} />
-        <ErrorState message={t("somethingWentWrong")} retryLabel={t("retry")} onRetry={handleRefresh} />
+        <ErrorState message={t("somethingWentWrong")} retryLabel={t("retry")} onRetry={handleRefresh} language={language} />
       </View>
     );
   }
@@ -188,14 +204,13 @@ export default function DashboardScreen() {
   // behind it, so summarizing "current status" here from the same timeline
   // Status renders keeps the two screens telling the same story.
   const currentStage = workflow ? currentDashboardStage(workflow.timeline) : null;
-  const currentStageName = currentStage
-    ? `${currentStage.name}${currentStage.inProgress ? ` (${t("inProgress")})` : ""}`
-    : null;
+  const currentStageName = currentStage ? currentStage.name : null;
   const nextAction =
     progressQuery.data && checklistQuery.data ? resolveNextAction(progressQuery.data, checklistQuery.data) : null;
   const nextActionMessage = nextAction
     ? `${t(NEXT_ACTION_KEYS[nextAction.kind])}${nextAction.requirementName ? `: ${nextAction.requirementName}` : ""}`
     : t("waitingForVerification");
+  const nextActionRoute = nextAction ? resolveNextActionRoute(nextAction.kind) : null;
 
   const quickActions = [
     {
@@ -203,6 +218,7 @@ export default function DashboardScreen() {
       label: t("uploadDocuments"),
       color: "#0066CC",
       bgColor: isDark ? "#1A2B3D" : "#E6F2FF",
+      route: "/(tabs)/documents",
       onPress: () => router.push("/(tabs)/documents"),
     },
     {
@@ -210,6 +226,7 @@ export default function DashboardScreen() {
       label: t("makePayment"),
       color: "#10B981",
       bgColor: isDark ? "#1A2E1A" : "#E6F9F0",
+      route: "/payment",
       onPress: () => router.push("/payment"),
     },
     {
@@ -217,6 +234,7 @@ export default function DashboardScreen() {
       label: t("viewStatus"),
       color: "#F59E0B",
       bgColor: isDark ? "#2E2416" : "#FFF7E6",
+      route: "/(tabs)/status",
       onPress: () => router.push("/(tabs)/status"),
     },
     {
@@ -224,10 +242,17 @@ export default function DashboardScreen() {
       label: t("viewTraining"),
       color: "#8B5CF6",
       bgColor: isDark ? "#2A1F3D" : "#F3E8FF",
+      route: "/training",
       onPress: () => Linking.openURL(trainingQuery.data.url),
       disabled: !trainingQuery.data?.url,
     },
   ];
+  // Highlights whichever tile matches where "Next Steps" itself would
+  // navigate -- Training never matches (it opens an external link, not one
+  // of these in-app routes), so it's simply never highlighted.
+  const activeQuickActionIndex = nextActionRoute
+    ? quickActions.findIndex((action) => action.route === nextActionRoute)
+    : -1;
 
   return (
     <View style={{ flex: 1, backgroundColor: isDark ? "#121212" : "#F8F9FA" }}>
@@ -247,7 +272,7 @@ export default function DashboardScreen() {
         <Text
           style={{
             fontSize: 14,
-            fontFamily: "Inter_400Regular",
+            fontFamily: getFontFamily(language, "regular"),
             color: isDark ? "#9CA3AF" : "#6B7280",
             marginBottom: 4,
           }}
@@ -257,7 +282,7 @@ export default function DashboardScreen() {
         <Text
           style={{
             fontSize: 24,
-            fontFamily: "Inter_600SemiBold",
+            fontFamily: getFontFamily(language, "semibold"),
             color: isDark ? "#FFFFFF" : "#000000",
           }}
         >
@@ -266,7 +291,7 @@ export default function DashboardScreen() {
         <Text
           style={{
             fontSize: 14,
-            fontFamily: "Inter_400Regular",
+            fontFamily: getFontFamily(language, "regular"),
             color: isDark ? "#9CA3AF" : "#6B7280",
             marginTop: 2,
           }}
@@ -302,7 +327,7 @@ export default function DashboardScreen() {
             <Text
               style={{
                 fontSize: 16,
-                fontFamily: "Inter_600SemiBold",
+                fontFamily: getFontFamily(language, "semibold"),
                 color: isDark ? "#FFFFFF" : "#000000",
               }}
             >
@@ -310,7 +335,7 @@ export default function DashboardScreen() {
             </Text>
             {isVerified ? (
               <View style={{ backgroundColor: isDark ? "#1A2E1A" : "#E6F9F0", borderRadius: 8, paddingHorizontal: 10, paddingVertical: 4 }}>
-                <Text style={{ fontSize: 12, fontFamily: "Inter_500Medium", color: "#10B981" }}>{t("verified")}</Text>
+                <Text style={{ fontSize: 12, fontFamily: getFontFamily(language, "medium"), color: "#10B981" }}>{t("verified")}</Text>
               </View>
             ) : null}
           </View>
@@ -326,7 +351,7 @@ export default function DashboardScreen() {
             <Text
               style={{
                 fontSize: 15,
-                fontFamily: "Inter_500Medium",
+                fontFamily: getFontFamily(language, "medium"),
                 color: isDark ? "#FFFFFF" : "#000000",
                 marginStart: 10,
               }}
@@ -358,7 +383,7 @@ export default function DashboardScreen() {
           <Text
             style={{
               fontSize: 13,
-              fontFamily: "Inter_400Regular",
+              fontFamily: getFontFamily(language, "regular"),
               color: isDark ? "#9CA3AF" : "#6B7280",
             }}
           >
@@ -371,7 +396,7 @@ export default function DashboardScreen() {
           <Text
             style={{
               fontSize: 16,
-              fontFamily: "Inter_600SemiBold",
+              fontFamily: getFontFamily(language, "semibold"),
               color: isDark ? "#FFFFFF" : "#000000",
               marginBottom: 12,
             }}
@@ -379,7 +404,10 @@ export default function DashboardScreen() {
             {t("nextSteps")}
           </Text>
 
-          <View
+          <TouchableOpacity
+            onPress={() => nextActionRoute && router.push(nextActionRoute)}
+            disabled={!nextActionRoute}
+            accessibilityRole="button"
             style={{
               backgroundColor: isDark ? "#1E1E1E" : "#FFFFFF",
               borderRadius: 12,
@@ -395,14 +423,14 @@ export default function DashboardScreen() {
               style={{
                 flex: 1,
                 fontSize: 14,
-                fontFamily: "Inter_400Regular",
+                fontFamily: getFontFamily(language, "regular"),
                 color: isDark ? "#FFFFFF" : "#000000",
                 marginStart: 12,
               }}
             >
               {nextActionMessage}
             </Text>
-          </View>
+          </TouchableOpacity>
         </View>
 
         {/* Quick Actions */}
@@ -410,7 +438,7 @@ export default function DashboardScreen() {
           <Text
             style={{
               fontSize: 16,
-              fontFamily: "Inter_600SemiBold",
+              fontFamily: getFontFamily(language, "semibold"),
               color: isDark ? "#FFFFFF" : "#000000",
               marginBottom: 12,
             }}
@@ -425,67 +453,84 @@ export default function DashboardScreen() {
               marginHorizontal: -6,
             }}
           >
-            {quickActions.map((action, index) => (
-              <TouchableOpacity
-                key={index}
-                onPress={action.onPress}
-                disabled={action.disabled}
-                accessibilityRole="button"
-                accessibilityState={{ disabled: !!action.disabled }}
-                style={{
-                  width: "50%",
-                  paddingHorizontal: 6,
-                  marginBottom: 12,
-                }}
-              >
-                <View
+            {quickActions.map((action, index) => {
+              const isActive = index === activeQuickActionIndex;
+              return (
+                <TouchableOpacity
+                  key={index}
+                  onPress={action.onPress}
+                  disabled={action.disabled}
+                  accessibilityRole="button"
+                  accessibilityState={{ disabled: !!action.disabled, selected: isActive }}
                   style={{
-                    backgroundColor: action.bgColor,
-                    borderRadius: 12,
-                    padding: 20,
-                    alignItems: "center",
-                    opacity: action.disabled ? 0.5 : 1,
+                    width: "50%",
+                    paddingHorizontal: 6,
+                    marginBottom: 12,
                   }}
                 >
                   <View
                     style={{
-                      width: 48,
-                      height: 48,
-                      borderRadius: 24,
-                      backgroundColor: action.color,
-                      justifyContent: "center",
+                      backgroundColor: action.bgColor,
+                      borderRadius: 12,
+                      padding: 20,
                       alignItems: "center",
-                      marginBottom: 12,
+                      opacity: action.disabled ? 0.5 : 1,
+                      borderWidth: isActive ? 2 : 0,
+                      borderColor: action.color,
                     }}
                   >
-                    <action.icon size={24} color="#FFFFFF" />
-                  </View>
-                  <Text
-                    style={{
-                      fontSize: 13,
-                      fontFamily: "Inter_500Medium",
-                      color: isDark ? "#FFFFFF" : "#000000",
-                      textAlign: "center",
-                    }}
-                  >
-                    {action.label}
-                  </Text>
-                  {action.subLabel ? (
-                    <Text
+                    <View
                       style={{
-                        fontSize: 11,
-                        fontFamily: "Inter_400Regular",
-                        color: isDark ? "#9CA3AF" : "#6B7280",
-                        textAlign: "center",
-                        marginTop: 2,
+                        width: 48,
+                        height: 48,
+                        borderRadius: 24,
+                        backgroundColor: action.color,
+                        justifyContent: "center",
+                        alignItems: "center",
+                        marginBottom: 12,
                       }}
                     >
-                      {action.subLabel}
+                      <action.icon size={24} color="#FFFFFF" />
+                    </View>
+                    <Text
+                      style={{
+                        fontSize: 13,
+                        fontFamily: getFontFamily(language, "medium"),
+                        color: isDark ? "#FFFFFF" : "#000000",
+                        textAlign: "center",
+                      }}
+                    >
+                      {action.label}
                     </Text>
-                  ) : null}
-                </View>
-              </TouchableOpacity>
-            ))}
+                    {isActive ? (
+                      <Text
+                        style={{
+                          fontSize: 11,
+                          fontFamily: getFontFamily(language, "medium"),
+                          color: action.color,
+                          textAlign: "center",
+                          marginTop: 2,
+                        }}
+                      >
+                        {t("currentStep")}
+                      </Text>
+                    ) : action.subLabel ? (
+                      <Text
+                        style={{
+                          fontSize: 11,
+                          fontFamily: getFontFamily(language, "regular"),
+                          color: isDark ? "#9CA3AF" : "#6B7280",
+                          textAlign: "center",
+                          marginTop: 2,
+                        }}
+                      >
+                        {action.subLabel}
+                      </Text>
+                    ) : null}
+                  </View>
+                </TouchableOpacity>
+              );
+            })}
           </View>
         </View>
       </ScrollView>

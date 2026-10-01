@@ -54,9 +54,26 @@ describe('resolveNextAction', () => {
     expect(result).toEqual({ kind: 'missing_required', requirementName: 'CNIC' });
   });
 
-  it('falls back to a missing required document when nothing is rejected', () => {
+  it('signals a generic no-documents-uploaded action when every required document is still missing', () => {
     const checklist = [item({ status: 'missing' })];
-    expect(resolveNextAction(progress(), checklist)).toEqual({ kind: 'missing_required', requirementName: 'Passport' });
+    expect(resolveNextAction(progress(), checklist)).toEqual({ kind: 'no_documents_uploaded' });
+  });
+
+  it('signals no-documents-uploaded (not a specific document name) when nothing at all has been submitted yet', () => {
+    const checklist = [
+      item({ requirementCode: 'passport', name: 'Passport', status: 'missing' }),
+      item({ requirementCode: 'cnic', name: 'CNIC', status: 'missing' }),
+      item({ requirementCode: 'cv', name: 'CV', status: 'missing' }),
+    ];
+    expect(resolveNextAction(progress(), checklist)).toEqual({ kind: 'no_documents_uploaded' });
+  });
+
+  it('falls back to a missing required document by name once some documents have already been submitted', () => {
+    const checklist = [
+      item({ requirementCode: 'passport', name: 'Passport', status: 'uploaded' }),
+      item({ requirementCode: 'cnic', name: 'CNIC', status: 'missing' }),
+    ];
+    expect(resolveNextAction(progress(), checklist)).toEqual({ kind: 'missing_required', requirementName: 'CNIC' });
   });
 
   it('never surfaces an optional missing document as the next action', () => {
@@ -111,7 +128,19 @@ describe('resolveNextAction', () => {
       progress({ verified: 1, submissionState: 'verified' }, { code: 'fee_pending', name: 'Fee Pending' }),
       checklist
     );
-    expect(result).toEqual({ kind: 'workflow_stage', requirementName: 'Fee Pending' });
+    expect(result).toEqual({ kind: 'pay_fee' });
+  });
+
+  // `fee_pending` gets its own named action ("Pay Fee") rather than the
+  // generic workflow-stage fallback ("Continue with your application: Fee
+  // Pending") -- paying is a real, immediate thing the candidate can do,
+  // unlike every other stage the fallback covers.
+  it('names paying the fee as the next action once the candidate reaches the fee_pending stage', () => {
+    const result = resolveNextAction(
+      progress({ submissionState: 'no_requirements' }, { code: 'fee_pending', name: 'Fee Pending' }),
+      []
+    );
+    expect(result).toEqual({ kind: 'pay_fee' });
   });
 
   it('falls back to the workflow stage when nothing else applies', () => {

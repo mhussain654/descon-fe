@@ -10,6 +10,7 @@ import {
   ValidationMessage,
 } from '../../../../design-system';
 import { colors, spacing } from '../../../../design-system/tokens';
+import { getFontFamily } from '../../../../design-system/fonts';
 import { CANDIDATE_DOCUMENTS_ERROR_KEYS } from '../../../../../../shared/candidateDocuments/errorMessages';
 import { describeFileType, isPreviewableImageType } from '../../../../../../shared/candidateDocuments/fileDescription';
 import type { FileValidationError } from '../../../../../../shared/candidateDocuments/fileValidation';
@@ -85,14 +86,14 @@ export function DocumentUploadPanel({
   language,
 }: DocumentUploadPanelProps) {
   if (isUploading) {
-    return <LoadingState message={t('candidateDocumentsUploading')} />;
+    return <LoadingState message={t('candidateDocumentsUploading')} language={language} />;
   }
 
   const isImage = document ? isPreviewableImageType({ name: document.name, size: document.size, type: document.mimeType }) : false;
 
   return (
     <View style={styles.container}>
-      <Label>{labelText}</Label>
+      <Label language={language}>{labelText}</Label>
       {isPccRequirement ? (
         <View style={styles.pccField}>
           <TextField
@@ -103,6 +104,7 @@ export function DocumentUploadPanel({
             onChangeText={onIssuedOnChange}
             placeholder="YYYY-MM-DD"
             keyboardType="numbers-and-punctuation"
+            language={language}
           />
         </View>
       ) : null}
@@ -111,33 +113,35 @@ export function DocumentUploadPanel({
           not claim to analyze image quality ... Provide capture guidance ...
           without presenting it as automated validation."). Only shown
           alongside the camera/gallery buttons themselves. */}
-      {showCameraCapture ? <HelperText>{t('candidateDocumentsCaptureGuidance')}</HelperText> : null}
+      {showCameraCapture ? <HelperText language={language}>{t('candidateDocumentsCaptureGuidance')}</HelperText> : null}
       <View style={styles.row}>
         {showCameraCapture ? (
           <>
-            <Button variant="outline" size="sm" onPress={onPickFromCamera}>
+            <Button variant="outline" size="sm" onPress={onPickFromCamera} language={language}>
               {t('candidateDocumentsTakePhoto')}
             </Button>
-            <Button variant="outline" size="sm" onPress={onPickFromGallery}>
+            <Button variant="outline" size="sm" onPress={onPickFromGallery} language={language}>
               {t('candidateDocumentsChooseFromGallery')}
             </Button>
           </>
         ) : null}
-        <Button variant="outline" size="sm" onPress={onPickDocument}>
+        <Button variant="outline" size="sm" onPress={onPickDocument} language={language}>
           {t('candidateDocumentsChooseFile')}
         </Button>
       </View>
       {showCameraCapture && permissionNotice ? (
         <View style={styles.permissionNotice}>
-          <ValidationMessage tone="error">{t(PERMISSION_NOTICE_KEYS[`${permissionNotice.source}:${permissionNotice.blocked ? 'blocked' : 'denied'}`])}</ValidationMessage>
+          <ValidationMessage tone="error" language={language}>
+            {t(PERMISSION_NOTICE_KEYS[`${permissionNotice.source}:${permissionNotice.blocked ? 'blocked' : 'denied'}`])}
+          </ValidationMessage>
           {permissionNotice.blocked ? (
-            <Button variant="text" size="sm" onPress={() => Linking.openSettings()}>
+            <Button variant="text" size="sm" onPress={() => Linking.openSettings()} language={language}>
               {t('candidateDocumentsOpenSettings')}
             </Button>
           ) : null}
         </View>
       ) : null}
-      <Text style={styles.fileText}>
+      <Text style={[styles.fileText, { fontFamily: getFontFamily(language, 'regular') }]}>
         {document
           ? `${t('candidateDocumentsSelectedFilePrefix')}: ${document.name} • ${describeFileType({ name: document.name, size: document.size, type: document.mimeType })}${
               typeof document.size === 'number' ? ` • ${formatFileSize(document.size, language)}` : ''
@@ -148,20 +152,24 @@ export function DocumentUploadPanel({
         <Image source={{ uri: document.uri }} style={styles.previewImage} resizeMode="cover" accessibilityLabel={document.name} />
       ) : null}
       {document ? (
-        <Button variant="text" size="sm" onPress={onRemoveDocument}>
+        <Button variant="text" size="sm" onPress={onRemoveDocument} language={language}>
           {t('candidateDocumentsRemoveFile')}
         </Button>
       ) : null}
-      <HelperText>{t('candidateDocumentsFileFieldHelper')}</HelperText>
-      {validationError ? <ValidationMessage tone="error">{t(FILE_VALIDATION_ERROR_KEYS[validationError])}</ValidationMessage> : null}
+      <HelperText language={language}>{t('candidateDocumentsFileFieldHelper')}</HelperText>
+      {validationError ? (
+        <ValidationMessage tone="error" language={language}>
+          {t(FILE_VALIDATION_ERROR_KEYS[validationError])}
+        </ValidationMessage>
+      ) : null}
 
-      {uploadError ? <DocumentUploadErrorNotice error={uploadError} t={t} /> : null}
+      {uploadError ? <DocumentUploadErrorNotice error={uploadError} t={t} language={language} /> : null}
 
       <View style={styles.actions}>
-        <Button variant="primary" size="sm" onPress={onSubmit} disabled={!document || !!validationError}>
+        <Button variant="primary" size="sm" onPress={onSubmit} disabled={!document || !!validationError} language={language}>
           {uploadError ? t('retry') : t('candidateDocumentsSubmitUpload')}
         </Button>
-        <Button variant="text" size="sm" onPress={onCancel}>
+        <Button variant="text" size="sm" onPress={onCancel} language={language}>
           {t('candidateDocumentsCancel')}
         </Button>
       </View>
@@ -169,7 +177,15 @@ export function DocumentUploadPanel({
   );
 }
 
-function DocumentUploadErrorNotice({ error, t }: { error: CandidateDocumentsError; t: (key: TranslationKey) => string }) {
+function DocumentUploadErrorNotice({
+  error,
+  t,
+  language,
+}: {
+  error: CandidateDocumentsError;
+  t: (key: TranslationKey) => string;
+  language: Language;
+}) {
   if (error.code === 'SESSION_EXPIRED' || error.code === 'INACTIVE_ACCOUNT') {
     return null;
   }
@@ -177,7 +193,7 @@ function DocumentUploadErrorNotice({ error, t }: { error: CandidateDocumentsErro
   if (error.code === 'OFFLINE') {
     return (
       <View style={styles.errorNotice}>
-        <OfflineState title={t('dsOfflineTitle')} description={t('dsOfflineDescription')} />
+        <OfflineState title={t('dsOfflineTitle')} description={t('dsOfflineDescription')} language={language} />
       </View>
     );
   }
@@ -186,7 +202,7 @@ function DocumentUploadErrorNotice({ error, t }: { error: CandidateDocumentsErro
   const message = error.message ?? t(key);
   return (
     <View style={styles.errorNotice}>
-      <ErrorState message={message} />
+      <ErrorState message={message} language={language} />
     </View>
   );
 }

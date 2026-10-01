@@ -4,6 +4,7 @@ import { HelperText } from './HelperText';
 import { Label } from './Label';
 import { colors, radii, spacing } from './tokens';
 import { ValidationMessage } from './ValidationMessage';
+import { getFontFamily } from './fonts';
 
 export interface CnicFieldProps {
   /** Already-translated label, e.g. `t('cnic')`. */
@@ -18,6 +19,8 @@ export interface CnicFieldProps {
   onValueChange: (digits: string) => void;
   editable?: boolean;
   autoFocus?: boolean;
+  /** Which font family renders `label`/`helperText`/`errorMessage` -- this component never calls `useLanguage()` itself (see README's "Localization" section); the caller passes the active language through. The numeric input itself needs no font override (see README's RTL section -- a CNIC is a numeral, not prose). */
+  language?: 'en' | 'ur';
 }
 
 /**
@@ -35,12 +38,17 @@ export function CnicField({
   onValueChange,
   editable,
   autoFocus,
+  language = 'en',
 }: CnicFieldProps) {
   const hasError = Boolean(errorMessage);
 
   return (
     <View>
-      {label ? <Label requirementText={requirementText}>{label}</Label> : null}
+      {label ? (
+        <Label requirementText={requirementText} language={language}>
+          {label}
+        </Label>
+      ) : null}
       <TextInput
         value={formatCnic(value)}
         onChangeText={(text) => onValueChange(toCnicDigits(text))}
@@ -54,15 +62,26 @@ export function CnicField({
         accessibilityLabel={label}
         // RN has no per-element `dir`; textAlign/writingDirection force LTR
         // digit rendering/caret behavior regardless of the app's global RTL state.
+        // fontFamily still needs to switch with language, though -- unlike
+        // the typed digits, `placeholder` is translated Urdu prose (e.g.
+        // "اپنا شناختی کارڈ نمبر درج کریں"), and renders in the wrong font
+        // without it; digits themselves look the same in either family.
         style={[
           styles.input,
-          { borderColor: hasError ? colors.danger.default : colors.border.default, textAlign: 'left', writingDirection: 'ltr' },
+          {
+            borderColor: hasError ? colors.danger.default : colors.border.default,
+            textAlign: 'left',
+            writingDirection: 'ltr',
+            fontFamily: getFontFamily(language, 'regular'),
+          },
         ]}
       />
       {errorMessage ? (
-        <ValidationMessage tone="error">{errorMessage}</ValidationMessage>
+        <ValidationMessage tone="error" language={language}>
+          {errorMessage}
+        </ValidationMessage>
       ) : helperText ? (
-        <HelperText>{helperText}</HelperText>
+        <HelperText language={language}>{helperText}</HelperText>
       ) : null}
     </View>
   );

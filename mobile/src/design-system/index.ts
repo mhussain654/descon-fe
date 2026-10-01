@@ -10,6 +10,7 @@ export * from './Dialog';
 export * from './EmptyState';
 export * from './ErrorState';
 export * from './FilterChip';
+export * from './fonts';
 export * from './ForbiddenState';
 export * from './HelperText';
 export * from './IconButton';

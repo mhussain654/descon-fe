@@ -244,13 +244,26 @@ describe("DashboardPage", () => {
     expect(screen.queryByText("Verified")).not.toBeInTheDocument();
   });
 
-  it("prompts to upload the missing required document as the highest-priority next step", async () => {
+  it("prompts to upload required documents generically when nothing has been submitted yet", async () => {
     candidateProfileClient.getProfile.mockResolvedValue(profilePayload());
     candidateDocumentsClient.getChecklist.mockResolvedValue([checklistItem({ status: "missing" })]);
     applicationProgressClient.getProgress.mockResolvedValue(progress());
     await signInAndNavigateToDashboard();
 
-    expect(await screen.findByText(/Upload your missing document: Passport/)).toBeInTheDocument();
+    expect(await screen.findByText(/Upload your required documents/)).toBeInTheDocument();
+    expect(screen.queryByText(/Passport/)).not.toBeInTheDocument();
+  });
+
+  it("prompts to upload the specific missing required document once some documents are already submitted", async () => {
+    candidateProfileClient.getProfile.mockResolvedValue(profilePayload());
+    candidateDocumentsClient.getChecklist.mockResolvedValue([
+      checklistItem({ status: "uploaded" }),
+      checklistItem({ requirementCode: "cnic", name: "CNIC", status: "missing" }),
+    ]);
+    applicationProgressClient.getProgress.mockResolvedValue(progress());
+    await signInAndNavigateToDashboard();
+
+    expect(await screen.findByText(/Upload your missing document: CNIC/)).toBeInTheDocument();
   });
 
   it("prompts to replace a rejected, replaceable required document ahead of a missing one", async () => {
@@ -283,7 +296,7 @@ describe("DashboardPage", () => {
   // verification happens, even long after the candidate moved on to a later
   // stage. Without gating on the *current* workflow stage too, this kept
   // announcing "Verification complete" as the next action while the
-  // candidate's real next step (e.g. paying the fee) went unmentioned.
+  // candidate's real next step (paying the fee) went unmentioned.
   it("does not re-announce verification once the candidate has moved past the verified stage", async () => {
     candidateProfileClient.getProfile.mockResolvedValue(profilePayload());
     candidateDocumentsClient.getChecklist.mockResolvedValue([checklistItem({ status: "verified" })]);
@@ -295,7 +308,7 @@ describe("DashboardPage", () => {
     );
     await signInAndNavigateToDashboard();
 
-    expect(await screen.findByText(/Continue with your application: Fee Pending/)).toBeInTheDocument();
+    expect(await screen.findByText("Pay Fee")).toBeInTheDocument();
     expect(screen.queryByText("Verification complete")).not.toBeInTheDocument();
   });
 

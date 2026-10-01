@@ -107,6 +107,26 @@ describe('HostedCheckoutWebView', () => {
       ).toBe(true);
     });
 
+    it('closes synchronously the moment the return URL itself is requested, before any redirect target is evaluated', () => {
+      // Regression test: the backend's return endpoint replies with a redirect
+      // to the frontend's pending page, an origin this WebView never
+      // allowlists. If closing only happened via onNavigationStateChange, the
+      // native WebView's redirect-follow could reach and block on that second
+      // origin before React unmounts it, surfacing the "untrusted location"
+      // screen to the candidate instead of quietly closing.
+      const onClose = renderCheckout('https://sandbox-api.kuickpay.com/checkout/session-1');
+
+      let allowed: boolean = false;
+      act(() => {
+        allowed = latestWebViewProps.onShouldStartLoadWithRequest({
+          url: `${API_BASE_URL}/payments/hosted_checkout/kuickpay/return`,
+        });
+      });
+
+      expect(onClose).toHaveBeenCalledTimes(1);
+      expect(allowed).toBe(true);
+    });
+
     it('allows the same-origin mock checkout page in development (mock provider is same-origin as the API)', () => {
       renderCheckout(`${API_BASE_URL}/mock_checkouts/order-1`);
 

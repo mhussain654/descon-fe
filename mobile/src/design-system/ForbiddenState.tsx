@@ -10,10 +10,12 @@ export interface ForbiddenStateProps {
   description?: string;
   actionLabel?: string;
   onAction?: () => void;
+  /** Which font family renders the text -- this component never calls `useLanguage()` itself (see README's "Localization" section); the caller passes the active language through. */
+  language?: 'en' | 'ur';
 }
 
 /** Full-section state for a 403/authorization failure. */
-export function ForbiddenState({ title, description, actionLabel, onAction }: ForbiddenStateProps) {
+export function ForbiddenState({ title, description, actionLabel, onAction, language = 'en' }: ForbiddenStateProps) {
   return (
     <View accessibilityRole="alert" accessibilityLiveRegion="assertive">
       <StatePanel
@@ -22,6 +24,7 @@ export function ForbiddenState({ title, description, actionLabel, onAction }: Fo
         description={description}
         actionLabel={actionLabel}
         onAction={onAction}
+        language={language}
       />
     </View>
   );

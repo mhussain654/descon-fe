@@ -47,6 +47,7 @@ const SERVER_CODE_TO_AUTH_ERROR: Record<string, AuthErrorCode> = {
   otp_expired: 'OTP_EXPIRED',
   otp_max_attempts: 'OTP_MAX_ATTEMPTS',
   rate_limited: 'RATE_LIMITED',
+  candidate_cnic_not_found: 'CNIC_NOT_FOUND',
 };
 
 function toAuthError(error: unknown): AuthError {

@@ -1,6 +1,7 @@
 import { ActivityIndicator, Pressable, StyleSheet, Text, type StyleProp, type ViewStyle } from 'react-native';
 import type { ReactNode } from 'react';
 import { colors, fontWeights, minTouchTarget, radii, spacing } from './tokens';
+import { getFontFamily } from './fonts';
 
 export type ButtonVariant = 'primary' | 'secondary' | 'outline' | 'destructive' | 'text';
 export type ButtonSize = 'sm' | 'md' | 'lg';
@@ -16,6 +17,8 @@ export interface ButtonProps {
   trailingIcon?: ReactNode;
   fullWidth?: boolean;
   style?: StyleProp<ViewStyle>;
+  /** Which font family renders the label -- 'en' (Inter) or 'ur' (Nastaliq). This component never calls `useLanguage()` itself (see README's "Localization" section); the caller already has the active language and passes it through. Defaults to 'en' so existing call sites that don't pass it are unaffected. */
+  language?: 'en' | 'ur';
 }
 
 const SIZES: Record<ButtonSize, { height: number; paddingHorizontal: number; fontSize: number }> = {
@@ -44,6 +47,7 @@ export function Button({
   trailingIcon,
   fullWidth = false,
   style,
+  language = 'en',
 }: ButtonProps) {
   const isDisabled = disabled || loading;
   const sizeStyle = SIZES[size];
@@ -74,7 +78,14 @@ export function Button({
       ) : (
         leadingIcon
       )}
-      <Text style={[styles.text, { color: variantStyle.text, fontSize: sizeStyle.fontSize }]}>{children}</Text>
+      <Text
+        style={[
+          styles.text,
+          { color: variantStyle.text, fontSize: sizeStyle.fontSize, fontFamily: getFontFamily(language, 'semibold') },
+        ]}
+      >
+        {children}
+      </Text>
       {!loading ? trailingIcon : null}
     </Pressable>
   );

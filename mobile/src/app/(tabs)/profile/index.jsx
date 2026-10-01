@@ -19,18 +19,12 @@ import {
   LogOut,
   ChevronRight,
 } from "lucide-react-native";
-import {
-  useFonts,
-  Inter_400Regular,
-  Inter_500Medium,
-  Inter_600SemiBold,
-} from "@expo-google-fonts/inter";
 import { useAuth } from "../../../contexts/AuthContext";
 import { useLanguage } from "../../../contexts/LanguageContext";
 import { useRefetchOnFocus } from "../../../hooks/useRefetchOnFocus";
 import { useCandidateProfile } from "../../../features/candidate/profile/hooks/useCandidateProfile";
 import { useApplicationProgress } from "../../../features/candidate/progress/hooks/useApplicationProgress";
-import { LoadingState, ErrorState, OfflineState, SessionExpiredState, ForbiddenState } from "../../../design-system";
+import { LoadingState, ErrorState, OfflineState, SessionExpiredState, ForbiddenState, getFontFamily } from "../../../design-system";
 import { candidateStatusLabel } from "../../../../../shared/candidateProfile/formatting";
 import { CANDIDATE_PROFILE_ERROR_KEYS } from "../../../../../shared/candidateProfile/errorMessages";
 import {
@@ -57,16 +51,6 @@ export default function ProfileScreen() {
   const progressQuery = useApplicationProgress();
   useRefetchOnFocus(profileQuery.refetch, profileQuery.isFetching);
   useRefetchOnFocus(progressQuery.refetch, progressQuery.isFetching);
-
-  const [fontsLoaded] = useFonts({
-    Inter_400Regular,
-    Inter_500Medium,
-    Inter_600SemiBold,
-  });
-
-  if (!fontsLoaded) {
-    return null;
-  }
 
   const handleLogout = async () => {
     await logout();
@@ -104,7 +88,7 @@ export default function ProfileScreen() {
         <Text
           style={{
             fontSize: 13,
-            fontFamily: "Inter_400Regular",
+            fontFamily: getFontFamily(language, "regular"),
             color: isDark ? "#9CA3AF" : "#6B7280",
             marginBottom: 2,
           }}
@@ -114,7 +98,7 @@ export default function ProfileScreen() {
         <Text
           style={{
             fontSize: 15,
-            fontFamily: "Inter_500Medium",
+            fontFamily: getFontFamily(language, "medium"),
             color: isDark ? "#FFFFFF" : "#000000",
           }}
         >
@@ -129,8 +113,10 @@ export default function ProfileScreen() {
   const documents = progressQuery.data?.documents;
 
   const renderBody = () => {
-    if (profileQuery.isLoading) {
-      return <LoadingState message={t("loading")} />;
+    // isPending, not isLoading -- see documents/index.jsx for why a disabled
+    // (auth still restoring) query needs this, not isLoading.
+    if (profileQuery.isPending) {
+      return <LoadingState message={t("loading")} language={language} />;
     }
     const error = profileQuery.error;
     if (error?.code === "SESSION_EXPIRED") {
@@ -140,6 +126,7 @@ export default function ProfileScreen() {
           description={t("dsSessionExpiredDescription")}
           actionLabel={t("dsSessionExpiredAction")}
           onAction={returnToSignIn}
+          language={language}
         />
       );
     }
@@ -150,6 +137,7 @@ export default function ProfileScreen() {
           description={t("candidateProfileInactiveAccountDescription")}
           actionLabel={t("candidateProfileInactiveAccountAction")}
           onAction={returnToSignIn}
+          language={language}
         />
       );
     }
@@ -160,6 +148,7 @@ export default function ProfileScreen() {
           description={t("dsOfflineDescription")}
           retryLabel={t("retry")}
           onRetry={() => profileQuery.refetch()}
+          language={language}
         />
       );
     }
@@ -169,11 +158,19 @@ export default function ProfileScreen() {
           message={t(CANDIDATE_PROFILE_ERROR_KEYS[error.code])}
           retryLabel={t("retry")}
           onRetry={() => profileQuery.refetch()}
+          language={language}
         />
       );
     }
     if (!profile) {
-      return <ErrorState message={t("somethingWentWrong")} retryLabel={t("retry")} onRetry={() => profileQuery.refetch()} />;
+      return (
+        <ErrorState
+          message={t("somethingWentWrong")}
+          retryLabel={t("retry")}
+          onRetry={() => profileQuery.refetch()}
+          language={language}
+        />
+      );
     }
 
     return (
@@ -201,14 +198,14 @@ export default function ProfileScreen() {
               marginBottom: 16,
             }}
           >
-            <Text style={{ fontSize: 32, fontFamily: "Inter_600SemiBold", color: "#FFFFFF" }}>
+            <Text style={{ fontSize: 32, fontFamily: getFontFamily(language, "semibold"), color: "#FFFFFF" }}>
               {profile.fullName.charAt(0)}
             </Text>
           </View>
-          <Text style={{ fontSize: 20, fontFamily: "Inter_600SemiBold", color: isDark ? "#FFFFFF" : "#000000", marginBottom: 4 }}>
+          <Text style={{ fontSize: 20, fontFamily: getFontFamily(language, "semibold"), color: isDark ? "#FFFFFF" : "#000000", marginBottom: 4 }}>
             {profile.fullName}
           </Text>
-          <Text style={{ fontSize: 14, fontFamily: "Inter_400Regular", color: isDark ? "#9CA3AF" : "#6B7280" }}>
+          <Text style={{ fontSize: 14, fontFamily: getFontFamily(language, "regular"), color: isDark ? "#9CA3AF" : "#6B7280" }}>
             {profile.referenceNumber ?? notAssignedYet}
           </Text>
         </View>
@@ -224,7 +221,7 @@ export default function ProfileScreen() {
             borderColor: isDark ? "#333333" : "#E5E7EB",
           }}
         >
-          <Text style={{ fontSize: 16, fontFamily: "Inter_600SemiBold", color: isDark ? "#FFFFFF" : "#000000", marginBottom: 16 }}>
+          <Text style={{ fontSize: 16, fontFamily: getFontFamily(language, "semibold"), color: isDark ? "#FFFFFF" : "#000000", marginBottom: 16 }}>
             {t("personalInfo")}
           </Text>
 
@@ -264,7 +261,7 @@ export default function ProfileScreen() {
           borderBottomColor: isDark ? "#333333" : "#F0F0F0",
         }}
       >
-        <Text style={{ fontSize: 28, fontFamily: "Inter_600SemiBold", color: isDark ? "#FFFFFF" : "#000000" }}>
+        <Text style={{ fontSize: 28, fontFamily: getFontFamily(language, "semibold"), color: isDark ? "#FFFFFF" : "#000000" }}>
           {t("profile")}
         </Text>
       </View>
@@ -327,10 +324,10 @@ export default function ProfileScreen() {
               <Globe size={20} color="#0066CC" />
             </View>
             <View style={{ flex: 1 }}>
-              <Text style={{ fontSize: 15, fontFamily: "Inter_500Medium", color: isDark ? "#FFFFFF" : "#000000" }}>
+              <Text style={{ fontSize: 15, fontFamily: getFontFamily(language, "medium"), color: isDark ? "#FFFFFF" : "#000000" }}>
                 {t("language")}
               </Text>
-              <Text style={{ fontSize: 13, fontFamily: "Inter_400Regular", color: isDark ? "#9CA3AF" : "#6B7280", marginTop: 2 }}>
+              <Text style={{ fontSize: 13, fontFamily: getFontFamily(language, "regular"), color: isDark ? "#9CA3AF" : "#6B7280", marginTop: 2 }}>
                 {language === "en" ? t("englishLabel") : t("urduLabel")}
               </Text>
             </View>
@@ -355,7 +352,7 @@ export default function ProfileScreen() {
           }}
         >
           <LogOut size={20} color="#EF4444" />
-          <Text style={{ fontSize: 16, fontFamily: "Inter_600SemiBold", color: "#EF4444", marginStart: 8 }}>
+          <Text style={{ fontSize: 16, fontFamily: getFontFamily(language, "semibold"), color: "#EF4444", marginStart: 8 }}>
             {t("logout")}
           </Text>
         </TouchableOpacity>
