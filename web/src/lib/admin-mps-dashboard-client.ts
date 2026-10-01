@@ -8,13 +8,22 @@ import type {
   MpsDashboardClient,
   MpsDashboardError,
   MpsDashboardErrorCode,
+  MpsDashboardFilters,
   MpsDashboardSummary,
   TrendGranularity,
 } from '../../../shared/adminMpsDashboard/types';
 import { apiClient } from './api-client';
 import { staffAuthClient } from './staff-auth-client';
 
-export type { DelayedCases, MpsDashboardClient, MpsDashboardError, MpsDashboardErrorCode, MpsDashboardSummary, TrendGranularity };
+export type {
+  DelayedCases,
+  MpsDashboardClient,
+  MpsDashboardError,
+  MpsDashboardErrorCode,
+  MpsDashboardFilters,
+  MpsDashboardSummary,
+  TrendGranularity,
+};
 
 const LANGUAGE_STORAGE_KEY = 'descon.language';
 

@@ -27,13 +27,31 @@ jest.mock('expo-secure-store', () => {
 
 const { createTestQueryClient, trackRender, cleanup } = createQueryClientTestLifecycle();
 
-function renderWithProviders(ui) {
+const REFRESHED = {
+  accessToken: 'token-2',
+  refreshToken: 'refresh-2',
+  candidateId: 'candidate_refreshed',
+  candidateName: 'Ahmed Ali',
+  preferredLocale: 'en',
+  expiresAt: new Date(Date.now() + 15 * 60_000).toISOString(),
+  consent: { currentPolicyVersion: 'v1', accepted: true, acceptedAt: '2026-09-06T12:00:00Z' },
+};
+
+function stubClient(refreshSession) {
+  return { requestOtp: jest.fn(), resendOtp: jest.fn(), verifyOtp: jest.fn(), refreshSession };
+}
+
+function storedSession(overrides = {}) {
+  return JSON.stringify({ ...REFRESHED, accessToken: 'old', refreshToken: 'old-refresh', candidateId: 'candidate_old', ...overrides });
+}
+
+function renderWithProviders(ui, client) {
   const queryClient = createTestQueryClient();
   return {
     ...trackRender(
       render(
         <QueryClientProvider client={queryClient}>
-          <AuthProvider>{ui}</AuthProvider>
+          <AuthProvider client={client}>{ui}</AuthProvider>
         </QueryClientProvider>
       )
     ),
@@ -166,26 +184,63 @@ describe('AuthProvider', () => {
     clearSpy.mockRestore();
   });
 
-  it('detects the session going stale while the app is open and flags it as an expiry', async () => {
+  async function loginShort(client) {
     jest.useFakeTimers();
-    renderWithProviders(<Probe />);
+    renderWithProviders(<Probe />, client);
     await act(async () => {
       await Promise.resolve();
     });
-
     fireEvent.press(screen.getByTestId('login-short'));
     await act(async () => {
       await Promise.resolve();
       await Promise.resolve();
     });
     expect(screen.getByTestId('status')).toHaveTextContent('authenticated');
+  }
 
-    act(() => {
-      jest.advanceTimersByTime(6000);
+  it('ends the session as expired when the server rejects the refresh token while the app is open', async () => {
+    const refreshSession = jest.fn().mockRejectedValue({ code: 'SESSION_EXPIRED' });
+    await loginShort(stubClient(refreshSession));
+
+    await act(async () => {
+      await jest.advanceTimersByTimeAsync(6000);
     });
 
     expect(screen.getByTestId('status')).toHaveTextContent('unauthenticated');
     expect(screen.getByTestId('expired')).toHaveTextContent('true');
+    jest.useRealTimers();
+  });
+
+  it('renews the session shortly before expiry and persists the rotated tokens', async () => {
+    const refreshSession = jest.fn().mockResolvedValue(REFRESHED);
+    await loginShort(stubClient(refreshSession));
+
+    await act(async () => {
+      await jest.advanceTimersByTimeAsync(6000);
+    });
+
+    expect(refreshSession).toHaveBeenCalledWith('refresh');
+    expect(screen.getByTestId('status')).toHaveTextContent('authenticated');
+    expect(screen.getByTestId('candidate')).toHaveTextContent('candidate_refreshed');
+    const persisted = JSON.parse(await jest.requireMock('expo-secure-store').getItemAsync('descon.candidateSession'));
+    expect(persisted.refreshToken).toBe('refresh-2');
+    jest.useRealTimers();
+  });
+
+  it('stays signed in and retries when the refresh fails transiently', async () => {
+    const refreshSession = jest.fn().mockRejectedValueOnce({ code: 'NETWORK_ERROR' }).mockResolvedValue(REFRESHED);
+    await loginShort(stubClient(refreshSession));
+
+    await act(async () => {
+      await jest.advanceTimersByTimeAsync(5000);
+    });
+    expect(screen.getByTestId('status')).toHaveTextContent('authenticated');
+    expect(screen.getByTestId('candidate')).toHaveTextContent('candidate_short');
+
+    await act(async () => {
+      await jest.advanceTimersByTimeAsync(5000);
+    });
+    expect(screen.getByTestId('candidate')).toHaveTextContent('candidate_refreshed');
     jest.useRealTimers();
   });
 
@@ -271,5 +326,53 @@ describe('AuthProvider', () => {
 
     expect(screen.getByTestId('status')).toHaveTextContent('unauthenticated');
     expect(screen.getByTestId('candidate')).toHaveTextContent('none');
+  });
+
+  describe('session renewal', () => {
+    it('renews an expired stored session from its refresh token on launch and persists the rotated one', async () => {
+      const store = jest.requireMock('expo-secure-store');
+      store.__setRaw('descon.candidateSession', storedSession({ expiresAt: new Date(Date.now() - 60_000).toISOString() }));
+      const refreshSession = jest.fn().mockResolvedValue(REFRESHED);
+
+      renderWithProviders(<Probe />, stubClient(refreshSession));
+
+      await waitFor(() => expect(screen.getByTestId('status')).toHaveTextContent('authenticated'));
+      expect(refreshSession).toHaveBeenCalledWith('old-refresh');
+      expect(screen.getByTestId('candidate')).toHaveTextContent('candidate_refreshed');
+      expect(JSON.parse(await store.getItemAsync('descon.candidateSession')).refreshToken).toBe('refresh-2');
+    });
+
+    it('discards the stored session when the server rejects its refresh token', async () => {
+      const store = jest.requireMock('expo-secure-store');
+      store.__setRaw('descon.candidateSession', storedSession({ expiresAt: new Date(Date.now() - 60_000).toISOString() }));
+      const refreshSession = jest.fn().mockRejectedValue({ code: 'SESSION_EXPIRED' });
+
+      renderWithProviders(<Probe />, stubClient(refreshSession));
+
+      await waitFor(() => expect(screen.getByTestId('status')).toHaveTextContent('unauthenticated'));
+      expect(await store.getItemAsync('descon.candidateSession')).toBeNull();
+    });
+
+    it('keeps the stored session for the next launch when the refresh fails transiently', async () => {
+      const store = jest.requireMock('expo-secure-store');
+      store.__setRaw('descon.candidateSession', storedSession({ expiresAt: new Date(Date.now() - 60_000).toISOString() }));
+      const refreshSession = jest.fn().mockRejectedValue({ code: 'OFFLINE' });
+
+      renderWithProviders(<Probe />, stubClient(refreshSession));
+
+      await waitFor(() => expect(screen.getByTestId('status')).toHaveTextContent('unauthenticated'));
+      expect(await store.getItemAsync('descon.candidateSession')).not.toBeNull();
+    });
+
+    it('does not refresh a stored session whose access token is still valid', async () => {
+      const store = jest.requireMock('expo-secure-store');
+      store.__setRaw('descon.candidateSession', storedSession());
+      const refreshSession = jest.fn();
+
+      renderWithProviders(<Probe />, stubClient(refreshSession));
+
+      await waitFor(() => expect(screen.getByTestId('status')).toHaveTextContent('authenticated'));
+      expect(refreshSession).not.toHaveBeenCalled();
+    });
   });
 });

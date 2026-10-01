@@ -1,5 +1,6 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { MemoryRouter } from 'react-router';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { createMockStaffAuthClient, MOCK_STAFF_ACCOUNTS, MOCK_STAFF_PASSWORD } from '../../../../../../shared/auth/staffAuthClient';
 import { LanguageProvider } from '../../../../contexts/LanguageContext';
@@ -32,11 +33,13 @@ async function renderAs(account: typeof MANAGEMENT) {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return render(
     <QueryClientProvider client={queryClient}>
-      <LanguageProvider>
-        <StaffAuthProvider client={client}>
-          <ManagementDashboard />
-        </StaffAuthProvider>
-      </LanguageProvider>
+      <MemoryRouter>
+        <LanguageProvider>
+          <StaffAuthProvider client={client}>
+            <ManagementDashboard />
+          </StaffAuthProvider>
+        </LanguageProvider>
+      </MemoryRouter>
     </QueryClientProvider>
   );
 }
@@ -46,32 +49,33 @@ describe('ManagementDashboard', () => {
     vi.mocked(adminManagementDashboardClient.getDashboard).mockReset();
   });
 
-  it('renders the conversion funnel, outcome tracking, mobilization and trend sections', async () => {
+  it('renders executive KPIs, conversion, outcome, mobilization and trend sections', async () => {
     adminManagementDashboardClient.getDashboard.mockResolvedValue(summary());
 
     await renderAs(MANAGEMENT);
 
-    expect(await screen.findByText('72%')).toBeInTheDocument();
+    expect((await screen.findAllByText('72%')).length).toBeGreaterThan(0);
     expect(screen.getByText('6')).toBeInTheDocument();
     expect(screen.getByText('Qatar')).toBeInTheDocument();
-    expect(screen.getByText('2026-06-01')).toBeInTheDocument();
+    expect(screen.getByText('Performance snapshot')).toBeInTheDocument();
+    expect(screen.getByText('Mobilization trend')).toBeInTheDocument();
   });
 
-  it('renders the outcome-tracking stat cards above the conversion funnel table', async () => {
+  it('renders the conversion panel before the outcome-tracking panel', async () => {
     adminManagementDashboardClient.getDashboard.mockResolvedValue(summary());
 
     const { container } = await renderAs(MANAGEMENT);
-    await screen.findByText('72%');
+    await screen.findAllByText('72%');
 
     const headings = [...container.querySelectorAll('h2')].map((heading) => heading.textContent);
-    expect(headings.indexOf('Outcome tracking')).toBeLessThan(headings.indexOf('Conversion funnel'));
+    expect(headings.indexOf('Conversion funnel')).toBeLessThan(headings.indexOf('Outcome tracking'));
   });
 
   it('re-fetches with the selected granularity', async () => {
     adminManagementDashboardClient.getDashboard.mockResolvedValue(summary());
 
     await renderAs(MANAGEMENT);
-    await screen.findByText('72%');
+    await screen.findAllByText('72%');
 
     fireEvent.change(screen.getByRole('combobox'), { target: { value: 'daily' } });
 

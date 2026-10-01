@@ -96,6 +96,12 @@ describe('createAdminPaymentsClient (real)', () => {
           successEnvelope([paymentPayload()], {
             pagination: { page: 1, per_page: 20, total_count: 1, total_pages: 1 },
             applied_filters: { status: 'paid' },
+            summary: [
+              { code: 'checkout_pending', count: 0 },
+              { code: 'paid', count: 1 },
+              { code: 'failed', count: 0 },
+              { code: 'cancelled', count: 0 },
+            ],
           })
         );
       });
@@ -127,6 +133,12 @@ describe('createAdminPaymentsClient (real)', () => {
       });
       expect(result.pagination).toEqual({ page: 1, perPage: 20, totalCount: 1, totalPages: 1 });
       expect(result.appliedFilters).toEqual({ status: 'paid' });
+      expect(result.summary).toEqual([
+        { code: 'checkout_pending', count: 0 },
+        { code: 'paid', count: 1 },
+        { code: 'failed', count: 0 },
+        { code: 'cancelled', count: 0 },
+      ]);
     });
 
     it('never exposes a raw CNIC, only the masked one', async () => {

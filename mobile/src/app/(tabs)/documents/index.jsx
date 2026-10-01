@@ -33,7 +33,7 @@ import {
 import { CANDIDATE_DOCUMENTS_ERROR_KEYS } from "../../../../../shared/candidateDocuments/errorMessages";
 import { APPLICATION_PROGRESS_ERROR_KEYS } from "../../../../../shared/applicationProgress/errorMessages";
 import { PCC_COMPLIANCE_STATUS_KEYS } from "../../../../../shared/candidateDocuments/statusLabels";
-import { sortByPrototypeOrder } from "../../../../../shared/candidateDocuments/checklistOrder";
+import { sortByPrototypeOrder, splitAroundCnicCluster } from "../../../../../shared/candidateDocuments/checklistOrder";
 import { isCameraCaptureEligible } from "../../../../../shared/candidateDocuments/captureEligibility";
 
 const STATUS_CONFIG = {
@@ -146,6 +146,7 @@ export default function DocumentsScreen() {
     }
 
     const checklist = sortByPrototypeOrder(checklistQuery.data ?? []);
+    const { cnicClusterItems, remainingItems } = splitAroundCnicCluster(checklist);
 
     if (checklist.length === 0) {
       return (
@@ -196,11 +197,27 @@ export default function DocumentsScreen() {
           </View>
         ) : null}
 
+        {/* CNIC cluster (passport, both CNIC sides, next of kin CNIC) */}
+        <View>
+          {cnicClusterItems.map((item) => (
+            <DocumentRow
+              key={item.requirementCode}
+              item={item}
+              isDark={isDark}
+              language={language}
+              t={t}
+              isActive={upload.activeRequirementCode === item.requirementCode}
+              isAnyUploadPending={upload.mutation.isPending}
+              upload={upload}
+            />
+          ))}
+        </View>
+
         <BankDetailsPanel isDark={isDark} t={t} language={language} onSessionEnd={returnToSignIn} />
 
-        {/* Document List */}
+        {/* Remaining document list */}
         <View>
-          {checklist.map((item) => (
+          {remainingItems.map((item) => (
             <DocumentRow
               key={item.requirementCode}
               item={item}

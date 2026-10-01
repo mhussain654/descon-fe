@@ -25,7 +25,7 @@ import {
 import { CANDIDATE_DOCUMENTS_ERROR_KEYS } from "../../../../shared/candidateDocuments/errorMessages";
 import { APPLICATION_PROGRESS_ERROR_KEYS } from "../../../../shared/applicationProgress/errorMessages";
 import { PCC_COMPLIANCE_STATUS_KEYS } from "../../../../shared/candidateDocuments/statusLabels";
-import { sortByPrototypeOrder } from "../../../../shared/candidateDocuments/checklistOrder";
+import { sortByPrototypeOrder, splitAroundCnicCluster } from "../../../../shared/candidateDocuments/checklistOrder";
 
 const RETRYABLE_ERROR_CODES = new Set(["OFFLINE", "NETWORK_ERROR", "SERVER_ERROR", "RATE_LIMITED", "IN_PROGRESS", "CONFLICT"]);
 
@@ -120,6 +120,7 @@ export default function DocumentsPage() {
     }
 
     const checklist = sortByPrototypeOrder(checklistQuery.data ?? []);
+    const { cnicClusterItems, remainingItems } = splitAroundCnicCluster(checklist);
 
     if (checklist.length === 0) {
       return (
@@ -156,10 +157,24 @@ export default function DocumentsPage() {
           </div>
         ) : null}
 
+        <div>
+          {cnicClusterItems.map((item) => (
+            <DocumentRow
+              key={item.requirementCode}
+              item={item}
+              language={language}
+              t={t}
+              isActive={upload.activeRequirementCode === item.requirementCode}
+              isAnyUploadPending={upload.mutation.isPending}
+              upload={upload}
+            />
+          ))}
+        </div>
+
         <BankDetailsPanel t={t} language={language} onSessionEnd={returnToSignIn} />
 
         <div>
-          {checklist.map((item) => (
+          {remainingItems.map((item) => (
             <DocumentRow
               key={item.requirementCode}
               item={item}

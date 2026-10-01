@@ -6,14 +6,19 @@ import { useApplicationProgress } from "../../features/candidate/progress/hooks/
 import { useCandidateWorkflowHistory } from "../../features/candidate/workflow/hooks/useCandidateWorkflowHistory";
 import { useCandidateFlightDetail } from "../../features/candidate/workflow/hooks/useCandidateFlightDetail";
 import { useFlightTicketAccess } from "../../features/candidate/workflow/hooks/useFlightTicketAccess";
+import { useCandidateVisaDecisions } from "../../features/candidate/workflow/hooks/useCandidateVisaDecisions";
+import { useVisaCopyAccess } from "../../features/candidate/workflow/hooks/useVisaCopyAccess";
 import { LoadingState, ErrorState, OfflineState, SessionExpiredState, ForbiddenState, Button, ValidationMessage } from "../../design-system";
 import { APPLICATION_PROGRESS_ERROR_KEYS } from "../../../../shared/applicationProgress/errorMessages";
 import { WORKFLOW_HISTORY_ERROR_KEYS } from "../../../../shared/candidateWorkflow/errorMessages";
 import { findLatestQvcOutcome, QVC_OUTCOME_KEYS, QVC_OUTCOME_TONES } from "../../../../shared/candidateWorkflow/qvcOutcome";
+import { VISA_OUTCOME_KEYS, VISA_OUTCOME_TONES } from "../../../../shared/candidateVisaDecisions/outcomeLabels";
 import { CANDIDATE_FLIGHT_DETAIL_ERROR_KEYS } from "../../../../shared/candidateFlightDetail/errorMessages";
+import { CANDIDATE_VISA_DECISIONS_ERROR_KEYS } from "../../../../shared/candidateVisaDecisions/errorMessages";
 import { resolveDocumentAccessUrl } from "../../lib/resolveDocumentAccessUrl";
 
 const QVC_OUTCOME_STAGE_CODE = "qvc_completed_outcome_received";
+const VISA_OUTCOME_STAGE_CODE = "visa_issued_or_rejected";
 const FLIGHT_TICKET_STAGE_CODES = new Set(["flight_details_uploaded", "mobilized"]);
 
 const QVC_TONE_CLASSES = {
@@ -46,6 +51,8 @@ export default function StatusPage() {
   const historyQuery = useCandidateWorkflowHistory();
   const flightDetailQuery = useCandidateFlightDetail();
   const ticketAccess = useFlightTicketAccess();
+  const visaDecisionsQuery = useCandidateVisaDecisions();
+  const visaCopyAccess = useVisaCopyAccess();
 
   const returnToSignIn = () => {
     logout("expired");
@@ -102,6 +109,9 @@ export default function StatusPage() {
     if (timeline.length === 0) return null;
 
     const qvcOutcome = findLatestQvcOutcome(historyQuery.data?.items ?? []);
+    // The latest recorded visa decision (a candidate can be re-submitted, so this is
+    // never assumed to be the only one) -- the backend returns the list in chronological order.
+    const latestVisaDecision = visaDecisionsQuery.data?.at(-1) ?? null;
     const lastUpdatedLabel = formatStageDate(workflow.updatedAt, language);
 
     return (
@@ -154,6 +164,50 @@ export default function StatusPage() {
                     >
                       {t("qvcOutcome")}: {t(QVC_OUTCOME_KEYS[qvcOutcome.code])}
                       {formatStageDate(qvcOutcome.date, language) ? ` • ${formatStageDate(qvcOutcome.date, language)}` : ""}
+                    </div>
+                  ) : null}
+                  {stage.code === VISA_OUTCOME_STAGE_CODE && latestVisaDecision ? (
+                    <div className="mt-3">
+                      <div
+                        className={`inline-flex rounded-lg px-3 py-2 text-xs font-medium ${QVC_TONE_CLASSES[VISA_OUTCOME_TONES[latestVisaDecision.outcomeCode]]}`}
+                      >
+                        {t("visaOutcome")}: {t(VISA_OUTCOME_KEYS[latestVisaDecision.outcomeCode])}
+                        {formatStageDate(latestVisaDecision.decisionDate, language)
+                          ? ` • ${formatStageDate(latestVisaDecision.decisionDate, language)}`
+                          : ""}
+                      </div>
+                      {latestVisaDecision.visaCopyAttached ? (
+                        <div className="mt-3">
+                          {visaCopyAccess.access && !visaCopyAccess.isExpired ? (
+                            <a
+                              href={resolveDocumentAccessUrl(visaCopyAccess.access.url, import.meta.env.VITE_API_BASE_URL ?? "")}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-sm font-medium text-[#0066CC] underline"
+                            >
+                              {t("candidateVisaOpenCopyAction")}
+                            </a>
+                          ) : (
+                            <Button
+                              type="button"
+                              size="sm"
+                              variant="outline"
+                              onClick={() => visaCopyAccess.requestVisaCopyAccess(latestVisaDecision.id)}
+                              disabled={visaCopyAccess.isRequesting}
+                            >
+                              {t("candidateVisaDownloadCopyAction")}
+                            </Button>
+                          )}
+                          {visaCopyAccess.isExpired ? (
+                            <p className="mt-1 text-xs text-gray-500">{t("candidateVisaAccessExpiredMessage")}</p>
+                          ) : null}
+                          {visaCopyAccess.error ? (
+                            <ValidationMessage tone="error">
+                              {visaCopyAccess.error.message || t(CANDIDATE_VISA_DECISIONS_ERROR_KEYS[visaCopyAccess.error.code])}
+                            </ValidationMessage>
+                          ) : null}
+                        </div>
+                      ) : null}
                     </div>
                   ) : null}
                   {FLIGHT_TICKET_STAGE_CODES.has(stage.code) && stage.status !== "pending" && flightDetailQuery.data?.ticketAttached ? (

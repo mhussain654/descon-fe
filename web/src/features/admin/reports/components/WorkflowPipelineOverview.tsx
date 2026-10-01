@@ -1,0 +1,46 @@
+import { Link } from 'react-router';
+import { ProgressBar } from '../../../../design-system';
+import type { StatusSummaryRow } from '../../../../lib/admin-reports-client';
+import { PIPELINE_BUCKET_HEX, PIPELINE_BUCKET_LABEL_KEYS, PIPELINE_BUCKET_ORDER, groupStagesByPipelineBucket } from '../workflowPipelineBuckets';
+import type { TFn } from './ReportTables';
+
+/**
+ * The 15-stage workflow queue rolled up into 5 pipeline phases (frontend-
+ * only taxonomy, see workflowPipelineBuckets.ts) and rendered as horizontal
+ * progress bars -- clearer than a donut/legend for exactly 5 ranked
+ * buckets. The full 15-stage breakdown (CategoryBarChart) stays reachable
+ * via "View all stages", not deleted. Used by AdminDashboard.tsx only --
+ * deliberately NOT reused on MpsDashboard.tsx, since both dashboards'
+ * workflow_stage_queue data is identical when unfiltered and sharing this
+ * exact component on both pages previously read as a literal duplicate bug.
+ * MpsDashboard.tsx renders its own full 15-stage CategoryBarChart instead.
+ */
+export function WorkflowPipelineOverview({ workflowStageQueue, t }: { workflowStageQueue: StatusSummaryRow[]; t: TFn }) {
+  const totals = groupStagesByPipelineBucket(workflowStageQueue);
+  const largestBucketTotal = Math.max(...PIPELINE_BUCKET_ORDER.map((bucket) => totals[bucket]), 0);
+
+  return (
+    <div className="flex flex-col gap-4 [&_[role=progressbar]]:h-3">
+      {PIPELINE_BUCKET_ORDER.map((bucket) => {
+        const count = totals[bucket];
+        // This is a ranked comparison, not a completion percentage. Normalizing
+        // against the largest phase lets the bars use the available card width
+        // while the adjacent number remains the exact candidate count.
+        const percentage = largestBucketTotal > 0 ? (count / largestBucketTotal) * 100 : 0;
+        const label = t(PIPELINE_BUCKET_LABEL_KEYS[bucket]);
+        return (
+          <div key={bucket}>
+            <div className="mb-1 flex items-center justify-between text-sm">
+              <span className="font-medium text-text-primary">{label}</span>
+              <span className="text-text-secondary">{count}</span>
+            </div>
+            <ProgressBar value={percentage} label={label} fillColor={PIPELINE_BUCKET_HEX[bucket]} />
+          </div>
+        );
+      })}
+      <Link to="/admin/reports" className="self-start text-sm font-medium text-brand hover:underline">
+        {t('adminDashboardPipelineViewAllStages')}
+      </Link>
+    </div>
+  );
+}

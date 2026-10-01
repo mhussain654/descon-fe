@@ -150,7 +150,7 @@ describe("StaffUsersPage", () => {
     const client = await signInAs(ADMIN);
     await renderUsersPage(client);
 
-    fireEvent.change(screen.getByRole("searchbox"), { target: { value: "hr@descon" } });
+    fireEvent.change(screen.getByRole("searchbox", { name: "Search" }), { target: { value: "hr@descon" } });
 
     await waitFor(() => expect(within(screen.getByRole("table")).queryByText("admin@descon.com")).not.toBeInTheDocument());
     expect(within(screen.getByRole("table")).getByText("hr@descon.com")).toBeInTheDocument();

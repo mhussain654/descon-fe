@@ -146,6 +146,13 @@ function toAppliedFilters(raw: unknown): Record<string, string> {
   return Object.fromEntries(Object.entries(raw as Record<string, unknown>).filter((entry): entry is [string, string] => typeof entry[1] === 'string'));
 }
 
+function toSummary(raw: unknown): AdminCandidateListResult['summary'] {
+  if (!Array.isArray(raw)) return [];
+  return raw
+    .filter((row): row is { code: unknown; count: unknown } => !!row && typeof row === 'object')
+    .map((row) => ({ code: String(row.code), count: typeof row.count === 'number' ? row.count : 0 }));
+}
+
 function toCandidateDetail(raw: unknown): AdminCandidateDetail {
   const value = (raw && typeof raw === 'object' ? raw : {}) as Partial<CandidateDetailResponse>;
   return {
@@ -281,11 +288,12 @@ export function createAdminCandidateClient(options: RealAdminCandidateClientOpti
         if (!result) throw { code: 'UNKNOWN' } satisfies AdminCandidateError;
 
         const items = Array.isArray(result.data) ? result.data.map(toCandidateDetail) : [];
-        const meta = result.meta as { pagination?: unknown; applied_filters?: unknown } | undefined;
+        const meta = result.meta as { pagination?: unknown; applied_filters?: unknown; summary?: unknown } | undefined;
         return {
           items,
           pagination: toPagination(meta?.pagination),
           appliedFilters: toAppliedFilters(meta?.applied_filters),
+          summary: toSummary(meta?.summary),
         };
       } catch (error) {
         throw toCandidateError(error);

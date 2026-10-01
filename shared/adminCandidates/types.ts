@@ -128,7 +128,7 @@ export type AdminCandidateErrorCode =
 
 export interface AdminCandidateError {
   code: AdminCandidateErrorCode;
-  /** The backend's own already-localized message, when present -- prefer this over a hardcoded translation for VALIDATION_ERROR/DUPLICATE_*/ASSIGNMENT_FIELD_LOCKED, which cover many distinct underlying reasons. */
+  /** The backend's own already-localized message, when present -- prefer this over a hardcoded translation for VALIDATION_ERROR, DUPLICATE_* codes, and ASSIGNMENT_FIELD_LOCKED, which cover many distinct underlying reasons. */
   message?: string;
   /** The field the first envelope error applies to, for form-level mapping (e.g. 'cnic', 'passport_number', 'reference_number', 'country_code'). */
   field?: string;
@@ -174,11 +174,18 @@ export interface AdminCandidatePagination {
  * same Admin::CandidateSerializer, so there is no separate slimmer "summary"
  * type to define here (do not invent one the backend doesn't return).
  */
+/** Zero-filled count for one canonical workflow stage, scoped by every active filter except `status`. */
+export interface AdminCandidateStatusSummaryRow {
+  code: string;
+  count: number;
+}
+
 export interface AdminCandidateListResult {
   items: AdminCandidateDetail[];
   pagination: AdminCandidatePagination;
   /** Echoes back which filters the backend actually applied (Admin::Candidates::IndexQuery#applied_filters) -- informational only, never used to drive UI state (the URL already owns that). */
   appliedFilters: Record<string, string>;
+  summary: AdminCandidateStatusSummaryRow[];
 }
 
 export interface AdminCandidateClient {

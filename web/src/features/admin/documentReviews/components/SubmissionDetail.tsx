@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { ArrowLeft } from 'lucide-react';
 import { Link } from 'react-router';
 import { useLanguage } from '../../../../contexts/LanguageContext';
 import { useStaffAuth } from '../../../../contexts/StaffAuthContext';
@@ -137,7 +138,8 @@ export function SubmissionDetail({ submissionId }: SubmissionDetailProps) {
 
   return (
     <div className="mx-auto max-w-4xl px-4 py-6 sm:px-6">
-      <Link to="/admin/document-reviews" className="text-sm font-medium text-brand hover:underline">
+      <Link to="/admin/document-reviews" className="inline-flex items-center text-sm font-medium text-brand hover:underline">
+        <ArrowLeft className="me-2 h-4 w-4" aria-hidden="true" />
         {t('adminDocumentReviewBackToQueue')}
       </Link>
 

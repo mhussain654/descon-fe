@@ -81,19 +81,23 @@ module.exports = {
 				},
 				// Neutral text/surface tokens, kept distinct from the shadcn
 				// `background`/`border` keys above (which are flat CSS-var strings).
+				// Backed by CSS variables (defined in global.css's `:root`/`.dark`)
+				// rather than literal hex, so the admin portal's dark theme (see
+				// StaffShell) can re-theme every existing usage (bg-surface-raised,
+				// text-text-secondary, ...) without touching each call site.
 				text: {
-					primary: '#111827',
-					secondary: '#6B7280',
-					tertiary: '#9CA3AF',
-					disabled: '#C1C5CB',
-					inverse: '#FFFFFF',
+					primary: 'var(--text-primary)',
+					secondary: 'var(--text-secondary)',
+					tertiary: 'var(--text-tertiary)',
+					disabled: 'var(--text-disabled)',
+					inverse: 'var(--text-inverse)',
 				},
 				surface: {
-					background: '#F8F9FA',
-					raised: '#FFFFFF',
-					sunken: '#F3F4F6',
+					background: 'var(--surface-background)',
+					raised: 'var(--surface-raised)',
+					sunken: 'var(--surface-sunken)',
 				},
-				borderStrong: '#D1D5DB',
+				borderStrong: 'var(--border-strong)',
 			},
 			borderRadius: {
 				lg: 'var(--radius)',

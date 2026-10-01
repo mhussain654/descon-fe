@@ -16,4 +16,10 @@ describe('StatTile', () => {
     expect(container.querySelector('.bg-red-100')).not.toBeNull();
     expect(container.querySelector('.text-red-500')).not.toBeNull();
   });
+
+  it('renders an optional trend element below the label', () => {
+    render(<StatTile value={5} label="Mobilized" trend={<span data-testid="trend">chart</span>} />);
+
+    expect(screen.getByTestId('trend')).toBeInTheDocument();
+  });
 });

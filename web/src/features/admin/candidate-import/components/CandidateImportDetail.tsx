@@ -1,4 +1,5 @@
 import { useEffect } from 'react';
+import { ArrowLeft, CheckCircle2, SkipForward, XCircle } from 'lucide-react';
 import { Link } from 'react-router';
 import { useLanguage } from '../../../../contexts/LanguageContext';
 import { useStaffAuth } from '../../../../contexts/StaffAuthContext';
@@ -11,16 +12,21 @@ import {
   ForbiddenState,
   LoadingState,
   OfflineState,
+  StatTile,
   ValidationMessage,
 } from '../../../../design-system';
 import { CANDIDATE_IMPORT_ERROR_KEYS } from '../../../../../../shared/adminCandidateImport/errorMessages';
 import { formatDate } from '../../../../../../shared/i18n/locale';
 import type { TranslationKey } from '../../../../../../shared/i18n/translations';
 import type { CandidateImportStatus } from '../../../../lib/candidate-import-client';
+import { CategoryDonutChart } from '../../reports/components/ReportCharts';
 import { useCandidateImportBatch } from '../hooks/useCandidateImportBatch';
 import { useErrorExportDownload } from '../hooks/useErrorExportDownload';
 import { useRetryCandidateImport } from '../hooks/useRetryCandidateImport';
 import { ImportRowResultsTable } from './ImportRowResultsTable';
+
+const COUNT_TILE_CLASSNAME =
+  'min-w-0 overflow-hidden border-border border-t-4 bg-surface-raised shadow-sm transition duration-200 hover:-translate-y-0.5 hover:shadow-md';
 
 const STATUS_LABEL_KEYS: Record<CandidateImportStatus, TranslationKey> = {
   queued: 'adminCandidateImportStatusQueued',
@@ -104,10 +110,15 @@ export function CandidateImportDetail({ importId }: CandidateImportDetailProps) 
   const hasErrorsToDownload = batch.rejectedRows + batch.skippedRows > 0;
 
   return (
-    <div className="space-y-5">
+    <div className="mx-auto max-w-3xl space-y-5 px-4 py-6 sm:px-6">
+      <Link to="/admin/candidates/import" className="inline-flex items-center text-sm font-medium text-brand hover:underline">
+        <ArrowLeft className="me-2 h-4 w-4" aria-hidden="true" />
+        {t('adminCandidateImportBackToImport')}
+      </Link>
+
       <Card>
         <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
-          <h2 className="text-lg font-semibold text-text-primary">{t('adminCandidateImportDetailTitle')}</h2>
+          <h1 className="text-lg font-semibold text-text-primary">{t('adminCandidateImportDetailTitle')}</h1>
           <Badge tone={STATUS_TONES[batch.status]}>{t(STATUS_LABEL_KEYS[batch.status])}</Badge>
         </div>
 
@@ -167,19 +178,40 @@ export function CandidateImportDetail({ importId }: CandidateImportDetailProps) 
         ) : null}
 
         {batch.status === 'completed' || batch.status === 'partial' ? (
-          <div className="flex flex-wrap gap-2">
-            <Badge tone="neutral">
-              {t('adminCandidateImportTotalRowsLabel')}: {batch.totalRows}
-            </Badge>
-            <Badge tone="success">
-              {t('adminCandidateImportSuccessfulRowsLabel')}: {batch.importedRows}
-            </Badge>
-            <Badge tone="warning">
-              {t('adminCandidateImportRejectedRowsLabel')}: {batch.rejectedRows}
-            </Badge>
-            <Badge tone="warning">
-              {t('adminCandidateImportSkippedRowsLabel')}: {batch.skippedRows}
-            </Badge>
+          <div className="grid items-center gap-5 sm:grid-cols-[140px_minmax(0,1fr)]">
+            <div className="relative mx-auto">
+              <CategoryDonutChart
+                data={[
+                  { key: 'imported', label: t('adminCandidateImportSuccessfulRowsLabel'), value: batch.importedRows, tone: 'success' },
+                  { key: 'rejected', label: t('adminCandidateImportRejectedRowsLabel'), value: batch.rejectedRows, tone: 'warning' },
+                  { key: 'skipped', label: t('adminCandidateImportSkippedRowsLabel'), value: batch.skippedRows, tone: 'neutral' },
+                ]}
+              />
+              <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center">
+                <span className="text-xl font-bold tracking-tight text-text-primary">{batch.totalRows}</span>
+                <span className="text-[10px] font-medium text-text-tertiary">{t('adminCandidateImportTotalRowsLabel')}</span>
+              </div>
+            </div>
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+              <StatTile
+                value={batch.importedRows}
+                label={t('adminCandidateImportSuccessfulRowsLabel')}
+                className={`${COUNT_TILE_CLASSNAME} border-t-success text-success-emphasis`}
+                icon={<CheckCircle2 />}
+              />
+              <StatTile
+                value={batch.rejectedRows}
+                label={t('adminCandidateImportRejectedRowsLabel')}
+                className={`${COUNT_TILE_CLASSNAME} border-t-warning text-warning-emphasis`}
+                icon={<XCircle />}
+              />
+              <StatTile
+                value={batch.skippedRows}
+                label={t('adminCandidateImportSkippedRowsLabel')}
+                className={`${COUNT_TILE_CLASSNAME} border-t-border text-text-secondary`}
+                icon={<SkipForward />}
+              />
+            </div>
           </div>
         ) : null}
 
@@ -207,10 +239,6 @@ export function CandidateImportDetail({ importId }: CandidateImportDetailProps) 
       <Card>
         <ImportRowResultsTable rowResults={batch.rowResults} t={t} />
       </Card>
-
-      <Link to="/admin/candidates/import" className="inline-block text-sm font-medium text-brand hover:underline">
-        {t('adminCandidateImportBackToImport')}
-      </Link>
     </div>
   );
 }

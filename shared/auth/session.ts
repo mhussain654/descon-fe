@@ -12,3 +12,11 @@ export function isSessionValid(session: ExpiringSession | null | undefined, now:
   if (!session) return false;
   return new Date(session.expiresAt).getTime() > now;
 }
+
+/** Renew the access token this many seconds before it expires, rather than waiting for it to lapse. */
+export const REFRESH_BEFORE_EXPIRY_SECONDS = 60;
+
+/** True once `session` is within the renewal window (or already past expiry). */
+export function isSessionDueForRefresh(session: ExpiringSession, now: number = Date.now()): boolean {
+  return new Date(session.expiresAt).getTime() - now <= REFRESH_BEFORE_EXPIRY_SECONDS * 1000;
+}

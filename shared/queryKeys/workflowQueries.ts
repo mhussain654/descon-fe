@@ -9,6 +9,7 @@ import type { Language } from '../i18n/translations';
 export const workflowQueries = {
   history: (candidateId: string, locale: Language) => ['workflow', 'history', candidateId, locale] as const,
   flightDetail: (candidateId: string, locale: Language) => ['workflow', 'flightDetail', candidateId, locale] as const,
+  visaDecisions: (candidateId: string, locale: Language) => ['workflow', 'visaDecisions', candidateId, locale] as const,
 
   adminState: (candidateId: string, locale: Language) => ['workflow', 'adminState', candidateId, locale] as const,
   adminTransitions: (candidateId: string, locale: Language) => ['workflow', 'adminTransitions', candidateId, locale] as const,

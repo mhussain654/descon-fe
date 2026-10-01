@@ -5,11 +5,10 @@
 //
 // There is no separate resend endpoint and no server-issued challenge id --
 // both calls re-key off the CNIC itself, matching CandidateAuthClient's
-// contract (see types.ts). There is also no candidate refresh/logout
-// endpoint yet; this client only issues sessions. The access/refresh tokens
-// it returns are stored by AuthContext exactly as any other session would
-// be, so a refresh/logout implementation can be added later (a new client
-// method) without touching the storage layer or the screens.
+// contract (see types.ts). Sessions are renewed without a new OTP through
+//   POST /api/v1/candidate/auth/refresh
+// (`refreshSession`); there is no candidate logout endpoint yet. The
+// access/refresh tokens are stored by AuthContext on each platform.
 import type { ApiClient, ApiError } from '../api-client';
 import type { AuthError, AuthErrorCode, AuthSession, CandidateAuthClient, OtpChallenge } from './types';
 
@@ -18,7 +17,7 @@ interface CandidateOtpRequestResponse {
   resend_after_seconds: number;
 }
 
-interface CandidateOtpVerifyResponse {
+interface CandidateSessionResponse {
   access_token: string;
   refresh_token: string;
   token_type: string;
@@ -82,6 +81,34 @@ function toAuthError(error: unknown): AuthError {
   return { code: 'OTP_REQUEST_FAILED' };
 }
 
+/** Refresh failures: the server rejecting the token (401) or the account (403) ends the session; everything else is transient and must never log the candidate out. */
+function toRefreshError(error: unknown): AuthError {
+  const apiError = error as ApiError;
+  if (apiError && typeof apiError === 'object' && 'status' in apiError) {
+    if (apiError.status === 401 || apiError.status === 403) return { code: 'SESSION_EXPIRED' };
+    if (apiError.code === 'OFFLINE') return { code: 'OFFLINE' };
+    if (apiError.code === 'NETWORK_ERROR' || apiError.code === 'TIMEOUT') return { code: 'NETWORK_ERROR' };
+    if (apiError.status === 429) return { code: 'RATE_LIMITED', retryAfterSeconds: apiError.retryAfterSeconds };
+  }
+  return { code: 'UNKNOWN' };
+}
+
+function toSession(data: CandidateSessionResponse): AuthSession {
+  return {
+    accessToken: data.access_token,
+    refreshToken: data.refresh_token,
+    candidateId: data.candidate.id,
+    candidateName: data.candidate.full_name,
+    preferredLocale: data.candidate.preferred_locale,
+    expiresAt: new Date(Date.now() + data.expires_in * 1000).toISOString(),
+    consent: {
+      currentPolicyVersion: data.candidate.consent.current_policy_version,
+      accepted: data.candidate.consent.accepted,
+      acceptedAt: data.candidate.consent.accepted_at,
+    },
+  };
+}
+
 function toOtpChallenge(data: CandidateOtpRequestResponse): OtpChallenge {
   return {
     expiresInSeconds: data.expires_in_seconds,
@@ -119,28 +146,30 @@ export function createCandidateAuthClient(options: RealCandidateAuthClientOption
 
     async verifyOtp(cnic: string, code: string): Promise<AuthSession> {
       try {
-        const data = await apiClient.post<CandidateOtpVerifyResponse>(
+        const data = await apiClient.post<CandidateSessionResponse>(
           '/candidate/auth/otp/verify',
           { candidate: { cnic, otp: code } },
           { headers: headers() }
         );
         if (!data) throw { code: 'UNKNOWN' } satisfies AuthError;
 
-        return {
-          accessToken: data.access_token,
-          refreshToken: data.refresh_token,
-          candidateId: data.candidate.id,
-          candidateName: data.candidate.full_name,
-          preferredLocale: data.candidate.preferred_locale,
-          expiresAt: new Date(Date.now() + data.expires_in * 1000).toISOString(),
-          consent: {
-            currentPolicyVersion: data.candidate.consent.current_policy_version,
-            accepted: data.candidate.consent.accepted,
-            acceptedAt: data.candidate.consent.accepted_at,
-          },
-        } satisfies AuthSession;
+        return toSession(data);
       } catch (error) {
         throw toAuthError(error);
+      }
+    },
+
+    async refreshSession(refreshToken: string): Promise<AuthSession> {
+      try {
+        const data = await apiClient.post<CandidateSessionResponse>(
+          '/candidate/auth/refresh',
+          { candidate: { refresh_token: refreshToken } },
+          { headers: headers() }
+        );
+        if (!data) throw { code: 'UNKNOWN' } satisfies AuthError;
+        return toSession(data);
+      } catch (error) {
+        throw toRefreshError(error);
       }
     },
   };

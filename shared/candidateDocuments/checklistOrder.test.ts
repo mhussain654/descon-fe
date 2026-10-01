@@ -1,4 +1,4 @@
-import { sortByPrototypeOrder } from './checklistOrder';
+import { sortByPrototypeOrder, splitAroundCnicCluster } from './checklistOrder';
 
 function item(requirementCode: string) {
   return { requirementCode };
@@ -42,5 +42,42 @@ describe('sortByPrototypeOrder', () => {
     sortByPrototypeOrder(checklist);
 
     expect(checklist).toEqual(original);
+  });
+});
+
+describe('splitAroundCnicCluster', () => {
+  it('separates passport/CNIC/next-of-kin-CNIC from every other requirement, preserving order', () => {
+    const checklist = sortByPrototypeOrder([
+      item('polio_certificate'),
+      item('cnic_back'),
+      item('cv'),
+      item('passport'),
+      item('cnic_front'),
+      item('police_character'),
+      item('next_of_kin_cnic'),
+    ]);
+
+    const { cnicClusterItems, remainingItems } = splitAroundCnicCluster(checklist);
+
+    expect(cnicClusterItems.map((i) => i.requirementCode)).toEqual([
+      'passport',
+      'cnic_front',
+      'cnic_back',
+      'next_of_kin_cnic',
+    ]);
+    expect(remainingItems.map((i) => i.requirementCode)).toEqual(['police_character', 'cv', 'polio_certificate']);
+  });
+
+  it('puts a requirement code the prototype never modeled into the remaining group, not the CNIC cluster', () => {
+    const checklist = [item('passport'), item('some_future_requirement')];
+
+    const { cnicClusterItems, remainingItems } = splitAroundCnicCluster(checklist);
+
+    expect(cnicClusterItems.map((i) => i.requirementCode)).toEqual(['passport']);
+    expect(remainingItems.map((i) => i.requirementCode)).toEqual(['some_future_requirement']);
+  });
+
+  it('returns empty arrays for an empty checklist', () => {
+    expect(splitAroundCnicCluster([])).toEqual({ cnicClusterItems: [], remainingItems: [] });
   });
 });

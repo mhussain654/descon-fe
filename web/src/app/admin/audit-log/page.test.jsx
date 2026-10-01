@@ -59,11 +59,45 @@ describe("AdminAuditLogPage", () => {
       items: [],
       pagination: { page: 1, perPage: 20, totalCount: 0, totalPages: 0 },
       appliedFilters: {},
+      summary: [],
     });
     const client = await signInAs(MANAGEMENT);
     renderAt("/admin/audit-log", client);
 
     expect(await screen.findByRole("heading", { name: "Audit log" })).toBeInTheDocument();
+  });
+
+  it("shows the real, backend-computed top entity types, not a page-scoped approximation", async () => {
+    adminAuditEventsClient.listAuditEvents.mockResolvedValue({
+      items: [],
+      pagination: { page: 1, perPage: 20, totalCount: 45, totalPages: 3 },
+      appliedFilters: {},
+      summary: [
+        { code: "CandidateDocument", count: 22 },
+        { code: "Payment", count: 8 },
+      ],
+    });
+    const client = await signInAs(MANAGEMENT);
+    renderAt("/admin/audit-log", client);
+
+    expect(await screen.findByText("Top entity types")).toBeInTheDocument();
+    expect(screen.getByText("45")).toBeInTheDocument();
+    expect(screen.getByText("22")).toBeInTheDocument();
+    expect(screen.getByText("CandidateDocument")).toBeInTheDocument();
+  });
+
+  it("omits the top-entity-types card when the backend returns no summary", async () => {
+    adminAuditEventsClient.listAuditEvents.mockResolvedValue({
+      items: [],
+      pagination: { page: 1, perPage: 20, totalCount: 0, totalPages: 0 },
+      appliedFilters: {},
+      summary: [],
+    });
+    const client = await signInAs(MANAGEMENT);
+    renderAt("/admin/audit-log", client);
+
+    await screen.findByRole("heading", { name: "Audit log" });
+    expect(screen.queryByText("Top entity types")).not.toBeInTheDocument();
   });
 
   it("shows the audit log's own forbidden state for a staff member lacking view_audit_events -- no route guard", async () => {

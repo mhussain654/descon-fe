@@ -19,6 +19,7 @@ import type {
   CandidateImportRowResult,
   CandidateImportRowStatus,
   CandidateImportStatus,
+  CandidateImportStatusSummaryRow,
   CandidateImportTemplate,
 } from '../../../shared/adminCandidateImport/types';
 import { apiClient } from './api-client';
@@ -40,6 +41,7 @@ export type {
   CandidateImportRowResult,
   CandidateImportRowStatus,
   CandidateImportStatus,
+  CandidateImportStatusSummaryRow,
   CandidateImportTemplate,
 };
 

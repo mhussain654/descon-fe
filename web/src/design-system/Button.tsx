@@ -17,7 +17,7 @@ export interface ButtonProps extends Omit<ButtonHTMLAttributes<HTMLButtonElement
 
 const VARIANT_CLASSES: Record<ButtonVariant, string> = {
   primary: 'bg-brand text-brand-on hover:bg-brand-emphasis',
-  secondary: 'bg-gray-100 text-text-primary hover:bg-gray-200',
+  secondary: 'bg-surface-sunken text-text-primary hover:bg-borderStrong/40',
   outline: 'border border-border bg-background text-text-primary hover:bg-surface-sunken',
   destructive: 'bg-danger text-danger-on hover:bg-danger-emphasis',
   text: 'bg-transparent text-brand hover:bg-brand-subtle',

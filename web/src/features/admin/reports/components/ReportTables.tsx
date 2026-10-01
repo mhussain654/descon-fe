@@ -1,3 +1,4 @@
+import { FileX, RefreshCw, UserX, XCircle } from 'lucide-react';
 import {
   Card,
   DataTable,
@@ -15,7 +16,9 @@ import type {
   StatusSummaryRow,
   TrendPoint,
 } from '../../../../lib/admin-reports-client';
-import type { TranslationKey } from '../../../../../../shared/i18n/translations';
+import { formatNumber } from '../../../../../../shared/i18n/locale';
+import type { Language, TranslationKey } from '../../../../../../shared/i18n/translations';
+import { CategoryBarChart, CategoryDonutChart } from './ReportCharts';
 
 export type TFn = (key: TranslationKey) => string;
 
@@ -41,18 +44,32 @@ export function StatusSummaryTable({ rows, t }: { rows: StatusSummaryRow[]; t: T
     { key: 'stage', header: t('reportColumnStage'), render: (row) => stageLabel(row.code, t) },
     { key: 'count', header: t('reportColumnCount'), render: (row) => row.count },
   ];
+  const chartData = rows.map((row) => ({ key: row.code, label: stageLabel(row.code, t), value: row.count }));
+  const hasChartData = chartData.some((d) => d.value > 0);
   return (
-    <Card noPadding>
-      <DataTable columns={columns} rows={rows} getRowId={(row) => row.code} emptyState={emptyState(t)} />
-    </Card>
+    <div className="flex flex-col gap-4">
+      {hasChartData ? (
+        <Card>
+          <CategoryBarChart data={chartData} />
+        </Card>
+      ) : null}
+      <Card noPadding>
+        <DataTable columns={columns} rows={rows} getRowId={(row) => row.code} emptyState={emptyState(t)} />
+      </Card>
+    </div>
   );
 }
 
-export function CraftSummaryTable({ rows, t }: { rows: CraftSummaryRow[]; t: TFn }) {
+export function CraftSummaryTable({ rows, t, language }: { rows: CraftSummaryRow[]; t: TFn; language: Language }) {
   const columns: DataTableColumn<CraftSummaryRow>[] = [
     { key: 'name', header: t('reportColumnName'), render: (row) => row.name },
     { key: 'total', header: t('reportColumnTotal'), render: (row) => row.total },
     { key: 'mobilized', header: t('reportColumnMobilized'), render: (row) => row.mobilized },
+    {
+      key: 'rate',
+      header: t('reportColumnRate'),
+      render: (row) => `${formatNumber(row.total > 0 ? (row.mobilized / row.total) * 100 : 0, language, { maximumFractionDigits: 1 })}%`,
+    },
   ];
   return (
     <Card noPadding>
@@ -67,10 +84,19 @@ export function ConversionTable({ rows, t }: { rows: ConversionRow[]; t: TFn }) 
     { key: 'count', header: t('reportColumnCount'), render: (row) => row.count },
     { key: 'percentage', header: t('reportColumnPercentage'), render: (row) => `${row.percentage}%` },
   ];
+  const chartData = rows.map((row) => ({ key: row.code, label: stageLabel(row.code, t), value: row.count }));
+  const hasChartData = chartData.some((d) => d.value > 0);
   return (
-    <Card noPadding>
-      <DataTable columns={columns} rows={rows} getRowId={(row) => row.code} emptyState={emptyState(t)} />
-    </Card>
+    <div className="flex flex-col gap-4">
+      {hasChartData ? (
+        <Card>
+          <CategoryBarChart data={chartData} />
+        </Card>
+      ) : null}
+      <Card noPadding>
+        <DataTable columns={columns} rows={rows} getRowId={(row) => row.code} emptyState={emptyState(t)} />
+      </Card>
+    </div>
   );
 }
 
@@ -91,10 +117,16 @@ function MobilizationRowTable({ rows, t }: { rows: MobilizationRow[]; t: TFn }) 
     { key: 'name', header: t('reportColumnName'), render: (row) => row.name },
     { key: 'count', header: t('reportColumnCount'), render: (row) => row.count },
   ];
+  const chartData = rows.map((row) => ({ key: row.code, label: row.name, value: row.count }));
   return (
-    <Card noPadding>
-      <DataTable columns={columns} rows={rows} getRowId={(row) => row.code} emptyState={emptyState(t)} />
-    </Card>
+    <div className="flex flex-col gap-4">
+      <div className="flex justify-center">
+        <CategoryDonutChart data={chartData} />
+      </div>
+      <Card noPadding>
+        <DataTable columns={columns} rows={rows} getRowId={(row) => row.code} emptyState={emptyState(t)} />
+      </Card>
+    </div>
   );
 }
 
@@ -114,14 +146,24 @@ export function MobilizationTables({ summary, t }: { summary: MobilizationSummar
 }
 
 export function OutcomeTrackingTiles({ summary, t }: { summary: OutcomeTracking; t: TFn }) {
+  const chartData = [
+    { key: 'rejectedDocuments', label: t('reportOutcomeRejectedDocuments'), value: summary.rejectedDocuments, tone: 'danger' as const },
+    { key: 'qvcReMedical', label: t('reportOutcomeQvcReMedical'), value: summary.qvcReMedical, tone: 'warning' as const },
+    { key: 'qvcRejected', label: t('reportOutcomeQvcRejected'), value: summary.qvcRejected, tone: 'danger' as const },
+    { key: 'qvcNoShow', label: t('reportOutcomeQvcNoShow'), value: summary.qvcNoShow, tone: 'neutral' as const },
+    { key: 'visaRejected', label: t('reportOutcomeVisaRejected'), value: summary.visaRejected, tone: 'danger' as const },
+  ];
   return (
     <Card>
-      <div className="flex flex-wrap gap-2">
-        <StatTile value={summary.rejectedDocuments} label={t('reportOutcomeRejectedDocuments')} className="bg-[#FEF2F2] text-[#EF4444]" />
-        <StatTile value={summary.qvcReMedical} label={t('reportOutcomeQvcReMedical')} className="bg-[#FFF7E6] text-[#F59E0B]" />
-        <StatTile value={summary.qvcRejected} label={t('reportOutcomeQvcRejected')} className="bg-[#FEF2F2] text-[#EF4444]" />
-        <StatTile value={summary.qvcNoShow} label={t('reportOutcomeQvcNoShow')} className="bg-[#F6F6F6] text-[#6B7280]" />
-        <StatTile value={summary.visaRejected} label={t('reportOutcomeVisaRejected')} className="bg-[#FEF2F2] text-[#EF4444]" />
+      <div className="flex flex-col items-center gap-4 sm:flex-row">
+        <CategoryDonutChart data={chartData} />
+        <div className="flex flex-1 flex-wrap gap-2">
+          <StatTile value={summary.rejectedDocuments} label={t('reportOutcomeRejectedDocuments')} className="bg-danger-subtle text-danger-emphasis" icon={<FileX />} />
+          <StatTile value={summary.qvcReMedical} label={t('reportOutcomeQvcReMedical')} className="bg-warning-subtle text-warning-emphasis" icon={<RefreshCw />} />
+          <StatTile value={summary.qvcRejected} label={t('reportOutcomeQvcRejected')} className="bg-danger-subtle text-danger-emphasis" icon={<XCircle />} />
+          <StatTile value={summary.qvcNoShow} label={t('reportOutcomeQvcNoShow')} className="bg-surface-sunken text-text-secondary" icon={<UserX />} />
+          <StatTile value={summary.visaRejected} label={t('reportOutcomeVisaRejected')} className="bg-danger-subtle text-danger-emphasis" icon={<XCircle />} />
+        </div>
       </div>
     </Card>
   );

@@ -68,6 +68,11 @@ describe("CandidateImportHistoryPage", () => {
     renderAt("/admin/candidates/import/history", client);
 
     expect(await screen.findByText("Import history")).toBeInTheDocument();
+    // Drain the query fully before the test ends -- otherwise a still-in-flight
+    // fetch can resolve during the next test and get recorded against this
+    // same module-level mock, which `afterEach` only resets the call log of,
+    // not any promise already underway.
+    await waitFor(() => expect(candidateImportClient.listImportHistory).toHaveBeenCalledTimes(1));
   });
 
   it("redirects a staff member without manage_candidates to the forbidden route", async () => {

@@ -8,14 +8,29 @@
 // reports catalogue.
 //
 // Web-only (AGENTS.md: "administrative workflows remain web-focused").
-import type { CraftSummaryRow, MobilizationSummary, StatusSummaryRow, TrendGranularity, TrendPoint } from '../adminReports/types';
+import type { ConversionRow, CraftSummaryRow, DashboardFilters, MobilizationSummary, StatusSummaryRow, TrendGranularity, TrendPoint } from '../adminReports/types';
 
 export type { TrendGranularity };
+
+/** Same shape every admin dashboard shares -- see DashboardFilters in shared/adminReports/types.ts. */
+export type MpsDashboardFilters = DashboardFilters;
 
 /** "Delayed"/"critical" thresholds (7/14 days in the current stage) are a documented backend implementation default, not a confirmed stakeholder value -- `critical` is also counted within `delayed`. */
 export interface DelayedCases {
   delayed: number;
   critical: number;
+}
+
+/** The single most recently mobilized candidate in scope -- null when nothing has been mobilized yet. */
+export interface LatestMobilization {
+  candidateFullName: string;
+  candidatePublicId: string;
+  candidateAssignmentPublicId: string;
+  referenceNumber: string;
+  countryName: string;
+  projectName: string;
+  craftName: string;
+  mobilizedAt: string;
 }
 
 export interface MpsDashboardSummary {
@@ -24,6 +39,9 @@ export interface MpsDashboardSummary {
   craftSummary: CraftSummaryRow[];
   mobilization: MobilizationSummary;
   mobilizationTrend: TrendPoint[];
+  /** Reused unchanged from the Admin dashboard's own conversion_funnel -- same ConversionQuery, same real data. */
+  conversionFunnel: ConversionRow[];
+  latestMobilization: LatestMobilization | null;
 }
 
 export type MpsDashboardErrorCode =
@@ -44,5 +62,5 @@ export interface MpsDashboardError {
 }
 
 export interface MpsDashboardClient {
-  getDashboard(granularity?: TrendGranularity): Promise<MpsDashboardSummary>;
+  getDashboard(granularity?: TrendGranularity, filters?: MpsDashboardFilters): Promise<MpsDashboardSummary>;
 }
