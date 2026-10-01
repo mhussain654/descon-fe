@@ -6,6 +6,7 @@ import { formatDate } from '../../../../../../shared/i18n/locale';
 import type { AiCallOperationalSetting } from '../../../../lib/admin-ai-call-operational-settings-client';
 import { useAiCallOperationalSettings } from '../hooks/useAiCallOperationalSettings';
 import { useUpdateAiCallOperationalSettings } from '../hooks/useUpdateAiCallOperationalSettings';
+import { Clock3, Gauge, PhoneCall, Save, ShieldCheck } from 'lucide-react';
 
 /** A settings field's controlled string state -- empty string represents "unset" (null server-side, falls back to the ENV default), distinct from any numeric value including 0. */
 type FieldState = Record<
@@ -90,9 +91,22 @@ export function AiCallOperationalSettingsForm() {
   const errorMessage = mutation.isError && mutation.error.code === 'VALIDATION_FAILED' ? mutation.error.message : undefined;
 
   return (
-    <Card>
-      <div className="space-y-4">
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+    <div className="space-y-5">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+        <SettingSummary icon={PhoneCall} label={t('adminAiCallSettingsDailySummary')} value={fields.dailyOutboundCallLimit || t('adminAiCallSettingsDefaultPlaceholder')} className="border-t-brand bg-brand-subtle/45 text-brand" />
+        <SettingSummary icon={Clock3} label={t('adminAiCallSettingsWindowSummary')} value={fields.callingHoursStart && fields.callingHoursEnd ? `${fields.callingHoursStart}:00–${fields.callingHoursEnd}:00` : t('adminAiCallSettingsDefaultPlaceholder')} className="border-t-info bg-info-subtle/55 text-info-emphasis" />
+        <SettingSummary icon={ShieldCheck} label={t('adminAiCallSettingsDurationSummary')} value={fields.maxCallDurationMinutes ? `${fields.maxCallDurationMinutes} ${t('adminAiCallSettingsMinutesShort')}` : t('adminAiCallSettingsDefaultPlaceholder')} className="border-t-success bg-success-subtle/55 text-success-emphasis" />
+      </div>
+
+      <Card className="p-0 overflow-hidden">
+        <div className="flex items-center gap-3 border-b border-border-subtle bg-surface-sunken px-5 py-4">
+          <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-brand-subtle text-brand"><Gauge className="h-4 w-4" aria-hidden="true" /></span>
+          <div>
+            <h2 className="font-semibold text-text-primary">{t('adminAiCallSettingsLimitsTitle')}</h2>
+            <p className="text-xs text-text-secondary">{t('adminAiCallSettingsLimitsDescription')}</p>
+          </div>
+        </div>
+        <div className="grid grid-cols-1 gap-4 p-5 sm:grid-cols-2">
           <Input
             type="number"
             min={0}
@@ -129,6 +143,18 @@ export function AiCallOperationalSettingsForm() {
             value={fields.maxCallDurationMinutes}
             onChange={setField('maxCallDurationMinutes')}
           />
+        </div>
+      </Card>
+
+      <Card className="p-0 overflow-hidden">
+        <div className="flex items-center gap-3 border-b border-border-subtle bg-surface-sunken px-5 py-4">
+          <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-info-subtle text-info-emphasis"><Clock3 className="h-4 w-4" aria-hidden="true" /></span>
+          <div>
+            <h2 className="font-semibold text-text-primary">{t('adminAiCallSettingsCallingWindowTitle')}</h2>
+            <p className="text-xs text-text-secondary">{t('adminAiCallSettingsCallingWindowDescription')}</p>
+          </div>
+        </div>
+        <div className="grid grid-cols-1 gap-4 p-5 sm:grid-cols-2">
           <Input
             type="number"
             min={0}
@@ -150,20 +176,33 @@ export function AiCallOperationalSettingsForm() {
             onChange={setField('callingHoursEnd')}
           />
         </div>
+      </Card>
 
-        {errorMessage ? <ValidationMessage>{errorMessage}</ValidationMessage> : null}
+      {errorMessage ? <ValidationMessage>{errorMessage}</ValidationMessage> : null}
 
-        <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border-subtle pt-4">
+      <Card className="flex flex-wrap items-center justify-between gap-3 p-4">
           <HelperText>
             {t('adminAiCallSettingsUpdatedBy')}:{' '}
             {settings.updatedBy ? `${settings.updatedBy.role} (${settings.updatedBy.id})` : t('adminCommunicationSystemActor')} ·{' '}
             {formatDate(settings.updatedAt, language, { dateStyle: 'medium', timeStyle: 'short' })}
           </HelperText>
           <Button onClick={handleSave} loading={mutation.isPending}>
+            <Save className="me-1.5 h-4 w-4" aria-hidden="true" />
             {t('adminAiCallSettingsSaveAction')}
           </Button>
-        </div>
+      </Card>
+    </div>
+  );
+}
+
+function SettingSummary({ icon: Icon, label, value, className }: { icon: typeof PhoneCall; label: string; value: string; className: string }) {
+  return (
+    <div className={`rounded-xl border border-border border-t-4 p-4 shadow-sm ${className}`}>
+      <div className="mb-3 flex items-center justify-between gap-3">
+        <span className="text-xs font-semibold uppercase tracking-wide text-text-secondary">{label}</span>
+        <Icon className="h-4 w-4" aria-hidden="true" />
       </div>
-    </Card>
+      <div className="truncate text-lg font-semibold tracking-tight text-text-primary">{value}</div>
+    </div>
   );
 }

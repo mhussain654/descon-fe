@@ -10,7 +10,7 @@
 //
 // Web-only (AGENTS.md: "administrative workflows remain web-focused").
 import type { DocumentReviewQueueSummary } from '../adminDocumentReviews/types';
-import type { ConversionRow, StatusSummaryRow } from '../adminReports/types';
+import type { ConversionRow, DashboardFilters, StatusSummaryRow } from '../adminReports/types';
 
 export interface CandidateWorkload {
   totalActiveCandidates: number;
@@ -94,12 +94,8 @@ export interface AdminDashboardError {
   field?: string;
 }
 
-/** Scopes every dashboard section to candidates whose current assignment matches -- see descon-be's Admin::Reports::DashboardFilterResolution. */
-export interface AdminDashboardFilters {
-  countryCode?: string;
-  projectCode?: string;
-  craftCode?: string;
-}
+/** Scopes every dashboard section to candidates whose current assignment matches -- see descon-be's Admin::Reports::DashboardFilterResolution. Same shape every admin dashboard shares -- see DashboardFilters in shared/adminReports/types.ts. */
+export type AdminDashboardFilters = DashboardFilters;
 
 export interface AdminDashboardClient {
   getDashboard(filters?: AdminDashboardFilters): Promise<AdminDashboardSummary>;

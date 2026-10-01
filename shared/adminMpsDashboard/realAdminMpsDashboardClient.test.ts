@@ -52,6 +52,17 @@ const dashboardPayload = {
     by_project: [{ code: 'proj-1', name: 'Project One', count: 15 }],
   },
   mobilization_trend: [{ period: '2026-06-01', count: 15 }],
+  conversion_funnel: [{ code: 'documents_uploaded', count: 96, percentage: 75.0 }],
+  latest_mobilization: {
+    candidate_full_name: 'Ahmed Khan',
+    candidate_public_id: 'candidate-1',
+    candidate_assignment_public_id: 'assignment-1',
+    reference_number: 'REF-000123',
+    country_name: 'Qatar',
+    project_name: 'Project One',
+    craft_name: 'Electrician',
+    mobilized_at: '2026-09-01T09:48:00Z',
+  },
 };
 
 describe('createAdminMpsDashboardClient (real)', () => {
@@ -74,8 +85,28 @@ describe('createAdminMpsDashboardClient (real)', () => {
         byProject: [{ code: 'proj-1', name: 'Project One', count: 15 }],
       },
       mobilizationTrend: [{ period: '2026-06-01', count: 15 }],
+      conversionFunnel: [{ code: 'documents_uploaded', count: 96, percentage: 75.0 }],
+      latestMobilization: {
+        candidateFullName: 'Ahmed Khan',
+        candidatePublicId: 'candidate-1',
+        candidateAssignmentPublicId: 'assignment-1',
+        referenceNumber: 'REF-000123',
+        countryName: 'Qatar',
+        projectName: 'Project One',
+        craftName: 'Electrician',
+        mobilizedAt: '2026-09-01T09:48:00Z',
+      },
     });
     expect(seenUrl).toBe('http://example.test/api/v1/admin/mps_dashboard');
+  });
+
+  it('maps a null latest_mobilization through unchanged', async () => {
+    stubFetch(async () => jsonResponse(successEnvelope({ ...dashboardPayload, latest_mobilization: null })));
+    const { client } = buildClient();
+
+    const result = await client.getDashboard();
+
+    expect(result.latestMobilization).toBeNull();
   });
 
   it('appends a granularity query param when given', async () => {
@@ -89,6 +120,29 @@ describe('createAdminMpsDashboardClient (real)', () => {
     await client.getDashboard('weekly');
 
     expect(seenUrl).toBe('http://example.test/api/v1/admin/mps_dashboard?granularity=weekly');
+  });
+
+  it('appends filter query params alongside granularity', async () => {
+    let seenUrl = '';
+    stubFetch(async (url) => {
+      seenUrl = String(url);
+      return jsonResponse(successEnvelope(dashboardPayload));
+    });
+    const { client } = buildClient();
+
+    await client.getDashboard('weekly', { countryCode: 'pk' });
+
+    expect(seenUrl).toBe('http://example.test/api/v1/admin/mps_dashboard?granularity=weekly&filter%5Bcountry_code%5D=pk');
+  });
+
+  it('rejects an unknown filter code as BAD_REQUEST', async () => {
+    stubFetch(async () => jsonResponse(errorEnvelope([{ code: 'invalid_query_parameter', message: 'Bad filter' }]), { status: 400 }));
+    const { client } = buildClient();
+
+    await expect(client.getDashboard(undefined, { countryCode: 'not_a_real_country' })).rejects.toEqual({
+      code: 'BAD_REQUEST',
+      message: 'Bad filter',
+    });
   });
 
   it('rejects an unsupported granularity as BAD_REQUEST', async () => {

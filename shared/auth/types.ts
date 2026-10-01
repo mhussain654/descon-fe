@@ -89,4 +89,13 @@ export interface CandidateAuthClient {
   /** Identical to requestOtp on the real backend -- there is no separate resend endpoint, a repeat request just re-delivers within the same cooldown window. Kept as a distinct method so the UI's intent ("the candidate asked to resend") stays explicit and independently testable. */
   resendOtp(cnic: string): Promise<OtpChallenge>;
   verifyOtp(cnic: string, code: string): Promise<AuthSession>;
+  /**
+   * Exchanges the session's refresh token for a fresh session (new access
+   * token and a rotated refresh token) without a new OTP. Rejects with
+   * `SESSION_EXPIRED` only when the server confirms the refresh token is
+   * invalid, expired, revoked or its account inactive -- any other failure
+   * (offline, network, rate limit) is transient and the caller should keep
+   * the current session and retry.
+   */
+  refreshSession(refreshToken: string): Promise<AuthSession>;
 }

@@ -1,9 +1,8 @@
-import { Sparkles } from 'lucide-react';
-import { Link } from 'react-router';
 import { formatNumber } from '../../../../../../shared/i18n/locale';
 import type { Language } from '../../../../../../shared/i18n/translations';
 import type { AdminDashboardSummary } from '../../../../../../shared/adminDashboard/types';
 import type { TFn } from '../../reports/components/ReportTables';
+import { InsightBanner } from '../../reports/components/InsightBanner';
 import { ATTENTION_HINT_KEYS, ATTENTION_LABEL_KEYS, ATTENTION_LINK_PATH } from '../requiresAttentionMeta';
 
 interface Insight {
@@ -36,31 +35,16 @@ function buildInsight(data: AdminDashboardSummary, t: TFn, language: Language): 
   return null;
 }
 
-/**
- * A single real, computed sentence about the pipeline's current state --
- * never AI-generated prose. Built only from numbers the dashboard response
- * already contains (requires_attention/conversion_funnel), so it can never
- * say something the panels below don't already back up. Renders nothing
- * when there's genuinely no data to summarize yet.
- */
 export function OperationalInsightBanner({ data, t, language }: { data: AdminDashboardSummary; t: TFn; language: Language }) {
   const insight = buildInsight(data, t, language);
   if (!insight) return null;
 
   return (
-    <div className="mb-6 flex flex-col gap-2 rounded-xl border border-brand/20 bg-brand-subtle px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
-      <div className="flex items-start gap-3">
-        <Sparkles className="mt-0.5 h-4 w-4 shrink-0 text-brand" aria-hidden="true" />
-        <div>
-          <div className="text-sm font-semibold text-text-primary">{t('adminDashboardInsightTitle')}</div>
-          <p className="text-sm text-text-secondary">{insight.text}</p>
-        </div>
-      </div>
-      {insight.linkPath ? (
-        <Link to={insight.linkPath} className="shrink-0 text-sm font-medium text-brand hover:underline">
-          {t('adminDashboardInsightReviewLink')}
-        </Link>
-      ) : null}
-    </div>
+    <InsightBanner
+      title={t('adminDashboardInsightTitle')}
+      text={insight.text}
+      linkPath={insight.linkPath}
+      linkLabel={t('adminDashboardInsightReviewLink')}
+    />
   );
 }

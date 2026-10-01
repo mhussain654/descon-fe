@@ -57,8 +57,8 @@ function candidate(overrides = {}) {
   };
 }
 
-function listResult(items, pagination = { page: 1, perPage: 20, totalCount: items.length, totalPages: 1 }, appliedFilters = {}) {
-  return { items, pagination, appliedFilters };
+function listResult(items, pagination = { page: 1, perPage: 20, totalCount: items.length, totalPages: 1 }, appliedFilters = {}, summary = []) {
+  return { items, pagination, appliedFilters, summary };
 }
 
 function renderAt(path, client) {
@@ -172,12 +172,36 @@ describe("AdminCandidateListPage", () => {
       expect(screen.getByText("42101-1234567-1")).toBeInTheDocument();
       expect(screen.getByText("+923001234567")).toBeInTheDocument();
       expect(screen.getByText("DES-000123")).toBeInTheDocument();
-      expect(screen.getByText("Qatar")).toBeInTheDocument();
+      // Country and craft render together in one text node ("Qatar · Electrician"), not as separate nodes.
+      expect(screen.getByText(/Qatar · Electrician/)).toBeInTheDocument();
       expect(screen.getByText("Qatar Infrastructure")).toBeInTheDocument();
-      expect(screen.getByText("Electrician")).toBeInTheDocument();
       // "Documents Pending" appears twice: once as the row's own stage
       // badge, once as an option in the status filter select.
       expect(screen.getAllByText("Documents Pending").length).toBeGreaterThan(0);
+    });
+
+    it("shows the real, zero-filled per-stage pipeline breakdown from the backend", async () => {
+      adminCandidateClient.listCandidates.mockResolvedValue(
+        listResult([candidate()], undefined, {}, [
+          { code: "registered", count: 12 },
+          { code: "documents_pending", count: 5 },
+          { code: "mobilized", count: 0 },
+        ])
+      );
+      const client = await signInAs(HR);
+      renderAt("/admin", client);
+
+      expect(await screen.findByText("Pipeline breakdown")).toBeInTheDocument();
+      expect(screen.getByText("12")).toBeInTheDocument();
+    });
+
+    it("omits the pipeline breakdown card when the backend returns no summary", async () => {
+      adminCandidateClient.listCandidates.mockResolvedValue(listResult([candidate()]));
+      const client = await signInAs(HR);
+      renderAt("/admin", client);
+
+      await screen.findByText("Ahmed Ali");
+      expect(screen.queryByText("Pipeline breakdown")).not.toBeInTheDocument();
     });
 
     it("links each row to its candidate detail page", async () => {

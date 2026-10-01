@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useLanguage } from '../../../../contexts/LanguageContext';
-import { Badge, Button, ConfirmDialog, Select, Textarea } from '../../../../design-system';
+import { Badge, Button, Card, ConfirmDialog, Select, Textarea } from '../../../../design-system';
+import { Languages, Pencil } from 'lucide-react';
 import { formatDate } from '../../../../../../shared/i18n/locale';
 import { WORKFLOW_STAGE_LABEL_KEYS } from '../../../../../../shared/adminWorkflow/canonicalStages';
 import type { WorkflowStageCallScript } from '../../../../lib/admin-workflow-stage-call-scripts-client';
@@ -36,24 +37,26 @@ function ViewMode({ script, onEdit }: { script: WorkflowStageCallScript; onEdit:
   const { t, language } = useLanguage();
 
   return (
-    <div className="border-b border-border-subtle py-5 first:pt-0 last:border-b-0 last:pb-0">
-      <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+    <Card className="h-full border-t-4 border-t-brand p-5 transition hover:-translate-y-0.5 hover:shadow-md">
+      <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
         <div className="flex flex-wrap items-center gap-2">
+          <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-brand-subtle text-brand"><Languages className="h-4 w-4" aria-hidden="true" /></span>
           <h3 className="text-sm font-semibold text-text-primary">{t(WORKFLOW_STAGE_LABEL_KEYS[script.workflowStageCode])}</h3>
           <Badge tone={script.active ? 'success' : 'neutral'}>
             {script.active ? t('adminWorkflowStageCallScriptActive') : t('adminWorkflowStageCallScriptInactive')}
           </Badge>
         </div>
         <Button variant="outline" size="sm" onClick={onEdit}>
+          <Pencil className="me-1.5 h-3.5 w-3.5" aria-hidden="true" />
           {t('adminWorkflowStageCallScriptEditAction')}
         </Button>
       </div>
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-        <div className="rounded-lg bg-surface-sunken p-3">
+        <div className="rounded-xl border border-border-subtle bg-surface-sunken p-3">
           <p className="mb-1 text-xs font-medium text-text-tertiary">{t('adminWorkflowStageCallScriptLanguageEn')}</p>
           <p className="whitespace-pre-wrap text-sm text-text-secondary">{script.announcementEn}</p>
         </div>
-        <div className="rounded-lg bg-surface-sunken p-3">
+        <div className="rounded-xl border border-border-subtle bg-surface-sunken p-3">
           <p className="mb-1 text-xs font-medium text-text-tertiary">{t('adminWorkflowStageCallScriptLanguageUr')}</p>
           <p dir="rtl" className="whitespace-pre-wrap text-sm text-text-secondary">
             {script.announcementUr || <span className="italic text-text-tertiary">{t('adminWorkflowStageCallScriptNoUrduYet')}</span>}
@@ -65,7 +68,7 @@ function ViewMode({ script, onEdit }: { script: WorkflowStageCallScript; onEdit:
         {script.updatedBy ? `${script.updatedBy.role} (${script.updatedBy.id})` : t('adminCommunicationSystemActor')} ·{' '}
         {formatDate(script.updatedAt, language, { dateStyle: 'medium', timeStyle: 'short' })}
       </p>
-    </div>
+    </Card>
   );
 }
 
@@ -110,7 +113,7 @@ function EditMode({ script, onDone }: { script: WorkflowStageCallScript; onDone:
   const errorMessage = mutation.isError && mutation.error.code === 'VALIDATION_FAILED' ? mutation.error.message : undefined;
 
   return (
-    <div className="border-b border-border-subtle py-5 first:pt-0 last:border-b-0 last:pb-0">
+    <Card className="h-full border-t-4 border-t-warning p-5 shadow-md">
       <h3 className="mb-3 text-sm font-semibold text-text-primary">{t(WORKFLOW_STAGE_LABEL_KEYS[script.workflowStageCode])}</h3>
       <div className="space-y-3">
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
@@ -162,6 +165,6 @@ function EditMode({ script, onDone }: { script: WorkflowStageCallScript; onDone:
         onConfirm={handleConfirm}
         isConfirming={mutation.isPending}
       />
-    </div>
+    </Card>
   );
 }

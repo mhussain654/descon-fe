@@ -66,10 +66,17 @@ export interface AuditEventListPagination {
   totalPages: number;
 }
 
+/** Top observed entity-type counts, descending -- not zero-filled (entity_type has no fixed enum). Scoped by every active filter except `entity_type`. */
+export interface AuditEventEntityTypeSummaryRow {
+  code: string;
+  count: number;
+}
+
 export interface AuditEventListResult {
   items: AuditEvent[];
   pagination: AuditEventListPagination;
   appliedFilters: Record<string, string>;
+  summary: AuditEventEntityTypeSummaryRow[];
 }
 
 export type AuditEventErrorCode =

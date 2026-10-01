@@ -35,9 +35,16 @@ export interface SystemBackupListPagination {
   totalPages: number;
 }
 
+/** Zero-filled count for one backup status -- covers the whole table, no filters apply to this endpoint. */
+export interface SystemBackupStatusSummaryRow {
+  code: SystemBackupStatus;
+  count: number;
+}
+
 export interface SystemBackupListResult {
   items: SystemBackup[];
   pagination: SystemBackupListPagination;
+  summary: SystemBackupStatusSummaryRow[];
 }
 
 export interface SystemBackupAccess {

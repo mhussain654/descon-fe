@@ -16,7 +16,8 @@ import type {
   StatusSummaryRow,
   TrendPoint,
 } from '../../../../lib/admin-reports-client';
-import type { TranslationKey } from '../../../../../../shared/i18n/translations';
+import { formatNumber } from '../../../../../../shared/i18n/locale';
+import type { Language, TranslationKey } from '../../../../../../shared/i18n/translations';
 import { CategoryBarChart, CategoryDonutChart } from './ReportCharts';
 
 export type TFn = (key: TranslationKey) => string;
@@ -59,11 +60,16 @@ export function StatusSummaryTable({ rows, t }: { rows: StatusSummaryRow[]; t: T
   );
 }
 
-export function CraftSummaryTable({ rows, t }: { rows: CraftSummaryRow[]; t: TFn }) {
+export function CraftSummaryTable({ rows, t, language }: { rows: CraftSummaryRow[]; t: TFn; language: Language }) {
   const columns: DataTableColumn<CraftSummaryRow>[] = [
     { key: 'name', header: t('reportColumnName'), render: (row) => row.name },
     { key: 'total', header: t('reportColumnTotal'), render: (row) => row.total },
     { key: 'mobilized', header: t('reportColumnMobilized'), render: (row) => row.mobilized },
+    {
+      key: 'rate',
+      header: t('reportColumnRate'),
+      render: (row) => `${formatNumber(row.total > 0 ? (row.mobilized / row.total) * 100 : 0, language, { maximumFractionDigits: 1 })}%`,
+    },
   ];
   return (
     <Card noPadding>

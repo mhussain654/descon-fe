@@ -15,6 +15,8 @@ import {
   Menu,
   MessageSquare,
   Moon,
+  PanelLeftClose,
+  PanelLeftOpen,
   ScrollText,
   SlidersHorizontal,
   Sun,
@@ -40,7 +42,7 @@ type NavEntry =
   | { type: 'link'; href: string; labelKey: TranslationKey; visible: boolean; icon: IconType }
   | { type: 'group'; key: string; children: NavLeaf[] };
 
-const SIDEBAR_WIDTH_CLASSNAME = 'lg:w-64';
+const SIDEBAR_STATE_STORAGE_KEY = 'descon.admin.sidebar.collapsed';
 // The sidebar itself is a deliberate exception to this app's usual light
 // surface tokens (bg-surface-raised, border-border, ...): every reference
 // admin dashboard reviewed for this redesign (Admindek, Tailboard, Magnus)
@@ -75,6 +77,8 @@ const ACCOUNT_MENU_LINK_CLASSNAME =
 // slate palette instead, regardless of theme.
 const SIDEBAR_ACCOUNT_MENU_PANEL_CLASSNAME =
   'absolute bottom-full start-3 end-3 z-fixed mb-1.5 overflow-hidden rounded-xl border border-slate-700 bg-slate-800 py-1 shadow-lg';
+const COLLAPSED_SIDEBAR_ACCOUNT_MENU_PANEL_CLASSNAME =
+  'absolute bottom-full start-2 z-fixed mb-1.5 w-56 overflow-hidden rounded-xl border border-slate-700 bg-slate-800 py-1 shadow-lg';
 const SIDEBAR_ACCOUNT_MENU_LINK_CLASSNAME =
   'flex items-center gap-2 px-3 py-2 text-sm font-medium transition-colors text-slate-300 hover:bg-slate-700 hover:text-white';
 
@@ -105,6 +109,10 @@ function StaffShellContent({ children }: { children: ReactNode }) {
   const { theme } = useAdminTheme();
   const location = useLocation();
   const [isMobileNavOpen, setIsMobileNavOpen] = useState(false);
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(() => {
+    if (typeof window === 'undefined') return false;
+    return window.localStorage.getItem(SIDEBAR_STATE_STORAGE_KEY) === 'true';
+  });
   const [isAccountMenuOpen, setIsAccountMenuOpen] = useState(false);
   const [isHeaderAccountMenuOpen, setIsHeaderAccountMenuOpen] = useState(false);
   const accountMenuRef = useRef<HTMLDivElement | null>(null);
@@ -124,6 +132,11 @@ function StaffShellContent({ children }: { children: ReactNode }) {
   // useDismissableMenu.
   useDismissableMenu(accountMenuRef, isAccountMenuOpen, () => setIsAccountMenuOpen(false));
   useDismissableMenu(headerAccountMenuRef, isHeaderAccountMenuOpen, () => setIsHeaderAccountMenuOpen(false));
+
+  useEffect(() => {
+    window.localStorage.setItem(SIDEBAR_STATE_STORAGE_KEY, String(isSidebarCollapsed));
+    if (isSidebarCollapsed) setIsAccountMenuOpen(false);
+  }, [isSidebarCollapsed]);
 
   if (!session) return null;
 
@@ -318,13 +331,18 @@ function StaffShellContent({ children }: { children: ReactNode }) {
               setIsAccountMenuOpen={setIsAccountMenuOpen}
               accountMenuRef={null}
               onNavigate={() => setIsMobileNavOpen(false)}
+              isCollapsed={false}
               t={t}
             />
           </div>
         </>
       )}
 
-      <div className={`fixed inset-y-0 start-0 z-fixed hidden flex-col border-e lg:flex ${SIDEBAR_WIDTH_CLASSNAME} ${SIDEBAR_SURFACE_CLASSNAME}`}>
+      <div
+        className={`fixed inset-y-0 start-0 z-fixed hidden flex-col border-e transition-[width] duration-200 lg:flex ${
+          isSidebarCollapsed ? 'lg:w-16' : 'lg:w-64'
+        } ${SIDEBAR_SURFACE_CLASSNAME}`}
+      >
         <SidebarContent
           navLabel={navLabel}
           roleLabel={roleLabel}
@@ -336,8 +354,18 @@ function StaffShellContent({ children }: { children: ReactNode }) {
           setIsAccountMenuOpen={setIsAccountMenuOpen}
           accountMenuRef={accountMenuRef}
           onNavigate={undefined}
+          isCollapsed={isSidebarCollapsed}
           t={t}
         />
+        <button
+          type="button"
+          aria-label={isSidebarCollapsed ? t('staffNavExpandSidebar') : t('staffNavCollapseSidebar')}
+          aria-expanded={!isSidebarCollapsed}
+          onClick={() => setIsSidebarCollapsed((collapsed) => !collapsed)}
+          className="absolute -end-3 top-5 z-10 flex h-7 w-7 items-center justify-center rounded-full border border-slate-700 bg-slate-800 text-slate-300 shadow-md transition-colors hover:bg-brand hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2 focus-visible:ring-offset-slate-900"
+        >
+          {isSidebarCollapsed ? <PanelLeftOpen className="h-4 w-4" aria-hidden="true" /> : <PanelLeftClose className="h-4 w-4" aria-hidden="true" />}
+        </button>
       </div>
 
       {/* Desktop-only top header, to the right of the persistent sidebar --
@@ -354,10 +382,11 @@ function StaffShellContent({ children }: { children: ReactNode }) {
         isHeaderAccountMenuOpen={isHeaderAccountMenuOpen}
         setIsHeaderAccountMenuOpen={setIsHeaderAccountMenuOpen}
         headerAccountMenuRef={headerAccountMenuRef}
+        isSidebarCollapsed={isSidebarCollapsed}
         t={t}
       />
 
-      <main className="lg:ms-64">{children}</main>
+      <main className={`transition-[margin] duration-200 ${isSidebarCollapsed ? 'lg:ms-16' : 'lg:ms-64'}`}>{children}</main>
     </div>
   );
 }
@@ -370,6 +399,7 @@ interface StaffHeaderProps {
   isHeaderAccountMenuOpen: boolean;
   setIsHeaderAccountMenuOpen: (updater: boolean | ((open: boolean) => boolean)) => void;
   headerAccountMenuRef: RefObject<HTMLDivElement | null>;
+  isSidebarCollapsed: boolean;
   t: (key: TranslationKey) => string;
 }
 
@@ -391,6 +421,7 @@ function StaffHeader({
   isHeaderAccountMenuOpen,
   setIsHeaderAccountMenuOpen,
   headerAccountMenuRef,
+  isSidebarCollapsed,
   t,
 }: StaffHeaderProps) {
   const navigate = useNavigate();
@@ -408,7 +439,7 @@ function StaffHeader({
   }
 
   return (
-    <header className="sticky top-0 z-sticky hidden items-center gap-4 border-b border-border bg-surface-raised px-6 py-3 shadow-sm lg:flex lg:ms-64">
+    <header className={`sticky top-0 z-sticky hidden items-center gap-4 border-b border-border bg-surface-raised px-6 py-3 shadow-sm transition-[margin] duration-200 lg:flex ${isSidebarCollapsed ? 'lg:ms-16' : 'lg:ms-64'}`}>
       <form onSubmit={handleSearchSubmit} role="search" className="w-full max-w-sm">
         <SearchField
           value={searchValue}
@@ -463,7 +494,7 @@ function StaffHeader({
   );
 }
 
-function BrandMark({ navLabel }: { navLabel: string }) {
+function BrandMark({ navLabel, isCollapsed = false }: { navLabel: string; isCollapsed?: boolean }) {
   return (
     <div className="flex min-w-0 items-center gap-2.5">
       {/* The logo's own white background doubles as its tile -- a colored
@@ -476,7 +507,7 @@ function BrandMark({ navLabel }: { navLabel: string }) {
         aria-hidden="true"
         className="h-9 w-9 shrink-0 rounded-lg object-cover"
       />
-      <span className="truncate text-base font-bold tracking-tight text-white">{navLabel}</span>
+      <span className={isCollapsed ? 'sr-only' : 'truncate text-base font-bold tracking-tight text-white'}>{navLabel}</span>
     </div>
   );
 }
@@ -493,6 +524,7 @@ interface SidebarContentProps {
   accountMenuRef: RefObject<HTMLDivElement | null> | null;
   /** Present only for the mobile drawer -- closes the drawer after a link click. */
   onNavigate: (() => void) | undefined;
+  isCollapsed: boolean;
   t: (key: TranslationKey) => string;
 }
 
@@ -508,15 +540,16 @@ function SidebarContent({
   setIsAccountMenuOpen,
   accountMenuRef,
   onNavigate,
+  isCollapsed,
   t,
 }: SidebarContentProps) {
   return (
     <>
-      <div className="border-b border-slate-800 px-4 py-4">
-        <BrandMark navLabel={navLabel} />
+      <div className={`border-b border-slate-800 py-4 ${isCollapsed ? 'px-3' : 'px-4'}`}>
+        <BrandMark navLabel={navLabel} isCollapsed={isCollapsed} />
       </div>
 
-      <nav className="flex-1 space-y-1 overflow-y-auto px-2.5 py-3" aria-label={navLabel}>
+      <nav className={`flex-1 space-y-1 overflow-y-auto py-3 ${isCollapsed ? 'px-2' : 'px-2.5'}`} aria-label={navLabel}>
         {resolvedEntries.map((entry, index) => {
           if (entry.type === 'link') {
             const Icon = entry.icon;
@@ -525,10 +558,11 @@ function SidebarContent({
                 key={entry.href}
                 to={entry.href}
                 onClick={onNavigate}
-                className={`${NAV_LINK_CLASSNAME} ${isActive(entry.href) ? NAV_LINK_ACTIVE_CLASSNAME : NAV_LINK_INACTIVE_CLASSNAME}`}
+                title={isCollapsed ? t(entry.labelKey) : undefined}
+                className={`${NAV_LINK_CLASSNAME} ${isCollapsed ? 'justify-center px-0' : ''} ${isActive(entry.href) ? NAV_LINK_ACTIVE_CLASSNAME : NAV_LINK_INACTIVE_CLASSNAME}`}
               >
-                <Icon className="h-4 w-4 shrink-0" aria-hidden="true" />
-                {t(entry.labelKey)}
+                <Icon className="h-5 w-5 shrink-0" aria-hidden="true" />
+                <span className={isCollapsed ? 'sr-only' : undefined}>{t(entry.labelKey)}</span>
               </Link>
             );
           }
@@ -542,10 +576,11 @@ function SidebarContent({
                     key={child.href}
                     to={child.href}
                     onClick={onNavigate}
-                    className={`${NAV_LINK_CLASSNAME} ${isActive(child.href) ? NAV_LINK_ACTIVE_CLASSNAME : NAV_LINK_INACTIVE_CLASSNAME}`}
+                    title={isCollapsed ? t(child.labelKey) : undefined}
+                    className={`${NAV_LINK_CLASSNAME} ${isCollapsed ? 'justify-center px-0' : ''} ${isActive(child.href) ? NAV_LINK_ACTIVE_CLASSNAME : NAV_LINK_INACTIVE_CLASSNAME}`}
                   >
-                    <Icon className="h-4 w-4 shrink-0" aria-hidden="true" />
-                    {t(child.labelKey)}
+                    <Icon className="h-5 w-5 shrink-0" aria-hidden="true" />
+                    <span className={isCollapsed ? 'sr-only' : undefined}>{t(child.labelKey)}</span>
                   </Link>
                 );
               })}
@@ -554,13 +589,13 @@ function SidebarContent({
         })}
       </nav>
 
-      <div className="relative border-t border-slate-800 p-3" ref={accountMenuRef}>
+      <div className={`relative border-t border-slate-800 ${isCollapsed ? 'p-2' : 'p-3'}`} ref={accountMenuRef}>
         <button
           type="button"
           aria-haspopup="true"
           aria-expanded={isAccountMenuOpen}
           onClick={() => setIsAccountMenuOpen((open) => !open)}
-          className="flex w-full items-center gap-2 rounded-lg p-1.5 transition-colors hover:bg-slate-800"
+          className={`flex w-full items-center gap-2 rounded-lg p-1.5 transition-colors hover:bg-slate-800 ${isCollapsed ? 'justify-center' : ''}`}
         >
           <span
             className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-brand text-sm font-semibold text-brand-on"
@@ -568,12 +603,12 @@ function SidebarContent({
           >
             {avatarInitial(session.email)}
           </span>
-          <span className="min-w-0 flex-1 truncate text-start text-sm font-medium text-white">{session.email}</span>
-          <ChevronsUpDown className="h-3.5 w-3.5 shrink-0 text-slate-400" aria-hidden="true" />
+          <span className={isCollapsed ? 'sr-only' : 'min-w-0 flex-1 truncate text-start text-sm font-medium text-white'}>{session.email}</span>
+          {!isCollapsed ? <ChevronsUpDown className="h-3.5 w-3.5 shrink-0 text-slate-400" aria-hidden="true" /> : null}
         </button>
 
         {isAccountMenuOpen && (
-          <div className={SIDEBAR_ACCOUNT_MENU_PANEL_CLASSNAME}>
+          <div className={isCollapsed ? COLLAPSED_SIDEBAR_ACCOUNT_MENU_PANEL_CLASSNAME : SIDEBAR_ACCOUNT_MENU_PANEL_CLASSNAME}>
             <div className="border-b border-slate-700 px-3 py-2.5">
               <div className="truncate text-sm font-medium text-white">{session.email}</div>
               <span className="mt-1 inline-flex items-center gap-1 rounded-full bg-slate-700 px-2.5 py-1 text-xs font-semibold text-slate-300">

@@ -79,10 +79,17 @@ export interface CommunicationListPagination {
   totalPages: number;
 }
 
+/** Zero-filled count for one direction, scoped by every active filter except `direction`. `channel`/`status` have no fixed enum yet, so they're not summarized. */
+export interface CommunicationDirectionSummaryRow {
+  code: 'inbound' | 'outbound';
+  count: number;
+}
+
 export interface CommunicationListResult {
   items: Communication[];
   pagination: CommunicationListPagination;
   appliedFilters: Record<string, string>;
+  summary: CommunicationDirectionSummaryRow[];
 }
 
 export type CommunicationErrorCode =

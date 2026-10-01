@@ -5,7 +5,7 @@ import type { Language } from '../../../../../../shared/i18n/translations';
 import { WORKFLOW_STAGE_NEXT_ACTION_KEYS, type CanonicalWorkflowStageCode } from '../../../../../../shared/adminWorkflow/canonicalStages';
 import type { RecentlyUpdatedCandidateRow } from '../../../../../../shared/adminDashboard/types';
 import { stageLabel, type TFn } from '../../reports/components/ReportTables';
-import { PIPELINE_BUCKET_BADGE_TONE, STAGE_TO_PIPELINE_BUCKET } from '../workflowPipelineBuckets';
+import { PIPELINE_BUCKET_BADGE_TONE, STAGE_TO_PIPELINE_BUCKET } from '../../reports/workflowPipelineBuckets';
 
 function stageBadgeTone(code: string) {
   const bucket = STAGE_TO_PIPELINE_BUCKET[code as CanonicalWorkflowStageCode];

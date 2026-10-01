@@ -73,12 +73,17 @@ describe("AdminBackupsPage", () => {
     adminSystemBackupsClient.listBackups.mockResolvedValue({
       items: [backup()],
       pagination: { page: 1, perPage: 20, totalCount: 1, totalPages: 1 },
+      summary: [
+        { code: "in_progress", count: 0 },
+        { code: "succeeded", count: 1 },
+        { code: "failed", count: 0 },
+      ],
     });
     const client = await signInAs(ADMIN);
     renderAt("/admin/backups", client);
 
     expect(await screen.findByRole("heading", { name: "Database backups" })).toBeInTheDocument();
-    expect(await screen.findByText("Succeeded")).toBeInTheDocument();
+    expect(await screen.findAllByText("Succeeded")).not.toHaveLength(0);
     expect(screen.getByRole("button", { name: "Download" })).toBeInTheDocument();
   });
 
@@ -101,6 +106,11 @@ describe("AdminBackupsPage", () => {
     adminSystemBackupsClient.listBackups.mockResolvedValue({
       items: [],
       pagination: { page: 1, perPage: 20, totalCount: 0, totalPages: 0 },
+      summary: [
+        { code: "in_progress", count: 0 },
+        { code: "succeeded", count: 0 },
+        { code: "failed", count: 0 },
+      ],
     });
     const client = await signInAs(ADMIN);
     renderAt("/admin/backups", client);
@@ -112,11 +122,16 @@ describe("AdminBackupsPage", () => {
     adminSystemBackupsClient.listBackups.mockResolvedValue({
       items: [backup({ id: "failed-1", status: "failed", byteSize: null, durationSeconds: 3, errorMessage: 'pg_dump exited with a non-zero status' })],
       pagination: { page: 1, perPage: 20, totalCount: 1, totalPages: 1 },
+      summary: [
+        { code: "in_progress", count: 0 },
+        { code: "succeeded", count: 0 },
+        { code: "failed", count: 1 },
+      ],
     });
     const client = await signInAs(ADMIN);
     renderAt("/admin/backups", client);
 
-    expect(await screen.findByText("Failed")).toBeInTheDocument();
+    expect(await screen.findAllByText("Failed")).not.toHaveLength(0);
     expect(screen.getByText("pg_dump exited with a non-zero status")).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Download" })).not.toBeInTheDocument();
   });
@@ -125,6 +140,11 @@ describe("AdminBackupsPage", () => {
     adminSystemBackupsClient.listBackups.mockResolvedValue({
       items: [backup()],
       pagination: { page: 1, perPage: 20, totalCount: 1, totalPages: 1 },
+      summary: [
+        { code: "in_progress", count: 0 },
+        { code: "succeeded", count: 1 },
+        { code: "failed", count: 0 },
+      ],
     });
     adminSystemBackupsClient.requestAccess.mockResolvedValue({
       backupId: "2099d502-a67a-4d4b-a15a-58df5324b2d1",

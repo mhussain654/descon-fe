@@ -1,10 +1,14 @@
+import { CheckCircle2, ListChecks, XCircle } from 'lucide-react';
 import { useLanguage } from '../../../../contexts/LanguageContext';
-import { Badge, Button, Card, ErrorState, ForbiddenState, OfflineState, ValidationMessage } from '../../../../design-system';
+import { Button, Card, ErrorState, ForbiddenState, OfflineState, StatTile, ValidationMessage } from '../../../../design-system';
 import { CANDIDATE_IMPORT_ERROR_KEYS } from '../../../../../../shared/adminCandidateImport/errorMessages';
 import { formatDate } from '../../../../../../shared/i18n/locale';
 import type { TranslationKey } from '../../../../../../shared/i18n/translations';
 import type { CandidateImportError, CandidateImportPreflightResult } from '../../../../lib/candidate-import-client';
 import { ImportRowErrorsTable } from './ImportRowErrorsTable';
+
+const COUNT_TILE_CLASSNAME =
+  'min-w-0 overflow-hidden border-border border-t-4 bg-surface-raised shadow-sm transition duration-200 hover:-translate-y-0.5 hover:shadow-md';
 
 export interface CandidateImportPreviewPanelProps {
   preflight: CandidateImportPreflightResult;
@@ -35,12 +39,6 @@ export function CandidateImportPreviewPanel({
   const { t, language } = useLanguage();
   const hasAcceptedRows = preflight.acceptedRows > 0;
 
-  const counts: Array<{ labelKey: TranslationKey; value: number; tone: 'neutral' | 'success' | 'warning' | 'danger' }> = [
-    { labelKey: 'adminCandidateImportTotalRowsLabel', value: preflight.totalRows, tone: 'neutral' },
-    { labelKey: 'adminCandidateImportAcceptedRowsLabel', value: preflight.acceptedRows, tone: 'success' },
-    { labelKey: 'adminCandidateImportRejectedRowsLabel', value: preflight.rejectedRows, tone: 'warning' },
-  ];
-
   return (
     <Card className="mb-5" role="status">
       <h2 className="mb-1 text-lg font-semibold text-text-primary">{t('adminCandidateImportPreviewTitle')}</h2>
@@ -48,12 +46,25 @@ export function CandidateImportPreviewPanel({
         {hasAcceptedRows ? t('adminCandidateImportPreviewDescription') : t('adminCandidateImportEmptyResultDescription')}
       </p>
 
-      <div className="mb-2 flex flex-wrap gap-2">
-        {counts.map((count) => (
-          <Badge key={count.labelKey} tone={count.tone}>
-            {t(count.labelKey)}: {count.value}
-          </Badge>
-        ))}
+      <div className="mb-4 grid grid-cols-1 gap-3 sm:grid-cols-3">
+        <StatTile
+          value={preflight.totalRows}
+          label={t('adminCandidateImportTotalRowsLabel')}
+          className={`${COUNT_TILE_CLASSNAME} border-t-border text-text-secondary`}
+          icon={<ListChecks />}
+        />
+        <StatTile
+          value={preflight.acceptedRows}
+          label={t('adminCandidateImportAcceptedRowsLabel')}
+          className={`${COUNT_TILE_CLASSNAME} border-t-success text-success-emphasis`}
+          icon={<CheckCircle2 />}
+        />
+        <StatTile
+          value={preflight.rejectedRows}
+          label={t('adminCandidateImportRejectedRowsLabel')}
+          className={`${COUNT_TILE_CLASSNAME} border-t-warning text-warning-emphasis`}
+          icon={<XCircle />}
+        />
       </div>
 
       <p className="mb-4 text-xs text-text-tertiary">

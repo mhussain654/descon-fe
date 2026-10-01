@@ -1,5 +1,5 @@
 // Framework-agnostic: runs under both web's Vitest and mobile's Jest.
-import { isSessionValid } from './session';
+import { isSessionDueForRefresh, isSessionValid } from './session';
 import type { AuthSession } from './types';
 
 const session: AuthSession = {
@@ -21,5 +21,17 @@ describe('isSessionValid', () => {
     expect(isSessionValid(session, 9_000)).toBe(true);
     expect(isSessionValid(session, 10_000)).toBe(false);
     expect(isSessionValid(session, 11_000)).toBe(false);
+  });
+});
+
+describe('isSessionDueForRefresh', () => {
+  it('is false while the access token has more than the renewal window left', () => {
+    expect(isSessionDueForRefresh(session, 10_000 - 61_000)).toBe(false);
+  });
+
+  it('is true inside the renewal window and after expiry', () => {
+    expect(isSessionDueForRefresh(session, 10_000 - 60_000)).toBe(true);
+    expect(isSessionDueForRefresh(session, 9_000)).toBe(true);
+    expect(isSessionDueForRefresh(session, 20_000)).toBe(true);
   });
 });

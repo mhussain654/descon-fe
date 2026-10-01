@@ -69,8 +69,11 @@ export default defineConfig(({ isSsrBuild }) => ({
     // Explicit allowlist instead of `true` (which disables Host-header
     // validation entirely -- a DNS-rebinding vector). `.localhost` covers
     // the loopback name; LAN access during mobile testing works via the
-    // printed Network URL without needing a wildcard here.
-    allowedHosts: ['localhost', '.localhost'],
+    // printed Network URL without needing a wildcard here. `.ngrok-free.app`
+    // covers ngrok's free-tier tunnel subdomain, which is random and changes
+    // on every `ngrok` restart -- matched against the Host header only, so
+    // no scheme or path belongs in this list.
+    allowedHosts: ['localhost', '.localhost', '.ngrok-free.app'],
     host: '0.0.0.0',
     port: 4000,
     fs: {

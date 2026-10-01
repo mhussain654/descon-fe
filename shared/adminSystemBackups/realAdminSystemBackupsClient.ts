@@ -12,6 +12,7 @@ import type {
   SystemBackupErrorCode,
   SystemBackupListPage,
   SystemBackupListResult,
+  SystemBackupStatusSummaryRow,
 } from './types';
 
 interface SystemBackupResponse {
@@ -62,6 +63,16 @@ function toPagination(raw: unknown): SystemBackupListResult['pagination'] {
     totalCount: typeof value.total_count === 'number' ? value.total_count : 0,
     totalPages: typeof value.total_pages === 'number' ? value.total_pages : 0,
   };
+}
+
+function toSummary(raw: unknown): SystemBackupStatusSummaryRow[] {
+  if (!Array.isArray(raw)) return [];
+  return raw
+    .filter((row): row is { code: unknown; count: unknown } => !!row && typeof row === 'object')
+    .map((row) => ({
+      code: row.code as SystemBackupStatusSummaryRow['code'],
+      count: typeof row.count === 'number' ? row.count : 0,
+    }));
 }
 
 function isStaffAuthError(error: unknown): error is StaffAuthError {
@@ -120,8 +131,8 @@ export function createAdminSystemBackupsClient(options: RealAdminSystemBackupsCl
         if (!result) throw { code: 'UNKNOWN' } satisfies SystemBackupError;
 
         const items = Array.isArray(result.data) ? result.data.map(toBackup) : [];
-        const meta = result.meta as { pagination?: unknown } | undefined;
-        return { items, pagination: toPagination(meta?.pagination) };
+        const meta = result.meta as { pagination?: unknown; summary?: unknown } | undefined;
+        return { items, pagination: toPagination(meta?.pagination), summary: toSummary(meta?.summary) };
       } catch (error) {
         throw toSystemBackupError(error);
       }

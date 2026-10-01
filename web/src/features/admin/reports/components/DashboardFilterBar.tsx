@@ -1,16 +1,16 @@
 import { Card, Select } from '../../../../design-system';
 import { useCountries, useCrafts, useProjects } from '../../candidates/hooks/useReferenceData';
-import type { AdminDashboardFilters } from '../../../../lib/admin-dashboard-client';
-import type { TFn } from '../../reports/components/ReportTables';
+import type { DashboardFilters } from '../../../../../../shared/adminReports/types';
+import type { TFn } from './ReportTables';
 
-/** Country/project/craft filter row, scoping every dashboard section to matching candidates -- reuses the exact reference-data hooks and Select pattern CandidateListWorkspace.tsx's own filter row already established, not a second implementation. */
+/** Country/project/craft filter row, scoping every dashboard section to matching candidates -- reuses the exact reference-data hooks and Select pattern CandidateListWorkspace.tsx's own filter row already established, not a second implementation. Shared across every admin dashboard (Admin/MPS/...) that accepts the same filter vocabulary, not duplicated per dashboard. */
 export function DashboardFilterBar({
   filters,
   onChange,
   t,
 }: {
-  filters: AdminDashboardFilters;
-  onChange: (patch: Partial<AdminDashboardFilters>) => void;
+  filters: DashboardFilters;
+  onChange: (patch: Partial<DashboardFilters>) => void;
   t: TFn;
 }) {
   const countriesQuery = useCountries();

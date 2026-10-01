@@ -90,7 +90,8 @@ describe('CandidateImportDetail', () => {
     expect(await screen.findByText('Import details')).toBeInTheDocument();
     expect(screen.getByText('Completed')).toBeInTheDocument();
     expect(screen.getByText('candidates.csv')).toBeInTheDocument();
-    expect(screen.getByText(/Imported: 2/)).toBeInTheDocument();
+    expect(screen.getByText('Imported')).toBeInTheDocument();
+    expect(screen.getAllByText('2').length).toBeGreaterThan(0);
     expect(candidateImportClient.getImportBatch).toHaveBeenCalledWith('import-1');
   });
 
@@ -163,9 +164,10 @@ describe('CandidateImportDetail', () => {
     expect(await screen.findByText('Partial success')).toBeInTheDocument();
     // The detail page reuses adminCandidateImportRejectedRowsLabel ("Will be
     // skipped"), the same key the preflight preview uses for its own
-    // rejected-count badge.
-    expect(screen.getByText(/Will be skipped: 1/)).toBeInTheDocument();
-    expect(screen.getByText(/^Skipped: 1/)).toBeInTheDocument();
+    // rejected-count tile.
+    expect(screen.getByText('Will be skipped')).toBeInTheDocument();
+    expect(screen.getByText('Skipped')).toBeInTheDocument();
+    expect(screen.getAllByText('1').length).toBeGreaterThan(0);
     expect(screen.getByRole('button', { name: 'Download error report' })).toBeInTheDocument();
   });
 

@@ -1,7 +1,7 @@
 import { fireEvent, render, screen, within } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MemoryRouter, useLocation } from 'react-router';
-import { describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it } from 'vitest';
 import { createMockStaffAuthClient, MOCK_STAFF_ACCOUNTS, MOCK_STAFF_PASSWORD } from '../../../../shared/auth/staffAuthClient';
 import { LanguageProvider } from '../../contexts/LanguageContext';
 import { StaffAuthProvider } from '../../contexts/StaffAuthContext';
@@ -12,6 +12,10 @@ const MANAGEMENT = MOCK_STAFF_ACCOUNTS.find((account) => account.role === 'manag
 const HR = MOCK_STAFF_ACCOUNTS.find((account) => account.role === 'hr' && !account.locked && !account.suspended)!;
 const ADMIN = MOCK_STAFF_ACCOUNTS.find((account) => account.role === 'admin')!;
 const MPS = MOCK_STAFF_ACCOUNTS.find((account) => account.role === 'mps')!;
+
+beforeEach(() => {
+  window.localStorage.removeItem('descon.admin.sidebar.collapsed');
+});
 
 async function renderShellAs(account: typeof FINANCE, initialEntries: string[] = ['/']) {
   const client = createMockStaffAuthClient({ delayMs: 0 });
@@ -182,6 +186,25 @@ describe('StaffShell branding', () => {
     await renderShellAs(ADMIN);
 
     expect((await screen.findAllByText('Descon Admin Portal')).length).toBeGreaterThan(0);
+  });
+});
+
+describe('StaffShell desktop sidebar collapse', () => {
+  it('collapses to an icon rail, keeps navigation accessible, and can expand again', async () => {
+    const { container } = await renderShellAs(ADMIN, ['/admin/dashboard']);
+
+    const collapseButton = await screen.findByRole('button', { name: 'Collapse sidebar' });
+    fireEvent.click(collapseButton);
+
+    expect(screen.getByRole('button', { name: 'Expand sidebar' })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Dashboard' })).toHaveAttribute('title', 'Dashboard');
+    expect(container.querySelector('main')).toHaveClass('lg:ms-16');
+    expect(window.localStorage.getItem('descon.admin.sidebar.collapsed')).toBe('true');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Expand sidebar' }));
+
+    expect(screen.getByRole('button', { name: 'Collapse sidebar' })).toBeInTheDocument();
+    expect(container.querySelector('main')).toHaveClass('lg:ms-64');
   });
 });
 

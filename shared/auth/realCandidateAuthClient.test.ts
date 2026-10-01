@@ -186,4 +186,60 @@ describe('createCandidateAuthClient (real)', () => {
     const client = buildClient();
     await expect(client.requestOtp(CNIC)).rejects.toEqual({ code: 'UNKNOWN' });
   });
+
+  describe('refreshSession', () => {
+    const refreshBody = {
+      access_token: 'access-2',
+      refresh_token: 'refresh-2',
+      token_type: 'Bearer',
+      expires_in: 900,
+      session: { id: 'session-1' },
+      candidate: {
+        id: 'candidate-1',
+        full_name: 'Ahmed Ali',
+        preferred_locale: 'ur',
+        consent: { current_policy_version: '2026-09-06', accepted: true, accepted_at: '2026-09-06T12:00:00Z' },
+      },
+    };
+
+    it('posts the refresh token and returns the rotated session', async () => {
+      const fetchCalls: Array<[string, RequestInit]> = [];
+      stubFetch(async (url, init) => {
+        fetchCalls.push([String(url), init as RequestInit]);
+        return jsonResponse(successEnvelope(refreshBody));
+      });
+
+      const before = Date.now();
+      const session = await buildClient().refreshSession('refresh-1');
+
+      const [url, init] = fetchCalls[0];
+      expect(url).toBe('http://example.test/api/v1/candidate/auth/refresh');
+      expect(JSON.parse(init.body as string)).toEqual({ candidate: { refresh_token: 'refresh-1' } });
+      expect(session.accessToken).toBe('access-2');
+      expect(session.refreshToken).toBe('refresh-2');
+      expect(session.preferredLocale).toBe('ur');
+      expect(new Date(session.expiresAt).getTime()).toBeGreaterThanOrEqual(before + 900 * 1000);
+    });
+
+    it.each([401, 403])('maps a %i response to SESSION_EXPIRED', async (status) => {
+      stubFetch(async () =>
+        jsonResponse(errorEnvelope([{ code: 'invalid_refresh_token', message: 'Invalid or expired refresh token.' }]), {
+          status,
+        })
+      );
+      await expect(buildClient().refreshSession('stale')).rejects.toEqual({ code: 'SESSION_EXPIRED' });
+    });
+
+    it('treats a network failure as transient, never as an expired session', async () => {
+      stubFetch(async () => {
+        throw new TypeError('Failed to fetch');
+      });
+      await expect(buildClient().refreshSession('refresh-1')).rejects.not.toEqual({ code: 'SESSION_EXPIRED' });
+    });
+
+    it('maps a 500 to a transient UNKNOWN error', async () => {
+      stubFetch(async () => jsonResponse(errorEnvelope([{ code: 'internal_error', message: 'Oops' }]), { status: 500 }));
+      await expect(buildClient().refreshSession('refresh-1')).rejects.toEqual({ code: 'UNKNOWN' });
+    });
+  });
 });
