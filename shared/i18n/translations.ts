@@ -53,6 +53,13 @@ export const translations = {
     authRetryAvailableInPrefix: 'You can try again in',
     authSessionPersistError: "We couldn't securely save your session. Please try again.",
     companyFooter: 'Descon Engineering Limited',
+    brandNamePrimary: 'DESCON',
+    brandNameSecondary: 'MPS',
+    welcomeHeroTitle: 'Welcome!\nYour next step starts here.',
+    welcomeHeroSubtitle: 'Track your progress, upload documents and get help — all in one simple app.',
+    welcomeChooseLanguage: 'Choose your language',
+    welcomeChooseLanguageHint: 'You can change it later from your profile.',
+    welcomeSecureFooter: 'Securely managed by Descon Manpower Services',
 
     // Dashboard
     dashboard: 'Dashboard',
@@ -1498,6 +1505,15 @@ export const translations = {
     authRetryAvailableInPrefix: 'آپ دوبارہ کوشش کر سکیں گے',
     authSessionPersistError: 'ہم آپ کا سیشن محفوظ طریقے سے محفوظ نہیں کر سکے۔ براہ کرم دوبارہ کوشش کریں۔',
     companyFooter: 'ڈیسکون انجینئرنگ لمیٹڈ',
+    brandNamePrimary: 'ڈیسکون',
+    brandNameSecondary: 'ایم پی ایس',
+    // Line breaks are presentation only -- they keep Nastaliq phrases (e.g.
+    // 'اپ لوڈ کریں') together and the copy clear of the hero artwork.
+    welcomeHeroTitle: 'خوش آمدید!\nآپ کا اگلا قدم\nیہاں سے شروع ہوتا ہے۔',
+    welcomeHeroSubtitle: 'اپنی پیش رفت دیکھیں، دستاویزات\nاپ لوڈ کریں اور مدد حاصل کریں —\nسب ایک آسان ایپ میں۔',
+    welcomeChooseLanguage: 'اپنی زبان منتخب کریں',
+    welcomeChooseLanguageHint: 'آپ بعد میں اپنی پروفائل سے اسے تبدیل کر سکتے ہیں۔',
+    welcomeSecureFooter: 'ڈیسکون مین پاور سروسز کے زیرِ انتظام، محفوظ',
 
     // Dashboard
     dashboard: 'ڈیش بورڈ',
