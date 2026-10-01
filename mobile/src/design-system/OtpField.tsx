@@ -107,20 +107,22 @@ export function OtpField({
   );
 }
 
-const BOX_SIZE = 48;
+const BOX_HEIGHT = 50;
 
 const styles = StyleSheet.create({
-  boxRow: { position: 'relative', flexDirection: 'row', gap: spacing[2] },
+  boxRow: { position: 'relative', flexDirection: 'row', gap: spacing[1.5] },
+  // Boxes share the row's width (rather than a fixed size) so six of them fit
+  // any phone width with even gaps.
   box: {
-    width: BOX_SIZE,
-    height: BOX_SIZE,
-    borderWidth: 1,
-    borderRadius: radii.lg,
+    flex: 1,
+    height: BOX_HEIGHT,
+    borderWidth: 1.5,
+    borderRadius: radii.md,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: colors.surface.raised,
+    backgroundColor: colors.surface.background,
   },
-  boxActive: { borderWidth: 2 },
-  char: { fontSize: 20, fontWeight: fontWeights.semibold, color: colors.text.primary },
+  boxActive: { borderWidth: 2, backgroundColor: colors.surface.raised },
+  char: { fontSize: 20, fontWeight: fontWeights.bold, color: colors.text.primary },
   hiddenInput: { position: 'absolute', top: 0, bottom: 0, left: 0, right: 0, opacity: 0 },
 });

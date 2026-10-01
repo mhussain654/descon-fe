@@ -1,6 +1,6 @@
-import { ArrowLeft, ArrowRight, Check, ShieldCheck } from "lucide-react-native";
+import { Check } from "lucide-react-native";
 import { Image } from "expo-image";
-import { I18nManager, Platform, Pressable, ScrollView, StyleSheet, Text, View, useWindowDimensions } from "react-native";
+import { Pressable, ScrollView, StyleSheet, Text, View, useWindowDimensions } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
 import { useRouter } from "expo-router";
@@ -9,6 +9,10 @@ import { useLanguage } from "../contexts/LanguageContext";
 import { Button, getFontFamily } from "../design-system";
 import { colors, elevation, fontWeights, radii, spacing } from "../design-system/tokens";
 import { RequireGuest } from "../features/auth/RequireGuest";
+import { BrandHeader } from "../features/onboarding/BrandHeader";
+import { SecureFooter } from "../features/onboarding/SecureFooter";
+import { forwardArrowSlots } from "../features/onboarding/directionalArrows";
+import { isStartSide, physicalTextAlign } from "../lib/layoutDirection";
 
 // The hero artwork (skyline, globe, plane, briefcase, helmet) carries no
 // brand mark or translatable text -- the headline and subtitle are rendered on
@@ -28,31 +32,9 @@ const HERO_ART = {
 };
 const HERO_ASPECT_RATIO = 675 / 694;
 const SUBTITLE_SCRIM_COLOR = "#00297A";
-const DESCON_LOGO = require("../../assets/images/descon-logo.png");
 // The sheet slides up over the plain ground strip at the artwork's base,
 // leaving the helmet and briefcase fully visible above it.
 const SHEET_OVERLAP = 20;
-
-// Native layouts mirror once the app reloads into Urdu (`I18nManager`), but
-// React Native Web always lays out left-to-right whatever that flag says --
-// so the layout actually on screen is RTL only on native with RTL forced.
-function isLayoutRtl() {
-  return Platform.OS !== "web" && I18nManager.isRTL;
-}
-
-// Whether a physical side ("left" | "right") is the row's start side in the
-// layout actually on screen, so language-keyed placement lands on the
-// intended side on every platform.
-function isStartSide(side) {
-  return (side === "left") !== isLayoutRtl();
-}
-
-// React Native swaps `textAlign: "left" | "right"` under an RTL layout, so the
-// value that lands text on a given physical side depends on that layout too.
-function physicalTextAlign(side) {
-  if (!isLayoutRtl()) return side;
-  return side === "left" ? "right" : "left";
-}
 
 // Each option's own label always renders in its own language/script -- "اردو"
 // here regardless of which language is currently active -- so a candidate who
@@ -88,29 +70,6 @@ function LanguageOptionCard({ active, label, labelLanguage, hint, onPress }) {
         {hint}
       </Text>
     </Pressable>
-  );
-}
-
-// The official Descon logo on a white tile (its blue wordmark would vanish on
-// the blue hero), followed by the localized product name. In Urdu the row
-// runs right-to-left -- tile at the right edge, name to its left -- while the
-// logo itself is never mirrored, since it is the company's brand mark.
-function BrandHeader({ language, t, tileAtRowStart }) {
-  return (
-    <View
-      accessible
-      accessibilityRole="image"
-      accessibilityLabel={`${t("brandNamePrimary")} ${t("brandNameSecondary")}`}
-      style={[styles.brandRow, tileAtRowStart ? null : styles.brandRowReversed]}
-    >
-      <View style={styles.brandTile}>
-        <Image source={DESCON_LOGO} style={styles.brandLogo} contentFit="contain" />
-      </View>
-      <Text style={[styles.brandName, language === "ur" ? styles.brandNameUrdu : null]}>
-        <Text style={{ fontFamily: getFontFamily(language, "bold") }}>{t("brandNamePrimary")}</Text>
-        <Text style={{ fontFamily: getFontFamily(language, "regular") }}>{` ${t("brandNameSecondary")}`}</Text>
-      </Text>
-    </View>
   );
 }
 
@@ -152,7 +111,12 @@ function WelcomeHero({ width, topInset, language, t }) {
           accessible={false}
         />
         <View style={[styles.brandSlot, anchorStyle]}>
-          <BrandHeader language={language} t={t} tileAtRowStart={copyAtStart} />
+          <BrandHeader
+            language={language}
+            primary={t("brandNamePrimary")}
+            secondary={t("brandNameSecondary")}
+            tileAtRowStart={copyAtStart}
+          />
         </View>
         <View
           style={[
@@ -226,18 +190,7 @@ export default function WelcomeScreen() {
     router.push("/login");
   };
 
-  // The arrow points onward in reading direction and sits at the reading end:
-  // right-pointing on the right for English, left-pointing on the left for Urdu.
-  const continueArrow = (
-    <View accessible={false}>
-      {isUrdu ? (
-        <ArrowLeft size={20} color={colors.brand.on} strokeWidth={2.5} />
-      ) : (
-        <ArrowRight size={20} color={colors.brand.on} strokeWidth={2.5} />
-      )}
-    </View>
-  );
-  const arrowAtRowStart = isStartSide(isUrdu ? "left" : "right");
+  const continueArrow = forwardArrowSlots(language, colors.brand.on);
 
   return (
     <RequireGuest>
@@ -289,17 +242,14 @@ export default function WelcomeScreen() {
               language={language}
               onPress={handleContinue}
               labelStyle={isUrdu ? styles.continueLabelUrdu : null}
-              leadingIcon={arrowAtRowStart ? continueArrow : null}
-              trailingIcon={arrowAtRowStart ? null : continueArrow}
+              leadingIcon={continueArrow.leadingIcon}
+              trailingIcon={continueArrow.trailingIcon}
             >
               {t("continue")}
             </Button>
 
             <View style={styles.footer}>
-              <ShieldCheck size={16} color={colors.success.default} strokeWidth={2.5} />
-              <Text style={[styles.footerText, isUrdu && styles.secondaryTextUrdu, { fontFamily: getFontFamily(language, "regular") }]}>
-                {t("welcomeSecureFooter")}
-              </Text>
+              <SecureFooter language={language}>{t("welcomeSecureFooter")}</SecureFooter>
             </View>
           </View>
         </ScrollView>
@@ -313,20 +263,6 @@ const styles = StyleSheet.create({
   scrollContent: { flexGrow: 1 },
 
   brandSlot: { position: "absolute", top: spacing[4] },
-  brandRow: { flexDirection: "row", alignItems: "center", gap: spacing[3] },
-  brandRowReversed: { flexDirection: "row-reverse" },
-  brandTile: {
-    width: 40,
-    height: 40,
-    borderRadius: radii.md,
-    backgroundColor: colors.surface.raised,
-    alignItems: "center",
-    justifyContent: "center",
-    ...elevation.md,
-  },
-  brandLogo: { width: 31, height: 30 },
-  brandName: { fontSize: 22, lineHeight: 28, color: colors.text.inverse, letterSpacing: 0.5 },
-  brandNameUrdu: { fontSize: 19, lineHeight: 38, letterSpacing: 0 },
   heroCopy: { position: "absolute" },
   anchorStart: { start: spacing[6], alignItems: "flex-start" },
   anchorEnd: { end: spacing[6], alignItems: "flex-end" },
@@ -417,14 +353,7 @@ const styles = StyleSheet.create({
   languageCheckStart: { start: spacing[2] },
   languageCheckEnd: { end: spacing[2] },
   spacer: { flexGrow: 1, minHeight: spacing[5], maxHeight: spacing[12] },
-  footer: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: spacing[2],
-    marginTop: spacing[4],
-  },
-  footerText: { fontSize: 12, color: colors.text.secondary, textAlign: "center" },
+  footer: { marginTop: spacing[4] },
   // Nastaliq's thin strokes wash out in the standard secondary grey, so Urdu
   // secondary copy uses a deeper tone of the same text color.
   secondaryTextUrdu: { color: colors.text.primary, opacity: 0.74 },

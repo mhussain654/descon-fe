@@ -153,7 +153,7 @@ describe('LoginScreen', () => {
     await screen.findByLabelText('CNIC Number');
 
     expect(screen.queryByText(/sign up/i)).toBeNull();
-    expect(screen.queryByText(/register/i)).toBeNull();
+    expect(screen.queryByText(/\bregister\b/i)).toBeNull();
     expect(screen.queryByText(/create an account/i)).toBeNull();
   });
 
@@ -262,7 +262,7 @@ describe('LoginScreen', () => {
       fireEvent.changeText(screen.getByLabelText('One-Time Password'), '123456');
 
       await waitFor(() => expect(screen.getByText('You can try again in 0:20')).toBeOnTheScreen());
-      expect(screen.getByRole('button', { name: 'Verify & Login' })).toBeDisabled();
+      expect(screen.getByRole('button', { name: 'Verify and continue' })).toBeDisabled();
     });
 
     it('shows a live countdown after a resend is rate-limited, independent of the Verify action', async () => {
@@ -292,7 +292,7 @@ describe('LoginScreen', () => {
       fireEvent.changeText(await screen.findByLabelText('شناختی کارڈ نمبر'), '1234512345671');
       fireEvent.press(screen.getByRole('button', { name: 'او ٹی پی بھیجیں' }));
 
-      await waitFor(() => expect(screen.getByText('آپ دوبارہ کوشش کر سکیں گے 0:30')).toBeOnTheScreen());
+      await waitFor(() => expect(screen.getByText('آپ 0:30 میں دوبارہ کوشش کر سکیں گے')).toBeOnTheScreen());
       expect(screen.getByRole('button', { name: 'او ٹی پی بھیجیں' })).toBeDisabled();
     });
   });

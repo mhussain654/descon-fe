@@ -1,6 +1,7 @@
 import { StyleSheet, Text, View } from 'react-native';
 import { colors, fontWeights, spacing } from './tokens';
 import { getFontFamily } from './fonts';
+import { isStartSide } from '../lib/layoutDirection';
 
 export interface LabelProps {
   children: string;
@@ -13,7 +14,9 @@ export interface LabelProps {
 /** Field label. RN has no `htmlFor`; pair this visually above the field it describes. */
 export function Label({ children, requirementText, language = 'en' }: LabelProps) {
   return (
-    <View style={styles.row}>
+    // Urdu labels start at the right edge -- resolved against the live layout,
+    // which only mirrors on native after the language reload (never on web).
+    <View style={[styles.row, isStartSide(language === 'ur' ? 'right' : 'left') ? null : styles.rowReversed]}>
       <Text style={[styles.label, { fontFamily: getFontFamily(language, 'medium') }]}>{children}</Text>
       {requirementText ? (
         <Text style={[styles.requirement, { fontFamily: getFontFamily(language, 'regular') }]}> ({requirementText})</Text>
@@ -24,6 +27,7 @@ export function Label({ children, requirementText, language = 'en' }: LabelProps
 
 const styles = StyleSheet.create({
   row: { flexDirection: 'row', flexWrap: 'wrap', marginBottom: spacing[1.5] },
+  rowReversed: { flexDirection: 'row-reverse' },
   label: { fontSize: 14, fontWeight: fontWeights.medium, color: colors.text.primary },
   requirement: { fontSize: 14, color: colors.text.tertiary },
 });

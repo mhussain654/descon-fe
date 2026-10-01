@@ -259,7 +259,7 @@ describe('LoginPage', () => {
       fireEvent.click(screen.getByRole('button', { name: 'او ٹی پی بھیجیں' }));
 
       await waitFor(() =>
-        expect(screen.getByRole('alert')).toHaveTextContent('آپ دوبارہ کوشش کر سکیں گے 0:30')
+        expect(screen.getByRole('alert')).toHaveTextContent('آپ 0:30 میں دوبارہ کوشش کر سکیں گے')
       );
       expect(screen.getByRole('button', { name: 'او ٹی پی بھیجیں' })).toBeDisabled();
     });
