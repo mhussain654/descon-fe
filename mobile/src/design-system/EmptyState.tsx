@@ -11,10 +11,12 @@ export interface EmptyStateProps {
   description?: string;
   actionLabel?: string;
   onAction?: () => void;
+  /** Which font family renders the text -- this component never calls `useLanguage()` itself (see README's "Localization" section); the caller passes the active language through. */
+  language?: 'en' | 'ur';
 }
 
 /** A remote-data view that loaded successfully but has nothing to show. */
-export function EmptyState({ icon, title, description, actionLabel, onAction }: EmptyStateProps) {
+export function EmptyState({ icon, title, description, actionLabel, onAction, language = 'en' }: EmptyStateProps) {
   return (
     <StatePanel
       icon={icon ?? <Inbox size={40} color={colors.text.tertiary} />}
@@ -22,6 +24,7 @@ export function EmptyState({ icon, title, description, actionLabel, onAction }: 
       description={description}
       actionLabel={actionLabel}
       onAction={onAction}
+      language={language}
     />
   );
 }

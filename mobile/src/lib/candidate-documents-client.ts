@@ -11,6 +11,10 @@ import type {
   CandidateDocumentsError,
   CandidateDocumentsErrorCode,
   CandidateDocumentStatus,
+  DocumentAccess,
+  DocumentAccessDisposition,
+  DocumentAccessError,
+  DocumentAccessErrorCode,
 } from '../../../shared/candidateDocuments/types';
 import { getCachedLanguage } from '../contexts/LanguageContext';
 import { apiClient } from './api-client';
@@ -24,6 +28,10 @@ export type {
   CandidateDocumentsError,
   CandidateDocumentsErrorCode,
   CandidateDocumentStatus,
+  DocumentAccess,
+  DocumentAccessDisposition,
+  DocumentAccessError,
+  DocumentAccessErrorCode,
 };
 
 export const candidateDocumentsClient: CandidateDocumentsClient = createCandidateDocumentsClient({

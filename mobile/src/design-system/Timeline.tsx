@@ -2,6 +2,7 @@ import { Check } from 'lucide-react-native';
 import type { ReactNode } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { colors, fontWeights, spacing } from './tokens';
+import { getFontFamily } from './fonts';
 
 export type TimelineItemStatus = 'completed' | 'current' | 'pending';
 
@@ -20,6 +21,8 @@ export interface TimelineItemData {
 
 export interface TimelineProps {
   items: TimelineItemData[];
+  /** Which font family renders item text -- this component never calls `useLanguage()` itself (see README's "Localization" section); the caller passes the active language through. */
+  language?: 'en' | 'ur';
 }
 
 const MARKER_COLORS: Record<TimelineItemStatus, { background: string; foreground: string }> = {
@@ -31,7 +34,7 @@ const MARKER_COLORS: Record<TimelineItemStatus, { background: string; foreground
 const MARKER_SIZE = 32;
 
 /** Vertical status timeline, e.g. mobilization progress. Status is shown by icon + text, not color alone. */
-export function Timeline({ items }: TimelineProps) {
+export function Timeline({ items, language = 'en' }: TimelineProps) {
   return (
     <View accessibilityRole="list">
       {items.map((item, index) => {
@@ -54,12 +57,18 @@ export function Timeline({ items }: TimelineProps) {
             </View>
             <View style={styles.content}>
               <Text
-                style={[styles.label, item.status === 'current' && styles.labelCurrent]}
+                style={[
+                  styles.label,
+                  item.status === 'current' && styles.labelCurrent,
+                  { fontFamily: getFontFamily(language, item.status === 'current' ? 'semibold' : 'medium') },
+                ]}
                 accessibilityLabel={item.statusText ? `${item.label} (${item.statusText})` : item.label}
               >
                 {item.label}
               </Text>
-              {item.description ? <Text style={styles.description}>{item.description}</Text> : null}
+              {item.description ? (
+                <Text style={[styles.description, { fontFamily: getFontFamily(language, 'regular') }]}>{item.description}</Text>
+              ) : null}
               {item.trailing ? <View style={styles.trailing}>{item.trailing}</View> : null}
             </View>
           </View>

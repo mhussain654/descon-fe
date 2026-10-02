@@ -2,6 +2,7 @@ import type { ReactNode } from 'react';
 import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Button, type ButtonVariant } from './Button';
 import { colors, fontWeights, radii, spacing, zIndex } from './tokens';
+import { getFontFamily } from './fonts';
 
 export interface ConfirmDialogProps {
   open: boolean;
@@ -15,6 +16,8 @@ export interface ConfirmDialogProps {
   isConfirming?: boolean;
   /** Extra content between the description and the actions -- e.g. an inline error notice surfacing why a prior confirm attempt failed (the dialog stays open on failure, so that error must render somewhere inside it). */
   children?: ReactNode;
+  /** Which font family renders the text -- this component never calls `useLanguage()` itself (see README's "Localization" section); the caller passes the active language through. */
+  language?: 'en' | 'ur';
 }
 
 /** Composed confirmation dialog for destructive/consequential actions, backed by RN's built-in Modal. */
@@ -29,6 +32,7 @@ export function ConfirmDialog({
   confirmVariant = 'primary',
   isConfirming = false,
   children,
+  language = 'en',
 }: ConfirmDialogProps) {
   return (
     <Modal
@@ -47,14 +51,16 @@ export function ConfirmDialog({
       />
       <View style={styles.centerer} pointerEvents="box-none">
         <View style={styles.content} accessibilityViewIsModal accessibilityRole="alert">
-          <Text style={styles.title}>{title}</Text>
-          {description ? <Text style={styles.description}>{description}</Text> : null}
+          <Text style={[styles.title, { fontFamily: getFontFamily(language, 'semibold') }]}>{title}</Text>
+          {description ? (
+            <Text style={[styles.description, { fontFamily: getFontFamily(language, 'regular') }]}>{description}</Text>
+          ) : null}
           {children}
           <View style={styles.actions}>
-            <Button variant="outline" onPress={() => onOpenChange(false)} disabled={isConfirming}>
+            <Button variant="outline" onPress={() => onOpenChange(false)} disabled={isConfirming} language={language}>
               {cancelLabel}
             </Button>
-            <Button variant={confirmVariant} onPress={onConfirm} loading={isConfirming}>
+            <Button variant={confirmVariant} onPress={onConfirm} loading={isConfirming} language={language}>
               {confirmLabel}
             </Button>
           </View>

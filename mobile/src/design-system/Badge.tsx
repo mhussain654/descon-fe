@@ -2,6 +2,7 @@ import { AlertTriangle, CheckCircle2, Circle, Info, XCircle } from 'lucide-react
 import type { ReactNode } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { colors, fontWeights, radii, spacing } from './tokens';
+import { getFontFamily } from './fonts';
 
 export type BadgeTone = 'neutral' | 'brand' | 'success' | 'warning' | 'danger' | 'info';
 
@@ -28,10 +29,12 @@ export interface BadgeProps {
   children: string;
   /** Override the tone's default icon, or pass `null` to hide it. Status is never conveyed by color alone, so an icon always ships unless explicitly hidden. */
   icon?: ReactNode | null;
+  /** Which font family renders the label -- this component never calls `useLanguage()` itself (see README's "Localization" section); the caller passes the active language through. */
+  language?: 'en' | 'ur';
 }
 
 /** Status badge. Pairs color with an icon so meaning survives color blindness/grayscale printing. */
-export function Badge({ tone = 'neutral', children, icon }: BadgeProps) {
+export function Badge({ tone = 'neutral', children, icon, language = 'en' }: BadgeProps) {
   const { background, text } = TONE_COLORS[tone];
   const DefaultIcon = DEFAULT_ICONS[tone];
   const resolvedIcon = icon === null ? null : (icon ?? <DefaultIcon size={14} color={text} />);
@@ -39,7 +42,7 @@ export function Badge({ tone = 'neutral', children, icon }: BadgeProps) {
   return (
     <View style={[styles.badge, { backgroundColor: background }]}>
       {resolvedIcon}
-      <Text style={[styles.text, { color: text }]}>{children}</Text>
+      <Text style={[styles.text, { color: text, fontFamily: getFontFamily(language, 'semibold') }]}>{children}</Text>
     </View>
   );
 }

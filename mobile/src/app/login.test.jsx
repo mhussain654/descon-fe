@@ -153,7 +153,7 @@ describe('LoginScreen', () => {
     await screen.findByLabelText('CNIC Number');
 
     expect(screen.queryByText(/sign up/i)).toBeNull();
-    expect(screen.queryByText(/register/i)).toBeNull();
+    expect(screen.queryByText(/\bregister\b/i)).toBeNull();
     expect(screen.queryByText(/create an account/i)).toBeNull();
   });
 
@@ -186,6 +186,55 @@ describe('LoginScreen', () => {
     expect(message.props.numberOfLines).toBeUndefined();
   });
 
+  // Client-approved, deliberate exception to the usual non-enumerating
+  // response -- see shared/auth/types.ts's AuthErrorCode doc comment.
+  it('shows the not-found error message the backend sends, verbatim, naming the submitted CNIC', async () => {
+    globalThis.fetch = jest.fn(() =>
+      Promise.resolve(
+        new Response(
+          JSON.stringify({
+            errors: [{ code: 'candidate_cnic_not_found', message: "We couldn't find your record with this CNIC: 12345-1234567-1" }],
+          }),
+          { status: 404, headers: { 'Content-Type': 'application/json' } }
+        )
+      )
+    );
+    renderLoginScreen();
+
+    fireEvent.changeText(await screen.findByLabelText('CNIC Number'), '1234512345671');
+    fireEvent.press(screen.getByRole('button', { name: 'Send OTP' }));
+
+    expect(await screen.findByText("We couldn't find your record with this CNIC: 12345-1234567-1")).toBeOnTheScreen();
+  });
+
+  // Regression: the message used to be reconstructed client-side by
+  // appending the *live* CNIC field value -- so once the candidate started
+  // typing a correction, the still-displayed error silently relabeled
+  // itself to whatever was now typed instead of what was actually
+  // submitted. The backend-provided message must stay frozen regardless.
+  it('keeps the not-found message frozen on the originally-submitted CNIC after the candidate starts typing a correction', async () => {
+    globalThis.fetch = jest.fn(() =>
+      Promise.resolve(
+        new Response(
+          JSON.stringify({
+            errors: [{ code: 'candidate_cnic_not_found', message: "We couldn't find your record with this CNIC: 12345-1234567-1" }],
+          }),
+          { status: 404, headers: { 'Content-Type': 'application/json' } }
+        )
+      )
+    );
+    renderLoginScreen();
+
+    fireEvent.changeText(await screen.findByLabelText('CNIC Number'), '1234512345671');
+    fireEvent.press(screen.getByRole('button', { name: 'Send OTP' }));
+    await screen.findByText("We couldn't find your record with this CNIC: 12345-1234567-1");
+
+    fireEvent.changeText(screen.getByLabelText('CNIC Number'), '9999912345671');
+
+    expect(screen.getByText("We couldn't find your record with this CNIC: 12345-1234567-1")).toBeOnTheScreen();
+    expect(screen.queryByText(/99999-1234567-1/)).toBeNull();
+  });
+
   describe('server-enforced rate limiting (Retry-After)', () => {
     it('shows a live countdown and disables Send OTP after the CNIC step is rate-limited', async () => {
       globalThis.fetch = jest.fn(() => Promise.resolve(rateLimitedResponse(30)));
@@ -213,7 +262,7 @@ describe('LoginScreen', () => {
       fireEvent.changeText(screen.getByLabelText('One-Time Password'), '123456');
 
       await waitFor(() => expect(screen.getByText('You can try again in 0:20')).toBeOnTheScreen());
-      expect(screen.getByRole('button', { name: 'Verify & Login' })).toBeDisabled();
+      expect(screen.getByRole('button', { name: 'Verify and continue' })).toBeDisabled();
     });
 
     it('shows a live countdown after a resend is rate-limited, independent of the Verify action', async () => {
@@ -243,7 +292,7 @@ describe('LoginScreen', () => {
       fireEvent.changeText(await screen.findByLabelText('شناختی کارڈ نمبر'), '1234512345671');
       fireEvent.press(screen.getByRole('button', { name: 'او ٹی پی بھیجیں' }));
 
-      await waitFor(() => expect(screen.getByText('آپ دوبارہ کوشش کر سکیں گے 0:30')).toBeOnTheScreen());
+      await waitFor(() => expect(screen.getByText('آپ 0:30 میں دوبارہ کوشش کر سکیں گے')).toBeOnTheScreen());
       expect(screen.getByRole('button', { name: 'او ٹی پی بھیجیں' })).toBeDisabled();
     });
   });

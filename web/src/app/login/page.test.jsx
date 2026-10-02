@@ -139,6 +139,47 @@ describe('LoginPage', () => {
     expect(alert.className).not.toMatch(/truncate|overflow-hidden/);
   });
 
+  // Client-approved, deliberate exception to the usual non-enumerating
+  // response -- see shared/auth/types.ts's AuthErrorCode doc comment.
+  it('shows the not-found error message the backend sends, verbatim, naming the submitted CNIC', async () => {
+    vi.spyOn(candidateAuthClient, 'requestOtp').mockRejectedValueOnce({
+      code: 'CNIC_NOT_FOUND',
+      message: "We couldn't find your record with this CNIC: 12345-1234567-1",
+    });
+    renderLoginPage();
+
+    fireEvent.change(screen.getByLabelText('CNIC Number'), { target: { value: '1234512345671' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Send OTP' }));
+
+    expect(await screen.findByText("We couldn't find your record with this CNIC: 12345-1234567-1")).toBeInTheDocument();
+
+    vi.restoreAllMocks();
+  });
+
+  // Regression: the message used to be reconstructed client-side by
+  // appending the *live* CNIC field value -- so once the candidate started
+  // typing a correction, the still-displayed error silently relabeled
+  // itself to whatever was now typed instead of what was actually
+  // submitted. The backend-provided message must stay frozen regardless.
+  it('keeps the not-found message frozen on the originally-submitted CNIC after the candidate starts typing a correction', async () => {
+    vi.spyOn(candidateAuthClient, 'requestOtp').mockRejectedValueOnce({
+      code: 'CNIC_NOT_FOUND',
+      message: "We couldn't find your record with this CNIC: 12345-1234567-1",
+    });
+    renderLoginPage();
+
+    fireEvent.change(screen.getByLabelText('CNIC Number'), { target: { value: '1234512345671' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Send OTP' }));
+    await screen.findByText("We couldn't find your record with this CNIC: 12345-1234567-1");
+
+    fireEvent.change(screen.getByLabelText('CNIC Number'), { target: { value: '9999912345671' } });
+
+    expect(screen.getByText("We couldn't find your record with this CNIC: 12345-1234567-1")).toBeInTheDocument();
+    expect(screen.queryByText(/99999-1234567-1/)).not.toBeInTheDocument();
+
+    vi.restoreAllMocks();
+  });
+
   describe('server-enforced rate limiting (Retry-After)', () => {
     afterEach(() => {
       vi.restoreAllMocks();
@@ -218,7 +259,7 @@ describe('LoginPage', () => {
       fireEvent.click(screen.getByRole('button', { name: 'او ٹی پی بھیجیں' }));
 
       await waitFor(() =>
-        expect(screen.getByRole('alert')).toHaveTextContent('آپ دوبارہ کوشش کر سکیں گے 0:30')
+        expect(screen.getByRole('alert')).toHaveTextContent('آپ 0:30 میں دوبارہ کوشش کر سکیں گے')
       );
       expect(screen.getByRole('button', { name: 'او ٹی پی بھیجیں' })).toBeDisabled();
     });

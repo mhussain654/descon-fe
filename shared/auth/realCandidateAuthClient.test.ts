@@ -53,6 +53,27 @@ describe('createCandidateAuthClient (real)', () => {
     expect(JSON.parse(init.body as string)).toEqual({ candidate: { cnic: CNIC } });
   });
 
+  it('turns the backend mobile_last_four into a masked "•••• 4821" hint', async () => {
+    stubFetch(async () =>
+      jsonResponse(successEnvelope({ expires_in_seconds: 300, resend_after_seconds: 60, mobile_last_four: '4821' }))
+    );
+
+    const challenge = await buildClient().requestOtp(CNIC);
+
+    // Unicode isolates keep the digits' order intact inside an Urdu sentence.
+    expect(challenge.maskedDestination).toBe('\u2066•••• 4821\u2069');
+  });
+
+  it('omits the hint when mobile_last_four is missing or not exactly four digits', async () => {
+    stubFetch(async () =>
+      jsonResponse(successEnvelope({ expires_in_seconds: 300, resend_after_seconds: 60, mobile_last_four: '9230012345' }))
+    );
+
+    const challenge = await buildClient().requestOtp(CNIC);
+
+    expect(challenge.maskedDestination).toBeUndefined();
+  });
+
   it('sends the current locale via X-Locale on every request', async () => {
     const fetchCalls: Array<RequestInit> = [];
     stubFetch(async (_url, init) => {

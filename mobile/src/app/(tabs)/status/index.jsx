@@ -2,12 +2,6 @@ import { View, Text, ScrollView, RefreshControl, TouchableOpacity, useColorSchem
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
 import { CheckCircle, Circle, Clock } from "lucide-react-native";
-import {
-  useFonts,
-  Inter_400Regular,
-  Inter_500Medium,
-  Inter_600SemiBold,
-} from "@expo-google-fonts/inter";
 import { useRouter } from "expo-router";
 import { useAuth } from "../../../contexts/AuthContext";
 import { useLanguage } from "../../../contexts/LanguageContext";
@@ -18,10 +12,11 @@ import { useCandidateFlightDetail } from "../../../features/candidate/workflow/h
 import { useFlightTicketAccess } from "../../../features/candidate/workflow/hooks/useFlightTicketAccess";
 import { useCandidateVisaDecisions } from "../../../features/candidate/workflow/hooks/useCandidateVisaDecisions";
 import { useVisaCopyAccess } from "../../../features/candidate/workflow/hooks/useVisaCopyAccess";
-import { LoadingState, ErrorState, OfflineState, SessionExpiredState, ForbiddenState, Button, ValidationMessage } from "../../../design-system";
+import { LoadingState, ErrorState, OfflineState, SessionExpiredState, ForbiddenState, Button, ValidationMessage, getFontFamily } from "../../../design-system";
 import { APPLICATION_PROGRESS_ERROR_KEYS } from "../../../../../shared/applicationProgress/errorMessages";
 import { WORKFLOW_HISTORY_ERROR_KEYS } from "../../../../../shared/candidateWorkflow/errorMessages";
 import { findLatestQvcOutcome, QVC_OUTCOME_KEYS, QVC_OUTCOME_TONES } from "../../../../../shared/candidateWorkflow/qvcOutcome";
+import { isActionableHistoryItem } from "../../../../../shared/candidateWorkflow/actionableHistory";
 import { VISA_OUTCOME_KEYS, VISA_OUTCOME_TONES } from "../../../../../shared/candidateVisaDecisions/outcomeLabels";
 import { CANDIDATE_FLIGHT_DETAIL_ERROR_KEYS } from "../../../../../shared/candidateFlightDetail/errorMessages";
 import { CANDIDATE_VISA_DECISIONS_ERROR_KEYS } from "../../../../../shared/candidateVisaDecisions/errorMessages";
@@ -56,16 +51,6 @@ export default function StatusScreen() {
   const visaCopyAccess = useVisaCopyAccess();
   useRefetchOnFocus(progressQuery.refetch, progressQuery.isFetching);
   useRefetchOnFocus(historyQuery.refetch, historyQuery.isFetching);
-
-  const [fontsLoaded] = useFonts({
-    Inter_400Regular,
-    Inter_500Medium,
-    Inter_600SemiBold,
-  });
-
-  if (!fontsLoaded) {
-    return null;
-  }
 
   const returnToSignIn = async () => {
     await logout("expired");
@@ -104,7 +89,11 @@ export default function StatusScreen() {
   // The latest recorded visa decision (a candidate can be re-submitted, so this is
   // never assumed to be the only one) -- the backend returns the list in chronological order.
   const latestVisaDecision = visaDecisionsQuery.data?.at(-1) ?? null;
-  const historyItems = historyQuery.data?.items ?? [];
+  // Only real actions/outcomes ("documents uploaded", "fee paid", "visa
+  // issued") -- a waiting state like "fee pending" is already shown as the
+  // *current* position in the stepper above, so repeating it here under a
+  // "completed" heading would misleadingly read as something having happened.
+  const historyItems = (historyQuery.data?.items ?? []).filter(isActionableHistoryItem);
   const lastUpdatedLabel = workflow ? formatStageDate(workflow.updatedAt, language) : null;
 
   return (
@@ -125,7 +114,7 @@ export default function StatusScreen() {
         <Text
           style={{
             fontSize: 28,
-            fontFamily: "Inter_600SemiBold",
+            fontFamily: getFontFamily(language, "semibold"),
             color: isDark ? "#FFFFFF" : "#000000",
             marginBottom: 4,
           }}
@@ -135,7 +124,7 @@ export default function StatusScreen() {
         <Text
           style={{
             fontSize: 14,
-            fontFamily: "Inter_400Regular",
+            fontFamily: getFontFamily(language, "regular"),
             color: isDark ? "#9CA3AF" : "#6B7280",
           }}
         >
@@ -162,7 +151,9 @@ export default function StatusScreen() {
           />
         }
       >
-        {progressQuery.isLoading ? <LoadingState message={t("loading")} /> : null}
+        {/* isPending, not isLoading -- see documents/index.jsx for why a
+            disabled (auth still restoring) query needs this, not isLoading. */}
+        {progressQuery.isPending ? <LoadingState message={t("loading")} language={language} /> : null}
 
         {progressQuery.error?.code === "SESSION_EXPIRED" ? (
           <SessionExpiredState
@@ -170,6 +161,7 @@ export default function StatusScreen() {
             description={t("dsSessionExpiredDescription")}
             actionLabel={t("dsSessionExpiredAction")}
             onAction={returnToSignIn}
+            language={language}
           />
         ) : null}
 
@@ -179,6 +171,7 @@ export default function StatusScreen() {
             description={t("candidateProfileInactiveAccountDescription")}
             actionLabel={t("candidateProfileInactiveAccountAction")}
             onAction={returnToSignIn}
+            language={language}
           />
         ) : null}
 
@@ -188,6 +181,7 @@ export default function StatusScreen() {
             description={t("dsOfflineDescription")}
             retryLabel={t("retry")}
             onRetry={() => progressQuery.refetch()}
+            language={language}
           />
         ) : null}
 
@@ -196,16 +190,17 @@ export default function StatusScreen() {
             message={t(APPLICATION_PROGRESS_ERROR_KEYS[progressQuery.error.code])}
             retryLabel={t("retry")}
             onRetry={() => progressQuery.refetch()}
+            language={language}
           />
         ) : null}
 
-        {!progressQuery.isLoading && !progressQuery.error && timeline.length > 0 ? (
+        {!progressQuery.isPending && !progressQuery.error && timeline.length > 0 ? (
           <View style={{ flexDirection: "row", flexWrap: "wrap", justifyContent: "space-between", marginBottom: 16 }}>
-            <Text style={{ fontSize: 13, fontFamily: "Inter_400Regular", color: isDark ? "#9CA3AF" : "#6B7280" }}>
+            <Text style={{ fontSize: 13, fontFamily: getFontFamily(language, "regular"), color: isDark ? "#9CA3AF" : "#6B7280" }}>
               {t("workflowStagesCompletedPrefix")}: {workflow.completedCount}/{workflow.totalCount}
             </Text>
             {lastUpdatedLabel ? (
-              <Text style={{ fontSize: 13, fontFamily: "Inter_400Regular", color: isDark ? "#9CA3AF" : "#6B7280" }}>
+              <Text style={{ fontSize: 13, fontFamily: getFontFamily(language, "regular"), color: isDark ? "#9CA3AF" : "#6B7280" }}>
                 {t("workflowLastUpdatedPrefix")}: {lastUpdatedLabel}
               </Text>
             ) : null}
@@ -213,7 +208,7 @@ export default function StatusScreen() {
         ) : null}
 
         {/* Timeline */}
-        {!progressQuery.isLoading && !progressQuery.error && timeline.length > 0 ? (
+        {!progressQuery.isPending && !progressQuery.error && timeline.length > 0 ? (
           <View>
             {timeline.map((stage, index) => {
               const config = getStatusConfig(stage.status);
@@ -277,7 +272,7 @@ export default function StatusScreen() {
                     <Text
                       style={{
                         fontSize: 15,
-                        fontFamily: stage.status === "current" ? "Inter_600SemiBold" : "Inter_500Medium",
+                        fontFamily: stage.status === "current" ? getFontFamily(language, "semibold") : getFontFamily(language, "medium"),
                         color: config.textColor,
                         marginBottom: 2,
                       }}
@@ -285,11 +280,11 @@ export default function StatusScreen() {
                       {stage.name}
                     </Text>
                     {completedLabel ? (
-                      <Text style={{ fontSize: 12, fontFamily: "Inter_400Regular", color: isDark ? "#9CA3AF" : "#6B7280" }}>
+                      <Text style={{ fontSize: 12, fontFamily: getFontFamily(language, "regular"), color: isDark ? "#9CA3AF" : "#6B7280" }}>
                         {t("workflowStageCompletedPrefix")} {completedLabel}
                       </Text>
                     ) : startedLabel ? (
-                      <Text style={{ fontSize: 12, fontFamily: "Inter_400Regular", color: isDark ? "#9CA3AF" : "#6B7280" }}>
+                      <Text style={{ fontSize: 12, fontFamily: getFontFamily(language, "regular"), color: isDark ? "#9CA3AF" : "#6B7280" }}>
                         {t("workflowStageStartedPrefix")} {startedLabel}
                       </Text>
                     ) : null}
@@ -304,7 +299,7 @@ export default function StatusScreen() {
                           alignSelf: "flex-start",
                         }}
                       >
-                        <Text style={{ fontSize: 12, fontFamily: "Inter_500Medium", color: "#0066CC" }}>{t("inProgress")}</Text>
+                        <Text style={{ fontSize: 12, fontFamily: getFontFamily(language, "medium"), color: "#0066CC" }}>{t("inProgress")}</Text>
                       </View>
                     )}
                     {stage.code === QVC_OUTCOME_STAGE_CODE && qvcOutcome ? (
@@ -318,7 +313,7 @@ export default function StatusScreen() {
                           alignSelf: "flex-start",
                         }}
                       >
-                        <Text style={{ fontSize: 12, fontFamily: "Inter_500Medium", color: outcomeTone.text }}>
+                        <Text style={{ fontSize: 12, fontFamily: getFontFamily(language, "medium"), color: outcomeTone.text }}>
                           {t("qvcOutcome")}: {t(QVC_OUTCOME_KEYS[qvcOutcome.code])}
                           {formatStageDate(qvcOutcome.date, language) ? ` • ${formatStageDate(qvcOutcome.date, language)}` : ""}
                         </Text>
@@ -336,7 +331,7 @@ export default function StatusScreen() {
                             alignSelf: "flex-start",
                           }}
                         >
-                          <Text style={{ fontSize: 12, fontFamily: "Inter_500Medium", color: visaOutcomeTone.text }}>
+                          <Text style={{ fontSize: 12, fontFamily: getFontFamily(language, "medium"), color: visaOutcomeTone.text }}>
                             {t("visaOutcome")}: {t(VISA_OUTCOME_KEYS[latestVisaDecision.outcomeCode])}
                             {formatStageDate(latestVisaDecision.decisionDate, language)
                               ? ` • ${formatStageDate(latestVisaDecision.decisionDate, language)}`
@@ -350,12 +345,13 @@ export default function StatusScreen() {
                               size="sm"
                               onPress={() => visaCopyAccess.downloadVisaCopy(latestVisaDecision.id)}
                               disabled={visaCopyAccess.isRequesting}
+                              language={language}
                             >
                               {t("candidateVisaDownloadCopyAction")}
                             </Button>
                             {visaCopyAccess.error ? (
                               <View style={{ marginTop: 4 }}>
-                                <ValidationMessage tone="error">
+                                <ValidationMessage tone="error" language={language}>
                                   {visaCopyAccess.error.message || t(CANDIDATE_VISA_DECISIONS_ERROR_KEYS[visaCopyAccess.error.code])}
                                 </ValidationMessage>
                               </View>
@@ -366,12 +362,18 @@ export default function StatusScreen() {
                     ) : null}
                     {FLIGHT_TICKET_STAGE_CODES.has(stage.code) && stage.status !== "pending" && flightDetailQuery.data?.ticketAttached ? (
                       <View style={{ marginTop: 8 }}>
-                        <Button variant="outline" size="sm" onPress={ticketAccess.downloadTicket} disabled={ticketAccess.isRequesting}>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onPress={ticketAccess.downloadTicket}
+                          disabled={ticketAccess.isRequesting}
+                          language={language}
+                        >
                           {t("candidateFlightDownloadTicketAction")}
                         </Button>
                         {ticketAccess.error ? (
                           <View style={{ marginTop: 4 }}>
-                            <ValidationMessage tone="error">
+                            <ValidationMessage tone="error" language={language}>
                               {ticketAccess.error.message || t(CANDIDATE_FLIGHT_DETAIL_ERROR_KEYS[ticketAccess.error.code])}
                             </ValidationMessage>
                           </View>
@@ -386,7 +388,7 @@ export default function StatusScreen() {
         ) : null}
 
         {/* Recent updates */}
-        {!progressQuery.isLoading && !progressQuery.error && timeline.length > 0 ? (
+        {!progressQuery.isPending && !progressQuery.error && timeline.length > 0 ? (
           <View
             style={{
               marginTop: 24,
@@ -397,22 +399,22 @@ export default function StatusScreen() {
               borderColor: isDark ? "#333333" : "#E5E7EB",
             }}
           >
-            <Text style={{ fontSize: 16, fontFamily: "Inter_600SemiBold", color: isDark ? "#FFFFFF" : "#000000", marginBottom: 16 }}>
+            <Text style={{ fontSize: 16, fontFamily: getFontFamily(language, "semibold"), color: isDark ? "#FFFFFF" : "#000000", marginBottom: 16 }}>
               {t("workflowHistoryTitle")}
             </Text>
-            {historyQuery.isLoading ? (
-              <Text style={{ fontSize: 14, fontFamily: "Inter_400Regular", color: isDark ? "#9CA3AF" : "#6B7280" }}>{t("loading")}</Text>
+            {historyQuery.isPending ? (
+              <Text style={{ fontSize: 14, fontFamily: getFontFamily(language, "regular"), color: isDark ? "#9CA3AF" : "#6B7280" }}>{t("loading")}</Text>
             ) : historyQuery.error ? (
               <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
-                <Text style={{ fontSize: 14, fontFamily: "Inter_400Regular", color: isDark ? "#9CA3AF" : "#6B7280" }}>
+                <Text style={{ fontSize: 14, fontFamily: getFontFamily(language, "regular"), color: isDark ? "#9CA3AF" : "#6B7280" }}>
                   {t(WORKFLOW_HISTORY_ERROR_KEYS[historyQuery.error.code])}
                 </Text>
                 <TouchableOpacity onPress={() => historyQuery.refetch()}>
-                  <Text style={{ fontSize: 14, fontFamily: "Inter_500Medium", color: "#0066CC" }}>{t("retry")}</Text>
+                  <Text style={{ fontSize: 14, fontFamily: getFontFamily(language, "medium"), color: "#0066CC" }}>{t("retry")}</Text>
                 </TouchableOpacity>
               </View>
             ) : historyItems.length === 0 ? (
-              <Text style={{ fontSize: 14, fontFamily: "Inter_400Regular", color: isDark ? "#9CA3AF" : "#6B7280" }}>
+              <Text style={{ fontSize: 14, fontFamily: getFontFamily(language, "regular"), color: isDark ? "#9CA3AF" : "#6B7280" }}>
                 {t("workflowHistoryEmpty")}
               </Text>
             ) : (
@@ -421,10 +423,10 @@ export default function StatusScreen() {
                   key={`${item.toStage.code}-${item.occurredAt}`}
                   style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingVertical: 6 }}
                 >
-                  <Text style={{ fontSize: 14, fontFamily: "Inter_400Regular", color: isDark ? "#FFFFFF" : "#000000" }}>
+                  <Text style={{ fontSize: 14, fontFamily: getFontFamily(language, "regular"), color: isDark ? "#FFFFFF" : "#000000" }}>
                     {item.toStage.name}
                   </Text>
-                  <Text style={{ fontSize: 13, fontFamily: "Inter_400Regular", color: isDark ? "#9CA3AF" : "#6B7280" }}>
+                  <Text style={{ fontSize: 13, fontFamily: getFontFamily(language, "regular"), color: isDark ? "#9CA3AF" : "#6B7280" }}>
                     {formatStageDate(item.occurredAt, language)}
                   </Text>
                 </View>

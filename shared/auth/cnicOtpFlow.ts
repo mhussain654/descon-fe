@@ -202,3 +202,12 @@ export function formatCountdown(totalSeconds: number): string {
   const seconds = Math.floor(clamped % 60);
   return `${minutes}:${String(seconds).padStart(2, '0')}`;
 }
+
+/**
+ * Fills a translated sentence's `%{time}` slot with a formatted countdown.
+ * The slot (rather than "prefix + time") lets each language place the time
+ * where its grammar needs it -- mid-sentence in Urdu ("آپ 0:49 میں ...").
+ */
+export function withCountdown(template: string, totalSeconds: number): string {
+  return template.replace('%{time}', formatCountdown(totalSeconds));
+}

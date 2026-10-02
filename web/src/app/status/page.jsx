@@ -12,6 +12,7 @@ import { LoadingState, ErrorState, OfflineState, SessionExpiredState, ForbiddenS
 import { APPLICATION_PROGRESS_ERROR_KEYS } from "../../../../shared/applicationProgress/errorMessages";
 import { WORKFLOW_HISTORY_ERROR_KEYS } from "../../../../shared/candidateWorkflow/errorMessages";
 import { findLatestQvcOutcome, QVC_OUTCOME_KEYS, QVC_OUTCOME_TONES } from "../../../../shared/candidateWorkflow/qvcOutcome";
+import { isActionableHistoryItem } from "../../../../shared/candidateWorkflow/actionableHistory";
 import { VISA_OUTCOME_KEYS, VISA_OUTCOME_TONES } from "../../../../shared/candidateVisaDecisions/outcomeLabels";
 import { CANDIDATE_FLIGHT_DETAIL_ERROR_KEYS } from "../../../../shared/candidateFlightDetail/errorMessages";
 import { CANDIDATE_VISA_DECISIONS_ERROR_KEYS } from "../../../../shared/candidateVisaDecisions/errorMessages";
@@ -113,6 +114,11 @@ export default function StatusPage() {
     // never assumed to be the only one) -- the backend returns the list in chronological order.
     const latestVisaDecision = visaDecisionsQuery.data?.at(-1) ?? null;
     const lastUpdatedLabel = formatStageDate(workflow.updatedAt, language);
+    // Only real actions/outcomes ("documents uploaded", "fee paid", "visa
+    // issued") -- a waiting state like "fee pending" is already shown as the
+    // *current* position in the stepper above, so repeating it here under a
+    // "completed" heading would misleadingly read as something having happened.
+    const historyItems = (historyQuery.data?.items ?? []).filter(isActionableHistoryItem);
 
     return (
       <>
@@ -259,11 +265,11 @@ export default function StatusPage() {
                 {t("retry")}
               </button>
             </div>
-          ) : (historyQuery.data?.items.length ?? 0) === 0 ? (
+          ) : historyItems.length === 0 ? (
             <p className="text-sm text-gray-500">{t("workflowHistoryEmpty")}</p>
           ) : (
             <ul className="space-y-3">
-              {[...historyQuery.data.items].reverse().map((item) => (
+              {[...historyItems].reverse().map((item) => (
                 <li key={`${item.toStage.code}-${item.occurredAt}`} className="flex items-center justify-between gap-3 text-sm">
                   <span className="text-black">{item.toStage.name}</span>
                   <span className="text-gray-500">{formatStageDate(item.occurredAt, language)}</span>

@@ -78,13 +78,30 @@ export function HostedCheckoutWebView({ url, onClose, closeLabel, loadingLabel, 
   // receives) isn't re-exported from this package's public entry point --
   // only `WebViewNavigation` is, which it extends and which has every field
   // this handler needs (just `.url`).
+  // Checked first, before the origin allowlist: our backend's return endpoint
+  // itself replies with a redirect (to the frontend's pending page, an origin
+  // this WebView never allowlists -- mobile has its own status screen and never
+  // needs to render that page). If the origin check ran first and only
+  // `onNavigationStateChange` closed the WebView afterward, the native
+  // WebView's redirect-follow can reach and block on that second origin before
+  // React unmounts it, surfacing the "untrusted location" screen to the
+  // candidate. Closing here, synchronously, on the very first request that
+  // matches the return URL -- before the backend's redirect target is ever
+  // evaluated -- avoids that race.
   const handleShouldStartLoad = (request: WebViewNavigation): boolean => {
+    if (isHostedCheckoutReturnUrl(request.url, apiBaseUrl)) {
+      onClose();
+      return true;
+    }
     const allowed = isAllowedOrigin(originOf(request.url), checkoutOrigin, apiOrigin);
     if (!allowed) setIsBlocked(true);
     return allowed;
   };
 
   const handleNavigationStateChange = (navState: WebViewNavigation) => {
+    // Kept as a second, redundant trigger alongside handleShouldStartLoad --
+    // some navigations (e.g. the WebView's initial load) don't necessarily
+    // fire onShouldStartLoadWithRequest first on every platform.
     // Payment success is never inferred here -- reaching the return endpoint
     // only closes the WebView; the caller's own eligibility refetch is what
     // actually decides success.

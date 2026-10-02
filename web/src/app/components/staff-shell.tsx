@@ -9,6 +9,7 @@ import {
   FileCheck2,
   FileUp,
   GraduationCap,
+  Headphones,
   History,
   LayoutDashboard,
   LogOut,
@@ -198,30 +199,30 @@ function StaffShellContent({ children }: { children: ReactNode }) {
       visible: hasPermission('view_reports'),
       icon: BarChart3,
     },
-    {
-      type: 'group',
-      key: 'communications',
-      children: [
-        {
-          href: '/admin/communications',
-          labelKey: 'staffNavCommunications',
-          visible: hasPermission('view_communications') || hasPermission('manage_communications'),
-          icon: MessageSquare,
-        },
-        {
-          href: '/admin/ai-call-scripts',
-          labelKey: 'staffNavAiCallScripts',
-          visible: hasPermission('manage_ai_call_scripts'),
-          icon: ScrollText,
-        },
-        {
-          href: '/admin/ai-call-settings',
-          labelKey: 'staffNavAiCallSettings',
-          visible: hasPermission('manage_ai_call_settings'),
-          icon: SlidersHorizontal,
-        },
-      ],
-    },
+    // {
+    //   type: 'group',
+    //   key: 'communications',
+    //   children: [
+    //     {
+    //       href: '/admin/communications',
+    //       labelKey: 'staffNavCommunications',
+    //       visible: hasPermission('view_communications') || hasPermission('manage_communications'),
+    //       icon: MessageSquare,
+    //     },
+    //     {
+    //       href: '/admin/ai-call-scripts',
+    //       labelKey: 'staffNavAiCallScripts',
+    //       visible: hasPermission('manage_ai_call_scripts'),
+    //       icon: ScrollText,
+    //     },
+    //     {
+    //       href: '/admin/ai-call-settings',
+    //       labelKey: 'staffNavAiCallSettings',
+    //       visible: hasPermission('manage_ai_call_settings'),
+    //       icon: SlidersHorizontal,
+    //     },
+    //   ],
+    // },
     {
       type: 'group',
       key: 'administration',
@@ -249,6 +250,12 @@ function StaffShellContent({ children }: { children: ReactNode }) {
           labelKey: 'staffNavTraining',
           visible: hasPermission('manage_training_settings'),
           icon: GraduationCap,
+        },
+        {
+          href: '/admin/support-settings',
+          labelKey: 'staffNavSupport',
+          visible: hasPermission('manage_support_settings'),
+          icon: Headphones,
         },
         {
           href: '/admin/candidates/import',

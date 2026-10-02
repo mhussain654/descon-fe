@@ -15,6 +15,15 @@ import type { AuthError, AuthErrorCode, AuthSession, CandidateAuthClient, OtpCha
 interface CandidateOtpRequestResponse {
   expires_in_seconds: number;
   resend_after_seconds: number;
+  /** Last four digits of the registered mobile -- the backend never sends more. */
+  mobile_last_four?: string;
+}
+
+// Wrapped in Unicode isolates (LRI ... PDI) so "•••• 4821" keeps its
+// left-to-right order when embedded in an Urdu sentence.
+function maskMobileHint(lastFour: string | undefined): string | undefined {
+  if (!lastFour || !/^\d{4}$/.test(lastFour)) return undefined;
+  return `\u2066•••• ${lastFour}\u2069`;
 }
 
 interface CandidateSessionResponse {
@@ -47,6 +56,7 @@ const SERVER_CODE_TO_AUTH_ERROR: Record<string, AuthErrorCode> = {
   otp_expired: 'OTP_EXPIRED',
   otp_max_attempts: 'OTP_MAX_ATTEMPTS',
   rate_limited: 'RATE_LIMITED',
+  candidate_cnic_not_found: 'CNIC_NOT_FOUND',
 };
 
 function toAuthError(error: unknown): AuthError {
@@ -72,7 +82,12 @@ function toAuthError(error: unknown): AuthError {
   }
 
   const mapped = apiError.serverCode ? SERVER_CODE_TO_AUTH_ERROR[apiError.serverCode] : undefined;
-  if (mapped) return { code: mapped };
+  if (mapped) {
+    // Only CNIC_NOT_FOUND carries the server's message through -- see
+    // AuthError.message's own doc comment for why that one code needs it
+    // (every other mapped code stays purely code-keyed, by design).
+    return mapped === 'CNIC_NOT_FOUND' ? { code: mapped, message: apiError.message } : { code: mapped };
+  }
 
   // 422 (malformed CNIC/OTP shape) reaching here means client-side
   // validation let something through the server rejected -- fold it into
@@ -113,9 +128,7 @@ function toOtpChallenge(data: CandidateOtpRequestResponse): OtpChallenge {
   return {
     expiresInSeconds: data.expires_in_seconds,
     resendAfterSeconds: data.resend_after_seconds,
-    // The real backend does not send a masked destination -- see
-    // OtpChallenge's doc comment. Left undefined; already optional-safe
-    // everywhere it's rendered.
+    maskedDestination: maskMobileHint(data.mobile_last_four),
   };
 }
 

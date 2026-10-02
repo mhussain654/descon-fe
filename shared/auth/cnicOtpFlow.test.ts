@@ -3,6 +3,7 @@ import {
   cnicOtpReducer,
   createInitialCnicOtpState,
   formatCountdown,
+  withCountdown,
   secondsUntilExpiry,
   secondsUntilRateLimitCleared,
   secondsUntilResendAvailable,
@@ -222,6 +223,13 @@ describe('server-enforced rate limiting (RATE_LIMITED / Retry-After)', () => {
     state = cnicOtpReducer(state, { type: 'CNIC_SUBMIT_FAILED', error: { code: 'OTP_REQUEST_FAILED' }, now: 0 });
     expect(state.rateLimitedAction).toBeNull();
     expect(secondsUntilRateLimitCleared(state)).toBeNull();
+  });
+});
+
+describe('withCountdown', () => {
+  it('places the formatted time where each language puts it in the sentence', () => {
+    expect(withCountdown('You can resend in %{time}', 49)).toBe('You can resend in 0:49');
+    expect(withCountdown('آپ %{time} میں دوبارہ بھیج سکیں گے', 49)).toBe('آپ 0:49 میں دوبارہ بھیج سکیں گے');
   });
 });
 

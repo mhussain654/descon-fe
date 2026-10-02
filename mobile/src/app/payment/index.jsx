@@ -3,12 +3,6 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
 import { useRouter } from "expo-router";
 import { ArrowLeft, ArrowRight, CheckCircle, XCircle, Clock, Ban } from "lucide-react-native";
-import {
-  useFonts,
-  Inter_400Regular,
-  Inter_500Medium,
-  Inter_600SemiBold,
-} from "@expo-google-fonts/inter";
 import { useAuth } from "../../contexts/AuthContext";
 import { useLanguage } from "../../contexts/LanguageContext";
 import { usePaymentEligibility } from "../../features/candidate/payments/hooks/usePaymentEligibility";
@@ -24,6 +18,7 @@ import {
   OfflineState,
   SessionExpiredState,
   ValidationMessage,
+  getFontFamily,
 } from "../../design-system";
 import { PAYMENT_ERROR_KEYS } from "../../../../shared/payments/errorMessages";
 import {
@@ -54,26 +49,18 @@ export default function PaymentScreen() {
   const eligibilityQuery = usePaymentEligibility();
   const checkout = useInitiateCheckout();
 
-  const [fontsLoaded] = useFonts({
-    Inter_400Regular,
-    Inter_500Medium,
-    Inter_600SemiBold,
-  });
-
   const returnToSignIn = async () => {
     await logout("expired");
     router.replace("/login");
   };
 
-  if (!fontsLoaded) {
-    return null;
-  }
-
   const BackIcon = language === "ur" ? ArrowRight : ArrowLeft;
 
   const renderBody = () => {
-    if (eligibilityQuery.isLoading) {
-      return <LoadingState message={t("loading")} />;
+    // isPending, not isLoading -- see documents/index.jsx for why a disabled
+    // (auth still restoring) query needs this, not isLoading.
+    if (eligibilityQuery.isPending) {
+      return <LoadingState message={t("loading")} language={language} />;
     }
 
     const error = eligibilityQuery.error;
@@ -84,11 +71,14 @@ export default function PaymentScreen() {
           description={t("dsSessionExpiredDescription")}
           actionLabel={t("dsSessionExpiredAction")}
           onAction={returnToSignIn}
+          language={language}
         />
       );
     }
     if (error?.code === "FORBIDDEN") {
-      return <ForbiddenState title={t("dsForbiddenTitle")} description={t(PAYMENT_ERROR_KEYS.FORBIDDEN)} />;
+      return (
+        <ForbiddenState title={t("dsForbiddenTitle")} description={t(PAYMENT_ERROR_KEYS.FORBIDDEN)} language={language} />
+      );
     }
     if (error?.code === "OFFLINE") {
       return (
@@ -97,18 +87,31 @@ export default function PaymentScreen() {
           description={t("dsOfflineDescription")}
           retryLabel={t("retry")}
           onRetry={() => eligibilityQuery.refetch()}
+          language={language}
         />
       );
     }
     if (error) {
       return (
-        <ErrorState message={t(PAYMENT_ERROR_KEYS[error.code])} retryLabel={t("retry")} onRetry={() => eligibilityQuery.refetch()} />
+        <ErrorState
+          message={t(PAYMENT_ERROR_KEYS[error.code])}
+          retryLabel={t("retry")}
+          onRetry={() => eligibilityQuery.refetch()}
+          language={language}
+        />
       );
     }
 
     const eligibility = eligibilityQuery.data;
     if (!eligibility) {
-      return <ErrorState message={t("somethingWentWrong")} retryLabel={t("retry")} onRetry={() => eligibilityQuery.refetch()} />;
+      return (
+        <ErrorState
+          message={t("somethingWentWrong")}
+          retryLabel={t("retry")}
+          onRetry={() => eligibilityQuery.refetch()}
+          language={language}
+        />
+      );
     }
 
     const payment = eligibility.latestPayment;
@@ -131,10 +134,10 @@ export default function PaymentScreen() {
             borderColor: isDark ? "#333333" : "#E5E7EB",
           }}
         >
-          <Text style={{ fontSize: 13, fontFamily: "Inter_400Regular", color: isDark ? "#9CA3AF" : "#6B7280", marginBottom: 4 }}>
+          <Text style={{ fontSize: 13, fontFamily: getFontFamily(language, "regular"), color: isDark ? "#9CA3AF" : "#6B7280", marginBottom: 4 }}>
             {t("paymentAmountLabel")}
           </Text>
-          <Text style={{ fontSize: 24, fontFamily: "Inter_600SemiBold", color: isDark ? "#FFFFFF" : "#000000" }}>
+          <Text style={{ fontSize: 24, fontFamily: getFontFamily(language, "semibold"), color: isDark ? "#FFFFFF" : "#000000" }}>
             {eligibility.amount} {eligibility.currencyCode}
           </Text>
         </View>
@@ -145,24 +148,34 @@ export default function PaymentScreen() {
           <EmptyState
             title={t("paymentNotEligibleTitle")}
             description={eligibility.blockingReasons.map((reason) => t(PAYMENT_BLOCKING_REASON_KEYS[reason])).join(" ")}
+            language={language}
           />
         ) : null}
 
         {eligibility.eligible && !eligibility.checkoutAvailable ? (
-          <ValidationMessage tone="error">{t("paymentProviderUnavailableError")}</ValidationMessage>
+          <ValidationMessage tone="error" language={language}>
+            {t("paymentProviderUnavailableError")}
+          </ValidationMessage>
         ) : null}
 
         {showPayAction ? (
-          <Button onPress={checkout.initiate} disabled={checkout.mutation.isPending} loading={checkout.mutation.isPending}>
+          <Button
+            onPress={checkout.initiate}
+            disabled={checkout.mutation.isPending}
+            loading={checkout.mutation.isPending}
+            language={language}
+          >
             {t("paymentPayAction")}
           </Button>
         ) : null}
 
         {checkoutError && checkoutError.code !== "IDEMPOTENCY_CONFLICT" ? (
           <View style={{ marginTop: 12 }}>
-            <ValidationMessage tone="error">{checkoutError.message || t(PAYMENT_ERROR_KEYS[checkoutError.code])}</ValidationMessage>
+            <ValidationMessage tone="error" language={language}>
+              {checkoutError.message || t(PAYMENT_ERROR_KEYS[checkoutError.code])}
+            </ValidationMessage>
             {canRetryCheckout ? (
-              <Button variant="text" size="sm" onPress={checkout.initiate} disabled={checkout.mutation.isPending}>
+              <Button variant="text" size="sm" onPress={checkout.initiate} disabled={checkout.mutation.isPending} language={language}>
                 {t("retry")}
               </Button>
             ) : null}
@@ -171,7 +184,7 @@ export default function PaymentScreen() {
 
         {stillWaiting && !eligibilityQuery.pollingTimedOut ? (
           <View style={{ marginTop: 12, borderRadius: 12, padding: 14, backgroundColor: isDark ? "#2E2416" : "#FFF7E6" }}>
-            <Text style={{ fontSize: 13, fontFamily: "Inter_400Regular", color: isDark ? "#FFFFFF" : "#374151" }}>
+            <Text style={{ fontSize: 13, fontFamily: getFontFamily(language, "regular"), color: isDark ? "#FFFFFF" : "#374151" }}>
               {t("paymentWaitingForConfirmation")}
             </Text>
           </View>
@@ -179,10 +192,16 @@ export default function PaymentScreen() {
 
         {stillWaiting && eligibilityQuery.pollingTimedOut ? (
           <View style={{ marginTop: 12, borderRadius: 12, padding: 14, backgroundColor: isDark ? "#2E2416" : "#FFF7E6" }}>
-            <Text style={{ fontSize: 13, fontFamily: "Inter_400Regular", color: isDark ? "#FFFFFF" : "#374151", marginBottom: 10 }}>
+            <Text style={{ fontSize: 13, fontFamily: getFontFamily(language, "regular"), color: isDark ? "#FFFFFF" : "#374151", marginBottom: 10 }}>
               {t("paymentPollingTimedOutMessage")}
             </Text>
-            <Button variant="outline" size="sm" onPress={() => eligibilityQuery.refetch()} disabled={eligibilityQuery.isFetching}>
+            <Button
+              variant="outline"
+              size="sm"
+              onPress={() => eligibilityQuery.refetch()}
+              disabled={eligibilityQuery.isFetching}
+              language={language}
+            >
               {t("paymentManualRefreshAction")}
             </Button>
           </View>
@@ -213,7 +232,7 @@ export default function PaymentScreen() {
         <Text
           style={{
             fontSize: 22,
-            fontFamily: "Inter_600SemiBold",
+            fontFamily: getFontFamily(language, "semibold"),
             color: isDark ? "#FFFFFF" : "#000000",
             marginStart: 12,
           }}
@@ -266,24 +285,24 @@ function LatestPaymentCard({ payment, expired, isDark, language, t }) {
       }}
     >
       <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
-        <Text style={{ fontSize: 14, fontFamily: "Inter_500Medium", color: isDark ? "#FFFFFF" : "#000000" }}>
+        <Text style={{ fontSize: 14, fontFamily: getFontFamily(language, "medium"), color: isDark ? "#FFFFFF" : "#000000" }}>
           {t("paymentLatestPaymentLabel")}
         </Text>
         <Badge tone={tone}>{t(statusLabelKey)}</Badge>
       </View>
       <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
         <Icon size={20} color={isDark ? "#9CA3AF" : "#6B7280"} />
-        <Text style={{ fontSize: 14, fontFamily: "Inter_400Regular", color: isDark ? "#D1D5DB" : "#374151" }}>
+        <Text style={{ fontSize: 14, fontFamily: getFontFamily(language, "regular"), color: isDark ? "#D1D5DB" : "#374151" }}>
           {payment.amount} {payment.currencyCode}
         </Text>
       </View>
       {displayStatus === "paid" && payment.paidAt ? (
-        <Text style={{ marginTop: 8, fontSize: 12, fontFamily: "Inter_400Regular", color: isDark ? "#9CA3AF" : "#6B7280" }}>
+        <Text style={{ marginTop: 8, fontSize: 12, fontFamily: getFontFamily(language, "regular"), color: isDark ? "#9CA3AF" : "#6B7280" }}>
           {t("paymentPaidAtLabel")}: {new Date(payment.paidAt).toLocaleString(language === "ur" ? "ur-PK" : "en-GB")}
         </Text>
       ) : null}
       {displayStatus === "paid" ? (
-        <Text style={{ marginTop: 4, fontSize: 12, fontFamily: "Inter_400Regular", color: isDark ? "#9CA3AF" : "#6B7280" }}>
+        <Text style={{ marginTop: 4, fontSize: 12, fontFamily: getFontFamily(language, "regular"), color: isDark ? "#9CA3AF" : "#6B7280" }}>
           {t("paymentReferenceLabel")}: {payment.id}
         </Text>
       ) : null}

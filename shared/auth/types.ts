@@ -17,7 +17,16 @@
  * mismatch or (worse) reveal whether a CNIC exists.
  */
 export type AuthErrorCode =
-  | 'OTP_REQUEST_FAILED' // generic: covers "no such CNIC" and real transient failures identically
+  // Client-specific, deliberate exception to the usual "never disclose
+  // whether an identifier exists" rule (see AGENTS.md's "Security
+  // requirements" section, which documents this exact carve-out): this app
+  // is reachable only by the client's own already-registered candidates, not
+  // the public, and many are first-time smartphone users who mistype a
+  // digit; telling them plainly beats leaving them stuck on a silent retry
+  // loop. `OTP_REQUEST_FAILED` still covers every *other* request failure
+  // (malformed input past client validation, transient errors) identically.
+  | 'CNIC_NOT_FOUND'
+  | 'OTP_REQUEST_FAILED'
   | 'OTP_INVALID'
   | 'OTP_EXPIRED'
   | 'OTP_MAX_ATTEMPTS'
@@ -37,6 +46,23 @@ export interface AuthError {
   code: AuthErrorCode;
   /** Set for RESEND_COOLDOWN and RATE_LIMITED, so the UI can show an accurate countdown instead of a fixed guess. */
   retryAfterSeconds?: number;
+  /**
+   * Narrow, deliberate exception to this module's usual "localize from
+   * `code` alone, never trust a raw server message" rule (see
+   * `AuthErrorCode`'s own doc comment for why that rule exists). Only ever
+   * meaningfully set for `CNIC_NOT_FOUND`, whose text needs to name the
+   * exact CNIC that was actually submitted -- the backend freezes that
+   * value into this message at the moment the candidate record lookup
+   * fails, which a frontend-side template interpolating the *live* CNIC
+   * input field cannot do (that value keeps changing as the candidate types
+   * a correction, so the displayed error would silently relabel itself to
+   * whatever is currently typed instead of what was actually looked up).
+   * UI code should prefer this when present and fall back to the usual
+   * `code`-keyed translation otherwise, mirroring the same
+   * `error.message || t(KEYS[code])` pattern already used for payment
+   * errors elsewhere in this codebase.
+   */
+  message?: string;
 }
 
 /**
@@ -48,7 +74,7 @@ export interface AuthError {
 export interface OtpChallenge {
   expiresInSeconds: number;
   resendAfterSeconds: number;
-  /** Server-masked destination text (e.g. "•••-•••••••-4"), when the backend chooses to send one. Never computed client-side from a real number. The real backend does not currently send one -- this stays optional so the UI's existing rendering (already `challenge?.maskedDestination`-guarded) needs no change if that's added later. */
+  /** Masked hint of where the code was sent, e.g. "•••• 4821" -- built from the last four digits the backend returns (never from a full number, which the client never receives). Optional: absent if the backend omits the hint. */
   maskedDestination?: string;
 }
 
@@ -84,7 +110,7 @@ export interface AuthSession {
  * `ApiError` pattern.
  */
 export interface CandidateAuthClient {
-  /** Always succeeds with a challenge for any well-formed CNIC -- existence is never disclosed by branching here. */
+  /** Rejects with `CNIC_NOT_FOUND` for a well-formed CNIC that matches no registered candidate (a deliberate disclosure, see `AuthErrorCode`'s doc comment) -- otherwise always succeeds with a challenge. */
   requestOtp(cnic: string): Promise<OtpChallenge>;
   /** Identical to requestOtp on the real backend -- there is no separate resend endpoint, a repeat request just re-delivers within the same cooldown window. Kept as a distinct method so the UI's intent ("the candidate asked to resend") stays explicit and independently testable. */
   resendOtp(cnic: string): Promise<OtpChallenge>;

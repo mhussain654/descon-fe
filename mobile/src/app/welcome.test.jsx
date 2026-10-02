@@ -1,5 +1,6 @@
 import { QueryClientProvider } from '@tanstack/react-query';
-import { render, screen, waitFor } from '@testing-library/react-native';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { AuthProvider } from '../contexts/AuthContext';
 import { LanguageProvider } from '../contexts/LanguageContext';
@@ -14,7 +15,7 @@ const TEST_SAFE_AREA_METRICS = {
 };
 
 jest.mock('expo-router', () => ({
-  useRouter: () => ({ replace: jest.fn() }),
+  useRouter: () => ({ replace: jest.fn(), push: jest.fn() }),
   Redirect: ({ href }) => {
     const { Text: MockText } = jest.requireActual('react-native');
     return <MockText>redirect:{href}</MockText>;
@@ -72,11 +73,40 @@ describe('WelcomeScreen', () => {
 
   afterEach(async () => {
     await cleanup();
+    // The Urdu test persists its choice; keep later tests in English.
+    await AsyncStorage.removeItem('descon.language');
   });
 
   it('renders the language/continue screen once restoration finds no session', async () => {
     renderWelcomeScreen();
     expect(await screen.findByText('Continue')).toBeOnTheScreen();
+  });
+
+  it('shows the hero copy, language choice and secure-footer text', async () => {
+    renderWelcomeScreen();
+    expect(await screen.findByText('Choose your language')).toBeOnTheScreen();
+    expect(screen.getByText('Welcome!\nYour next step starts here.')).toBeOnTheScreen();
+    expect(
+      screen.getByText('Track your progress, upload documents and get help — all in one simple app.')
+    ).toBeOnTheScreen();
+    expect(screen.getByText('You can change it later from your profile.')).toBeOnTheScreen();
+    expect(screen.getByText('Securely managed by Descon Manpower Services')).toBeOnTheScreen();
+    expect(screen.getByLabelText('DESCON MPS')).toBeOnTheScreen();
+  });
+
+  it('marks the chosen language card selected and renders the screen in Urdu', async () => {
+    renderWelcomeScreen();
+    await screen.findByText('Choose your language');
+
+    const urduCard = screen.getByRole('button', { name: /اردو/ });
+    expect(urduCard).not.toBeSelected();
+
+    fireEvent.press(urduCard);
+
+    expect(await screen.findByText('اپنی زبان منتخب کریں')).toBeOnTheScreen();
+    expect(screen.getByRole('button', { name: /اردو/ })).toBeSelected();
+    expect(screen.getByRole('button', { name: /English/ })).not.toBeSelected();
+    expect(screen.getByLabelText('ڈیسکون ایم پی ایس')).toBeOnTheScreen();
   });
 
   it('redirects an already-authenticated candidate to the dashboard instead of showing Welcome', async () => {

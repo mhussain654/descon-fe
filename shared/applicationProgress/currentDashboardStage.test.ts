@@ -1,4 +1,4 @@
-import { currentDashboardStage } from './currentDashboardStage';
+import { currentDashboardStage, upcomingDashboardStage } from './currentDashboardStage';
 import type { WorkflowTimelineStage } from './types';
 
 function stage(overrides: Partial<WorkflowTimelineStage> = {}): WorkflowTimelineStage {
@@ -35,5 +35,22 @@ describe('currentDashboardStage', () => {
 
   it('returns null for an empty timeline', () => {
     expect(currentDashboardStage([])).toBeNull();
+  });
+});
+
+describe('upcomingDashboardStage', () => {
+  const timeline = (statuses: Array<WorkflowTimelineStage['status']>) =>
+    statuses.map((status, index) => stage({ code: `stage_${index + 1}`, name: `Stage ${index + 1}`, position: index + 1, status }));
+
+  it('returns the first pending stage after the current one', () => {
+    expect(upcomingDashboardStage(timeline(['completed', 'current', 'pending', 'pending']))?.name).toBe('Stage 3');
+  });
+
+  it('looks past the last completed stage when nothing is current', () => {
+    expect(upcomingDashboardStage(timeline(['completed', 'completed', 'pending']))?.name).toBe('Stage 3');
+  });
+
+  it('returns null once every stage is complete', () => {
+    expect(upcomingDashboardStage(timeline(['completed', 'completed']))).toBeNull();
   });
 });

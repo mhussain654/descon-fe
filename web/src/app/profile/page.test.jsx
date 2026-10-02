@@ -128,7 +128,9 @@ describe("ProfilePage", () => {
     expect(await screen.findByText("Ahmed Ali")).toBeInTheDocument();
     expect(screen.getByText("42101-*******-1")).toBeInTheDocument();
     expect(screen.getAllByText("DES-001001").length).toBeGreaterThan(0);
-    expect(screen.getByText("Documents pending")).toBeInTheDocument();
+    // Now rendered twice -- Status and Current stage both source the same
+    // localized workflow-stage name (candidateStatusLabel) once their codes match.
+    expect(screen.getAllByText("Documents pending").length).toBe(2);
     expect(screen.getAllByText("English").length).toBeGreaterThan(0);
 
     // The real CNIC value must never appear anywhere in the rendered output.

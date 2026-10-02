@@ -5,7 +5,7 @@ import { useAuth } from "../../contexts/AuthContext";
 import { useLanguage } from "../../contexts/LanguageContext";
 import { Button, CnicField, OtpField, RetryBanner, ValidationMessage, toast } from "../../design-system";
 import { AUTH_ERROR_KEYS, CNIC_FIELD_ERROR_KEYS } from "../../../../shared/auth/errorMessages";
-import { formatCountdown } from "../../../../shared/auth/cnicOtpFlow";
+import { withCountdown } from "../../../../shared/auth/cnicOtpFlow";
 import { OTP_LENGTH } from "../../../../shared/auth/types";
 import { useCnicOtpFlow } from "../../../../shared/auth/useCnicOtpFlow";
 import { candidateAuthClient } from "../../lib/auth-client";
@@ -74,11 +74,11 @@ export default function LoginPage() {
   const genericOtpErrorMessage =
     otpError && !isExpired && !isLockedOut
       ? otpError.code === "RESEND_COOLDOWN" && typeof otpError.retryAfterSeconds === "number"
-        ? `${t("authResendAvailableInPrefix")} ${formatCountdown(otpError.retryAfterSeconds)}`
+        ? withCountdown(t("authResendAvailableIn"), otpError.retryAfterSeconds)
         : otpError.code === "RATE_LIMITED" && isResendRateLimited
-          ? `${t("authResendAvailableInPrefix")} ${formatCountdown(secondsUntilRateLimitCleared ?? 0)}`
+          ? withCountdown(t("authResendAvailableIn"), secondsUntilRateLimitCleared ?? 0)
           : otpError.code === "RATE_LIMITED" && isOtpRateLimited
-            ? `${t("authRetryAvailableInPrefix")} ${formatCountdown(secondsUntilRateLimitCleared ?? 0)}`
+            ? withCountdown(t("authRetryAvailableIn"), secondsUntilRateLimitCleared ?? 0)
             : t(AUTH_ERROR_KEYS[otpError.code])
       : null;
 
@@ -129,8 +129,8 @@ export default function LoginPage() {
             {!cnicError && otpError ? (
               <ValidationMessage tone="error">
                 {isCnicRateLimited
-                  ? `${t("authRetryAvailableInPrefix")} ${formatCountdown(secondsUntilRateLimitCleared ?? 0)}`
-                  : t(AUTH_ERROR_KEYS[otpError.code])}
+                  ? withCountdown(t("authRetryAvailableIn"), secondsUntilRateLimitCleared ?? 0)
+                  : otpError.message || t(AUTH_ERROR_KEYS[otpError.code])}
               </ValidationMessage>
             ) : null}
             <Button
@@ -158,7 +158,7 @@ export default function LoginPage() {
 
             {!isExpired && !isLockedOut ? (
               <p className="text-sm text-text-secondary">
-                {t("authCodeExpiresInPrefix")} {formatCountdown(secondsUntilExpiry ?? 0)}
+                {withCountdown(t("authCodeExpiresIn"), secondsUntilExpiry ?? 0)}
               </p>
             ) : null}
 
@@ -191,11 +191,11 @@ export default function LoginPage() {
             {!isExpired && !isLockedOut ? (
               isResendRateLimited ? (
                 <p className="text-center text-sm text-text-secondary">
-                  {t("authResendAvailableInPrefix")} {formatCountdown(secondsUntilRateLimitCleared ?? 0)}
+                  {withCountdown(t("authResendAvailableIn"), secondsUntilRateLimitCleared ?? 0)}
                 </p>
               ) : secondsUntilResendAvailable > 0 ? (
                 <p className="text-center text-sm text-text-secondary">
-                  {t("authResendAvailableInPrefix")} {formatCountdown(secondsUntilResendAvailable)}
+                  {withCountdown(t("authResendAvailableIn"), secondsUntilResendAvailable)}
                 </p>
               ) : (
                 <Button variant="outline" size="lg" fullWidth loading={isResending} onClick={resendOtp}>
