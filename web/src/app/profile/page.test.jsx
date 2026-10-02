@@ -75,6 +75,7 @@ function profilePayload(overrides = {}) {
     preferredLocale: "en",
     candidateStatus: "documents_pending",
     currentWorkflowStage: { code: "documents_pending", name: "Documents pending" },
+    country: { code: "qatar", name: "Qatar" },
     active: true,
     ...overrides,
   };
@@ -173,6 +174,21 @@ describe("ProfilePage", () => {
 
     await screen.findByText("Ahmed Ali");
     expect(screen.queryByText("Document verification")).not.toBeInTheDocument();
+  });
+
+  it("shows the destination country (Business Unit) of the current assignment", async () => {
+    candidateProfileClient.getProfile.mockResolvedValue(profilePayload());
+    await signInAndNavigateToProfile();
+
+    expect(await screen.findByText("Destination (Business Unit)")).toBeInTheDocument();
+    expect(screen.getByText("Qatar")).toBeInTheDocument();
+  });
+
+  it("shows the empty-assignment label for the destination when there is no assignment yet", async () => {
+    candidateProfileClient.getProfile.mockResolvedValue(profilePayload({ country: null }));
+    await signInAndNavigateToProfile();
+
+    expect(await screen.findByText("Not assigned yet")).toBeInTheDocument();
   });
 
   it("shows the empty-assignment label when there is no current workflow stage", async () => {

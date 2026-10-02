@@ -22,16 +22,21 @@ export function useDocumentAccess() {
   const { session } = useAuth();
   const access = useShortLivedAccess<DocumentAccess, DocumentAccessError>();
   const [lastRequestedDocumentId, setLastRequestedDocumentId] = useState<string | null>(null);
+  const [lastRequestedFileId, setLastRequestedFileId] = useState<string | null>(null);
 
+  /** `fileId` picks one file of a multi-file document; without it the backend serves the representative file. */
   const requestDocumentAccess = useCallback(
-    (documentId: string) => {
+    (documentId: string, fileId?: string) => {
       if (!session) return Promise.resolve();
       setLastRequestedDocumentId(documentId);
-      return access.requestAccess(() => candidateDocumentsClient.requestDocumentAccess(session.accessToken, documentId));
+      setLastRequestedFileId(fileId ?? null);
+      return access.requestAccess(() =>
+        candidateDocumentsClient.requestDocumentAccess(session.accessToken, documentId, undefined, fileId)
+      );
       // eslint-disable-next-line react-hooks/exhaustive-deps
     },
     [session, access.requestAccess]
   );
 
-  return { ...access, requestDocumentAccess, lastRequestedDocumentId };
+  return { ...access, requestDocumentAccess, lastRequestedDocumentId, lastRequestedFileId };
 }

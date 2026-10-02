@@ -28,7 +28,7 @@ import { CANDIDATE_DOCUMENTS_ERROR_KEYS } from "../../../../shared/candidateDocu
 import { DOCUMENT_ACCESS_ERROR_KEYS } from "../../../../shared/candidateDocuments/documentAccessErrorMessages";
 import { APPLICATION_PROGRESS_ERROR_KEYS } from "../../../../shared/applicationProgress/errorMessages";
 import { PCC_COMPLIANCE_STATUS_KEYS } from "../../../../shared/candidateDocuments/statusLabels";
-import { sortByPrototypeOrder, splitAroundCnicCluster } from "../../../../shared/candidateDocuments/checklistOrder";
+import { SIDE_CODE_LABEL_KEYS } from "../../../../shared/candidateDocuments/fileSet";
 import { resolveDocumentAccessUrl } from "../../lib/resolveDocumentAccessUrl";
 
 const RETRYABLE_ERROR_CODES = new Set(["OFFLINE", "NETWORK_ERROR", "SERVER_ERROR", "RATE_LIMITED", "IN_PROGRESS", "CONFLICT"]);
@@ -124,8 +124,8 @@ export default function DocumentsPage() {
       );
     }
 
-    const checklist = sortByPrototypeOrder(checklistQuery.data ?? []);
-    const { cnicClusterItems, remainingItems } = splitAroundCnicCluster(checklist);
+    // Already in the backend's display order -- never re-sorted here.
+    const checklist = checklistQuery.data ?? [];
 
     if (checklist.length === 0) {
       return (
@@ -163,7 +163,7 @@ export default function DocumentsPage() {
         ) : null}
 
         <div>
-          {cnicClusterItems.map((item) => (
+          {checklist.map((item) => (
             <DocumentRow
               key={item.requirementCode}
               item={item}
@@ -178,21 +178,6 @@ export default function DocumentsPage() {
         </div>
 
         <BankDetailsPanel t={t} language={language} onSessionEnd={returnToSignIn} />
-
-        <div>
-          {remainingItems.map((item) => (
-            <DocumentRow
-              key={item.requirementCode}
-              item={item}
-              language={language}
-              t={t}
-              isActive={upload.activeRequirementCode === item.requirementCode}
-              isAnyUploadPending={upload.mutation.isPending}
-              upload={upload}
-              documentAccess={documentAccess}
-            />
-          ))}
-        </div>
       </>
     );
   };
@@ -236,10 +221,11 @@ function DocumentRow({ item, language, t, isActive, isAnyUploadPending, upload, 
   const hasAction = canUpload || canReplace;
   const canView = item.document !== null;
   const complianceStatus = item.document?.complianceStatus;
+  // A multi-file document lists each file with its own View link; a
+  // single-file one keeps the one View action beside the row.
+  const files = item.document?.files ?? [];
+  const isMultiFile = files.length > 1;
 
-  const isViewingThisRow = documentAccess.isRequesting && documentAccess.lastRequestedDocumentId === item.document?.id;
-  const hasResolvedAccessForThisRow =
-    documentAccess.access?.documentId === item.document?.id && !documentAccess.isExpired;
   const rowAccessError =
     documentAccess.error && documentAccess.lastRequestedDocumentId === item.document?.id ? documentAccess.error : null;
 
@@ -258,12 +244,10 @@ function DocumentRow({ item, language, t, isActive, isAnyUploadPending, upload, 
       upload.cancelUpload();
       return;
     }
-    upload.startUpload(item.requirementCode);
+    upload.startUpload(item);
   };
 
   const actionLabel = t(canUpload ? "candidateDocumentsUploadAction" : "candidateDocumentsReplaceAction");
-  const viewLabel = t("candidateDocumentsViewAction");
-  const openLabel = t("candidateDocumentsOpenAction");
   const Chevron = language === "ur" ? ChevronLeft : ChevronRight;
 
   const rowContent = (
@@ -296,34 +280,26 @@ function DocumentRow({ item, language, t, isActive, isAnyUploadPending, upload, 
           <div className="flex min-w-0 flex-1 items-center">{rowContent}</div>
         )}
 
-        {canView ? (
-          hasResolvedAccessForThisRow ? (
-            <a
-              href={resolveDocumentAccessUrl(documentAccess.access.url, import.meta.env.VITE_API_BASE_URL ?? "")}
-              target="_blank"
-              rel="noopener noreferrer"
-              aria-label={openLabel}
-              title={openLabel}
-              className="ms-2 inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-[#0066CC] hover:bg-gray-100"
-            >
-              <Eye size={18} />
-            </a>
-          ) : (
-            <span className="ms-2 shrink-0">
-              <IconButton
-                icon={<Eye size={18} />}
-                label={viewLabel}
-                variant="ghost"
-                size="sm"
-                loading={isViewingThisRow}
-                onClick={() => documentAccess.requestDocumentAccess(item.document.id)}
-              />
-            </span>
-          )
+        {canView && !isMultiFile ? (
+          <FileViewAction documentId={item.document.id} fileId={files[0]?.id} documentAccess={documentAccess} t={t} />
         ) : null}
 
         {hasAction ? <Chevron size={20} className="shrink-0 text-gray-400" /> : null}
       </div>
+
+      {canView && isMultiFile ? (
+        <ul className="mt-3 flex flex-col gap-1 border-t border-gray-100 pt-3" aria-label={t("candidateDocumentsFilesLabel")}>
+          {files.map((file) => (
+            <li key={file.id} className="flex items-center justify-between gap-2 text-sm text-gray-600">
+              <span className="min-w-0 truncate">
+                {file.sideCode ? `${t(SIDE_CODE_LABEL_KEYS[file.sideCode])} • ` : ""}
+                {file.fileName}
+              </span>
+              <FileViewAction documentId={item.document.id} fileId={file.id} documentAccess={documentAccess} t={t} />
+            </li>
+          ))}
+        </ul>
+      ) : null}
 
       {rowAccessError ? (
         <ValidationMessage tone="error">
@@ -334,21 +310,55 @@ function DocumentRow({ item, language, t, isActive, isAnyUploadPending, upload, 
       {isActive ? (
         <DocumentUploadPanel
           labelText={t(canUpload ? "candidateDocumentsUploadAction" : "candidateDocumentsReplaceAction")}
-          file={upload.file}
-          validationError={upload.validationError}
-          uploadError={upload.mutation.error ?? null}
-          isUploading={upload.mutation.isPending}
-          isPccRequirement={upload.isPccRequirement}
-          issuedOn={upload.issuedOn}
-          onIssuedOnChange={upload.setIssuedOn}
-          issuedOnError={upload.issuedOnError}
-          onSelect={upload.selectFile}
-          onCancel={upload.cancelUpload}
-          onSubmit={upload.submit}
+          instructions={item.instructions}
+          upload={upload}
           t={t}
           language={language}
         />
       ) : null}
     </div>
+  );
+}
+
+/**
+ * View action for one file of a document: requests a short-lived access link
+ * on demand, then becomes a real link to it. `fileId` is omitted only for a
+ * document whose file list didn't come back (the backend then serves its
+ * representative file).
+ */
+function FileViewAction({ documentId, fileId, documentAccess, t }) {
+  const isThisFile =
+    documentAccess.lastRequestedDocumentId === documentId && documentAccess.lastRequestedFileId === (fileId ?? null);
+  const isRequesting = documentAccess.isRequesting && isThisFile;
+  const hasResolvedAccess = isThisFile && documentAccess.access?.documentId === documentId && !documentAccess.isExpired;
+  const viewLabel = t("candidateDocumentsViewAction");
+  const openLabel = t("candidateDocumentsOpenAction");
+
+  if (hasResolvedAccess) {
+    return (
+      <a
+        href={resolveDocumentAccessUrl(documentAccess.access.url, import.meta.env.VITE_API_BASE_URL ?? "")}
+        target="_blank"
+        rel="noopener noreferrer"
+        aria-label={openLabel}
+        title={openLabel}
+        className="ms-2 inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-[#0066CC] hover:bg-gray-100"
+      >
+        <Eye size={18} />
+      </a>
+    );
+  }
+
+  return (
+    <span className="ms-2 shrink-0">
+      <IconButton
+        icon={<Eye size={18} />}
+        label={viewLabel}
+        variant="ghost"
+        size="sm"
+        loading={isRequesting}
+        onClick={() => documentAccess.requestDocumentAccess(documentId, fileId)}
+      />
+    </span>
   );
 }

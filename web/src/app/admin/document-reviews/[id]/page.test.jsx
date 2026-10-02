@@ -52,7 +52,7 @@ function submissionDetail(overrides = {}) {
 }
 
 function passportDocument(overrides = {}) {
-  return {
+  const document = {
     id: "doc-1",
     requirementCode: "passport",
     required: true,
@@ -64,6 +64,11 @@ function passportDocument(overrides = {}) {
     status: "pending_review",
     ...overrides,
   };
+  // One stored file mirroring the document's own fields, unless a test supplies its file set.
+  const files = [
+    { id: "file-1", sideCode: null, position: 1, fileName: document.fileName, contentType: document.contentType, fileSize: document.fileSize },
+  ];
+  return { files, ...document };
 }
 
 function renderAt(path, client) {
@@ -355,7 +360,7 @@ describe("DocumentReviewDetailPage", () => {
       renderAt("/admin/document-reviews/submission-1", client);
 
       fireEvent.click(await screen.findByRole("button", { name: "Preview" }));
-      await waitFor(() => expect(adminDocumentReviewsClient.requestDocumentAccess).toHaveBeenCalledWith("doc-1"));
+      await waitFor(() => expect(adminDocumentReviewsClient.requestDocumentAccess).toHaveBeenCalledWith("doc-1", "file-1"));
       await waitFor(() => expect(document.querySelector('embed[type="application/pdf"]')).toBeInTheDocument());
     });
 

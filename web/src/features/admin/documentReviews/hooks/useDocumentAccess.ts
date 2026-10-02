@@ -9,7 +9,8 @@ export interface UseDocumentAccessResult {
   error: AdminDocumentReviewError | null;
   /** True once the access's own `expiresAt` has passed -- the caller must request a fresh one rather than keep using `access.url`. */
   isExpired: boolean;
-  requestAccess: (documentId: string) => Promise<void>;
+  /** `fileId` picks one file of a multi-file document. */
+  requestAccess: (documentId: string, fileId?: string) => Promise<void>;
   clearAccess: () => void;
 }
 
@@ -54,12 +55,12 @@ export function useDocumentAccess(): UseDocumentAccessResult {
   }, [clearExpiryTimer]);
 
   const requestAccess = useCallback(
-    async (documentId: string) => {
+    async (documentId: string, fileId?: string) => {
       clearAccess();
       const requestVersion = ++requestVersionRef.current;
       setIsRequesting(true);
       try {
-        const result = await adminDocumentReviewsClient.requestDocumentAccess(documentId);
+        const result = await adminDocumentReviewsClient.requestDocumentAccess(documentId, fileId);
         if (requestVersion !== requestVersionRef.current) return;
 
         setAccess(result);

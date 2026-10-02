@@ -1,5 +1,6 @@
 import { useLanguage } from '../../../../contexts/LanguageContext';
-import { Button, Dialog, DialogContent, EmptyState, ErrorState, LoadingState } from '../../../../design-system';
+import { Button, Dialog, DialogContent, EmptyState, ErrorState, FilterChip, LoadingState } from '../../../../design-system';
+import { SIDE_CODE_LABEL_KEYS } from '../../../../../../shared/candidateDocuments/fileSet';
 import { ADMIN_DOCUMENT_REVIEW_ERROR_KEYS } from '../../../../../../shared/adminDocumentReviews/errorMessages';
 import type { AdminDocumentReviewError, DocumentAccess, SubmissionDocument } from '../../../../../../shared/adminDocumentReviews/types';
 import type { TranslationKey } from '../../../../../../shared/i18n/translations';
@@ -9,6 +10,10 @@ const PREVIEWABLE_CONTENT_TYPES = new Set(['application/pdf', 'image/jpeg', 'ima
 
 export interface DocumentPreviewProps {
   document: SubmissionDocument;
+  /** The file being previewed (the document's first file when null). */
+  activeFileId: string | null;
+  /** Switches the preview to another file of the same document. */
+  onSelectFile: (fileId: string) => void;
   access: DocumentAccess | null;
   isRequesting: boolean;
   error: AdminDocumentReviewError | null;
@@ -25,9 +30,22 @@ export interface DocumentPreviewProps {
  * is cleared by the caller when it closes -- this component never fetches
  * or persists anything on its own.
  */
-export function DocumentPreview({ document, access, isRequesting, error, isExpired, onClose, onRequestNewAccess }: DocumentPreviewProps) {
+export function DocumentPreview({
+  document,
+  activeFileId,
+  onSelectFile,
+  access,
+  isRequesting,
+  error,
+  isExpired,
+  onClose,
+  onRequestNewAccess,
+}: DocumentPreviewProps) {
   const { t } = useLanguage();
-  const isSupported = PREVIEWABLE_CONTENT_TYPES.has(document.contentType);
+  const activeFile = document.files.find((file) => file.id === activeFileId) ?? document.files[0] ?? null;
+  const contentType = activeFile?.contentType ?? document.contentType;
+  const fileName = activeFile?.fileName ?? document.fileName;
+  const isSupported = PREVIEWABLE_CONTENT_TYPES.has(contentType);
   // Fails closed: resolveDocumentAccessUrl returns null for anything that
   // doesn't resolve to our own API origin (a malformed backend response, an
   // unexpected absolute URL, a dangerous scheme) -- never render that as a
@@ -37,6 +55,15 @@ export function DocumentPreview({ document, access, isRequesting, error, isExpir
   return (
     <Dialog open onOpenChange={(open) => (!open ? onClose() : undefined)}>
       <DialogContent title={document.name} closeLabel={t('dsClose')}>
+        {document.files.length > 1 ? (
+          <div role="group" aria-label={t('adminDocumentReviewFilesLabel')} className="mb-3 flex flex-wrap gap-2">
+            {document.files.map((file) => (
+              <FilterChip key={file.id} selected={file.id === activeFile?.id} onClick={() => onSelectFile(file.id)}>
+                {file.sideCode ? t(SIDE_CODE_LABEL_KEYS[file.sideCode] as TranslationKey) : file.fileName}
+              </FilterChip>
+            ))}
+          </div>
+        ) : null}
         {isRequesting ? <LoadingState message={t('loading')} /> : null}
 
         {!isRequesting && error ? (
@@ -58,10 +85,10 @@ export function DocumentPreview({ document, access, isRequesting, error, isExpir
           !resolvedUrl ? (
             <ErrorState message={t('somethingWentWrong')} retryLabel={t('retry')} onRetry={onRequestNewAccess} />
           ) : isSupported ? (
-            document.contentType === 'application/pdf' ? (
-              <embed src={resolvedUrl} type="application/pdf" title={document.name} className="h-[70vh] w-full rounded-lg" />
+            contentType === 'application/pdf' ? (
+              <embed src={resolvedUrl} type="application/pdf" title={fileName} className="h-[70vh] w-full rounded-lg" />
             ) : (
-              <img src={resolvedUrl} alt={document.name} className="max-h-[70vh] w-full rounded-lg object-contain" />
+              <img src={resolvedUrl} alt={fileName} className="max-h-[70vh] w-full rounded-lg object-contain" />
             )
           ) : (
             <EmptyState

@@ -21,7 +21,7 @@ vi.mock('../../../../lib/admin-document-reviews-client', () => ({
 const ADMIN = MOCK_STAFF_ACCOUNTS.find((account) => account.role === 'admin')!;
 
 function submissionDocument(overrides: Record<string, unknown> = {}) {
-  return {
+  const document = {
     id: 'doc-1',
     requirementCode: 'passport',
     required: true,
@@ -33,6 +33,11 @@ function submissionDocument(overrides: Record<string, unknown> = {}) {
     status: 'pending_review' as const,
     ...overrides,
   };
+  // One stored file mirroring the document's own fields, unless a test supplies its file set.
+  const files = [
+    { id: 'file-1', sideCode: null, position: 1, fileName: document.fileName, contentType: document.contentType, fileSize: document.fileSize },
+  ];
+  return { files, ...document };
 }
 
 function submissionDetail(documents: ReturnType<typeof submissionDocument>[]) {
@@ -143,5 +148,69 @@ describe('SubmissionDetail', () => {
     fireEvent.click(rejectButtons[rejectButtons.length - 1]);
 
     await waitFor(() => expect(adminDocumentReviewsClient.rejectDocument).toHaveBeenCalledWith('doc-1', 'Blurry photo.', expect.any(String)));
+  });
+  describe('multi-file documents', () => {
+    const cnicFiles = [
+      { id: 'file-front', sideCode: 'front', position: 1, fileName: 'front.jpg', contentType: 'image/jpeg', fileSize: 2048 },
+      { id: 'file-back', sideCode: 'back', position: 2, fileName: 'back.jpg', contentType: 'image/jpeg', fileSize: 4096 },
+    ];
+    const cnicDocument = () =>
+      submissionDocument({ id: 'doc-cnic', requirementCode: 'cnic', name: 'CNIC', fileName: 'front.jpg', files: cnicFiles });
+
+    afterEach(() => vi.mocked(adminDocumentReviewsClient.requestDocumentAccess).mockReset());
+
+    it('lists every file of the set with its part label and its own preview', async () => {
+      adminDocumentReviewsClient.getSubmission.mockResolvedValue(submissionDetail([cnicDocument()]));
+      adminDocumentReviewsClient.requestDocumentAccess.mockResolvedValue({
+        documentId: 'doc-cnic',
+        fileId: 'file-back',
+        url: '/rails/active_storage/blobs/proxy/abc/back.jpg',
+        expiresAt: new Date(Date.now() + 60_000).toISOString(),
+      });
+
+      await renderDetail();
+
+      const fileList = await screen.findByRole('list', { name: 'Files in this document' });
+      expect(fileList).toHaveTextContent('Front');
+      expect(fileList).toHaveTextContent('front.jpg');
+      expect(fileList).toHaveTextContent('Back');
+      expect(fileList).toHaveTextContent('back.jpg');
+
+      fireEvent.click(screen.getAllByRole('button', { name: 'Preview' })[1]);
+
+      await waitFor(() => expect(adminDocumentReviewsClient.requestDocumentAccess).toHaveBeenCalledWith('doc-cnic', 'file-back'));
+      expect(await screen.findByRole('img', { name: 'back.jpg' })).toBeInTheDocument();
+    });
+
+    it('lets the reviewer switch between the files of the set inside the preview', async () => {
+      adminDocumentReviewsClient.getSubmission.mockResolvedValue(submissionDetail([cnicDocument()]));
+      adminDocumentReviewsClient.requestDocumentAccess.mockImplementation(async (documentId: string, fileId?: string) => ({
+        documentId,
+        fileId: fileId ?? '',
+        url: `/rails/active_storage/blobs/proxy/abc/${fileId}.jpg`,
+        expiresAt: new Date(Date.now() + 60_000).toISOString(),
+      }));
+
+      await renderDetail();
+      fireEvent.click((await screen.findAllByRole('button', { name: 'Preview' }))[0]);
+      expect(await screen.findByRole('img', { name: 'front.jpg' })).toBeInTheDocument();
+
+      fireEvent.click(screen.getByRole('button', { name: 'Back' }));
+
+      expect(await screen.findByRole('img', { name: 'back.jpg' })).toBeInTheDocument();
+      expect(adminDocumentReviewsClient.requestDocumentAccess).toHaveBeenLastCalledWith('doc-cnic', 'file-back');
+    });
+
+    it('verifies the whole set with one decision', async () => {
+      adminDocumentReviewsClient.getSubmission.mockResolvedValue(submissionDetail([cnicDocument()]));
+      adminDocumentReviewsClient.verifyDocument.mockResolvedValue({
+        document: { ...cnicDocument(), status: 'verified' },
+        submission: { id: 'submission-1', review: { pendingReview: 0, verified: 1, rejected: 0, requiredTotal: 1, reviewState: 'verified' } },
+      });
+      adminDocumentReviewsClient.getExtraction.mockResolvedValue({ status: 'not_started' });
+
+      await renderDetail();
+      expect(await screen.findAllByRole('button', { name: 'Verify' })).toHaveLength(1);
+    });
   });
 });

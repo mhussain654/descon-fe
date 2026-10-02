@@ -24,7 +24,7 @@ function successEnvelope(data: unknown) {
   return { data, meta: { request_id: 'req-1', timestamp: '2026-08-26T09:00:00Z' }, errors: [] };
 }
 
-function errorEnvelope(errors: Array<{ code: string; message: string; field?: string }>) {
+function errorEnvelope(errors: Array<{ code: string; message: string; field?: string; details?: Record<string, unknown> }>) {
   return { errors, request_id: 'req-1', timestamp: '2026-08-26T09:00:00Z' };
 }
 
@@ -134,6 +134,81 @@ describe('createCandidateDocumentsClient (real) -- getChecklist', () => {
       contentType: 'application/pdf',
       fileSize: 123456,
       uploadedAt: '2026-08-26T12:00:00Z',
+      files: [],
+    });
+  });
+
+  it('maps every file of a multi-file document, in position order, dropping unknown side codes to null', async () => {
+    const files = [
+      { id: 'file-2', side_code: 'back', position: 2, file_name: 'back.jpg', content_type: 'image/jpeg', file_size: 200 },
+      { id: 'file-1', side_code: 'front', position: 1, file_name: 'front.jpg', content_type: 'image/jpeg', file_size: 100 },
+      { id: 'file-3', side_code: 'sideways', position: 3, file_name: 'x.png', content_type: 'image/png', file_size: 50 },
+      { side_code: 'front' },
+    ];
+    stubFetch(async () =>
+      jsonResponse(successEnvelope([checklistItemPayload({ status: 'uploaded', document: documentPayload({ files }) })]))
+    );
+
+    const checklist = await buildClient().getChecklist('token');
+
+    expect(checklist[0].document?.files).toEqual([
+      { id: 'file-1', sideCode: 'front', position: 1, fileName: 'front.jpg', contentType: 'image/jpeg', fileSize: 100 },
+      { id: 'file-2', sideCode: 'back', position: 2, fileName: 'back.jpg', contentType: 'image/jpeg', fileSize: 200 },
+      { id: 'file-3', sideCode: null, position: 3, fileName: 'x.png', contentType: 'image/png', fileSize: 50 },
+    ]);
+  });
+
+  it('maps backend order, instructions and upload rules, sorting the checklist by display position', async () => {
+    stubFetch(async () =>
+      jsonResponse(
+        successEnvelope([
+          checklistItemPayload({ requirement_code: 'cv', display_position: 5 }),
+          checklistItemPayload({
+            requirement_code: 'cnic',
+            display_position: 2,
+            instructions: 'Upload the front and back.',
+            minimum_files: 1,
+            maximum_files: 2,
+            combined_pdf_allowed: true,
+            allowed_side_codes: ['combined', 'front', 'back', 'sideways'],
+            accepted_content_types: ['application/pdf', 'image/jpeg', 'text/plain'],
+            maximum_file_size: 4_000_000,
+          }),
+          checklistItemPayload({ requirement_code: 'no_position' }),
+        ])
+      )
+    );
+
+    const checklist = await buildClient().getChecklist('token');
+
+    expect(checklist.map((item) => item.requirementCode)).toEqual(['cnic', 'cv', 'no_position']);
+    expect(checklist[0]).toMatchObject({
+      displayPosition: 2,
+      instructions: 'Upload the front and back.',
+      uploadRules: {
+        minimumFiles: 1,
+        maximumFiles: 2,
+        combinedPdfAllowed: true,
+        allowedSideCodes: ['combined', 'front', 'back'],
+        acceptedContentTypes: ['application/pdf', 'image/jpeg'],
+        maximumFileSize: 4_000_000,
+      },
+    });
+    expect(checklist[1].instructions).toBeNull();
+  });
+
+  it('defaults missing upload rules to one file of any supported type', async () => {
+    stubFetch(async () => jsonResponse(successEnvelope([checklistItemPayload()])));
+
+    const [item] = await buildClient().getChecklist('token');
+
+    expect(item.uploadRules).toEqual({
+      minimumFiles: 1,
+      maximumFiles: 1,
+      combinedPdfAllowed: false,
+      allowedSideCodes: [],
+      acceptedContentTypes: ['application/pdf', 'image/jpeg', 'image/png'],
+      maximumFileSize: 5 * 1024 * 1024,
     });
   });
 
@@ -414,6 +489,7 @@ describe('createCandidateDocumentsClient (real) -- uploadDocument', () => {
     ['file_too_large', 'FILE_TOO_LARGE'],
     ['empty_file', 'EMPTY_FILE'],
     ['replacement_not_allowed', 'REPLACEMENT_NOT_ALLOWED'],
+    ['malware_detected', 'MALWARE_DETECTED'],
   ])('maps a 422 %s to %s, preserving the localized server message', async (serverCode, expectedCode) => {
     stubFetch(async () =>
       jsonResponse(errorEnvelope([{ code: serverCode, message: `localized: ${serverCode}` }]), { status: 422 })
@@ -423,6 +499,38 @@ describe('createCandidateDocumentsClient (real) -- uploadDocument', () => {
     await expect(
       client.uploadDocument({ accessToken: 'token', requirementCode: 'passport', formData: formDataWithFile(), idempotencyKey: 'k' })
     ).rejects.toEqual({ code: expectedCode, message: `localized: ${serverCode}` });
+  });
+
+  it('maps invalid_document_files with its reason, ignoring an unknown reason', async () => {
+    const upload = (reason: string) => {
+      stubFetch(async () =>
+        jsonResponse(
+          errorEnvelope([
+            { code: 'invalid_document_files', message: 'Upload both sides.', field: 'candidate_document.files', details: { reason } },
+          ]),
+          { status: 422 }
+        )
+      );
+      return buildClient().uploadDocument({ accessToken: 'token', requirementCode: 'cnic', formData: formDataWithFile(), idempotencyKey: 'k' });
+    };
+
+    await expect(upload('incomplete_side_pair')).rejects.toEqual({
+      code: 'INVALID_DOCUMENT_FILES',
+      message: 'Upload both sides.',
+      field: 'candidate_document.files',
+      reason: 'incomplete_side_pair',
+    });
+    await expect(upload('brand_new_reason')).rejects.toMatchObject({ code: 'INVALID_DOCUMENT_FILES', reason: undefined });
+  });
+
+  it('maps a 503 malware_scan_unavailable to MALWARE_SCAN_UNAVAILABLE, not a generic server error', async () => {
+    stubFetch(async () =>
+      jsonResponse(errorEnvelope([{ code: 'malware_scan_unavailable', message: 'Unavailable.' }]), { status: 503 })
+    );
+
+    await expect(
+      buildClient().uploadDocument({ accessToken: 'token', requirementCode: 'cv', formData: formDataWithFile(), idempotencyKey: 'k' })
+    ).rejects.toMatchObject({ code: 'MALWARE_SCAN_UNAVAILABLE', message: 'Unavailable.' });
   });
 
   it('maps a 403 inactive_account to INACTIVE_ACCOUNT', async () => {
@@ -495,6 +603,7 @@ describe('createCandidateDocumentsClient (real) -- uploadDocument', () => {
 function documentAccessPayload(overrides: Record<string, unknown> = {}) {
   return {
     document_id: '30fcedd6-7fe6-4d12-a5ae-f6b5ef3d91dd',
+    file_id: 'file-1',
     url: '/rails/active_storage/blobs/proxy/abc/passport.pdf',
     expires_at: '2026-08-26T12:05:00Z',
     ...overrides,
@@ -521,6 +630,7 @@ describe('createCandidateDocumentsClient (real) -- requestDocumentAccess', () =>
     expect(headers['X-Locale']).toBe('ur');
     expect(result).toEqual({
       documentId: '30fcedd6-7fe6-4d12-a5ae-f6b5ef3d91dd',
+      fileId: 'file-1',
       url: '/rails/active_storage/blobs/proxy/abc/passport.pdf',
       expiresAt: '2026-08-26T12:05:00Z',
     });
@@ -552,6 +662,19 @@ describe('createCandidateDocumentsClient (real) -- requestDocumentAccess', () =>
     expect(seenInit?.body).toBe(JSON.stringify({ disposition: 'attachment' }));
     const headers = seenInit?.headers as Record<string, string>;
     expect(headers['Content-Type']).toBe('application/json');
+  });
+
+  it('asks for one specific file of a multi-file document', async () => {
+    let seenInit: RequestInit | undefined;
+    stubFetch(async (_url, init) => {
+      seenInit = init as RequestInit;
+      return jsonResponse(successEnvelope(documentAccessPayload({ file_id: 'file-2' })));
+    });
+
+    const result = await buildClient().requestDocumentAccess('token', 'doc-1', 'inline', 'file-2');
+
+    expect(seenInit?.body).toBe(JSON.stringify({ disposition: 'inline', file_id: 'file-2' }));
+    expect(result.fileId).toBe('file-2');
   });
 
   it('maps a 404 to NOT_FOUND -- a foreign, unrelated or superseded document id', async () => {
