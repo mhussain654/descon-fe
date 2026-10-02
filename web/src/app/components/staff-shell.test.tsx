@@ -95,6 +95,19 @@ describe('StaffShell sidebar navigation', () => {
     expect(screen.queryByRole('link', { name: 'Training' })).not.toBeInTheDocument();
   });
 
+  it('shows the Help & support nav link under the Administration section for a staff member with manage_support_settings', async () => {
+    await renderShellAs(ADMIN);
+
+    expect(await screen.findByRole('link', { name: 'Help & support' })).toHaveAttribute('href', '/admin/support-settings');
+  });
+
+  it('never renders the Help & support nav link for a staff member without manage_support_settings', async () => {
+    await renderShellAs(MPS);
+
+    expect(await screen.findByText('page content')).toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'Help & support' })).not.toBeInTheDocument();
+  });
+
   it('shows the Audit log nav link under the Administration section for a staff member with view_audit_events', async () => {
     await renderShellAs(MANAGEMENT);
 

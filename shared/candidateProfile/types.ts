@@ -13,6 +13,12 @@ export interface CandidateWorkflowStage {
   name: string;
 }
 
+/** The current assignment's destination country -- the Business Unit (Qatar, Oman, KSA, UAE...). `name` is already localized server-side. */
+export interface CandidateCountry {
+  code: string;
+  name: string;
+}
+
 export interface CandidateProfile {
   /** The candidate's own public id, from the authenticated session -- never a value the UI can be made to substitute (AGENTS.md/ticket: "Candidate identity comes from authentication, not a frontend-provided ID"). */
   id: string;
@@ -26,6 +32,10 @@ export interface CandidateProfile {
   candidateStatus: string;
   /** Null when the candidate has no assignment yet. */
   currentWorkflowStage: CandidateWorkflowStage | null;
+  /** Null when the candidate has no assignment yet. */
+  country: CandidateCountry | null;
+  /** Short-lived, signed *relative* path to the candidate's own photo (resolve against the API origin before use); null when none is set. Refetch the profile for a fresh one rather than caching it. */
+  photoUrl: string | null;
   active: boolean;
   /** Same eligibility/latest-payment shape as GET /candidate/payment (MPS-F601) -- kept in sync here purely so other screens can read it without a second fetch; the dedicated payment page/journey is still the source of truth for acting on it. */
   payment: PaymentEligibility;
@@ -52,7 +62,24 @@ export interface CandidateProfileError {
   retryAfterSeconds?: number;
 }
 
+export type ProfilePhotoErrorCode =
+  | 'MISSING_FILE'
+  | 'EMPTY_FILE'
+  | 'FILE_TOO_LARGE'
+  | 'UNSUPPORTED_FILE_TYPE'
+  | CandidateProfileErrorCode;
+
+export interface ProfilePhotoError {
+  code: ProfilePhotoErrorCode;
+  /** Backend-localized message, when one was returned. */
+  message?: string;
+  retryAfterSeconds?: number;
+}
+
 export interface CandidateProfileClient {
   /** The candidate's own session access token -- the only thing that determines whose profile comes back; there is no id parameter to tamper with. */
   getProfile(accessToken: string): Promise<CandidateProfile>;
+  /** Sets/replaces the signed-in candidate's own photo. `formData` carries `profile_photo[photo]` -- built per platform, since browser `File` and React Native file parts differ (same convention as document uploads). */
+  uploadPhoto(params: { accessToken: string; formData: FormData }): Promise<{ photoUrl: string | null }>;
+  removePhoto(accessToken: string): Promise<{ photoUrl: string | null }>;
 }

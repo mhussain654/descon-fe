@@ -9,6 +9,7 @@ import {
   FileCheck2,
   FileUp,
   GraduationCap,
+  Headphones,
   History,
   LayoutDashboard,
   LogOut,
@@ -249,6 +250,12 @@ function StaffShellContent({ children }: { children: ReactNode }) {
           labelKey: 'staffNavTraining',
           visible: hasPermission('manage_training_settings'),
           icon: GraduationCap,
+        },
+        {
+          href: '/admin/support-settings',
+          labelKey: 'staffNavSupport',
+          visible: hasPermission('manage_support_settings'),
+          icon: Headphones,
         },
         {
           href: '/admin/candidates/import',

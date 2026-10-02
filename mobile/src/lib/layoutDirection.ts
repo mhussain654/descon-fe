@@ -28,3 +28,8 @@ export function physicalTextAlign(side: PhysicalSide): PhysicalSide {
   if (!isLayoutRtl()) return side;
   return side === 'left' ? 'right' : 'left';
 }
+
+/** `flexDirection` that puts a row's first child on the given physical side in the live layout. */
+export function rowDirectionTowards(side: PhysicalSide): 'row' | 'row-reverse' {
+  return isStartSide(side) ? 'row' : 'row-reverse';
+}
