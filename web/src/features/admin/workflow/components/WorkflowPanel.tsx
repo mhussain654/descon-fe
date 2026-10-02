@@ -18,6 +18,7 @@ import { formatDate } from '../../../../../../shared/i18n/locale';
 import { ADMIN_WORKFLOW_ERROR_KEYS } from '../../../../../../shared/adminWorkflow/errorMessages';
 import { toWorkflowBlockingReason, WORKFLOW_BLOCKING_REASON_KEYS } from '../../../../../../shared/adminWorkflow/blockingReasons';
 import type { AdminWorkflowError, AllowedWorkflowTransition, WorkflowHistoryItem } from '../../../../../../shared/adminWorkflow/types';
+import { componentForWorkflowAction } from '../../../../../../shared/adminWorkflow/actionRegistry';
 import { ADMIN_REVIEWER_ROLE_KEYS } from '../../../../../../shared/adminDocumentReviews/statusLabels';
 import type { TranslationKey } from '../../../../../../shared/i18n/translations';
 import { useAvailableTransitions } from '../hooks/useAvailableTransitions';
@@ -194,9 +195,15 @@ export function WorkflowPanel({ candidateId }: WorkflowPanelProps) {
   const protectionReadyTransition = transitions.allowedNextTransitions.find(
     (item) => item.code === PROTECTION_READY_STAGE_CODE
   );
-  const visaTransition = transitions.allowedNextTransitions.find((item) => item.code === VISA_STAGE_CODE);
-  const flightTransition = transitions.allowedNextTransitions.find((item) => item.code === FLIGHT_STAGE_CODE);
-  const mobilizeTransition = transitions.allowedNextTransitions.find((item) => item.code === MOBILIZED_STAGE_CODE);
+  const visaTransition = transitions.allowedNextTransitions.find(
+    (item) => componentForWorkflowAction(item.actionType) === 'visa-decision'
+  );
+  const flightTransition = transitions.allowedNextTransitions.find(
+    (item) => componentForWorkflowAction(item.actionType) === 'flight-details'
+  );
+  const mobilizeTransition = transitions.allowedNextTransitions.find(
+    (item) => componentForWorkflowAction(item.actionType) === 'mobilization'
+  );
   const otherTransitions = transitions.allowedNextTransitions.filter(
     (item) =>
       item.code !== QATAR_BU_STAGE_CODE &&
@@ -222,6 +229,14 @@ export function WorkflowPanel({ candidateId }: WorkflowPanelProps) {
   return (
     <Card>
       <h2 className="mb-4 text-lg font-semibold text-text-primary">{t('adminWorkflowPanelTitle')}</h2>
+      {state.mobilizationProcess?.provisional ? (
+        <div
+          role="status"
+          className="mb-4 rounded-lg border border-warning/40 bg-warning/10 p-3 text-sm text-text-primary"
+        >
+          {t('adminWorkflowProvisionalProcessNotice')}
+        </div>
+      ) : null}
 
       {/* Current stage summary */}
       <div className="mb-6 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border bg-surface-sunken p-4">

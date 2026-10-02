@@ -9,10 +9,52 @@
 
 export type WorkflowStageStatus = 'completed' | 'current' | 'pending';
 
+export type WorkflowActionType =
+  | 'none'
+  | 'document_submission'
+  | 'nomination'
+  | 'medical_appointment'
+  | 'medical_outcome'
+  | 'payment'
+  | 'e_number_processing'
+  | 'e_number_request'
+  | 'e_number_received'
+  | 'biometric_completion'
+  | 'visa_case_preparation'
+  | 'visa_case_submission'
+  | 'qvc_appointment'
+  | 'qvc_outcome'
+  | 'visa_processing'
+  | 'visa_decision'
+  | 'protection_call'
+  | 'protection_appearance'
+  | 'ticket_handover'
+  | 'flight_details'
+  | 'mobilization'
+  | 'unknown';
+
+export type WorkflowFieldType = 'string' | 'iso_date' | 'iso_datetime' | 'enum' | 'unknown';
+
+export interface WorkflowTransitionField {
+  name: string;
+  type: WorkflowFieldType;
+  required: boolean;
+  values: string[];
+}
+
+export interface MobilizationProcessSummary {
+  code: string;
+  version: number;
+  provisional: boolean;
+  countryCode: string;
+}
+
 export interface WorkflowTimelineStage {
   code: string;
   name: string;
   position: number;
+  actionType: WorkflowActionType;
+  required: boolean;
   status: WorkflowStageStatus;
   startedAt?: string;
   completedAt?: string;
@@ -31,6 +73,7 @@ export interface AdminWorkflowState {
   candidateId: string;
   assignmentId: string | null;
   candidateStatus: string;
+  mobilizationProcess: MobilizationProcessSummary | null;
   currentStage: WorkflowTimelineStage | null;
   timeline: WorkflowTimelineStage[];
   completedCount: number;
@@ -45,7 +88,10 @@ export interface AllowedWorkflowTransition {
   code: string;
   name: string;
   position: number;
+  actionType: WorkflowActionType;
+  required: boolean;
   requiredFields: string[];
+  fields: WorkflowTransitionField[];
   allowed: boolean;
   blockingReasons: string[];
 }

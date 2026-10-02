@@ -3,6 +3,7 @@
 //   GET  /api/v1/candidate/application_progress
 //   POST /api/v1/candidate/document_submissions
 import type { ApiClient, ApiError } from '../api-client';
+import type { WorkflowActionType } from '../adminWorkflow/types';
 import { toPaymentEligibility, type EligibilityResponse } from '../payments/mapEligibilityResponse';
 import type {
   ApplicationProgress,
@@ -30,12 +31,15 @@ interface WorkflowTimelineStageResponse {
   code: string;
   name: string;
   position: number;
+  action_type: string;
+  required: boolean;
   status: string;
   started_at: string | null;
   completed_at: string | null;
 }
 
 interface ApplicationProgressWorkflowResponse {
+  mobilization_process: { code: string; version: number; provisional: boolean; country_code: string } | null;
   timeline: WorkflowTimelineStageResponse[];
   completed_count: number;
   total_count: number;
@@ -142,6 +146,16 @@ function toWorkflowStage(raw: unknown): WorkflowStage | null {
 }
 
 const KNOWN_TIMELINE_STAGE_STATUSES = new Set<string>(['completed', 'current', 'pending']);
+const KNOWN_ACTION_TYPES = new Set<string>([
+  'none', 'document_submission', 'nomination', 'medical_appointment', 'medical_outcome', 'payment',
+  'e_number_processing', 'e_number_request', 'e_number_received', 'biometric_completion',
+  'visa_case_preparation', 'visa_case_submission', 'qvc_appointment', 'qvc_outcome', 'visa_processing',
+  'visa_decision', 'protection_call', 'protection_appearance', 'ticket_handover', 'flight_details', 'mobilization',
+]);
+
+function toActionType(raw: unknown): WorkflowActionType {
+  return typeof raw === 'string' && KNOWN_ACTION_TYPES.has(raw) ? (raw as WorkflowActionType) : 'unknown';
+}
 
 /** An unrecognized future status safely falls back to `'pending'` -- never crashes, never shows a raw code, and never mis-renders an unknown status as reached. */
 function toWorkflowTimelineStageStatus(raw: unknown): WorkflowTimelineStageStatus {
@@ -161,6 +175,8 @@ function toWorkflowTimelineStage(raw: unknown): WorkflowTimelineStage | null {
     code: value.code,
     name: typeof value.name === 'string' && value.name ? value.name : value.code,
     position: toNumber(value.position),
+    actionType: toActionType(value.action_type),
+    required: value.required !== false,
     status: toWorkflowTimelineStageStatus(value.status),
     startedAt: toIsoStringOrNull(value.started_at),
     completedAt: toIsoStringOrNull(value.completed_at),
@@ -177,6 +193,15 @@ function toApplicationProgressWorkflow(raw: unknown): ApplicationProgressWorkflo
   const value = (raw && typeof raw === 'object' ? raw : {}) as Partial<ApplicationProgressWorkflowResponse>;
 
   return {
+    mobilizationProcess: value.mobilization_process
+      ? {
+          code: typeof value.mobilization_process.code === 'string' ? value.mobilization_process.code : '',
+          version: toNumber(value.mobilization_process.version),
+          provisional: value.mobilization_process.provisional === true,
+          countryCode:
+            typeof value.mobilization_process.country_code === 'string' ? value.mobilization_process.country_code : '',
+        }
+      : null,
     timeline: toWorkflowTimeline(value.timeline),
     completedCount: toNumber(value.completed_count),
     totalCount: toNumber(value.total_count),

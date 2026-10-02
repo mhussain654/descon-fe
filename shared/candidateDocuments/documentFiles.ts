@@ -33,11 +33,11 @@ function toDocumentFile(raw: unknown): CandidateDocumentFile | null {
     sideCode: toSideCode(value.side_code),
     position: toFiniteNumber(value.position, 0),
     fileName: typeof value.file_name === 'string' ? value.file_name : '',
-    // A malformed type only affects which preview is attempted, never what renders around it.
+    // Never relabel an unknown future type as PDF.
     contentType:
       typeof value.content_type === 'string' && KNOWN_CONTENT_TYPES.has(value.content_type)
         ? (value.content_type as CandidateDocumentContentType)
-        : 'application/pdf',
+        : 'unknown',
     fileSize: toFiniteNumber(value.file_size, 0),
   };
 }

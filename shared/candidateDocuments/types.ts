@@ -21,7 +21,7 @@ export type CandidateDocumentStatus = 'missing' | 'uploaded' | 'pending_review' 
  */
 export type CandidateDocumentDisplayStatus = CandidateDocumentStatus | 'unknown';
 
-export type CandidateDocumentContentType = 'application/pdf' | 'image/jpeg' | 'image/png';
+export type CandidateDocumentContentType = 'application/pdf' | 'image/jpeg' | 'image/png' | 'unknown';
 
 /** Only present for the `police_character` (PCC) requirement -- see PccComplianceDisplayStatus for the 'unknown' fallback used for any value this build doesn't recognize. */
 export type PccComplianceStatus = 'current' | 'near_expiry' | 'expired' | 'not_applicable';

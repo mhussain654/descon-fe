@@ -97,7 +97,7 @@ function toContentType(raw: unknown): CandidateDocumentContentType {
   // date from rendering -- it only affects which icon (if any) a caller
   // chooses to show. Falling back to the PDF value here is an arbitrary,
   // harmless default, not a claim about the actual file.
-  return typeof raw === 'string' && KNOWN_CONTENT_TYPES.has(raw) ? (raw as CandidateDocumentContentType) : 'application/pdf';
+  return typeof raw === 'string' && KNOWN_CONTENT_TYPES.has(raw) ? (raw as CandidateDocumentContentType) : 'unknown';
 }
 
 /** Humanizes a requirement code into a readable fallback ("next_of_kin_cnic" -> "Next Of Kin Cnic") -- used only when the backend's own localized `name` is missing/malformed, never to replace a real name. */
@@ -116,7 +116,8 @@ function toFiniteNumber(raw: unknown, fallback: number): number {
 /** Defaults stand for "one file of any accepted type" -- the backend validates the real rules regardless. */
 function toUploadRules(value: Partial<CandidateDocumentChecklistItemResponse>): DocumentUploadRules {
   const minimumFiles = Math.max(1, toFiniteNumber(value.minimum_files, 1));
-  const acceptedContentTypes = Array.isArray(value.accepted_content_types)
+  const acceptedContentTypesFieldPresent = Array.isArray(value.accepted_content_types);
+  const acceptedContentTypes = acceptedContentTypesFieldPresent
     ? value.accepted_content_types.filter((type): type is CandidateDocumentContentType => KNOWN_CONTENT_TYPES.has(type))
     : [];
   return {
@@ -126,7 +127,7 @@ function toUploadRules(value: Partial<CandidateDocumentChecklistItemResponse>): 
     allowedSideCodes: Array.isArray(value.allowed_side_codes)
       ? value.allowed_side_codes.map(toSideCode).filter((code): code is DocumentSideCode => code !== null)
       : [],
-    acceptedContentTypes: acceptedContentTypes.length
+    acceptedContentTypes: acceptedContentTypesFieldPresent
       ? acceptedContentTypes
       : (['application/pdf', 'image/jpeg', 'image/png'] as CandidateDocumentContentType[]),
     maximumFileSize: toFiniteNumber(value.maximum_file_size, DEFAULT_MAXIMUM_FILE_SIZE),

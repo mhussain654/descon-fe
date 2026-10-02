@@ -1211,6 +1211,8 @@ export const translations = {
 
     // Staff workflow-transition panel (MPS-F501 Phase A)
     adminWorkflowPanelTitle: 'Workflow',
+    adminWorkflowProvisionalProcessNotice:
+      'This candidate is using the common provisional process. Confirm the country-specific process before taking irreversible action.',
     adminWorkflowCurrentStageLabel: 'Current stage',
     adminWorkflowNoCurrentStage: 'Not yet assigned',
     adminWorkflowProgressLabel: 'Stages complete',
@@ -2779,6 +2781,8 @@ export const translations = {
 
     // Staff workflow-transition panel (MPS-F501 Phase A)
     adminWorkflowPanelTitle: 'ورک فلو',
+    adminWorkflowProvisionalProcessNotice:
+      'یہ امیدوار عارضی مشترکہ عمل استعمال کر رہا ہے۔ ناقابل واپسی کارروائی سے پہلے ملک کے مخصوص عمل کی تصدیق کریں۔',
     adminWorkflowCurrentStageLabel: 'موجودہ مرحلہ',
     adminWorkflowNoCurrentStage: 'ابھی تفویض نہیں ہوا',
     adminWorkflowProgressLabel: 'مکمل مراحل',
