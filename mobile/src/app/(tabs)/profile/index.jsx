@@ -24,6 +24,8 @@ import { useLanguage } from "../../../contexts/LanguageContext";
 import { useRefetchOnFocus } from "../../../hooks/useRefetchOnFocus";
 import { useCandidateProfile } from "../../../features/candidate/profile/hooks/useCandidateProfile";
 import { useApplicationProgress } from "../../../features/candidate/progress/hooks/useApplicationProgress";
+import { ProfilePhotoEditor } from "../../../features/candidate/profile/components/ProfilePhotoEditor";
+import { resolveDocumentAccessUrl } from "../../../lib/resolveDocumentAccessUrl";
 import { LoadingState, ErrorState, OfflineState, SessionExpiredState, ForbiddenState, getFontFamily } from "../../../design-system";
 import { candidateStatusLabel } from "../../../../../shared/candidateProfile/formatting";
 import { CANDIDATE_PROFILE_ERROR_KEYS } from "../../../../../shared/candidateProfile/errorMessages";
@@ -187,21 +189,16 @@ export default function ProfileScreen() {
             borderColor: isDark ? "#333333" : "#E5E7EB",
           }}
         >
-          <View
-            style={{
-              width: 80,
-              height: 80,
-              borderRadius: 40,
-              backgroundColor: "#0066CC",
-              justifyContent: "center",
-              alignItems: "center",
-              marginBottom: 16,
-            }}
-          >
-            <Text style={{ fontSize: 32, fontFamily: getFontFamily(language, "semibold"), color: "#FFFFFF" }}>
-              {profile.fullName.charAt(0)}
-            </Text>
-          </View>
+          <ProfilePhotoEditor
+            language={language}
+            t={t}
+            fullName={profile.fullName}
+            photoUri={
+              profile.photoUrl
+                ? resolveDocumentAccessUrl(profile.photoUrl, process.env.EXPO_PUBLIC_API_BASE_URL ?? "") || null
+                : null
+            }
+          />
           <Text style={{ fontSize: 20, fontFamily: getFontFamily(language, "semibold"), color: isDark ? "#FFFFFF" : "#000000", marginBottom: 4 }}>
             {profile.fullName}
           </Text>

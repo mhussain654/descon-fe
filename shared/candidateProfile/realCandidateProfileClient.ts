@@ -8,7 +8,14 @@
 // AuthContext's own expiry handling.
 import type { ApiClient, ApiError } from '../api-client';
 import { toPaymentEligibility, type EligibilityResponse } from '../payments/mapEligibilityResponse';
-import type { CandidateProfile, CandidateProfileClient, CandidateProfileError, CandidateProfileErrorCode } from './types';
+import type {
+  CandidateProfile,
+  CandidateProfileClient,
+  CandidateProfileError,
+  CandidateProfileErrorCode,
+  ProfilePhotoError,
+  ProfilePhotoErrorCode,
+} from './types';
 
 interface CandidateProfileResponse {
   id: string;
@@ -18,6 +25,8 @@ interface CandidateProfileResponse {
   preferred_locale: 'en' | 'ur';
   candidate_status: string;
   current_workflow_stage: { code: string; name: string } | null;
+  country?: { code: string; name: string } | null;
+  photo_url?: string | null;
   active: boolean;
   payment: EligibilityResponse;
   consent: { current_policy_version: string; accepted: boolean; accepted_at: string | null };
@@ -44,6 +53,8 @@ function toProfile(data: CandidateProfileResponse): CandidateProfile {
     preferredLocale: data.preferred_locale,
     candidateStatus: data.candidate_status,
     currentWorkflowStage: data.current_workflow_stage,
+    country: data.country ?? null,
+    photoUrl: data.photo_url ?? null,
     active: data.active,
     payment: toPaymentEligibility(data.payment),
     consent: {
@@ -77,6 +88,23 @@ function toProfileError(error: unknown): CandidateProfileError {
   return { code: 'UNKNOWN' };
 }
 
+/** Upload validation codes (see openapi.yaml's PUT /candidate/profile/photo 422) -- the backend's own localized message is kept for display. */
+const PHOTO_SERVER_CODE_TO_ERROR: Record<string, ProfilePhotoErrorCode> = {
+  missing_file: 'MISSING_FILE',
+  empty_file: 'EMPTY_FILE',
+  file_too_large: 'FILE_TOO_LARGE',
+  unsupported_file_type: 'UNSUPPORTED_FILE_TYPE',
+};
+
+function toPhotoError(error: unknown): ProfilePhotoError {
+  const apiError = error as ApiError;
+  if (apiError && typeof apiError === 'object' && apiError.status === 422 && apiError.serverCode) {
+    const mapped = PHOTO_SERVER_CODE_TO_ERROR[apiError.serverCode];
+    if (mapped) return { code: mapped, message: apiError.message };
+  }
+  return toProfileError(error);
+}
+
 export function createCandidateProfileClient(options: RealCandidateProfileClientOptions): CandidateProfileClient {
   const { apiClient, getLocale } = options;
 
@@ -90,6 +118,28 @@ export function createCandidateProfileClient(options: RealCandidateProfileClient
         return toProfile(data);
       } catch (error) {
         throw toProfileError(error);
+      }
+    },
+
+    async uploadPhoto({ accessToken, formData }) {
+      try {
+        const data = await apiClient.put<{ photo_url: string | null }>('/candidate/profile/photo', formData, {
+          headers: { Authorization: `Bearer ${accessToken}`, 'X-Locale': getLocale() },
+        });
+        return { photoUrl: data?.photo_url ?? null };
+      } catch (error) {
+        throw toPhotoError(error);
+      }
+    },
+
+    async removePhoto(accessToken: string) {
+      try {
+        const data = await apiClient.del<{ photo_url: string | null }>('/candidate/profile/photo', {
+          headers: { Authorization: `Bearer ${accessToken}`, 'X-Locale': getLocale() },
+        });
+        return { photoUrl: data?.photo_url ?? null };
+      } catch (error) {
+        throw toPhotoError(error);
       }
     },
   };

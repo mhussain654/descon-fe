@@ -8,7 +8,10 @@ import { candidateProfileClient } from "../../../lib/candidate-profile-client";
 import { candidateDocumentsClient } from "../../../lib/candidate-documents-client";
 import { applicationProgressClient } from "../../../lib/application-progress-client";
 import { trainingSettingClient } from "../../../lib/training-setting-client";
+import { supportSettingClient } from "../../../lib/support-setting-client";
+import { candidateWorkflowClient } from "../../../lib/candidate-workflow-client";
 import { createQueryClientTestLifecycle } from "../../../testSupport/queryClientTestLifecycle";
+import { toast } from "../../../design-system";
 import DashboardScreen from "./index";
 
 const TEST_SAFE_AREA_METRICS = {
@@ -64,6 +67,12 @@ jest.mock("../../../lib/application-progress-client", () => ({
 }));
 jest.mock("../../../lib/training-setting-client", () => ({
   trainingSettingClient: { getTrainingSetting: jest.fn() },
+}));
+jest.mock("../../../lib/support-setting-client", () => ({
+  supportSettingClient: { getSupportSetting: jest.fn() },
+}));
+jest.mock("../../../lib/candidate-workflow-client", () => ({
+  candidateWorkflowClient: { getWorkflowHistory: jest.fn() },
 }));
 
 const CANONICAL_STAGES = [
@@ -175,6 +184,8 @@ const { createTestQueryClient, trackRender, cleanup } = createQueryClientTestLif
 // convention in this same describe block's sibling screens.
 beforeEach(() => {
   trainingSettingClient.getTrainingSetting.mockResolvedValue({ url: "https://www.youtube.com/@DesconManpower" });
+  supportSettingClient.getSupportSetting.mockResolvedValue({ phoneNumber: "+923001234567" });
+  candidateWorkflowClient.getWorkflowHistory.mockResolvedValue({ items: [], updatedAt: null });
 });
 
 afterEach(async () => {
@@ -183,6 +194,8 @@ afterEach(async () => {
   jest.mocked(candidateDocumentsClient.getChecklist).mockReset();
   jest.mocked(applicationProgressClient.getProgress).mockReset();
   jest.mocked(trainingSettingClient.getTrainingSetting).mockReset();
+  jest.mocked(supportSettingClient.getSupportSetting).mockReset();
+  jest.mocked(candidateWorkflowClient.getWorkflowHistory).mockReset();
   mockReplace.mockReset();
   mockPush.mockReset();
 });
@@ -212,12 +225,25 @@ describe("DashboardScreen", () => {
     renderDashboardScreen();
 
     expect(await screen.findByText("Ahmed Ali")).toBeOnTheScreen();
-    expect(screen.getByText("DES-001001")).toBeOnTheScreen();
+    expect(screen.getByText("Reference: DES-001001")).toBeOnTheScreen();
+    // The current stage is the highlighted status badge on "My Journey".
     expect(screen.getByText("Documents Uploaded")).toBeOnTheScreen();
+    expect(screen.getByText("2 of 15 steps completed")).toBeOnTheScreen();
     expect(screen.getByText("13% complete")).toBeOnTheScreen();
   });
 
-  it("shows the verified chip only once the backend reports the submission as verified", async () => {
+  it("shows the Business Unit country and falls back to initials when there is no photo", async () => {
+    candidateProfileClient.getProfile.mockResolvedValue(profilePayload({ country: { code: "qatar", name: "Qatar" }, photoUrl: null }));
+    candidateDocumentsClient.getChecklist.mockResolvedValue([]);
+    applicationProgressClient.getProgress.mockResolvedValue(progress());
+    renderDashboardScreen();
+
+    expect(await screen.findByText("Qatar")).toBeOnTheScreen();
+    expect(screen.getByText("AA")).toBeOnTheScreen();
+    expect(screen.getByLabelText("Profile photo")).toBeOnTheScreen();
+  });
+
+  it("counts completed steps out of the full workflow", async () => {
     candidateProfileClient.getProfile.mockResolvedValue(profilePayload());
     candidateDocumentsClient.getChecklist.mockResolvedValue([]);
     applicationProgressClient.getProgress.mockResolvedValue(
@@ -228,23 +254,8 @@ describe("DashboardScreen", () => {
     );
     renderDashboardScreen();
 
-    expect(await screen.findByText("33% complete")).toBeOnTheScreen();
-    // "Verified" legitimately appears twice once fully verified -- the green
-    // chip, and the current-status line's stage name (the dashboard no
-    // longer appends an "(In Progress)" suffix to any stage name).
-    expect(screen.getAllByText("Verified")).toHaveLength(2);
-  });
-
-  it("does not show the verified chip while documents are only partially verified", async () => {
-    candidateProfileClient.getProfile.mockResolvedValue(profilePayload());
-    candidateDocumentsClient.getChecklist.mockResolvedValue([]);
-    applicationProgressClient.getProgress.mockResolvedValue(
-      progress({ documents: documentsSummary({ submissionState: "partially_verified" }) })
-    );
-    renderDashboardScreen();
-
-    await screen.findByText("Ahmed Ali");
-    expect(screen.queryByText("Verified")).toBeNull();
+    expect(await screen.findByText("5 of 15 steps completed")).toBeOnTheScreen();
+    expect(screen.getByText("33% complete")).toBeOnTheScreen();
   });
 
   it("prompts to upload required documents generically when nothing has been submitted yet", async () => {
@@ -281,18 +292,40 @@ describe("DashboardScreen", () => {
     expect(await screen.findByText(/Replace your rejected document: Passport/)).toBeOnTheScreen();
   });
 
-  it("shows the waiting-for-verification fallback once fully verified with nothing left to do", async () => {
+  it("announces the upcoming stage -- not the current one -- once the next move is on staff's side", async () => {
     candidateProfileClient.getProfile.mockResolvedValue(profilePayload());
     candidateDocumentsClient.getChecklist.mockResolvedValue([checklistItem({ status: "verified" })]);
     applicationProgressClient.getProgress.mockResolvedValue(
       progress({
-        currentWorkflowStage: { code: "verified", name: "Verified" },
+        currentWorkflowStage: { code: "fee_paid", name: "Fee Paid" },
         documents: documentsSummary({ submissionState: "verified", missing: 0, verified: 1 }),
+        workflow: workflowPayload({ timeline: timelineThrough(7), completedCount: 6, progressPercentage: 40 }),
       })
     );
     renderDashboardScreen();
 
-    expect(await screen.findByText("Verification complete")).toBeOnTheScreen();
+    expect(await screen.findByText("Next step")).toBeOnTheScreen();
+    expect(screen.getByText("Documents Shared with Qatar BU")).toBeOnTheScreen();
+    // "Fee Paid" is the current-stage badge only, never repeated as the next step.
+    expect(screen.getAllByText("Fee Paid")).toHaveLength(1);
+    expect(screen.queryByText(/Continue with your application/)).toBeNull();
+    fireEvent.press(screen.getByRole("button", { name: "View status" }));
+    expect(mockPush).toHaveBeenCalledWith("/(tabs)/status");
+  });
+
+  it("congratulates the candidate once every stage is complete", async () => {
+    candidateProfileClient.getProfile.mockResolvedValue(profilePayload());
+    candidateDocumentsClient.getChecklist.mockResolvedValue([checklistItem({ status: "verified" })]);
+    applicationProgressClient.getProgress.mockResolvedValue(
+      progress({
+        currentWorkflowStage: { code: "mobilized", name: "Mobilized" },
+        documents: documentsSummary({ submissionState: "verified", missing: 0, verified: 1 }),
+        workflow: workflowPayload({ timeline: timelineCompletedThrough(15), completedCount: 15, progressPercentage: 100 }),
+      })
+    );
+    renderDashboardScreen();
+
+    expect(await screen.findByText("All steps completed")).toBeOnTheScreen();
   });
 
   // Regression: documents.submissionState stays "verified" forever once
@@ -311,12 +344,14 @@ describe("DashboardScreen", () => {
     );
     renderDashboardScreen();
 
-    expect(await screen.findByText("Pay Fee")).toBeOnTheScreen();
+    expect(await screen.findByText("Pay onboarding fee")).toBeOnTheScreen();
     expect(screen.queryByText("Verification complete")).toBeNull();
   });
 
-  it("navigates to payment when Next Steps is tapped, and highlights the matching quick-action tile", async () => {
-    candidateProfileClient.getProfile.mockResolvedValue(profilePayload());
+  it("shows the configured onboarding fee and goes to payment from Pay now", async () => {
+    candidateProfileClient.getProfile.mockResolvedValue(
+      profilePayload({ payment: { amount: "10500.00", currencyCode: "PKR" } })
+    );
     candidateDocumentsClient.getChecklist.mockResolvedValue([checklistItem({ status: "verified" })]);
     applicationProgressClient.getProgress.mockResolvedValue(
       progress({
@@ -326,31 +361,99 @@ describe("DashboardScreen", () => {
     );
     renderDashboardScreen();
 
-    const nextStepsButton = await screen.findByRole("button", { name: "Pay Fee" });
-    expect(screen.getByText("You're here")).toBeOnTheScreen();
-    const makePaymentTile = screen.getByRole("button", { name: "Make Payment" });
-    expect(makePaymentTile.props.accessibilityState).toMatchObject({ selected: true });
-    const uploadDocumentsTile = screen.getByRole("button", { name: "Upload Documents" });
-    expect(uploadDocumentsTile.props.accessibilityState).toMatchObject({ selected: false });
-
-    fireEvent.press(nextStepsButton);
+    expect(await screen.findByText(/10,500/)).toBeOnTheScreen();
+    fireEvent.press(screen.getByRole("button", { name: "Pay now" }));
     expect(mockPush).toHaveBeenCalledWith("/payment");
   });
 
-  it("navigates to the documents, payment, and status screens from the quick-action tiles", async () => {
+  it("sends a documents problem to Documents from the next-step card", async () => {
+    candidateProfileClient.getProfile.mockResolvedValue(profilePayload());
+    candidateDocumentsClient.getChecklist.mockResolvedValue([checklistItem({ status: "missing" })]);
+    applicationProgressClient.getProgress.mockResolvedValue(progress());
+    renderDashboardScreen();
+
+    fireEvent.press(await screen.findByRole("button", { name: "Go to documents" }));
+    expect(mockPush).toHaveBeenCalledWith("/(tabs)/documents");
+  });
+
+  it("navigates to Documents and Application Status from the quick-action tiles", async () => {
     candidateProfileClient.getProfile.mockResolvedValue(profilePayload());
     candidateDocumentsClient.getChecklist.mockResolvedValue([]);
     applicationProgressClient.getProgress.mockResolvedValue(progress());
     renderDashboardScreen();
 
     await screen.findByText("Ahmed Ali");
-    expect(screen.getByText("Upload Documents")).toBeOnTheScreen();
-    expect(screen.getByText("View Status")).toBeOnTheScreen();
-    const makePaymentTile = screen.getByRole("button", { name: "Make Payment" });
-    expect(makePaymentTile.props.accessibilityState).toMatchObject({ disabled: false });
+    fireEvent.press(screen.getByRole("button", { name: /^Documents,/ }));
+    expect(mockPush).toHaveBeenCalledWith("/(tabs)/documents");
+    fireEvent.press(screen.getByRole("button", { name: /^Application Status,/ }));
+    expect(mockPush).toHaveBeenCalledWith("/(tabs)/status");
+  });
 
-    fireEvent.press(makePaymentTile);
-    expect(mockPush).toHaveBeenCalledWith("/payment");
+  describe("Help & Support quick action", () => {
+    it("dials the admin-configured support number", async () => {
+      candidateProfileClient.getProfile.mockResolvedValue(profilePayload());
+      candidateDocumentsClient.getChecklist.mockResolvedValue([]);
+      applicationProgressClient.getProgress.mockResolvedValue(progress());
+      const openURL = jest.spyOn(Linking, "openURL").mockResolvedValue();
+      renderDashboardScreen();
+
+      await screen.findByText("Ahmed Ali");
+      const supportTile = await screen.findByRole("button", { name: /^Help & Support,/ });
+      await waitFor(() => expect(supportTile.props.accessibilityState).toMatchObject({ disabled: false }));
+
+      fireEvent.press(supportTile);
+      expect(openURL).toHaveBeenCalledWith("tel:+923001234567");
+      openURL.mockRestore();
+    });
+
+    it("stays fully usable before a number is configured, explaining instead of dialing", async () => {
+      supportSettingClient.getSupportSetting.mockResolvedValue({ phoneNumber: null });
+      candidateProfileClient.getProfile.mockResolvedValue(profilePayload());
+      candidateDocumentsClient.getChecklist.mockResolvedValue([]);
+      applicationProgressClient.getProgress.mockResolvedValue(progress());
+      const openURL = jest.spyOn(Linking, "openURL").mockResolvedValue();
+      const info = jest.spyOn(toast, "info").mockImplementation(() => "toast-id");
+      renderDashboardScreen();
+
+      await screen.findByText("Ahmed Ali");
+      const supportTile = screen.getByRole("button", { name: /^Help & Support,/ });
+      expect(supportTile.props.accessibilityState).toMatchObject({ disabled: false });
+
+      fireEvent.press(supportTile);
+      expect(openURL).not.toHaveBeenCalled();
+      expect(info).toHaveBeenCalledWith("Our support line isn’t available yet. Please try again later.");
+      openURL.mockRestore();
+      info.mockRestore();
+    });
+  });
+
+  describe("Latest update", () => {
+    it("shows the most recent completed step with its explanation, and links to the full history", async () => {
+      candidateWorkflowClient.getWorkflowHistory.mockResolvedValue({
+        items: [
+          { fromStage: null, toStage: { code: "documents_uploaded", name: "Documents Uploaded", position: 3 }, occurredAt: "2026-09-01T10:00:00Z", reasonCode: null, details: null },
+          { fromStage: null, toStage: { code: "verified", name: "Verified", position: 5 }, occurredAt: "2026-09-05T10:00:00Z", reasonCode: null, details: null },
+        ],
+        updatedAt: "2026-09-05T10:00:00Z",
+      });
+      candidateProfileClient.getProfile.mockResolvedValue(profilePayload());
+      candidateDocumentsClient.getChecklist.mockResolvedValue([]);
+      applicationProgressClient.getProgress.mockResolvedValue(progress());
+      renderDashboardScreen();
+
+      expect(await screen.findByText("Your required documents have been approved.")).toBeOnTheScreen();
+      fireEvent.press(screen.getByRole("link", { name: "See all" }));
+      expect(mockPush).toHaveBeenCalledWith("/(tabs)/status");
+    });
+
+    it("shows a friendly empty message before any step has completed", async () => {
+      candidateProfileClient.getProfile.mockResolvedValue(profilePayload());
+      candidateDocumentsClient.getChecklist.mockResolvedValue([]);
+      applicationProgressClient.getProgress.mockResolvedValue(progress());
+      renderDashboardScreen();
+
+      expect(await screen.findByText(/No updates yet/)).toBeOnTheScreen();
+    });
   });
 
   describe("Training quick action", () => {
@@ -363,7 +466,7 @@ describe("DashboardScreen", () => {
       renderDashboardScreen();
 
       await screen.findByText("Ahmed Ali");
-      const trainingTile = await screen.findByRole("button", { name: "Training" });
+      const trainingTile = await screen.findByRole("button", { name: /^Training,/ });
       expect(trainingTile.props.accessibilityState).toMatchObject({ disabled: false });
 
       fireEvent.press(trainingTile);
@@ -379,7 +482,7 @@ describe("DashboardScreen", () => {
       renderDashboardScreen();
 
       await screen.findByText("Ahmed Ali");
-      expect(screen.getByRole("button", { name: "Training" }).props.accessibilityState).toMatchObject({ disabled: true });
+      expect(screen.getByRole("button", { name: /^Training,/ }).props.accessibilityState).toMatchObject({ disabled: true });
     });
 
     it("stays disabled if the training link fails to load, rather than opening a broken link", async () => {
@@ -390,7 +493,7 @@ describe("DashboardScreen", () => {
       renderDashboardScreen();
 
       await screen.findByText("Ahmed Ali");
-      expect(await screen.findByRole("button", { name: "Training" })).toHaveProperty(
+      expect(await screen.findByRole("button", { name: /^Training,/ })).toHaveProperty(
         "props.accessibilityState.disabled",
         true
       );
@@ -494,6 +597,6 @@ describe("DashboardScreen", () => {
     await AsyncStorage.setItem("descon.language", "ur");
     renderDashboardScreen();
 
-    expect(await screen.findByText("خوش آمدید")).toBeOnTheScreen();
+    expect(await screen.findByText("میرا سفر")).toBeOnTheScreen();
   });
 });

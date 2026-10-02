@@ -74,7 +74,7 @@ export interface AuthError {
 export interface OtpChallenge {
   expiresInSeconds: number;
   resendAfterSeconds: number;
-  /** Server-masked destination text (e.g. "•••-•••••••-4"), when the backend chooses to send one. Never computed client-side from a real number. The real backend does not currently send one -- this stays optional so the UI's existing rendering (already `challenge?.maskedDestination`-guarded) needs no change if that's added later. */
+  /** Masked hint of where the code was sent, e.g. "•••• 4821" -- built from the last four digits the backend returns (never from a full number, which the client never receives). Optional: absent if the backend omits the hint. */
   maskedDestination?: string;
 }
 

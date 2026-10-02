@@ -15,6 +15,15 @@ import type { AuthError, AuthErrorCode, AuthSession, CandidateAuthClient, OtpCha
 interface CandidateOtpRequestResponse {
   expires_in_seconds: number;
   resend_after_seconds: number;
+  /** Last four digits of the registered mobile -- the backend never sends more. */
+  mobile_last_four?: string;
+}
+
+// Wrapped in Unicode isolates (LRI ... PDI) so "•••• 4821" keeps its
+// left-to-right order when embedded in an Urdu sentence.
+function maskMobileHint(lastFour: string | undefined): string | undefined {
+  if (!lastFour || !/^\d{4}$/.test(lastFour)) return undefined;
+  return `\u2066•••• ${lastFour}\u2069`;
 }
 
 interface CandidateSessionResponse {
@@ -119,9 +128,7 @@ function toOtpChallenge(data: CandidateOtpRequestResponse): OtpChallenge {
   return {
     expiresInSeconds: data.expires_in_seconds,
     resendAfterSeconds: data.resend_after_seconds,
-    // The real backend does not send a masked destination -- see
-    // OtpChallenge's doc comment. Left undefined; already optional-safe
-    // everywhere it's rendered.
+    maskedDestination: maskMobileHint(data.mobile_last_four),
   };
 }
 

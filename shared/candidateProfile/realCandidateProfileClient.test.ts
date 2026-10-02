@@ -70,6 +70,8 @@ describe('createCandidateProfileClient (real)', () => {
       preferredLocale: 'en',
       candidateStatus: 'registered',
       currentWorkflowStage: { code: 'registered', name: 'Registered' },
+      country: null,
+      photoUrl: null,
       active: true,
       payment: {
         eligible: false,
@@ -223,5 +225,67 @@ describe('createCandidateProfileClient (real)', () => {
     });
 
     await expect(client.getProfile('token')).rejects.toEqual({ code: 'OFFLINE' });
+  });
+
+  it('maps the assignment country and the signed photo path', async () => {
+    stubFetch(async () =>
+      jsonResponse(
+        successEnvelope(
+          profilePayload({
+            country: { code: 'qatar', name: 'Qatar' },
+            photo_url: '/rails/active_storage/blobs/proxy/abc/profile-photo.jpg',
+          })
+        )
+      )
+    );
+
+    const profile = await buildClient().getProfile('token');
+
+    expect(profile.country).toEqual({ code: 'qatar', name: 'Qatar' });
+    expect(profile.photoUrl).toBe('/rails/active_storage/blobs/proxy/abc/profile-photo.jpg');
+  });
+
+  it('uploads a photo with PUT multipart (no JSON content type) and returns the new link', async () => {
+    let seen: { url: string; method?: string; headers: Record<string, string>; body: unknown } | null = null;
+    stubFetch(async (url, init) => {
+      const request = init as RequestInit;
+      seen = { url: String(url), method: request.method, headers: request.headers as Record<string, string>, body: request.body };
+      return jsonResponse(successEnvelope({ photo_url: '/rails/active_storage/blobs/proxy/new/profile-photo.png' }));
+    });
+    const formData = new FormData();
+    formData.append('profile_photo[photo]', new Blob(['x'], { type: 'image/png' }), 'me.png');
+
+    const result = await buildClient().uploadPhoto({ accessToken: 'token', formData });
+
+    expect(seen!.url).toBe('http://example.test/api/v1/candidate/profile/photo');
+    expect(seen!.method).toBe('PUT');
+    expect(seen!.body).toBe(formData);
+    expect(seen!.headers['Content-Type']).toBeUndefined();
+    expect(result).toEqual({ photoUrl: '/rails/active_storage/blobs/proxy/new/profile-photo.png' });
+  });
+
+  it('maps a photo validation error to its code, keeping the localized message', async () => {
+    stubFetch(async () =>
+      jsonResponse(
+        errorEnvelope([{ code: 'unsupported_file_type', message: 'Upload a JPEG, PNG, or WebP image.', field: 'profile_photo.photo' }]),
+        { status: 422 }
+      )
+    );
+
+    await expect(buildClient().uploadPhoto({ accessToken: 'token', formData: new FormData() })).rejects.toEqual({
+      code: 'UNSUPPORTED_FILE_TYPE',
+      message: 'Upload a JPEG, PNG, or WebP image.',
+    });
+  });
+
+  it('removes the photo with DELETE', async () => {
+    let method: string | undefined;
+    stubFetch(async (_url, init) => {
+      method = (init as RequestInit).method;
+      return jsonResponse(successEnvelope({ photo_url: null }));
+    });
+
+    await expect(buildClient().removePhoto('token')).resolves.toEqual({ photoUrl: null });
+    expect(method).toBe('DELETE');
   });
 });
