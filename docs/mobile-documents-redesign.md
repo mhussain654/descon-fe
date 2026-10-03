@@ -70,3 +70,7 @@ Passport upload guidance now describes only the selected mode while retaining th
 Validation: mobile/web typechecks; mobile 131 suites (1,273 passed, 24 skipped); web 202 files (2,023 passed); web production build; focused documents suite 59 passed after adding the screenshot instruction fixture; git diff check. Native-device visual verification remains outstanding.
 
 Per user follow-up, the compact per-file View/Download buttons now use a 34-point height. The main document actions retain their existing sizing.
+
+Documents screen buttons now inherit a screen-scoped 34-point height, including upload pickers, submit/cancel, retry, bank details, removal icons, and confirmation dialog actions. Mode selectors also use 34 points. Per-file View/Download actions override this to 30 points. Other screens retain their existing button sizing.
+
+Sizing validation: mobile typecheck, full Jest suite (131 suites passed, 1,273 tests passed, 24 skipped), and git diff check passed. Native visual QA remains pending.
