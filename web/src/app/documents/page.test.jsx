@@ -231,10 +231,12 @@ describe("DocumentsPage", () => {
   // this file's already-established convention of module-level default
   // mocks (see applicationProgressClient/candidateDocumentsClient above).
   beforeEach(() => {
+    vi.stubEnv("VITE_API_BASE_URL", "http://localhost:3000/api/v1");
     candidateBankDetailsClient.getBankDetail.mockResolvedValue(bankDetailSummary());
   });
 
   afterEach(() => {
+    vi.unstubAllEnvs();
     vi.mocked(candidateDocumentsClient.getChecklist).mockReset();
     vi.mocked(candidateDocumentsClient.uploadDocument).mockReset();
     vi.mocked(candidateDocumentsClient.requestDocumentAccess).mockReset();
