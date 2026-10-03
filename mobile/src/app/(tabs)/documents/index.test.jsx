@@ -1176,9 +1176,12 @@ describe("DocumentsScreen", () => {
       renderDocumentsScreen();
       fireEvent.press(await screen.findByRole("button", { name: "Upload" }));
       expect(screen.getByText("Combined PDF")).toBeOnTheScreen();
+      expect(screen.getByText("Upload one scanned PDF containing both pages or sides.")).toBeOnTheScreen();
       fireEvent.press(screen.getByRole("button", { name: "Separate photos" }));
       expect(screen.getByText("Page 1")).toBeOnTheScreen();
       expect(screen.getByText("Page 2")).toBeOnTheScreen();
+      expect(screen.getByText("Upload each page or side separately in the two slots below.")).toBeOnTheScreen();
+      expect(screen.queryByText("Upload one scanned PDF containing both pages or sides.")).toBeNull();
       expect(screen.queryByText("Combined PDF")).toBeNull();
       DocumentPicker.getDocumentAsync.mockResolvedValueOnce({ canceled: false, assets: [pdfAsset("page1.pdf")] });
       fireEvent.press(screen.getAllByRole("button", { name: "Choose file" })[0]);
@@ -1322,7 +1325,9 @@ describe("DocumentsScreen", () => {
       fireEvent.press(await screen.findByRole("button", { name: "CNIC" }));
       expect(screen.getByText(/Front • front\.jpg/)).toBeOnTheScreen();
       fireEvent.press(screen.getByRole("button", { name: "View" }));
-      const backAction = await screen.findByRole("button", { name: /View.*back\.jpg/ });
+      const fileActions = await screen.findAllByRole("button", { name: "View" });
+      const backAction = fileActions[2];
+      expect(screen.queryByText("View Back • back.jpg")).toBeNull();
       await act(async () => {
         fireEvent.press(backAction);
       });
