@@ -207,7 +207,8 @@ export function useDocumentUpload() {
   const startUpload = useCallback(
     (item: Pick<CandidateDocumentChecklistItem, 'requirementCode' | 'uploadRules'>) => {
       setActive({ requirementCode: item.requirementCode, rules: item.uploadRules });
-      setModeState('parts');
+      const nextLayout = layoutFor(item.uploadRules);
+      setModeState(item.requirementCode === 'passport' && nextLayout.kind === 'pair' && nextLayout.combinedAllowed ? 'combined' : 'parts');
       resetSelection();
       mutation.reset();
     },
@@ -223,12 +224,13 @@ export function useDocumentUpload() {
   /** Switching between one combined PDF and separate parts starts the selection over. */
   const setMode = useCallback(
     (nextMode: PairUploadMode) => {
+      if (nextMode === mode || mutation.isPending) return;
       setModeState(nextMode);
       setEntries([]);
       setShowSetError(false);
       mutation.reset();
     },
-    [mutation]
+    [mode, mutation]
   );
 
   /** Places picked assets: into a repeatable list (`multiple` layout) or into the given slot. */
