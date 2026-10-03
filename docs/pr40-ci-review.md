@@ -27,17 +27,19 @@ timeline order, optional stages, and provisional process metadata.
 - Web and mobile typechecks passed; web production build passed.
 - `git diff --check` passed.
 
-## Remaining review blockers
+## Review blockers resolved
 
-- `QvcPanel` offers scheduling based on staff permission and absence of an open
-  attempt. `WorkflowPanel` always renders it, without gating scheduling by the
-  backend's returned QVC action metadata. A process without a QVC stage can still
-  display this action. Gate it by the process/transition contract while retaining
-  supported re-medical/no-show rescheduling behavior and read-only attempt history.
-- `GenericTransitionCard` owns its dialog's `open` state, but `submitDirect` only
-  resets the hook's `pendingToStageCode` on success or stale/prerequisite errors.
-  If the transition remains rendered after a refresh, its dialog can remain open
-  with old input. Connect dialog state to the submission lifecycle and require
-  renewed review after a stale response; keep input on recoverable failures.
-
-Passing CI alone does not resolve these workflow review blockers.
+- QVC scheduling now requires a returned `qvc_appointment` transition with no
+  genuine prerequisite block, or current QVC action metadata and the latest
+  no-show/re-medical attempt for supported follow-ups. Open attempts and an
+  unresolved/failed attempts query suppress scheduling. Attempt history remains
+  visible for processes without QVC actions.
+- Generic transition dialogs now use the submission hook's selected stage.
+  Success, stale state and missing prerequisites close the dialog and clear its
+  evidence even when the same transition remains mounted after refetch. A fresh
+  opening resets mutation errors and requires new evidence; recoverable failures
+  preserve input for manual retry.
+- Added 11 workflow panel regression cases. Updated legacy QVC fixtures to include
+  explicit action metadata rather than relying on stage names.
+- A follow-up CI failure in AI settings was a form-loading race: the save test now
+  waits for the editable field instead of the immediately rendered page title.
