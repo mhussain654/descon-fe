@@ -215,6 +215,7 @@ describe("PaymentScreen", () => {
     expect(screen.getByText(/Payment reference/)).toBeOnTheScreen();
     expect(screen.getByText(/payment-public-id-42/)).toBeOnTheScreen();
     expect(screen.queryByText(/mock_hosted_checkout/)).not.toBeOnTheScreen();
+    expect(screen.queryByRole("button", { name: "Pay now" })).toBeNull();
   });
 
   it("shows Failed and Cancelled as distinct, retryable states", async () => {
@@ -223,6 +224,21 @@ describe("PaymentScreen", () => {
 
     expect(await screen.findByText("Failed")).toBeOnTheScreen();
     expect(screen.getByRole("button", { name: "Pay now" })).toBeOnTheScreen();
+  });
+
+  it("shows Cancelled and allows a new eligible payment", async () => {
+    paymentsClient.getEligibility.mockResolvedValue(eligibility({ latestPayment: payment({ status: "cancelled" }) }));
+    renderPaymentScreen();
+    expect(await screen.findByText("Cancelled")).toBeOnTheScreen();
+    expect(screen.getByRole("button", { name: "Pay now" })).toBeOnTheScreen();
+  });
+
+  it("keeps checkout unavailable while confirmation is pending", async () => {
+    paymentsClient.getEligibility.mockResolvedValue(eligibility({ latestPayment: payment() }));
+    renderPaymentScreen();
+    expect(await screen.findByText("Pending")).toBeOnTheScreen();
+    expect(screen.getByText(/waiting for your payment provider/)).toBeOnTheScreen();
+    expect(screen.queryByRole("button", { name: "Pay now" })).toBeNull();
   });
 
   it("shows a distinct Expired state once the checkout window has passed, and allows starting a new checkout", async () => {
