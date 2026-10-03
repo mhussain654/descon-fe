@@ -418,8 +418,12 @@ describe("DocumentsScreen", () => {
     expect(screen.queryByText("Replace")).toBeNull();
     expect(screen.queryByRole("button", { name: "View" })).toBeNull();
     expect(screen.queryByRole("button", { name: "Download" })).toBeNull();
+    fireEvent.press(screen.getByRole("button", { name: "Passport" }));
+    expect(screen.getByRole("button", { name: "Passport" }).props.accessibilityState.expanded).toBe(true);
+    expect(screen.getByRole("button", { name: "Replace" })).toBeEnabled();
+    expect(screen.queryByRole("button", { name: "Choose file" })).toBeNull();
     fireEvent.press(screen.getByRole("button", { name: "Replace" }));
-    expect(screen.getByRole("button", { name: "Replace" }).props.accessibilityState.expanded).toBe(true);
+    expect(screen.getByRole("button", { name: "Choose file" })).toBeOnTheScreen();
     expect(screen.getByRole("button", { name: "View" })).toBeOnTheScreen();
     expect(screen.getByRole("button", { name: "Download" })).toBeOnTheScreen();
   });
@@ -528,6 +532,7 @@ describe("DocumentsScreen", () => {
     renderDocumentsScreen();
 
     expect(await screen.findByText(/Expired/)).toBeOnTheScreen();
+    fireEvent.press(screen.getByRole("button", { name: "Police Character Certificate" }));
     fireEvent.press(screen.getByRole("button", { name: "Replace" }));
 
     expect(await screen.findByLabelText("Police Character Certificate issue date")).toBeOnTheScreen();
@@ -1316,8 +1321,10 @@ describe("DocumentsScreen", () => {
 
       fireEvent.press(await screen.findByRole("button", { name: "CNIC" }));
       expect(screen.getByText(/Front • front\.jpg/)).toBeOnTheScreen();
+      fireEvent.press(screen.getByRole("button", { name: "View" }));
+      const backAction = await screen.findByRole("button", { name: /View.*back\.jpg/ });
       await act(async () => {
-        fireEvent.press(screen.getAllByRole("button", { name: "View" })[1]);
+        fireEvent.press(backAction);
       });
 
       await waitFor(() => expect(openURL).toHaveBeenCalledTimes(1));

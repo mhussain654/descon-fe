@@ -262,7 +262,7 @@ function DocumentRow({
   const canReplace = item.document !== null && item.replacementAllowed;
   const hasAction = canUpload || canReplace;
   const canView = item.document !== null;
-  const isViewOnly = canView && !hasAction;
+  const isViewOnly = canView;
   const files = item.document?.files ?? [];
   const complianceStatus = item.document?.complianceStatus;
 
@@ -281,6 +281,7 @@ function DocumentRow({
 
   const handlePress = () => {
     if (isViewOnly) {
+      if (isActive) upload.cancelUpload();
       onToggleView();
       return;
     }
@@ -344,12 +345,14 @@ function DocumentRow({
           error={rowAccessError}
           onView={handleQuickView}
           onDownload={handleQuickDownload}
+          onReplace={() => upload.startUpload(item)}
+          replacementDisabled={!canReplace || isAnyUploadPending}
           t={t}
           language={language}
         />
       ) : null}
 
-      {rowIsExpanded && !isViewOnly ? (
+      {rowIsExpanded && isActive ? (
         <DocumentUploadPanel
           labelText={t(canUpload ? "candidateDocumentsUploadAction" : "candidateDocumentsReplaceAction")}
           instructions={item.instructions}
