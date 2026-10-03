@@ -2,7 +2,7 @@
 
 Continues the consent design on `feat/mobile-consent-redesign`: compact blue
 brand header, document illustration, rounded pale-blue content area, colorful
-summary tiles and document icons, clear Upload/Replace labels, and matching bank
+summary tiles and document icons, status labels on collapsed cards, and matching bank
 details card. English and Urdu use existing fonts and physical RTL alignment.
 View/download controls have 44-point touch targets. No new dependencies.
 
@@ -29,3 +29,28 @@ Verification: mobile typecheck, all 131 Jest suites (1271 passed, 24 skipped),
 web typecheck, all 202 Vitest files (2023 tests), web build, and diff whitespace
 check. Native-device visual QA at small/large English and Urdu font sizes remains
 outstanding because this workspace has no native emulator.
+
+## Card and passport follow-up
+
+Collapsed cards show the document name and status without Upload/Replace labels.
+View/Download actions (including each file of a multi-file document) appear only
+after expanding the card. The arrow points down while expanded, and assistive
+technology receives the expanded state. Photo is the shorter mobile title for
+the photograph requirement; its backend code and upload rules are unchanged.
+
+Passport opens with a single combined PDF slot when the backend permits it.
+Switching to separate photos shows Page 1 and Page 2 and accepts the configured
+image/file types. Switching back shows one PDF slot. Tapping the already-selected
+mode preserves selected files; switching modes clears the previous selection.
+Mode controls have at least 44-point touch targets. Regression tests submit both
+the combined PDF and separate page files with their correct part labels.
+
+Follow-up verification: all 131 mobile suites pass (1273 tests, 24 skipped),
+all 202 web suites pass (2023 tests), typechecks and web build pass.
+The focused documents suite has 59 passing tests. Native device QA is still
+needed to confirm touch behavior on the user's physical phone.
+
+Uploaded cards reveal View, Replace and Download. Replace is disabled when the
+backend locks it and opens the replacement form only when selected. A multi-file
+document shows the same three actions; View or Download then reveals labelled
+file actions so every page remains accessible.
