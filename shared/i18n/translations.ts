@@ -977,6 +977,7 @@ export const translations = {
     candidateProfileInactiveAccountAction: 'Return to sign in',
 
     // Candidate documents
+    candidateDocumentsChecklistTitle: 'Your document checklist',
     candidateDocumentsSubtitle: 'Upload the documents required for your application.',
     candidateDocumentsProgressLabel: 'Required documents submitted',
     candidateDocumentsEmptyTitle: 'No documents required',
@@ -2579,6 +2580,7 @@ export const translations = {
     candidateProfileInactiveAccountAction: 'سائن ان پر واپس جائیں',
 
     // Candidate documents
+    candidateDocumentsChecklistTitle: 'آپ کی دستاویزات کی فہرست',
     candidateDocumentsSubtitle: 'اپنی درخواست کے لیے مطلوبہ دستاویزات اپ لوڈ کریں۔',
     candidateDocumentsProgressLabel: 'مطلوبہ دستاویزات جمع کرائی گئیں',
     candidateDocumentsEmptyTitle: 'کوئی دستاویز درکار نہیں',
