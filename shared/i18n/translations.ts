@@ -1593,6 +1593,18 @@ export const translations = {
     success: 'Success',
 
     // Consent (MPS-204)
+    consentJourneyTitle: 'Your journey starts here',
+    consentJourneyMessage: 'Before you continue, please review how your information will be used.',
+    consentStatementTitle: 'CANDIDATE CONSENT',
+    consentSetupLabel: 'First-time setup',
+    consentInformationTitle: 'Your information & documents',
+    consentInformationStatement: 'By clicking “Agree & Continue”, I confirm that I am voluntarily providing my personal information and documents to Descon Engineering Limited.',
+    consentUseTitle: 'How your information is used',
+    consentUseStatement: 'I understand and accept that Descon may collect, store, process and use this information for purposes related to my employment, overseas mobilization, visa/work permit processing, travel arrangements and other related requirements. Where necessary, the information may be shared with authorized parties for these purposes.',
+    consentConfirmationTitle: 'Your confirmation',
+    consentConfirmationStatement: 'I confirm that the information provided by me is true and accurate to the best of my knowledge.',
+    consentCheckboxLabel: 'I have read and agree to the consent above.',
+    consentSwitchLanguage: 'Switch to Urdu',
     consentTitle: 'Consent Required',
     consentMessage:
       'Before you can continue, please review and accept our current data and privacy policy.',
@@ -3182,6 +3194,18 @@ export const translations = {
     success: 'کامیابی',
 
     // Consent (MPS-204)
+    consentJourneyTitle: 'آپ کا سفر یہاں سے شروع ہوتا ہے',
+    consentJourneyMessage: 'آگے بڑھنے سے پہلے، براہ کرم پڑھیں کہ آپ کی معلومات کیسے استعمال کی جائیں گی۔',
+    consentStatementTitle: 'امیدوار کی رضامندی',
+    consentSetupLabel: 'پہلی بار سیٹ اپ',
+    consentInformationTitle: 'آپ کی معلومات اور دستاویزات',
+    consentInformationStatement: '“متفق ہوں اور آگے بڑھیں” پر کلک کرکے، میں تصدیق کرتا/کرتی ہوں کہ میں اپنی ذاتی معلومات اور دستاویزات رضاکارانہ طور پر ڈیسکون انجینئرنگ لمیٹڈ کو فراہم کر رہا/رہی ہوں۔',
+    consentUseTitle: 'آپ کی معلومات کا استعمال',
+    consentUseStatement: 'میں سمجھتا/سمجھتی ہوں اور قبول کرتا/کرتی ہوں کہ ڈیسکون میری ملازمت، بیرون ملک تعیناتی، ویزا/ورک پرمٹ کی کارروائی، سفری انتظامات اور دیگر متعلقہ ضروریات کے لیے یہ معلومات جمع، محفوظ، پراسیس اور استعمال کر سکتا ہے۔ جہاں ضروری ہو، ان مقاصد کے لیے معلومات مجاز فریقوں کے ساتھ شیئر کی جا سکتی ہیں۔',
+    consentConfirmationTitle: 'آپ کی تصدیق',
+    consentConfirmationStatement: 'میں تصدیق کرتا/کرتی ہوں کہ میری فراہم کردہ معلومات میرے بہترین علم کے مطابق درست اور سچی ہیں۔',
+    consentCheckboxLabel: 'میں نے اوپر دی گئی رضامندی پڑھ لی ہے اور اس سے متفق ہوں۔',
+    consentSwitchLanguage: 'Switch to English',
     consentTitle: 'رضامندی درکار ہے',
     consentMessage: 'جاری رکھنے سے پہلے، براہ کرم ہماری موجودہ ڈیٹا اور پرائیویسی پالیسی کا جائزہ لیں اور اسے قبول کریں۔',
     consentAcceptAction: 'میں متفق ہوں اور جاری رکھنا چاہتا ہوں',
