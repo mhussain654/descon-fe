@@ -116,9 +116,10 @@ function toFiniteNumber(raw: unknown, fallback: number): number {
 /** Defaults stand for "one file of any accepted type" -- the backend validates the real rules regardless. */
 function toUploadRules(value: Partial<CandidateDocumentChecklistItemResponse>): DocumentUploadRules {
   const minimumFiles = Math.max(1, toFiniteNumber(value.minimum_files, 1));
-  const acceptedContentTypesFieldPresent = Array.isArray(value.accepted_content_types);
-  const acceptedContentTypes = acceptedContentTypesFieldPresent
-    ? value.accepted_content_types.filter((type): type is CandidateDocumentContentType => KNOWN_CONTENT_TYPES.has(type))
+  const rawAcceptedContentTypes = value.accepted_content_types;
+  const acceptedContentTypesFieldPresent = Array.isArray(rawAcceptedContentTypes);
+  const acceptedContentTypes = Array.isArray(rawAcceptedContentTypes)
+    ? rawAcceptedContentTypes.filter((type): type is CandidateDocumentContentType => KNOWN_CONTENT_TYPES.has(type))
     : [];
   return {
     minimumFiles,
