@@ -1167,7 +1167,7 @@ describe("DocumentsScreen", () => {
   });
 
   describe("passport upload modes", () => {
-    const passport = () => item({ uploadRules: { ...SINGLE_FILE_RULES, maximumFiles: 2, combinedPdfAllowed: true, allowedSideCodes: ["combined", "page_1", "page_2"] } });
+    const passport = () => item({ instructions: "Upload the first two pages of your passport as one PDF, or as two photos labelled page 1 and page 2.", uploadRules: { ...SINGLE_FILE_RULES, maximumFiles: 2, combinedPdfAllowed: true, allowedSideCodes: ["combined", "page_1", "page_2"] } });
 
     it("switches from a single PDF to two separate page files and uploads both labels", async () => {
       candidateDocumentsClient.getChecklist.mockResolvedValue([passport()]);
@@ -1176,12 +1176,16 @@ describe("DocumentsScreen", () => {
       renderDocumentsScreen();
       fireEvent.press(await screen.findByRole("button", { name: "Upload" }));
       expect(screen.getByText("Combined PDF")).toBeOnTheScreen();
-      expect(screen.getByText("Upload one scanned PDF containing both pages or sides.")).toBeOnTheScreen();
+      expect(screen.getByText("PDF, up to 5 MB per file.")).toBeOnTheScreen();
+      expect(screen.queryByText(/as one PDF, or as two photos/)).toBeNull();
+      expect(screen.getByText("Upload the first two pages of your passport as one scanned PDF.")).toBeOnTheScreen();
       fireEvent.press(screen.getByRole("button", { name: "Separate photos" }));
+      expect(screen.getByText("PDF, JPEG, PNG, up to 5 MB per file.")).toBeOnTheScreen();
+      expect(screen.queryByText("PDF, up to 5 MB per file.")).toBeNull();
       expect(screen.getByText("Page 1")).toBeOnTheScreen();
       expect(screen.getByText("Page 2")).toBeOnTheScreen();
-      expect(screen.getByText("Upload each page or side separately in the two slots below.")).toBeOnTheScreen();
-      expect(screen.queryByText("Upload one scanned PDF containing both pages or sides.")).toBeNull();
+      expect(screen.getByText("Upload the first two pages of your passport separately in the Page 1 and Page 2 slots below.")).toBeOnTheScreen();
+      expect(screen.queryByText("Upload the first two pages of your passport as one scanned PDF.")).toBeNull();
       expect(screen.queryByText("Combined PDF")).toBeNull();
       DocumentPicker.getDocumentAsync.mockResolvedValueOnce({ canceled: false, assets: [pdfAsset("page1.pdf")] });
       fireEvent.press(screen.getAllByRole("button", { name: "Choose file" })[0]);
