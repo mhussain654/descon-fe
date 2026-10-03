@@ -68,3 +68,5 @@ TypeScript checks, web build and whitespace checks pass for this follow-up.
 Passport upload guidance now describes only the selected mode while retaining the first-two-pages requirement. The file type and size hint derives from backend rules and shows only PDF for combined mode. Per-file View/Download buttons sit beside wrapping filenames, keep their action colors and a 44-point touch target, and reverse the row for Urdu. Regression coverage checks mode guidance and accepted-file hints.
 
 Validation: mobile/web typechecks; mobile 131 suites (1,273 passed, 24 skipped); web 202 files (2,023 passed); web production build; focused documents suite 59 passed after adding the screenshot instruction fixture; git diff check. Native-device visual verification remains outstanding.
+
+Per user follow-up, the compact per-file View/Download buttons now use a 34-point height. The main document actions retain their existing sizing.
