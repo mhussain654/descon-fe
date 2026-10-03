@@ -97,7 +97,7 @@ const styles = StyleSheet.create({
   downloadLabel: { color: '#087443' },
   fileRow: { marginTop: spacing[3], flexDirection: 'row', alignItems: 'center', gap: spacing[2] },
   fileRowRtl: { flexDirection: 'row-reverse' },
-  fileButton: { alignSelf: 'center', paddingHorizontal: spacing[2], borderRadius: 10, flexShrink: 0 },
+  fileButton: { height: 34, alignSelf: 'center', paddingHorizontal: spacing[2], borderRadius: 10, flexShrink: 0 },
   fileButtonLabel: { fontSize: 12 },
   fileName: { flex: 1, minWidth: 0, fontSize: 13, color: colors.text.primary },
   errorNotice: { marginTop: spacing[3] },
