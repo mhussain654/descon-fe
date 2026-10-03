@@ -66,13 +66,13 @@ const DOCUMENT_ICONS: Record<string, { icon: typeof FileText; tone: IconTone }> 
   cheque_copy: { icon: Landmark, tone: 'orange' },
 };
 
-export function DocumentCardHeading({ item, statusLine, statusColor, language }: { item: CandidateDocumentChecklistItem; statusLine: string; statusColor: string; language: Language }) {
+export function DocumentCardHeading({ item, statusLine, statusColor, language, t }: { item: CandidateDocumentChecklistItem; statusLine: string; statusColor: string; language: Language; t: LocaleProps['t'] }) {
   const { icon, tone } = DOCUMENT_ICONS[item.requirementCode] ?? { icon: FileText, tone: 'blue' as const };
   return (
     <View style={[documentsStyles.rowContent, { flexDirection: rowDirectionTowards(language === 'ur' ? 'right' : 'left') }]}>
       <GradientIconBox tone={tone} icon={icon} size={40} />
       <View style={documentsStyles.flexCopy}>
-        <Text style={[documentsStyles.documentTitle, copyStyle(language), { fontFamily: getFontFamily(language, 'semibold') }, language === 'ur' && documentsStyles.urduBody]}>{item.name}</Text>
+        <Text style={[documentsStyles.documentTitle, copyStyle(language), { fontFamily: getFontFamily(language, 'semibold') }, language === 'ur' && documentsStyles.urduBody]}>{item.requirementCode === 'photograph' ? t('candidateDocumentsPhotoName') : item.name}</Text>
         <Text style={[documentsStyles.documentStatus, copyStyle(language), { color: statusColor }, language === 'ur' && documentsStyles.urduBody]}>{statusLine}</Text>
         {item.document?.rejectionReason ? <Text style={[documentsStyles.rejection, copyStyle(language), language === 'ur' && documentsStyles.urduBody]}>{item.document.rejectionReason}</Text> : null}
       </View>
