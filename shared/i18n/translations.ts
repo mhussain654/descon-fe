@@ -978,8 +978,13 @@ export const translations = {
 
     // Candidate documents
     candidateDocumentsOnePdf: 'One PDF',
-    candidateDocumentsPassportPdfGuidance: 'Upload the first two pages of your passport as one scanned PDF.',
-    candidateDocumentsPassportPartsGuidance: 'Upload the first two pages of your passport separately in the Page 1 and Page 2 slots below.',
+    candidateDocumentsCnicPartsGuidance: 'Upload separate scans or clear photos of the front and back of the CNIC. Both sides must be clear and readable.',
+    candidateDocumentsCnicPdfGuidance: 'Upload one PDF containing scanned images or clear photos of both the front and back of the CNIC. Both sides must be clear and readable.',
+    candidateDocumentsFrontSide: 'Front side',
+    candidateDocumentsBackSide: 'Back side',
+    candidateDocumentsCnicBothSidesRequired: 'Upload both the front and back sides of the CNIC.',
+    candidateDocumentsPassportPdfGuidance: 'Upload one PDF containing scanned images or clear photos of the first two pages of your passport. Both pages must be clear and readable.',
+    candidateDocumentsPassportPartsGuidance: 'Upload separate scans or clear photos of the first two pages of your passport in the Page 1 and Page 2 slots below. Both pages must be clear and readable.',
     candidateDocumentsAcceptedFilesHint: '%{types}, up to %{size} per file.',
     candidateDocumentsCombinedGuidance: 'Upload one scanned PDF containing both pages or sides.',
     candidateDocumentsPartsGuidance: 'Upload each page or side separately in the two slots below.',
@@ -2588,8 +2593,13 @@ export const translations = {
 
     // Candidate documents
     candidateDocumentsOnePdf: 'ایک پی ڈی ایف',
-    candidateDocumentsPassportPdfGuidance: 'اپنے پاسپورٹ کے پہلے دو صفحات ایک اسکین شدہ پی ڈی ایف میں اپ لوڈ کریں۔',
-    candidateDocumentsPassportPartsGuidance: 'اپنے پاسپورٹ کے پہلے دو صفحات نیچے صفحہ ۱ اور صفحہ ۲ کے خانوں میں الگ الگ اپ لوڈ کریں۔',
+    candidateDocumentsCnicPartsGuidance: 'شناختی کارڈ کے اگلے اور پچھلے رخ کے الگ الگ اسکین یا واضح تصاویر اپ لوڈ کریں۔ دونوں رخ صاف اور پڑھنے کے قابل ہونے چاہئیں۔',
+    candidateDocumentsCnicPdfGuidance: 'ایک پی ڈی ایف اپ لوڈ کریں جس میں شناختی کارڈ کے اگلے اور پچھلے دونوں رخ کے اسکین یا واضح تصاویر شامل ہوں۔ دونوں رخ صاف اور پڑھنے کے قابل ہونے چاہئیں۔',
+    candidateDocumentsFrontSide: 'اگلا رخ',
+    candidateDocumentsBackSide: 'پچھلا رخ',
+    candidateDocumentsCnicBothSidesRequired: 'شناختی کارڈ کے اگلے اور پچھلے دونوں رخ اپ لوڈ کریں۔',
+    candidateDocumentsPassportPdfGuidance: 'ایک پی ڈی ایف اپ لوڈ کریں جس میں آپ کے پاسپورٹ کے پہلے دو صفحات کے اسکین یا واضح تصاویر شامل ہوں۔ دونوں صفحات صاف اور پڑھنے کے قابل ہونے چاہئیں۔',
+    candidateDocumentsPassportPartsGuidance: 'اپنے پاسپورٹ کے پہلے دو صفحات کے الگ الگ اسکین یا واضح تصاویر نیچے صفحہ ۱ اور صفحہ ۲ کے خانوں میں اپ لوڈ کریں۔ دونوں صفحات صاف اور پڑھنے کے قابل ہونے چاہئیں۔',
     candidateDocumentsAcceptedFilesHint: '%{types}، ہر فائل زیادہ سے زیادہ %{size}۔',
     candidateDocumentsCombinedGuidance: 'دونوں صفحات یا اطراف پر مشتمل ایک اسکین شدہ پی ڈی ایف اپ لوڈ کریں۔',
     candidateDocumentsPartsGuidance: 'ہر صفحہ یا طرف نیچے دیے گئے دو خانوں میں الگ اپ لوڈ کریں۔',
