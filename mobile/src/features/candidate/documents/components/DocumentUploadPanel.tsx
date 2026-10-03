@@ -76,7 +76,10 @@ export function DocumentUploadPanel({ labelText, instructions, upload, t, langua
   const combinedMode = layout.kind === 'pair' && layout.combinedAllowed && upload.mode === 'combined';
   const canCapture = acceptsImages(rules);
   const isPassportPair = layout.kind === 'pair' && upload.activeRequirementCode === 'passport';
-  const guidanceKey = isPassportPair
+  const isCnicPair = layout.kind === 'pair' && ['cnic', 'next_of_kin_cnic'].includes(upload.activeRequirementCode ?? '');
+  const guidanceKey = isCnicPair
+    ? combinedMode ? 'candidateDocumentsCnicPdfGuidance' : 'candidateDocumentsCnicPartsGuidance'
+    : isPassportPair
     ? combinedMode ? 'candidateDocumentsPassportPdfGuidance' : 'candidateDocumentsPassportPartsGuidance'
     : combinedMode ? 'candidateDocumentsCombinedGuidance' : 'candidateDocumentsPartsGuidance';
   const acceptedTypes = combinedMode ? ['application/pdf'] : rules.acceptedContentTypes;
@@ -86,6 +89,8 @@ export function DocumentUploadPanel({ labelText, instructions, upload, t, langua
     return t(FILE_ERROR_KEYS[validation.code]);
   };
   const slot = (sideCode: DocumentSideCode | null, label: string | null) => {
+    if (isCnicPair && sideCode === 'front') label = t('candidateDocumentsFrontSide');
+    if (isCnicPair && sideCode === 'back') label = t('candidateDocumentsBackSide');
     const file = slotFile(entries, sideCode);
     return (
       <FileSlot
@@ -108,15 +113,15 @@ export function DocumentUploadPanel({ labelText, instructions, upload, t, langua
       {layout.kind === 'pair' && layout.combinedAllowed ? (
         <View style={styles.modeRow} accessibilityLabel={t('candidateDocumentsUploadModeLabel')}>
           {(['parts', 'combined'] as const).map(mode => (
-            <Pressable key={mode} accessibilityRole="button" accessibilityLabel={t(mode === 'parts' ? 'candidateDocumentsUploadModeParts' : 'candidateDocumentsUploadModeCombined')} accessibilityState={{ selected: upload.mode === mode }} onPress={() => upload.setMode(mode)} style={[styles.modeButton, upload.mode === mode && styles.modeSelected]}>
+            <Pressable key={mode} accessibilityRole="button" accessibilityLabel={t(mode === 'parts' ? 'candidateDocumentsUploadModeParts' : isCnicPair ? 'candidateDocumentsOnePdf' : 'candidateDocumentsUploadModeCombined')} accessibilityState={{ selected: upload.mode === mode }} onPress={() => upload.setMode(mode)} style={[styles.modeButton, upload.mode === mode && styles.modeSelected]}>
               <Text style={[styles.modeText, { fontFamily: getFontFamily(language, 'medium') }, upload.mode === mode && styles.modeTextSelected, language === 'ur' && styles.modeTextUrdu]}>{t(mode === 'parts' ? 'candidateDocumentsUploadModeParts' : 'candidateDocumentsOnePdf')}</Text>
             </Pressable>
           ))}
         </View>
       ) : null}
       {layout.kind === 'pair' ? <HelperText language={language}>{t(guidanceKey)}</HelperText> : null}
-      <Label language={language}>{labelText}</Label>
-      {instructions && !isPassportPair ? (
+      {!isCnicPair && !isPassportPair ? <Label language={language}>{labelText}</Label> : null}
+      {instructions && !isPassportPair && !isCnicPair ? (
         <Text style={[styles.instructions, { fontFamily: getFontFamily(language, 'regular') }]}>{instructions}</Text>
       ) : null}
 
@@ -183,7 +188,7 @@ export function DocumentUploadPanel({ labelText, instructions, upload, t, langua
       <HelperText language={language}>{interpolate(t('candidateDocumentsAcceptedFilesHint'), { types: typeNames, size: formatFileSize(rules.maximumFileSize, language) })}</HelperText>
       {showSetError && validation?.kind === 'set' ? (
         <ValidationMessage tone="error" language={language}>
-          {t(FILE_SET_REASON_KEYS[validation.reason] as TranslationKey)}
+          {t(isCnicPair && validation.reason === 'incomplete_side_pair' ? 'candidateDocumentsCnicBothSidesRequired' : FILE_SET_REASON_KEYS[validation.reason] as TranslationKey)}
         </ValidationMessage>
       ) : null}
 
