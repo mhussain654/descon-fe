@@ -99,11 +99,24 @@ function progress(overrides = {}) {
   };
 }
 
+/** Backend upload rules for an ordinary single-file document. */
+const SINGLE_FILE_RULES = {
+  minimumFiles: 1,
+  maximumFiles: 1,
+  combinedPdfAllowed: false,
+  allowedSideCodes: [],
+  acceptedContentTypes: ["application/pdf", "image/jpeg", "image/png"],
+  maximumFileSize: 5 * 1024 * 1024,
+};
+
 function item(overrides = {}) {
   return {
     requirementCode: "passport",
     name: "Passport",
     required: true,
+    displayPosition: 1,
+    instructions: null,
+    uploadRules: SINGLE_FILE_RULES,
     status: "missing",
     replacementAllowed: true,
     document: null,
@@ -119,6 +132,7 @@ function uploadedDocument(overrides = {}) {
     uploadedAt: "2026-08-26T12:00:00Z",
     rejectionReason: null,
     complianceStatus: "not_applicable",
+    files: [{ id: "file-1", sideCode: null, position: 1, fileName: "passport.pdf", contentType: "application/pdf", fileSize: 1024 }],
     ...overrides,
   };
 }
@@ -353,7 +367,8 @@ describe("DocumentsScreen", () => {
     expect(candidateDocumentsClient.requestDocumentAccess).toHaveBeenCalledWith(
       "candidate-access-token",
       "30fcedd6-7fe6-4d12-a5ae-f6b5ef3d91dd",
-      "inline"
+      "inline",
+      "file-1"
     );
     expect(openURL.mock.calls[0][0]).toContain("/rails/active_storage/blobs/proxy/abc/passport.pdf");
     openURL.mockRestore();
@@ -385,7 +400,8 @@ describe("DocumentsScreen", () => {
     expect(candidateDocumentsClient.requestDocumentAccess).toHaveBeenCalledWith(
       "candidate-access-token",
       "30fcedd6-7fe6-4d12-a5ae-f6b5ef3d91dd",
-      "attachment"
+      "attachment",
+      "file-1"
     );
     openURL.mockRestore();
     process.env.EXPO_PUBLIC_API_BASE_URL = originalApiBaseUrl;
@@ -819,11 +835,18 @@ describe("DocumentsScreen", () => {
     await screen.findByText(/Selected file: passport\.pdf/);
   });
 
-  it.each(["cv", "experience_letter", "certificates"])(
-    "hides camera/gallery capture for the %s requirement, offering only Choose file",
-    async (requirementCode) => {
+  it.each([
+    ["a PDF-only requirement", ["application/pdf"]],
+  ])(
+    "hides camera/gallery capture for %s, offering only Choose file -- decided by the backend's accepted types",
+    async (_label, acceptedContentTypes) => {
       candidateDocumentsClient.getChecklist.mockResolvedValue([
-        item({ requirementCode, name: "CV / Resume", status: "missing" }),
+        item({
+          requirementCode: "cv",
+          name: "CV / Resume",
+          status: "missing",
+          uploadRules: { ...SINGLE_FILE_RULES, acceptedContentTypes },
+        }),
       ]);
       applicationProgressClient.getProgress.mockResolvedValue(progress());
       renderDocumentsScreen();
@@ -1118,6 +1141,125 @@ describe("DocumentsScreen", () => {
       fireEvent.press(screen.getByRole("button", { name: "Submit" }));
 
       await waitFor(() => expect(mockReplace).toHaveBeenCalledWith("/login"));
+    });
+  });
+  describe("backend-driven multi-file documents", () => {
+    const CNIC_RULES = {
+      ...SINGLE_FILE_RULES,
+      maximumFiles: 2,
+      combinedPdfAllowed: true,
+      allowedSideCodes: ["combined", "front", "back"],
+    };
+
+    function cnicItem(overrides = {}) {
+      return item({
+        requirementCode: "cnic",
+        name: "CNIC",
+        instructions: "Upload the front and back of your CNIC.",
+        uploadRules: CNIC_RULES,
+        ...overrides,
+      });
+    }
+
+    function imageAsset(name) {
+      return { uri: `file:///tmp/${name}`, name, size: 2048, mimeType: "image/jpeg", lastModified: 1_700_000_000_000 };
+    }
+
+    async function chooseFileForNextEmptySlot(asset) {
+      DocumentPicker.getDocumentAsync.mockResolvedValueOnce({ canceled: false, assets: [asset] });
+      fireEvent.press(screen.getAllByRole("button", { name: "Choose file" })[0]);
+      await screen.findByText(new RegExp(`Selected file: ${asset.name.replace(".", "\\.")}`));
+    }
+
+    it("shows the backend instructions and labelled front/back slots, sending both parts with their labels", async () => {
+      candidateDocumentsClient.getChecklist.mockResolvedValue([cnicItem()]);
+      applicationProgressClient.getProgress.mockResolvedValue(progress());
+      candidateDocumentsClient.uploadDocument.mockResolvedValue(cnicItem({ status: "uploaded", document: uploadedDocument() }));
+      renderDocumentsScreen();
+
+      fireEvent.press(await screen.findByRole("button", { name: "Upload" }));
+      expect(screen.getByText("Upload the front and back of your CNIC.")).toBeOnTheScreen();
+      expect(screen.getByText("Front")).toBeOnTheScreen();
+      expect(screen.getByText("Back")).toBeOnTheScreen();
+
+      await chooseFileForNextEmptySlot(imageAsset("front.jpg"));
+      await chooseFileForNextEmptySlot(imageAsset("back.jpg"));
+      const appendSpy = jest.spyOn(FormData.prototype, "append");
+      await act(async () => {
+        fireEvent.press(screen.getByRole("button", { name: "Submit" }));
+      });
+
+      await waitFor(() => expect(candidateDocumentsClient.uploadDocument).toHaveBeenCalledTimes(1));
+      const labels = appendSpy.mock.calls.filter(([key]) => key === "candidate_document[files][][side_code]").map(([, value]) => value);
+      const names = appendSpy.mock.calls.filter(([key]) => key === "candidate_document[files][][file]").map(([, part]) => part.name);
+      appendSpy.mockRestore();
+      expect(labels).toEqual(["front", "back"]);
+      expect(names).toEqual(["front.jpg", "back.jpg"]);
+    });
+
+    it("blocks a CNIC upload with only the front side, explaining both parts are needed", async () => {
+      candidateDocumentsClient.getChecklist.mockResolvedValue([cnicItem()]);
+      applicationProgressClient.getProgress.mockResolvedValue(progress());
+      renderDocumentsScreen();
+
+      fireEvent.press(await screen.findByRole("button", { name: "Upload" }));
+      await chooseFileForNextEmptySlot(imageAsset("front.jpg"));
+      fireEvent.press(screen.getByRole("button", { name: "Submit" }));
+
+      expect(
+        await screen.findByText("Upload both parts of this document (front and back, or page 1 and page 2).")
+      ).toBeOnTheScreen();
+      expect(candidateDocumentsClient.uploadDocument).not.toHaveBeenCalled();
+    });
+
+    it("offers one combined PDF instead, without photo capture for it", async () => {
+      candidateDocumentsClient.getChecklist.mockResolvedValue([cnicItem()]);
+      applicationProgressClient.getProgress.mockResolvedValue(progress());
+      renderDocumentsScreen();
+
+      fireEvent.press(await screen.findByRole("button", { name: "Upload" }));
+      fireEvent.press(screen.getByRole("button", { name: "One PDF with every page" }));
+
+      expect(screen.getByText("Combined PDF")).toBeOnTheScreen();
+      expect(screen.queryByRole("button", { name: "Take photo" })).toBeNull();
+      expect(screen.getAllByRole("button", { name: "Choose file" })).toHaveLength(1);
+    });
+
+    it("lists each file of an uploaded multi-file document with its own View action", async () => {
+      const files = [
+        { id: "file-front", sideCode: "front", position: 1, fileName: "front.jpg", contentType: "image/jpeg", fileSize: 10 },
+        { id: "file-back", sideCode: "back", position: 2, fileName: "back.jpg", contentType: "image/jpeg", fileSize: 10 },
+      ];
+      candidateDocumentsClient.getChecklist.mockResolvedValue([
+        cnicItem({ status: "pending_review", replacementAllowed: false, document: uploadedDocument({ files }) }),
+      ]);
+      applicationProgressClient.getProgress.mockResolvedValue(progress());
+      candidateDocumentsClient.requestDocumentAccess.mockResolvedValue({
+        documentId: "30fcedd6-7fe6-4d12-a5ae-f6b5ef3d91dd",
+        fileId: "file-back",
+        url: "/rails/active_storage/blobs/proxy/abc/back.jpg",
+        expiresAt: new Date(Date.now() + 60_000).toISOString(),
+      });
+      const originalApiBaseUrl = process.env.EXPO_PUBLIC_API_BASE_URL;
+      process.env.EXPO_PUBLIC_API_BASE_URL = "http://localhost:3000/api/v1";
+      const openURL = jest.spyOn(Linking, "openURL").mockResolvedValue(true);
+      renderDocumentsScreen();
+
+      fireEvent.press(await screen.findByRole("button", { name: "CNIC" }));
+      expect(screen.getByText(/Front • front\.jpg/)).toBeOnTheScreen();
+      await act(async () => {
+        fireEvent.press(screen.getAllByRole("button", { name: "View" })[1]);
+      });
+
+      await waitFor(() => expect(openURL).toHaveBeenCalledTimes(1));
+      expect(candidateDocumentsClient.requestDocumentAccess).toHaveBeenCalledWith(
+        "candidate-access-token",
+        "30fcedd6-7fe6-4d12-a5ae-f6b5ef3d91dd",
+        "inline",
+        "file-back"
+      );
+      openURL.mockRestore();
+      process.env.EXPO_PUBLIC_API_BASE_URL = originalApiBaseUrl;
     });
   });
 });

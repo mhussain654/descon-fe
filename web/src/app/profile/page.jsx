@@ -1,5 +1,5 @@
 import { useNavigate } from "react-router";
-import { User, FileText, CheckCircle, Flag, Globe, LogOut, ChevronRight, ChevronLeft } from "lucide-react";
+import { User, FileText, CheckCircle, Flag, Globe, LogOut, ChevronRight, ChevronLeft, MapPin } from "lucide-react";
 import UserShell from "../components/user-shell";
 import { useAuth } from "../../contexts/AuthContext";
 import { useLanguage } from "../../contexts/LanguageContext";
@@ -116,6 +116,7 @@ export default function ProfilePage() {
           <h2 className="mb-4 text-lg font-semibold text-black">{t("personalInfo")}</h2>
           <InfoRow icon={User} label={t("candidateProfileMaskedCnicLabel")} value={profile.maskedCnic} />
           <InfoRow icon={FileText} label={t("candidateProfileReferenceNumberLabel")} value={profile.referenceNumber ?? notAssignedYet} />
+          <InfoRow icon={MapPin} label={t("candidateProfileBusinessUnitLabel")} value={profile.country?.name ?? notAssignedYet} />
           <InfoRow icon={CheckCircle} label={t("candidateProfileStatusLabel")} value={candidateStatusLabel(profile)} />
           <InfoRow
             icon={Flag}

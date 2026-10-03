@@ -18,6 +18,7 @@ import { formatDate } from '../../../../../../shared/i18n/locale';
 import { ADMIN_WORKFLOW_ERROR_KEYS } from '../../../../../../shared/adminWorkflow/errorMessages';
 import { toWorkflowBlockingReason, WORKFLOW_BLOCKING_REASON_KEYS } from '../../../../../../shared/adminWorkflow/blockingReasons';
 import type { AdminWorkflowError, AllowedWorkflowTransition, WorkflowHistoryItem } from '../../../../../../shared/adminWorkflow/types';
+import { componentForWorkflowAction } from '../../../../../../shared/adminWorkflow/actionRegistry';
 import { ADMIN_REVIEWER_ROLE_KEYS } from '../../../../../../shared/adminDocumentReviews/statusLabels';
 import type { TranslationKey } from '../../../../../../shared/i18n/translations';
 import { useAvailableTransitions } from '../hooks/useAvailableTransitions';
@@ -31,6 +32,8 @@ import { useVisaDecisions } from '../hooks/useVisaDecisions';
 import { useWorkflowHistory } from '../hooks/useWorkflowHistory';
 import { useWorkflowState } from '../hooks/useWorkflowState';
 import { FlightDetailPanel } from './FlightDetailPanel';
+import { GenericTransitionCard } from './GenericTransitionCard';
+import { qvcSchedulingAvailable } from '../qvcSchedulingAvailable';
 import { QvcPanel } from './QvcPanel';
 import { VisaDecisionPanel } from './VisaDecisionPanel';
 
@@ -40,16 +43,9 @@ export interface WorkflowPanelProps {
 
 /** Stage codes with a real, interactive confirmation card in this build. Every other returned transition renders as a plain, non-interactive row. */
 const QATAR_BU_STAGE_CODE = 'documents_shared_with_qatar_bu';
-/** QVC's own two stage-transition codes are handled entirely by the dedicated QvcPanel (its own POST/PATCH .../qvc_attempts endpoints), not by the generic allowedNextTransitions confirm flow -- excluded from the generic list below so they aren't also shown as an inert "coming soon" row. */
-const QVC_STAGE_CODES = new Set(['qvc_appointment_booked', 'qvc_completed_outcome_received']);
 const PROTECTION_APPEARED_STAGE_CODE = 'appeared_for_protection';
 const PROTECTION_READY_STAGE_CODE = 'protected_ready_to_fly';
 const PROTECTION_STAGE_CODES = new Set([PROTECTION_APPEARED_STAGE_CODE, PROTECTION_READY_STAGE_CODE]);
-/** Visa, flight and mobilization each have their own dedicated backend resource and multipart forms (MPS-F501 Phase C), handled by VisaDecisionPanel/FlightDetailPanel below rather than the generic confirm flow -- excluded from the generic list for the same reason QVC's own stage codes are. */
-const VISA_STAGE_CODE = 'visa_issued_or_rejected';
-const FLIGHT_STAGE_CODE = 'flight_details_uploaded';
-const MOBILIZED_STAGE_CODE = 'mobilized';
-const VISA_FLIGHT_MOBILIZATION_STAGE_CODES = new Set([VISA_STAGE_CODE, FLIGHT_STAGE_CODE, MOBILIZED_STAGE_CODE]);
 
 /**
  * Translation key for the "Current stage" summary row's badge. This row's
@@ -194,15 +190,25 @@ export function WorkflowPanel({ candidateId }: WorkflowPanelProps) {
   const protectionReadyTransition = transitions.allowedNextTransitions.find(
     (item) => item.code === PROTECTION_READY_STAGE_CODE
   );
-  const visaTransition = transitions.allowedNextTransitions.find((item) => item.code === VISA_STAGE_CODE);
-  const flightTransition = transitions.allowedNextTransitions.find((item) => item.code === FLIGHT_STAGE_CODE);
-  const mobilizeTransition = transitions.allowedNextTransitions.find((item) => item.code === MOBILIZED_STAGE_CODE);
-  const otherTransitions = transitions.allowedNextTransitions.filter(
-    (item) =>
+  const visaTransition = transitions.allowedNextTransitions.find(
+    (item) => componentForWorkflowAction(item.actionType) === 'visa-decision'
+  );
+  const flightTransition = transitions.allowedNextTransitions.find(
+    (item) => componentForWorkflowAction(item.actionType) === 'flight-details'
+  );
+  const mobilizeTransition = transitions.allowedNextTransitions.find(
+    (item) => componentForWorkflowAction(item.actionType) === 'mobilization'
+  );
+  const genericTransitions = transitions.allowedNextTransitions.filter((item) => {
+    const component = componentForWorkflowAction(item.actionType);
+    return (
+      (component === 'generic-evidence' || component === 'generic-confirmation') &&
       item.code !== QATAR_BU_STAGE_CODE &&
-      !QVC_STAGE_CODES.has(item.code) &&
-      !PROTECTION_STAGE_CODES.has(item.code) &&
-      !VISA_FLIGHT_MOBILIZATION_STAGE_CODES.has(item.code)
+      !PROTECTION_STAGE_CODES.has(item.code)
+    );
+  });
+  const otherTransitions = transitions.allowedNextTransitions.filter(
+    (item) => componentForWorkflowAction(item.actionType) === 'unsupported'
   );
   const latestTransition = history.history.reduce<WorkflowHistoryItem | null>(
     (latest, item) => (!latest || item.occurredAt > latest.occurredAt ? item : latest),
@@ -222,6 +228,14 @@ export function WorkflowPanel({ candidateId }: WorkflowPanelProps) {
   return (
     <Card>
       <h2 className="mb-4 text-lg font-semibold text-text-primary">{t('adminWorkflowPanelTitle')}</h2>
+      {state.mobilizationProcess?.provisional ? (
+        <div
+          role="status"
+          className="mb-4 rounded-lg border border-warning/40 bg-warning/10 p-3 text-sm text-text-primary"
+        >
+          {t('adminWorkflowProvisionalProcessNotice')}
+        </div>
+      ) : null}
 
       {/* Current stage summary */}
       <div className="mb-6 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border bg-surface-sunken p-4">
@@ -284,6 +298,20 @@ export function WorkflowPanel({ candidateId }: WorkflowPanelProps) {
               onConfirm={() => submit.openConfirm(PROTECTION_READY_STAGE_CODE)}
             />
           ) : null}
+          {genericTransitions.map((item) => (
+            <GenericTransitionCard
+              key={item.code}
+              transition={item}
+              canTransition={canTransition}
+              currentStageCode={state.currentStage?.code}
+              isSubmitting={submit.mutation.isPending}
+              open={submit.pendingToStageCode === item.code}
+              onOpenChange={(open) => open ? submit.openConfirm(item.code) : submit.closeConfirm()}
+              conflictMessage={conflictMessage}
+              nonFieldError={nonFieldMutationError}
+              onSubmit={submit.submitDirect}
+            />
+          ))}
           {otherTransitions.map((item) => (
             <OtherTransitionRow key={item.code} transition={item} />
           ))}
@@ -297,6 +325,7 @@ export function WorkflowPanel({ candidateId }: WorkflowPanelProps) {
       ) : null}
 
       <QvcPanel
+        canSchedule={qvcSchedulingAvailable(state, transitions, qvcAttemptsQuery.data?.qvcAttempts ?? []) && qvcAttemptsQuery.isSuccess}
         canTransition={canTransition}
         attemptsQuery={qvcAttemptsQuery}
         actions={qvcActions}

@@ -21,17 +21,19 @@ import { resolveDocumentAccessUrl } from '../../../../lib/resolveDocumentAccessU
 export function useDocumentAccess() {
   const { session } = useAuth();
   const [targetDocumentId, setTargetDocumentId] = useState<string | null>(null);
+  const [targetFileId, setTargetFileId] = useState<string | null>(null);
   const [isRequesting, setIsRequesting] = useState(false);
   const [error, setError] = useState<DocumentAccessError | null>(null);
 
   const requestDocument = useCallback(
-    async (documentId: string, disposition: DocumentAccessDisposition) => {
+    async (documentId: string, disposition: DocumentAccessDisposition, fileId?: string) => {
       if (!session || isRequesting) return;
       setTargetDocumentId(documentId);
+      setTargetFileId(fileId ?? null);
       setIsRequesting(true);
       setError(null);
       try {
-        const access = await candidateDocumentsClient.requestDocumentAccess(session.accessToken, documentId, disposition);
+        const access = await candidateDocumentsClient.requestDocumentAccess(session.accessToken, documentId, disposition, fileId);
         // Fails closed: null when the signed URL doesn't resolve to our own
         // API origin (a malformed backend response, an unexpected absolute
         // URL, a dangerous scheme) -- never hand that to Linking.openURL.
@@ -50,13 +52,21 @@ export function useDocumentAccess() {
     [session, isRequesting]
   );
 
-  const viewDocument = useCallback((documentId: string) => requestDocument(documentId, 'inline'), [requestDocument]);
-  const downloadDocument = useCallback((documentId: string) => requestDocument(documentId, 'attachment'), [requestDocument]);
+  /** `fileId` picks one file of a multi-file document; without it the backend serves the representative file. */
+  const viewDocument = useCallback(
+    (documentId: string, fileId?: string) => requestDocument(documentId, 'inline', fileId),
+    [requestDocument]
+  );
+  const downloadDocument = useCallback(
+    (documentId: string, fileId?: string) => requestDocument(documentId, 'attachment', fileId),
+    [requestDocument]
+  );
 
   return {
     viewDocument,
     downloadDocument,
     targetDocumentId,
+    targetFileId,
     isRequesting,
     error,
     clearError: () => setError(null),

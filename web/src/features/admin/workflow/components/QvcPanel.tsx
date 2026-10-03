@@ -23,6 +23,7 @@ import type { useQvcAttempts } from '../hooks/useQvcAttempts';
 
 export interface QvcPanelProps {
   canTransition: boolean;
+  canSchedule: boolean;
   attemptsQuery: ReturnType<typeof useQvcAttempts>;
   actions: ReturnType<typeof useQvcActions>;
   currentStageCode: string | undefined;
@@ -42,7 +43,7 @@ function attemptStatusTone(status: AdminQvcAttempt['status']): 'neutral' | 'succ
  * one is caught by the same single monitoring effect that already covers
  * the rest of the panel.
  */
-export function QvcPanel({ canTransition, attemptsQuery, actions, currentStageCode }: QvcPanelProps) {
+export function QvcPanel({ canSchedule, canTransition, attemptsQuery, actions, currentStageCode }: QvcPanelProps) {
   const { t } = useLanguage();
 
   const attempts = attemptsQuery.data?.qvcAttempts ?? [];
@@ -52,7 +53,7 @@ export function QvcPanel({ canTransition, attemptsQuery, actions, currentStageCo
     <div className="mt-6 border-t border-border pt-6">
       <div className="mb-3 flex items-center justify-between gap-3">
         <h3 className="text-sm font-semibold text-text-primary">{t('adminWorkflowQvcPanelTitle')}</h3>
-        {canTransition && !openAttempt ? (
+        {canTransition && canSchedule && !openAttempt ? (
           <Button type="button" variant="secondary" onClick={actions.openScheduleDialog}>
             {t('adminWorkflowQvcScheduleAction')}
           </Button>

@@ -10,7 +10,7 @@
 // snapshot's timeline. Platform-independent only, matching the sibling
 // shared/ modules.
 
-export type QvcOutcomeCode = 'approved' | 're_medical_required' | 'rejected';
+export type QvcOutcomeCode = 'approved' | 're_medical' | 'rejected';
 export type VisaOutcomeCode = 'issued' | 'rejected';
 
 /**

@@ -50,6 +50,9 @@ import type {
   WorkflowProtectionRecord,
   WorkflowStageReference,
   WorkflowTimelineStage,
+  WorkflowActionType,
+  WorkflowFieldType,
+  WorkflowTransitionField,
   WorkflowTransitionDetails,
   WorkflowTransitionPrerequisiteDetails,
   WorkflowTransitionResult,
@@ -60,9 +63,18 @@ interface TimelineStageResponse {
   code: string;
   name: string;
   position: number;
+  action_type: string;
+  required: boolean;
   status: string;
   started_at?: string | null;
   completed_at?: string | null;
+}
+
+interface MobilizationProcessResponse {
+  code: string;
+  version: number;
+  provisional: boolean;
+  country_code: string;
 }
 
 interface ProtectionRecordResponse {
@@ -77,6 +89,7 @@ interface WorkflowStateResponse {
   candidate_id: string;
   assignment_id: string | null;
   candidate_status: string;
+  mobilization_process: MobilizationProcessResponse | null;
   current_stage: TimelineStageResponse | null;
   timeline: TimelineStageResponse[];
   completed_count: number;
@@ -90,7 +103,10 @@ interface AllowedTransitionResponse {
   code: string;
   name: string;
   position: number;
+  action_type: string;
+  required: boolean;
   required_fields: string[];
+  fields: Array<{ name: string; type: string; required: boolean; values?: string[] }>;
   allowed: boolean;
   blocking_reasons: string[];
 }
@@ -242,6 +258,13 @@ export interface RealAdminWorkflowClientOptions {
 
 const KNOWN_ACTOR_ROLES = new Set<string>(['admin', 'hr', 'mps', 'finance', 'management']);
 const KNOWN_STAGE_STATUSES = new Set<string>(['completed', 'current', 'pending']);
+const KNOWN_ACTION_TYPES = new Set<string>([
+  'none', 'document_submission', 'nomination', 'medical_appointment', 'medical_outcome', 'payment',
+  'e_number_processing', 'e_number_request', 'e_number_received', 'biometric_completion',
+  'visa_case_preparation', 'visa_case_submission', 'qvc_appointment', 'qvc_outcome', 'visa_processing',
+  'visa_decision', 'protection_call', 'protection_appearance', 'ticket_handover', 'flight_details', 'mobilization',
+]);
+const KNOWN_FIELD_TYPES = new Set<string>(['string', 'iso_date', 'iso_datetime', 'enum']);
 // `re_medical` is what the backend actually stores/returns
 // (CandidateQvcAttempt::OUTCOME_CODES) -- `re_medical_required` is accepted
 // only as an *input* alias on write, never a value the API returns.
@@ -256,6 +279,28 @@ function toNumber(raw: unknown): number {
 
 function toStringOrUndefined(raw: unknown): string | undefined {
   return typeof raw === 'string' && raw ? raw : undefined;
+}
+
+function toActionType(raw: unknown): WorkflowActionType {
+  return typeof raw === 'string' && KNOWN_ACTION_TYPES.has(raw) ? (raw as WorkflowActionType) : 'unknown';
+}
+
+function toTransitionField(raw: unknown): WorkflowTransitionField | null {
+  if (!raw || typeof raw !== 'object') return null;
+  const value = raw as { name?: unknown; type?: unknown; required?: unknown; values?: unknown };
+  if (typeof value.name !== 'string' || !value.name) return null;
+
+  return {
+    name: value.name,
+    type:
+      typeof value.type === 'string' && KNOWN_FIELD_TYPES.has(value.type)
+        ? (value.type as WorkflowFieldType)
+        : 'unknown',
+    required: value.required === true,
+    values: Array.isArray(value.values)
+      ? value.values.filter((item): item is string => typeof item === 'string')
+      : [],
+  };
 }
 
 function toActorRole(raw: unknown): WorkflowActorDisplayRole {
@@ -279,6 +324,8 @@ function toTimelineStage(raw: unknown): WorkflowTimelineStage {
     code: typeof value.code === 'string' ? value.code : '',
     name: typeof value.name === 'string' ? value.name : '',
     position: toNumber(value.position),
+    actionType: toActionType(value.action_type),
+    required: value.required !== false,
     status: toStageStatus(value.status),
     startedAt: toStringOrUndefined(value.started_at),
     completedAt: toStringOrUndefined(value.completed_at),
@@ -310,6 +357,15 @@ function toWorkflowState(raw: unknown): AdminWorkflowState {
     candidateId: typeof value.candidate_id === 'string' ? value.candidate_id : '',
     assignmentId: typeof value.assignment_id === 'string' ? value.assignment_id : null,
     candidateStatus: typeof value.candidate_status === 'string' ? value.candidate_status : '',
+    mobilizationProcess: value.mobilization_process
+      ? {
+          code: typeof value.mobilization_process.code === 'string' ? value.mobilization_process.code : '',
+          version: toNumber(value.mobilization_process.version),
+          provisional: value.mobilization_process.provisional === true,
+          countryCode:
+            typeof value.mobilization_process.country_code === 'string' ? value.mobilization_process.country_code : '',
+        }
+      : null,
     currentStage: value.current_stage ? toTimelineStage(value.current_stage) : null,
     timeline: toTimeline(value.timeline),
     completedCount: toNumber(value.completed_count),
@@ -326,7 +382,12 @@ function toAllowedTransition(raw: unknown): AllowedWorkflowTransition {
     code: typeof value.code === 'string' ? value.code : '',
     name: typeof value.name === 'string' ? value.name : '',
     position: toNumber(value.position),
+    actionType: toActionType(value.action_type),
+    required: value.required !== false,
     requiredFields: Array.isArray(value.required_fields) ? value.required_fields.filter((f): f is string => typeof f === 'string') : [],
+    fields: Array.isArray(value.fields)
+      ? value.fields.map(toTransitionField).filter((field): field is WorkflowTransitionField => field !== null)
+      : [],
     allowed: value.allowed === true,
     blockingReasons: Array.isArray(value.blocking_reasons)
       ? value.blocking_reasons.filter((r): r is string => typeof r === 'string')

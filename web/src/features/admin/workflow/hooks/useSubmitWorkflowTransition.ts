@@ -118,26 +118,34 @@ export function useSubmitWorkflowTransition(candidateId: string | undefined) {
 
   const dismissStaleNotice = useCallback(() => setStaleNotice(false), []);
 
-  const confirm = useCallback(
-    (expectedCurrentStageCode: string | undefined, evidence?: Record<string, string>) => {
+  const submitDirect = useCallback(
+    (toStageCode: string, expectedCurrentStageCode: string | undefined, evidence?: Record<string, string>) => {
       // Guards double-click/concurrent submission (disabling the confirm
       // button while pending covers the UI, this covers a caller bypassing
       // it) -- ticket: "Disable duplicate submissions while the request is
       // pending."
-      if (!candidateId || !pendingToStageCode || mutation.isPending) return;
+      if (!candidateId || !toStageCode || mutation.isPending) return;
 
-      const selection = { candidateId, toStageCode: pendingToStageCode, expectedCurrentStageCode, evidence };
+      const selection = { candidateId, toStageCode, expectedCurrentStageCode, evidence };
       const resolved = resolveTransitionIdempotencyKey(idempotencyState, selection, randomTransitionIdempotencyKey);
       setIdempotencyState(resolved);
       mutation.mutate({
         candidateId,
-        toStageCode: pendingToStageCode,
+        toStageCode,
         expectedCurrentStageCode,
         evidence,
         idempotencyKey: resolved.key as string,
       });
     },
-    [candidateId, pendingToStageCode, mutation, idempotencyState]
+    [candidateId, mutation, idempotencyState]
+  );
+
+  const confirm = useCallback(
+    (expectedCurrentStageCode: string | undefined, evidence?: Record<string, string>) => {
+      if (!pendingToStageCode) return;
+      submitDirect(pendingToStageCode, expectedCurrentStageCode, evidence);
+    },
+    [pendingToStageCode, submitDirect]
   );
 
   return {
@@ -147,6 +155,7 @@ export function useSubmitWorkflowTransition(candidateId: string | undefined) {
     openConfirm,
     closeConfirm,
     confirm,
+    submitDirect,
     mutation,
   };
 }

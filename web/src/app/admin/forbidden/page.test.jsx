@@ -45,7 +45,7 @@ describe("StaffForbiddenPage", () => {
     await renderForbiddenPage();
     await waitFor(() => expect(screen.getByText("Access restricted")).toBeInTheDocument());
 
-    fireEvent.click(screen.getByRole("button", { name: "Back to Dashboard" }));
+    fireEvent.click(screen.getByRole("button", { name: "Back to Candidates" }));
     await waitFor(() => expect(screen.getByText("Staff dashboard stub")).toBeInTheDocument());
   });
 });

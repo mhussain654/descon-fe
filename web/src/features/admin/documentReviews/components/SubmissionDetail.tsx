@@ -1,3 +1,4 @@
+import { SIDE_CODE_LABEL_KEYS } from '../../../../../../shared/candidateDocuments/fileSet';
 import { useEffect, useState } from 'react';
 import { ArrowLeft } from 'lucide-react';
 import { Link } from 'react-router';
@@ -41,7 +42,7 @@ export function SubmissionDetail({ submissionId }: SubmissionDetailProps) {
   const query = useDocumentSubmission(submissionId);
   const decision = useReviewDecision(submissionId, query.data?.candidate.id);
   const documentAccess = useDocumentAccess();
-  const [previewDocumentId, setPreviewDocumentId] = useState<string | null>(null);
+  const [preview, setPreview] = useState<{ documentId: string; fileId: string | null } | null>(null);
 
   // A confirmed-dead session or a deactivated account can surface from any
   // of the three independent operations on this page -- loading the
@@ -67,18 +68,19 @@ export function SubmissionDetail({ submissionId }: SubmissionDetailProps) {
   // A still-open preview credential must not survive navigating to a
   // different submission (ticket: "Clear it when the submission changes.").
   useEffect(() => {
-    setPreviewDocumentId(null);
+    setPreview(null);
     documentAccess.clearAccess();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [submissionId]);
 
-  const openPreview = (documentId: string) => {
-    setPreviewDocumentId(documentId);
-    documentAccess.requestAccess(documentId);
+  /** Opens one file of a document (its first file when none is named) -- staff can switch between its files in the dialog. */
+  const openPreview = (documentId: string, fileId: string | null) => {
+    setPreview({ documentId, fileId });
+    documentAccess.requestAccess(documentId, fileId ?? undefined);
   };
 
   const closePreview = () => {
-    setPreviewDocumentId(null);
+    setPreview(null);
     documentAccess.clearAccess();
   };
 
@@ -111,7 +113,7 @@ export function SubmissionDetail({ submissionId }: SubmissionDetailProps) {
   const detail = query.data;
   if (!detail) return null;
 
-  const previewDocument = detail.documents.find((doc) => doc.id === previewDocumentId) ?? null;
+  const previewDocument = detail.documents.find((doc) => doc.id === preview?.documentId) ?? null;
   const verifyTargetDocument =
     decision.confirmTarget?.action === 'verified'
       ? (detail.documents.find((doc) => doc.id === decision.confirmTarget?.documentId) ?? null)
@@ -184,7 +186,7 @@ export function SubmissionDetail({ submissionId }: SubmissionDetailProps) {
             <DocumentRow
               key={document.id}
               document={document}
-              onPreview={() => openPreview(document.id)}
+              onPreview={(fileId) => openPreview(document.id, fileId)}
               onVerify={() => decision.openVerifyConfirm(document.id)}
               onReject={() => decision.openRejectConfirm(document.id)}
             />
@@ -244,12 +246,14 @@ export function SubmissionDetail({ submissionId }: SubmissionDetailProps) {
       {previewDocument ? (
         <DocumentPreview
           document={previewDocument}
+          activeFileId={preview?.fileId ?? null}
+          onSelectFile={(fileId) => openPreview(previewDocument.id, fileId)}
           access={documentAccess.access}
           isRequesting={documentAccess.isRequesting}
           error={documentAccess.error}
           isExpired={documentAccess.isExpired}
           onClose={closePreview}
-          onRequestNewAccess={() => documentAccess.requestAccess(previewDocument.id)}
+          onRequestNewAccess={() => documentAccess.requestAccess(previewDocument.id, preview?.fileId ?? undefined)}
         />
       ) : null}
     </div>
@@ -335,7 +339,8 @@ function OcrDateFields({ documentId, issuedOn, expiresOn, onIssuedOnChange, onEx
 
 interface DocumentRowProps {
   document: SubmissionDocument;
-  onPreview: () => void;
+  /** Previews one file of the document (its first file when null). */
+  onPreview: (fileId: string | null) => void;
   onVerify: () => void;
   onReject: () => void;
 }
@@ -343,6 +348,10 @@ interface DocumentRowProps {
 function DocumentRow({ document, onPreview, onVerify, onReject }: DocumentRowProps) {
   const { t, language } = useLanguage();
   const canDecide = document.status === 'pending_review';
+  // A multi-file document (e.g. CNIC front and back) is reviewed as one set:
+  // each file is listed with its own preview, and the decision below applies
+  // to the whole set.
+  const isMultiFile = document.files.length > 1;
 
   return (
     <Card>
@@ -354,18 +363,22 @@ function DocumentRow({ document, onPreview, onVerify, onReject }: DocumentRowPro
             <Badge tone={DOCUMENT_STATUS_TONES[document.status]}>{t(DOCUMENT_STATUS_KEYS[document.status])}</Badge>
           </div>
           <dl className="mt-2 grid grid-cols-2 gap-x-4 gap-y-1 text-sm sm:grid-cols-3">
-            <div>
-              <dt className="text-text-tertiary">{t('adminDocumentReviewFileNameLabel')}</dt>
-              <dd className="text-text-primary">{document.fileName}</dd>
-            </div>
-            <div>
-              <dt className="text-text-tertiary">{t('adminDocumentReviewContentTypeLabel')}</dt>
-              <dd className="text-text-primary">{document.contentType}</dd>
-            </div>
-            <div>
-              <dt className="text-text-tertiary">{t('adminDocumentReviewFileSizeLabel')}</dt>
-              <dd className="text-text-primary">{formatFileSize(document.fileSize, language)}</dd>
-            </div>
+            {isMultiFile ? null : (
+              <>
+                <div>
+                  <dt className="text-text-tertiary">{t('adminDocumentReviewFileNameLabel')}</dt>
+                  <dd className="text-text-primary">{document.fileName}</dd>
+                </div>
+                <div>
+                  <dt className="text-text-tertiary">{t('adminDocumentReviewContentTypeLabel')}</dt>
+                  <dd className="text-text-primary">{document.contentType}</dd>
+                </div>
+                <div>
+                  <dt className="text-text-tertiary">{t('adminDocumentReviewFileSizeLabel')}</dt>
+                  <dd className="text-text-primary">{formatFileSize(document.fileSize, language)}</dd>
+                </div>
+              </>
+            )}
             <div>
               <dt className="text-text-tertiary">{t('adminDocumentReviewUploadedAtLabel')}</dt>
               <dd className="text-text-primary">{formatDate(document.uploadedAt, language, { dateStyle: 'medium', timeStyle: 'short' })}</dd>
@@ -386,6 +399,24 @@ function DocumentRow({ document, onPreview, onVerify, onReject }: DocumentRowPro
               </div>
             ) : null}
           </dl>
+          {isMultiFile ? (
+            <ul className="mt-3 space-y-2" aria-label={t('adminDocumentReviewFilesLabel')}>
+              {document.files.map((file) => (
+                <li key={file.id} className="flex flex-wrap items-center gap-3 rounded-lg border border-border p-2 text-sm">
+                  {file.sideCode ? (
+                    <Badge tone="neutral">{t(SIDE_CODE_LABEL_KEYS[file.sideCode] as TranslationKey)}</Badge>
+                  ) : null}
+                  <span className="min-w-0 flex-1 truncate text-text-primary">{file.fileName}</span>
+                  <span className="text-text-tertiary">
+                    {file.contentType} • {formatFileSize(file.fileSize, language)}
+                  </span>
+                  <Button variant="outline" size="sm" onClick={() => onPreview(file.id)}>
+                    {t('adminDocumentReviewPreviewAction')}
+                  </Button>
+                </li>
+              ))}
+            </ul>
+          ) : null}
           {document.rejectionReason ? (
             <p className="mt-2 text-sm text-danger">
               <span className="font-medium">{t('adminDocumentReviewRejectionReasonLabel')}: </span>
@@ -395,9 +426,11 @@ function DocumentRow({ document, onPreview, onVerify, onReject }: DocumentRowPro
         </div>
 
         <div className="flex shrink-0 flex-wrap gap-2">
-          <Button variant="outline" size="sm" onClick={onPreview}>
-            {t('adminDocumentReviewPreviewAction')}
-          </Button>
+          {isMultiFile ? null : (
+            <Button variant="outline" size="sm" onClick={() => onPreview(document.files[0]?.id ?? null)}>
+              {t('adminDocumentReviewPreviewAction')}
+            </Button>
+          )}
           {canDecide ? (
             <>
               <Button variant="primary" size="sm" onClick={onVerify}>

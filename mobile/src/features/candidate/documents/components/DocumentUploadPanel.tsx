@@ -1,8 +1,11 @@
 import { Image, Linking, StyleSheet, Text, View } from 'react-native';
+import { X } from 'lucide-react-native';
 import {
   Button,
   ErrorState,
+  FilterChip,
   HelperText,
+  IconButton,
   Label,
   LoadingState,
   OfflineState,
@@ -13,12 +16,19 @@ import { colors, spacing } from '../../../../design-system/tokens';
 import { getFontFamily } from '../../../../design-system/fonts';
 import { CANDIDATE_DOCUMENTS_ERROR_KEYS } from '../../../../../../shared/candidateDocuments/errorMessages';
 import { describeFileType, isPreviewableImageType } from '../../../../../../shared/candidateDocuments/fileDescription';
-import type { FileValidationError } from '../../../../../../shared/candidateDocuments/fileValidation';
+import {
+  acceptsImages,
+  FILE_SET_REASON_KEYS,
+  SIDE_CODE_LABEL_KEYS,
+  slotFile,
+} from '../../../../../../shared/candidateDocuments/fileSet';
 import { formatFileSize } from '../../../../../../shared/candidateDocuments/formatting';
 import type { PccIssueDateError } from '../../../../../../shared/candidateDocuments/pccIssueDate';
+import type { DocumentSideCode } from '../../../../../../shared/candidateDocuments/types';
+import { interpolate } from '../../../../../../shared/i18n/interpolate';
 import type { CandidateDocumentsError } from '../../../../lib/candidate-documents-client';
 import type { Language, TranslationKey } from '../../../../../../shared/i18n/translations';
-import type { CapturePermissionNotice, PickedDocument } from '../hooks/useDocumentUpload';
+import type { DocumentUploadController, PickedFile } from '../hooks/useDocumentUpload';
 
 const PERMISSION_NOTICE_KEYS: Record<string, TranslationKey> = {
   'camera:denied': 'candidateDocumentsCameraPermissionDeniedError',
@@ -27,8 +37,7 @@ const PERMISSION_NOTICE_KEYS: Record<string, TranslationKey> = {
   'gallery:blocked': 'candidateDocumentsGalleryPermissionBlockedError',
 };
 
-const FILE_VALIDATION_ERROR_KEYS: Record<FileValidationError, TranslationKey> = {
-  FILE_REQUIRED: 'candidateDocumentsFileRequiredError',
+const FILE_ERROR_KEYS: Record<'EMPTY_FILE' | 'FILE_TOO_LARGE' | 'INVALID_TYPE', TranslationKey> = {
   EMPTY_FILE: 'candidateDocumentsEmptyFileError',
   FILE_TOO_LARGE: 'candidateDocumentsFileTooLargeError',
   INVALID_TYPE: 'candidateDocumentsInvalidFileTypeError',
@@ -40,97 +49,120 @@ const PCC_ISSUE_DATE_ERROR_KEYS: Record<PccIssueDateError, TranslationKey> = {
   IN_FUTURE: 'candidateDocumentsPccIssueDateInFutureError',
 };
 
+type Translate = (key: TranslationKey) => string;
+
 export interface DocumentUploadPanelProps {
   labelText: string;
-  document: PickedDocument | null;
-  validationError: FileValidationError | null;
-  uploadError: CandidateDocumentsError | null;
-  isUploading: boolean;
-  isPccRequirement: boolean;
-  issuedOn: string;
-  onIssuedOnChange: (value: string) => void;
-  issuedOnError: PccIssueDateError | null;
-  permissionNotice: CapturePermissionNotice | null;
-  /** False for formal, institution-issued requirements (CV, experience letter, certificates) where a phone camera capture is a poor fit -- see shared/candidateDocuments/captureEligibility.ts. Only "Choose file" is offered in that case. */
-  showCameraCapture: boolean;
-  onPickDocument: () => void;
-  onPickFromCamera: () => void;
-  onPickFromGallery: () => void;
-  onRemoveDocument: () => void;
-  onCancel: () => void;
-  onSubmit: () => void;
-  t: (key: TranslationKey) => string;
+  /** Backend-provided, already localized. */
+  instructions: string | null;
+  upload: DocumentUploadController;
+  t: Translate;
   language: Language;
 }
 
-/** Inline upload/replace panel for one checklist requirement. Mirrors web's DocumentUploadPanel.tsx; opens the native picker/camera/gallery directly (there's no RN equivalent of a hidden file input). */
-export function DocumentUploadPanel({
-  labelText,
-  document,
-  validationError,
-  uploadError,
-  isUploading,
-  isPccRequirement,
-  issuedOn,
-  onIssuedOnChange,
-  issuedOnError,
-  permissionNotice,
-  showCameraCapture,
-  onPickDocument,
-  onPickFromCamera,
-  onPickFromGallery,
-  onRemoveDocument,
-  onCancel,
-  onSubmit,
-  t,
-  language,
-}: DocumentUploadPanelProps) {
-  if (isUploading) {
+/**
+ * Inline upload/replace panel for one checklist requirement -- mirrors web's
+ * DocumentUploadPanel.tsx, shaped entirely by the requirement's backend upload
+ * rules: one file, a pair of parts (optionally one combined PDF instead), or
+ * several files. Photo capture is offered only where the requirement accepts images.
+ */
+export function DocumentUploadPanel({ labelText, instructions, upload, t, language }: DocumentUploadPanelProps) {
+  const { layout, rules, entries, validation, showSetError, mutation, permissionNotice } = upload;
+  if (!layout || !rules) return null;
+
+  if (mutation.isPending) {
     return <LoadingState message={t('candidateDocumentsUploading')} language={language} />;
   }
 
-  const isImage = document ? isPreviewableImageType({ name: document.name, size: document.size, type: document.mimeType }) : false;
+  const canCapture = acceptsImages(rules);
+  const fileErrorFor = (file: PickedFile | null) => {
+    if (!file || validation?.kind !== 'file' || entries[validation.index]?.file !== file) return null;
+    return t(FILE_ERROR_KEYS[validation.code]);
+  };
+  const slot = (sideCode: DocumentSideCode | null, label: string | null) => {
+    const file = slotFile(entries, sideCode);
+    return (
+      <FileSlot
+        key={sideCode ?? 'single'}
+        label={label}
+        file={file}
+        error={fileErrorFor(file)}
+        // A combined upload is one PDF -- never a photo.
+        showCapture={canCapture && sideCode !== 'combined'}
+        onPick={(source) => upload.pick(source, sideCode)}
+        onRemove={() => upload.removeSlot(sideCode)}
+        t={t}
+        language={language}
+      />
+    );
+  };
 
   return (
     <View style={styles.container}>
       <Label language={language}>{labelText}</Label>
-      {isPccRequirement ? (
-        <View style={styles.pccField}>
+      {instructions ? (
+        <Text style={[styles.instructions, { fontFamily: getFontFamily(language, 'regular') }]}>{instructions}</Text>
+      ) : null}
+
+      {upload.isPccRequirement ? (
+        <View style={styles.section}>
           <TextField
             label={t('candidateDocumentsPccIssueDateFieldLabel')}
-            helperText={issuedOnError ? undefined : t('candidateDocumentsPccIssueDateFieldHelper')}
-            errorMessage={issuedOnError ? t(PCC_ISSUE_DATE_ERROR_KEYS[issuedOnError]) : undefined}
-            value={issuedOn}
-            onChangeText={onIssuedOnChange}
+            helperText={upload.issuedOnError ? undefined : t('candidateDocumentsPccIssueDateFieldHelper')}
+            errorMessage={upload.issuedOnError ? t(PCC_ISSUE_DATE_ERROR_KEYS[upload.issuedOnError]) : undefined}
+            value={upload.issuedOn}
+            onChangeText={upload.setIssuedOn}
             placeholder="YYYY-MM-DD"
             keyboardType="numbers-and-punctuation"
             language={language}
           />
         </View>
       ) : null}
-      {/* Capture guidance, not automated validation -- the app never analyzes
-          the image itself, this is just plain instruction text (ticket: "Do
-          not claim to analyze image quality ... Provide capture guidance ...
-          without presenting it as automated validation."). Only shown
-          alongside the camera/gallery buttons themselves. */}
-      {showCameraCapture ? <HelperText language={language}>{t('candidateDocumentsCaptureGuidance')}</HelperText> : null}
-      <View style={styles.row}>
-        {showCameraCapture ? (
-          <>
-            <Button variant="outline" size="sm" onPress={onPickFromCamera} language={language}>
-              {t('candidateDocumentsTakePhoto')}
-            </Button>
-            <Button variant="outline" size="sm" onPress={onPickFromGallery} language={language}>
-              {t('candidateDocumentsChooseFromGallery')}
-            </Button>
-          </>
-        ) : null}
-        <Button variant="outline" size="sm" onPress={onPickDocument} language={language}>
-          {t('candidateDocumentsChooseFile')}
-        </Button>
-      </View>
-      {showCameraCapture && permissionNotice ? (
-        <View style={styles.permissionNotice}>
+
+      {/* Capture guidance, not automated validation -- plain instruction text only. */}
+      {canCapture ? <HelperText language={language}>{t('candidateDocumentsCaptureGuidance')}</HelperText> : null}
+
+      {layout.kind === 'single' ? slot(null, null) : null}
+
+      {layout.kind === 'pair' ? (
+        <>
+          {layout.combinedAllowed ? (
+            <View style={styles.modeRow} accessibilityLabel={t('candidateDocumentsUploadModeLabel')}>
+              <FilterChip selected={upload.mode === 'parts'} onPress={() => upload.setMode('parts')} language={language}>
+                {t('candidateDocumentsUploadModeParts')}
+              </FilterChip>
+              <FilterChip selected={upload.mode === 'combined'} onPress={() => upload.setMode('combined')} language={language}>
+                {t('candidateDocumentsUploadModeCombined')}
+              </FilterChip>
+            </View>
+          ) : null}
+          {upload.mode === 'combined' && layout.combinedAllowed
+            ? slot('combined', t(SIDE_CODE_LABEL_KEYS.combined as TranslationKey))
+            : layout.parts.map((part) => slot(part, t(SIDE_CODE_LABEL_KEYS[part] as TranslationKey)))}
+        </>
+      ) : null}
+
+      {layout.kind === 'multiple' ? (
+        <View style={styles.section}>
+          {entries.map((entry, index) => (
+            <View key={`${entry.file.asset.uri}-${index}`} style={styles.listItem}>
+              <SelectedFile file={entry.file} onRemove={() => upload.removeFileAt(index)} t={t} language={language} />
+              {fileErrorFor(entry.file) ? (
+                <ValidationMessage tone="error" language={language}>
+                  {fileErrorFor(entry.file) as string}
+                </ValidationMessage>
+              ) : null}
+            </View>
+          ))}
+          {entries.length < layout.maximumFiles ? (
+            <PickButtons showCapture={canCapture} onPick={(source) => upload.pick(source, layout.sideCode)} t={t} language={language} />
+          ) : null}
+          <HelperText language={language}>{interpolate(t('candidateDocumentsFileLimitHint'), { count: layout.maximumFiles })}</HelperText>
+        </View>
+      ) : null}
+
+      {permissionNotice && canCapture ? (
+        <View style={styles.section}>
           <ValidationMessage tone="error" language={language}>
             {t(PERMISSION_NOTICE_KEYS[`${permissionNotice.source}:${permissionNotice.blocked ? 'blocked' : 'denied'}`])}
           </ValidationMessage>
@@ -141,35 +173,27 @@ export function DocumentUploadPanel({
           ) : null}
         </View>
       ) : null}
-      <Text style={[styles.fileText, { fontFamily: getFontFamily(language, 'regular') }]}>
-        {document
-          ? `${t('candidateDocumentsSelectedFilePrefix')}: ${document.name} • ${describeFileType({ name: document.name, size: document.size, type: document.mimeType })}${
-              typeof document.size === 'number' ? ` • ${formatFileSize(document.size, language)}` : ''
-            }`
-          : t('candidateDocumentsNoFileChosen')}
-      </Text>
-      {document && isImage ? (
-        <Image source={{ uri: document.uri }} style={styles.previewImage} resizeMode="cover" accessibilityLabel={document.name} />
-      ) : null}
-      {document ? (
-        <Button variant="text" size="sm" onPress={onRemoveDocument} language={language}>
-          {t('candidateDocumentsRemoveFile')}
-        </Button>
-      ) : null}
+
       <HelperText language={language}>{t('candidateDocumentsFileFieldHelper')}</HelperText>
-      {validationError ? (
+      {showSetError && validation?.kind === 'set' ? (
         <ValidationMessage tone="error" language={language}>
-          {t(FILE_VALIDATION_ERROR_KEYS[validationError])}
+          {t(FILE_SET_REASON_KEYS[validation.reason] as TranslationKey)}
         </ValidationMessage>
       ) : null}
 
-      {uploadError ? <DocumentUploadErrorNotice error={uploadError} t={t} language={language} /> : null}
+      {mutation.error ? <DocumentUploadErrorNotice error={mutation.error} t={t} language={language} /> : null}
 
       <View style={styles.actions}>
-        <Button variant="primary" size="sm" onPress={onSubmit} disabled={!document || !!validationError} language={language}>
-          {uploadError ? t('retry') : t('candidateDocumentsSubmitUpload')}
+        <Button
+          variant="primary"
+          size="sm"
+          onPress={upload.submit}
+          disabled={entries.length === 0 || validation?.kind === 'file'}
+          language={language}
+        >
+          {mutation.error ? t('retry') : t('candidateDocumentsSubmitUpload')}
         </Button>
-        <Button variant="text" size="sm" onPress={onCancel} language={language}>
+        <Button variant="text" size="sm" onPress={upload.cancelUpload} language={language}>
           {t('candidateDocumentsCancel')}
         </Button>
       </View>
@@ -177,31 +201,105 @@ export function DocumentUploadPanel({
   );
 }
 
-function DocumentUploadErrorNotice({
-  error,
-  t,
-  language,
-}: {
-  error: CandidateDocumentsError;
-  t: (key: TranslationKey) => string;
+interface PickButtonsProps {
+  showCapture: boolean;
+  onPick: (source: 'file' | 'camera' | 'gallery') => void;
+  t: Translate;
   language: Language;
-}) {
+}
+
+function PickButtons({ showCapture, onPick, t, language }: PickButtonsProps) {
+  return (
+    <View style={styles.row}>
+      {showCapture ? (
+        <>
+          <Button variant="outline" size="sm" onPress={() => onPick('camera')} language={language}>
+            {t('candidateDocumentsTakePhoto')}
+          </Button>
+          <Button variant="outline" size="sm" onPress={() => onPick('gallery')} language={language}>
+            {t('candidateDocumentsChooseFromGallery')}
+          </Button>
+        </>
+      ) : null}
+      <Button variant="outline" size="sm" onPress={() => onPick('file')} language={language}>
+        {t('candidateDocumentsChooseFile')}
+      </Button>
+    </View>
+  );
+}
+
+interface FileSlotProps {
+  /** Null for a single unlabelled file. */
+  label: string | null;
+  file: PickedFile | null;
+  error: string | null;
+  showCapture: boolean;
+  onPick: (source: 'file' | 'camera' | 'gallery') => void;
+  onRemove: () => void;
+  t: Translate;
+  language: Language;
+}
+
+/** One file slot: its part label, the pick buttons, or the chosen file with a remove action. */
+function FileSlot({ label, file, error, showCapture, onPick, onRemove, t, language }: FileSlotProps) {
+  return (
+    <View style={styles.section}>
+      {label ? <Text style={[styles.slotLabel, { fontFamily: getFontFamily(language, 'medium') }]}>{label}</Text> : null}
+      {file ? (
+        <SelectedFile file={file} onRemove={onRemove} t={t} language={language} />
+      ) : (
+        <>
+          <PickButtons showCapture={showCapture} onPick={onPick} t={t} language={language} />
+          <Text style={[styles.emptyText, { fontFamily: getFontFamily(language, 'regular') }]}>
+            {t('candidateDocumentsNoFileChosen')}
+          </Text>
+        </>
+      )}
+      {error ? (
+        <ValidationMessage tone="error" language={language}>
+          {error}
+        </ValidationMessage>
+      ) : null}
+    </View>
+  );
+}
+
+function SelectedFile({ file, onRemove, t, language }: { file: PickedFile; onRemove: () => void; t: Translate; language: Language }) {
+  const isImage = isPreviewableImageType(file);
+  return (
+    <View style={styles.selectedFile}>
+      {isImage ? (
+        <Image source={{ uri: file.asset.uri }} style={styles.previewImage} resizeMode="cover" accessibilityLabel={file.name} />
+      ) : null}
+      <Text style={[styles.fileText, { fontFamily: getFontFamily(language, 'regular') }]} numberOfLines={2}>
+        {`${t('candidateDocumentsSelectedFilePrefix')}: ${file.name} • ${describeFileType(file)}${
+          typeof file.size === 'number' ? ` • ${formatFileSize(file.size, language)}` : ''
+        }`}
+      </Text>
+      <IconButton icon={<X size={16} color={colors.text.secondary} />} label={t('candidateDocumentsRemoveFile')} onPress={onRemove} size="sm" />
+    </View>
+  );
+}
+
+function DocumentUploadErrorNotice({ error, t, language }: { error: CandidateDocumentsError; t: Translate; language: Language }) {
   if (error.code === 'SESSION_EXPIRED' || error.code === 'INACTIVE_ACCOUNT') {
     return null;
   }
 
   if (error.code === 'OFFLINE') {
     return (
-      <View style={styles.errorNotice}>
+      <View style={styles.section}>
         <OfflineState title={t('dsOfflineTitle')} description={t('dsOfflineDescription')} language={language} />
       </View>
     );
   }
 
-  const key = CANDIDATE_DOCUMENTS_ERROR_KEYS[error.code] as TranslationKey;
-  const message = error.message ?? t(key);
+  const message =
+    error.code === 'INVALID_DOCUMENT_FILES' && error.reason
+      ? t(FILE_SET_REASON_KEYS[error.reason] as TranslationKey)
+      : (error.message ?? t(CANDIDATE_DOCUMENTS_ERROR_KEYS[error.code] as TranslationKey));
   return (
-    <View style={styles.errorNotice}>
+    <View style={styles.section}>
       <ErrorState message={message} language={language} />
     </View>
   );
@@ -214,11 +312,22 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface.sunken,
     padding: spacing[4],
   },
-  pccField: { marginBottom: spacing[3] },
-  row: { flexDirection: 'row', alignItems: 'center', gap: spacing[3], flexWrap: 'wrap', marginTop: spacing[2] },
-  fileText: { fontSize: 14, color: colors.text.secondary, flexShrink: 1, marginTop: spacing[2] },
-  previewImage: { width: 96, height: 96, borderRadius: 8, marginTop: spacing[2] },
-  permissionNotice: { marginTop: spacing[2] },
+  instructions: { fontSize: 13, color: colors.text.secondary, marginBottom: spacing[3] },
+  section: { marginTop: spacing[2] },
+  modeRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing[2], marginTop: spacing[2] },
+  slotLabel: { fontSize: 14, color: colors.text.primary, marginBottom: spacing[1] },
+  row: { flexDirection: 'row', alignItems: 'center', gap: spacing[3], flexWrap: 'wrap', marginTop: spacing[1] },
+  listItem: { marginBottom: spacing[2] },
+  selectedFile: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing[2],
+    borderRadius: 8,
+    backgroundColor: colors.surface.raised,
+    padding: spacing[2],
+  },
+  fileText: { flex: 1, fontSize: 13, color: colors.text.secondary },
+  emptyText: { fontSize: 13, color: colors.text.tertiary, marginTop: spacing[1] },
+  previewImage: { width: 48, height: 48, borderRadius: 6 },
   actions: { flexDirection: 'row', gap: spacing[2], marginTop: spacing[4] },
-  errorNotice: { marginTop: spacing[3] },
 });

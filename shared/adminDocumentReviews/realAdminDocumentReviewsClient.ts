@@ -11,6 +11,7 @@
 // pagination, a 409 idempotency conflict, a 422 rejection-reason validation
 // error) must reach the caller intact, matching the established
 // adminCandidateImport precedent (see its realCandidateImportClient.ts).
+import { toDocumentFiles } from '../candidateDocuments/documentFiles';
 import type { ApiClient, ApiError } from '../api-client';
 import type { StaffAuthClient, StaffAuthError } from '../auth/staffTypes';
 import { buildDocumentReviewQueueQuery } from './queueQueryParams';
@@ -88,6 +89,7 @@ interface SubmissionDocumentResponse {
   file_name: string;
   content_type: string;
   file_size: number;
+  files?: unknown[];
   uploaded_at: string;
   status: string;
   verified_at?: string;
@@ -112,6 +114,7 @@ interface SubmissionDetailResponse extends QueueItemResponse {
 
 interface DocumentAccessResponse {
   document_id: string;
+  file_id?: string;
   url: string;
   expires_at: string;
 }
@@ -255,6 +258,7 @@ function toSubmissionDocument(raw: unknown): SubmissionDocument | null {
     fileName: typeof value.file_name === 'string' ? value.file_name : '',
     contentType: typeof value.content_type === 'string' ? value.content_type : '',
     fileSize: toNumber(value.file_size),
+    files: toDocumentFiles(value.files),
     uploadedAt: typeof value.uploaded_at === 'string' ? value.uploaded_at : '',
     status: toDocumentStatus(value.status),
     verifiedAt: typeof value.verified_at === 'string' ? value.verified_at : undefined,
@@ -283,6 +287,7 @@ function toDocumentAccess(raw: unknown): DocumentAccess {
   const value = (raw && typeof raw === 'object' ? raw : {}) as Partial<DocumentAccessResponse>;
   return {
     documentId: typeof value.document_id === 'string' ? value.document_id : '',
+    fileId: typeof value.file_id === 'string' ? value.file_id : '',
     url: typeof value.url === 'string' ? value.url : '',
     expiresAt: typeof value.expires_at === 'string' ? value.expires_at : '',
   };
@@ -454,10 +459,11 @@ export function createAdminDocumentReviewsClient(
       }
     },
 
-    async requestDocumentAccess(documentId: string): Promise<DocumentAccess> {
+    async requestDocumentAccess(documentId: string, fileId?: string): Promise<DocumentAccess> {
+      const query = fileId ? `?file_id=${encodeURIComponent(fileId)}` : '';
       try {
         const data = await staffAuthClient.authenticatedDataRequest((token) =>
-          apiClient.post<DocumentAccessResponse>(`/admin/candidate_documents/${encodeURIComponent(documentId)}/access`, undefined, {
+          apiClient.post<DocumentAccessResponse>(`/admin/candidate_documents/${encodeURIComponent(documentId)}/access${query}`, undefined, {
             headers: { Authorization: `Bearer ${token}`, 'X-Locale': getLocale() },
           })
         );

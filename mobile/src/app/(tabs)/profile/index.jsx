@@ -18,6 +18,7 @@ import {
   Globe,
   LogOut,
   ChevronRight,
+  MapPin,
 } from "lucide-react-native";
 import { useAuth } from "../../../contexts/AuthContext";
 import { useLanguage } from "../../../contexts/LanguageContext";
@@ -224,6 +225,7 @@ export default function ProfileScreen() {
 
           <InfoRow icon={User} label={t("candidateProfileMaskedCnicLabel")} value={profile.maskedCnic} />
           <InfoRow icon={FileText} label={t("candidateProfileReferenceNumberLabel")} value={profile.referenceNumber ?? notAssignedYet} />
+          <InfoRow icon={MapPin} label={t("candidateProfileBusinessUnitLabel")} value={profile.country?.name ?? notAssignedYet} />
           <InfoRow icon={CheckCircle} label={t("candidateProfileStatusLabel")} value={candidateStatusLabel(profile)} />
           <InfoRow
             icon={Flag}

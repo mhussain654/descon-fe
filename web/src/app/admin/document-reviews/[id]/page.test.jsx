@@ -1,7 +1,7 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { MemoryRouter, Route, Routes } from "react-router";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, afterEach, describe, expect, it, vi } from "vitest";
 import {
   createMockStaffAuthClient,
   MOCK_STAFF_ACCOUNTS,
@@ -52,7 +52,7 @@ function submissionDetail(overrides = {}) {
 }
 
 function passportDocument(overrides = {}) {
-  return {
+  const document = {
     id: "doc-1",
     requirementCode: "passport",
     required: true,
@@ -64,6 +64,11 @@ function passportDocument(overrides = {}) {
     status: "pending_review",
     ...overrides,
   };
+  // One stored file mirroring the document's own fields, unless a test supplies its file set.
+  const files = [
+    { id: "file-1", sideCode: null, position: 1, fileName: document.fileName, contentType: document.contentType, fileSize: document.fileSize },
+  ];
+  return { files, ...document };
 }
 
 function renderAt(path, client) {
@@ -98,7 +103,12 @@ function renderAt(path, client) {
 }
 
 describe("DocumentReviewDetailPage", () => {
+  beforeEach(() => {
+    vi.stubEnv("VITE_API_BASE_URL", "http://localhost:3000/api/v1");
+  });
+
   afterEach(() => {
+    vi.unstubAllEnvs();
     vi.mocked(adminDocumentReviewsClient.getSubmission).mockReset();
     vi.mocked(adminDocumentReviewsClient.requestDocumentAccess).mockReset();
     vi.mocked(adminDocumentReviewsClient.verifyDocument).mockReset();
@@ -355,7 +365,7 @@ describe("DocumentReviewDetailPage", () => {
       renderAt("/admin/document-reviews/submission-1", client);
 
       fireEvent.click(await screen.findByRole("button", { name: "Preview" }));
-      await waitFor(() => expect(adminDocumentReviewsClient.requestDocumentAccess).toHaveBeenCalledWith("doc-1"));
+      await waitFor(() => expect(adminDocumentReviewsClient.requestDocumentAccess).toHaveBeenCalledWith("doc-1", "file-1"));
       await waitFor(() => expect(document.querySelector('embed[type="application/pdf"]')).toBeInTheDocument());
     });
 

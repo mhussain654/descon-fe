@@ -31,8 +31,6 @@ import { CANDIDATE_DOCUMENTS_ERROR_KEYS } from "../../../../../shared/candidateD
 import { DOCUMENT_ACCESS_ERROR_KEYS } from "../../../../../shared/candidateDocuments/documentAccessErrorMessages";
 import { APPLICATION_PROGRESS_ERROR_KEYS } from "../../../../../shared/applicationProgress/errorMessages";
 import { PCC_COMPLIANCE_STATUS_KEYS } from "../../../../../shared/candidateDocuments/statusLabels";
-import { sortByPrototypeOrder, splitAroundCnicCluster } from "../../../../../shared/candidateDocuments/checklistOrder";
-import { isCameraCaptureEligible } from "../../../../../shared/candidateDocuments/captureEligibility";
 
 const STATUS_CONFIG = {
   verified: { icon: CheckCircle, color: "#10B981", bgLight: "#E6F9F0", bgDark: "#1A2E1A", labelKey: "verified" },
@@ -149,8 +147,8 @@ export default function DocumentsScreen() {
       );
     }
 
-    const checklist = sortByPrototypeOrder(checklistQuery.data ?? []);
-    const { cnicClusterItems, remainingItems } = splitAroundCnicCluster(checklist);
+    // Already in the backend's display order -- never re-sorted here.
+    const checklist = checklistQuery.data ?? [];
 
     if (checklist.length === 0) {
       return (
@@ -208,9 +206,8 @@ export default function DocumentsScreen() {
           </View>
         ) : null}
 
-        {/* CNIC cluster (passport, both CNIC sides, next of kin CNIC) */}
         <View>
-          {cnicClusterItems.map((item) => (
+          {checklist.map((item) => (
             <DocumentRow
               key={item.requirementCode}
               item={item}
@@ -230,27 +227,6 @@ export default function DocumentsScreen() {
         </View>
 
         <BankDetailsPanel isDark={isDark} t={t} language={language} onSessionEnd={returnToSignIn} />
-
-        {/* Remaining document list */}
-        <View>
-          {remainingItems.map((item) => (
-            <DocumentRow
-              key={item.requirementCode}
-              item={item}
-              isDark={isDark}
-              language={language}
-              t={t}
-              isActive={upload.activeRequirementCode === item.requirementCode}
-              isAnyUploadPending={upload.mutation.isPending}
-              upload={upload}
-              documentAccess={documentAccess}
-              isViewOpen={viewOpenRequirementCode === item.requirementCode}
-              onToggleView={() =>
-                setViewOpenRequirementCode((current) => (current === item.requirementCode ? null : item.requirementCode))
-              }
-            />
-          ))}
-        </View>
       </>
     );
   };
@@ -355,6 +331,10 @@ function DocumentRow({
   // Upload/Replace in that case, and View/Download is reached via the
   // small icon pair below instead of the full-row expand.
   const isViewOnly = canView && !hasAction;
+  const files = item.document?.files ?? [];
+  // A multi-file document lists every file with its own actions (see
+  // DocumentViewPanel) instead of the single quick View/Download pair.
+  const isMultiFile = files.length > 1;
   const complianceStatus = item.document?.complianceStatus;
 
   const isRequestingThisRow = documentAccess.isRequesting && documentAccess.targetDocumentId === item.document?.id;
@@ -380,17 +360,17 @@ function DocumentRow({
       upload.cancelUpload();
       return;
     }
-    upload.startUpload(item.requirementCode);
+    upload.startUpload(item);
   };
 
-  const handleQuickView = () => {
+  const handleQuickView = (fileId = files[0]?.id) => {
     if (isRequestingThisRow || !item.document) return;
-    documentAccess.viewDocument(item.document.id);
+    documentAccess.viewDocument(item.document.id, fileId);
   };
 
-  const handleQuickDownload = () => {
+  const handleQuickDownload = (fileId = files[0]?.id) => {
     if (isRequestingThisRow || !item.document) return;
-    documentAccess.downloadDocument(item.document.id);
+    documentAccess.downloadDocument(item.document.id, fileId);
   };
 
   // For a view-only row, the row itself is just the expand/collapse toggle
@@ -465,10 +445,10 @@ function DocumentRow({
             replaceable and viewable -- the row's tap target above is
             already claimed by Replace, so View/Download need their own
             small affordance here instead of the expand panel below. */}
-        {canView && hasAction ? (
+        {canView && hasAction && !isMultiFile ? (
           <>
             <Pressable
-              onPress={handleQuickView}
+              onPress={() => handleQuickView()}
               disabled={isRequestingThisRow}
               accessibilityRole="button"
               accessibilityLabel={viewLabel}
@@ -477,7 +457,7 @@ function DocumentRow({
               <Eye size={20} color={isRequestingThisRow ? (isDark ? "#4B5563" : "#D1D5DB") : "#0066CC"} />
             </Pressable>
             <Pressable
-              onPress={handleQuickDownload}
+              onPress={() => handleQuickDownload()}
               disabled={isRequestingThisRow}
               accessibilityRole="button"
               accessibilityLabel={downloadLabel}
@@ -496,7 +476,20 @@ function DocumentRow({
           directly under the row. The view-only expand panel below owns its
           own error display instead, mirroring how DocumentUploadPanel shows
           its upload error inline. */}
-      {rowAccessError && !isViewOnly ? (
+      {/* A replaceable multi-file document still lists its files for viewing. */}
+      {canView && hasAction && isMultiFile && !rowIsExpanded ? (
+        <DocumentViewPanel
+          files={files}
+          isRequesting={isRequestingThisRow}
+          error={rowAccessError}
+          onView={handleQuickView}
+          onDownload={handleQuickDownload}
+          t={t}
+          language={language}
+        />
+      ) : null}
+
+      {rowAccessError && !isViewOnly && !isMultiFile ? (
         <ValidationMessage tone="error" language={language}>
           {rowAccessError.message ?? t(DOCUMENT_ACCESS_ERROR_KEYS[rowAccessError.code])}
         </ValidationMessage>
@@ -504,6 +497,7 @@ function DocumentRow({
 
       {rowIsExpanded && isViewOnly ? (
         <DocumentViewPanel
+          files={files}
           isRequesting={isRequestingThisRow}
           error={rowAccessError}
           onView={handleQuickView}
@@ -516,22 +510,8 @@ function DocumentRow({
       {rowIsExpanded && !isViewOnly ? (
         <DocumentUploadPanel
           labelText={t(canUpload ? "candidateDocumentsUploadAction" : "candidateDocumentsReplaceAction")}
-          document={upload.document}
-          validationError={upload.validationError}
-          uploadError={upload.mutation.error ?? null}
-          isUploading={upload.mutation.isPending}
-          isPccRequirement={upload.isPccRequirement}
-          issuedOn={upload.issuedOn}
-          onIssuedOnChange={upload.setIssuedOn}
-          issuedOnError={upload.issuedOnError}
-          permissionNotice={upload.permissionNotice}
-          showCameraCapture={isCameraCaptureEligible(item.requirementCode)}
-          onPickDocument={upload.pickDocument}
-          onPickFromCamera={upload.pickFromCamera}
-          onPickFromGallery={upload.pickFromGallery}
-          onRemoveDocument={upload.removeDocument}
-          onCancel={upload.cancelUpload}
-          onSubmit={upload.submit}
+          instructions={item.instructions}
+          upload={upload}
           t={t}
           language={language}
         />
