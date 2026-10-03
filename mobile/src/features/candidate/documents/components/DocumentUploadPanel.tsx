@@ -321,7 +321,7 @@ const styles = StyleSheet.create({
   instructions: { fontSize: 13, color: colors.text.secondary, marginBottom: spacing[3] },
   section: { marginTop: spacing[2] },
   modeRow: { flexDirection: 'row', gap: spacing[2], marginBottom: spacing[3] },
-  modeButton: { flex: 1, minWidth: 0, minHeight: 44, paddingVertical: spacing[2], paddingHorizontal: spacing[1], borderWidth: 1, borderColor: '#A8CCFF', borderRadius: 12, alignItems: 'center', justifyContent: 'center', backgroundColor: '#E7F1FF' },
+  modeButton: { flex: 1, minWidth: 0, height: 34, paddingVertical: 0, paddingHorizontal: spacing[1], borderWidth: 1, borderColor: '#A8CCFF', borderRadius: 12, alignItems: 'center', justifyContent: 'center', backgroundColor: '#E7F1FF' },
   modeSelected: { backgroundColor: '#0862BC', borderColor: '#0862BC' },
   modeText: { color: '#0759B8', fontSize: 12, lineHeight: 18, textAlign: 'center' },
   modeTextSelected: { color: '#FFFFFF' },
