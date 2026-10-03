@@ -11,3 +11,6 @@ English and Urdu are supported. Timeline rows, history rows, progress-bar origin
 Validation covers reported progress percentage, an empty assignment, backend stage order/current status/dates, Urdu labels, QVC/visa outcomes, attachment visibility, signed download URLs, rejected/unattached files, API-origin rejection, session/offline/retry behavior, and all four refresh queries. Native small/large-phone and font-scaling visual QA remains outstanding: no native emulator or device is available in this workspace.
 
 Checks passed: mobile/web typechecks; mobile Jest 131 suites (1,275 passed, 24 skipped); web Vitest 202 files (2,023 passed); web production build; git diff check. The existing 26 Status integration tests and two new progress/empty-state cases pass as part of the full mobile run.
+
+Follow-up: stage badges now sit at the physical right of the stage-name heading, with dates below. Long names wrap within the remaining width. Pending replaces Upcoming using the existing localized Pending label.
+Alignment validation: mobile typecheck, all 28 Status integration tests, and git diff check passed. Phone visual verification remains pending.
