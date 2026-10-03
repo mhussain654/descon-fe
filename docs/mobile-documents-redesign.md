@@ -54,3 +54,11 @@ Uploaded cards reveal View, Replace and Download. Replace is disabled when the
 backend locks it and opens the replacement form only when selected. A multi-file
 document shows the same three actions; View or Download then reveals labelled
 file actions so every page remains accessible.
+
+Action styling follow-up: View uses blue, Replace amber, and Download green,
+with dark labels on pale backgrounds. Per-file buttons have short action labels;
+the filename appears once above the action. Upload mode choices appear first in
+one equal-width row, with a shorter One PDF label and selected-mode guidance.
+Controls retain their selected accessibility state and 44-point minimum height.
+English and Urdu keys cover the new guidance. Full mobile/web suites, both
+TypeScript checks, web build and whitespace checks pass for this follow-up.
