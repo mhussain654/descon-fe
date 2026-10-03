@@ -80,6 +80,7 @@ function renderAt(path, client) {
 describe("DocumentReviewsPage", () => {
   afterEach(() => {
     vi.mocked(adminDocumentReviewsClient.getQueue).mockReset();
+    vi.useRealTimers();
     sessionStorage.clear();
     localStorage.clear();
   });
@@ -174,8 +175,7 @@ describe("DocumentReviewsPage", () => {
       expect(await screen.findByText("Ahmed Ali")).toBeInTheDocument();
       expect(screen.getByText("REF-100")).toBeInTheDocument();
       expect(screen.getByText("Project One")).toBeInTheDocument();
-      expect(screen.getByText("Saudi Arabia")).toBeInTheDocument();
-      expect(screen.getByText("Welder")).toBeInTheDocument();
+      expect(screen.getByText("Saudi Arabia · Welder")).toBeInTheDocument();
       // "Pending review" appears twice: once as the (already-selected) status
       // filter chip, once as the row's own status badge.
       expect(screen.getAllByText("Pending review").length).toBeGreaterThan(0);
@@ -277,7 +277,8 @@ describe("DocumentReviewsPage", () => {
       const client = await signInAs(ADMIN);
       renderAt("/admin/document-reviews", client);
 
-      const input = await screen.findByLabelText("Candidate ID");
+      fireEvent.click(await screen.findByRole("button", { name: "Advanced filters" }));
+      const input = screen.getByLabelText("Candidate ID");
       const callsBefore = adminDocumentReviewsClient.getQueue.mock.calls.length;
       fireEvent.change(input, { target: { value: "cand-1" } });
 
@@ -296,7 +297,8 @@ describe("DocumentReviewsPage", () => {
       const client = await signInAs(ADMIN);
       renderAt("/admin/document-reviews?candidateId=cand-1&project=PRJ-1&country=SA", client);
 
-      expect(await screen.findByLabelText("Candidate ID")).toHaveValue("cand-1");
+      fireEvent.click(await screen.findByRole("button", { name: "Advanced filters" }));
+      expect(screen.getByLabelText("Candidate ID")).toHaveValue("cand-1");
       expect(screen.getByLabelText("Project code")).toHaveValue("PRJ-1");
       expect(screen.getByLabelText("Country code")).toHaveValue("SA");
     });
@@ -306,7 +308,8 @@ describe("DocumentReviewsPage", () => {
       const client = await signInAs(ADMIN);
       renderAt("/admin/document-reviews?candidateId=cand-1", client);
 
-      const clearButton = await screen.findByText("Clear filters");
+      fireEvent.click(await screen.findByRole("button", { name: "Advanced filters" }));
+      const clearButton = screen.getByText("Clear filters");
       fireEvent.click(clearButton);
 
       await waitFor(() => expect(screen.getByLabelText("Candidate ID")).toHaveValue(""));
@@ -345,7 +348,7 @@ describe("DocumentReviewsPage", () => {
       renderAt("/admin/document-reviews", client);
 
       await screen.findByText("Ahmed Ali");
-      const summary = screen.getByText("Queue summary").closest("div");
+      const summary = screen.getByRole("heading", { name: "Queue summary" }).parentElement.parentElement.parentElement;
       expect(within(summary).getByText("3")).toBeInTheDocument();
       expect(within(summary).getByText("2")).toBeInTheDocument();
       expect(within(summary).getByText("1")).toBeInTheDocument();
@@ -375,7 +378,7 @@ describe("DocumentReviewsPage", () => {
         const [, page] = adminDocumentReviewsClient.getQueue.mock.calls.at(-1);
         expect(page.number).toBe(2);
       });
-      expect(await screen.findByRole("navigation")).toBeInTheDocument();
+      expect((await screen.findByRole("button", { name: "2" })).closest("nav")).toBeInTheDocument();
       expect(screen.getByRole("button", { name: "2" })).toHaveAttribute("aria-current", "page");
     });
 
