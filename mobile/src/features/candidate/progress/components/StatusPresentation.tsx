@@ -71,12 +71,14 @@ export function StatusStageCard({ stage, isLast, dateLabel, language, t, childre
         </View>
         {!isLast ? <View style={[statusStyles.connector, completed && statusStyles.connectorCompleted]} /> : null}
       </View>
-      <View style={[statusStyles.stageCard, tone]}>
-        <Text style={[statusStyles.stageName, statusCopyStyle(language), { fontFamily: getFontFamily(language, current ? 'bold' : 'semibold') }]}>{stage.name}</Text>
-        {dateLabel ? <Text style={[statusStyles.date, statusCopyStyle(language)]}>{dateLabel}</Text> : null}
-        <View style={[statusStyles.badge, { backgroundColor: completed ? '#DFF5E9' : current ? '#DBECFF' : '#E8EEF7', alignSelf: isStartSide(language === 'ur' ? 'right' : 'left') ? 'flex-start' : 'flex-end' }]}>
-          <Text style={[statusStyles.badgeText, statusCopyStyle(language), { color, fontFamily: getFontFamily(language, 'medium') }]}>{t(completed ? 'candidateStatusCompleted' : current ? 'inProgress' : 'candidateStatusUpcoming')}</Text>
+      <View testID={`status-stage-${stage.code}`} style={[statusStyles.stageCard, tone]}>
+        <View style={[statusStyles.stageHeading, { flexDirection: rowDirectionTowards('left') }]}>
+          <Text style={[statusStyles.stageName, statusCopyStyle(language), { fontFamily: getFontFamily(language, current ? 'bold' : 'semibold') }]}>{stage.name}</Text>
+          <View style={[statusStyles.badge, { backgroundColor: completed ? '#DFF5E9' : current ? '#DBECFF' : '#E8EEF7' }]}>
+            <Text style={[statusStyles.badgeText, statusCopyStyle(language), { color, fontFamily: getFontFamily(language, 'medium') }]}>{t(completed ? 'candidateStatusCompleted' : current ? 'inProgress' : 'pending')}</Text>
+          </View>
         </View>
+        {dateLabel ? <Text style={[statusStyles.date, statusCopyStyle(language)]}>{dateLabel}</Text> : null}
         {children}
       </View>
     </View>
@@ -112,9 +114,10 @@ export const statusStyles = StyleSheet.create({
   completed: { backgroundColor: '#F0FBF5', borderColor: '#C7EAD9' },
   current: { backgroundColor: '#FFFFFF', borderColor: '#6DAEF5', ...elevation.sm },
   upcoming: { backgroundColor: '#F8FAFE', borderColor: '#DFE8F5' },
-  stageName: { fontSize: 14, lineHeight: 22, color: '#172B4D' },
+  stageHeading: { alignItems: 'flex-start', gap: spacing[2] },
+  stageName: { flex: 1, minWidth: 0, fontSize: 14, lineHeight: 22, color: '#172B4D' },
   date: { fontSize: 11, lineHeight: 18, color: '#687A95', marginTop: spacing[1] },
-  badge: { borderRadius: 7, paddingHorizontal: spacing[2], paddingVertical: spacing[1], marginTop: spacing[2] },
+  badge: { borderRadius: 7, paddingHorizontal: spacing[2], paddingVertical: spacing[1], flexShrink: 0, maxWidth: '48%' },
   badgeText: { fontSize: 10, lineHeight: 16 },
   download: { height: 34, backgroundColor: '#E6F8EE', borderColor: '#A1DCBD', borderRadius: 10, alignSelf: 'flex-start' },
   outcomeText: { fontSize: 12, lineHeight: 20 },
