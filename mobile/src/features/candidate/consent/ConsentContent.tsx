@@ -38,7 +38,7 @@ export function ConsentContent({ language, t, topInset, bottomInset, isPending, 
 
   return (
     <ScrollView contentContainerStyle={[styles.content, { paddingBottom: bottomInset + spacing[5] }]}>
-      <View style={[styles.hero, { paddingTop: topInset + spacing[4] }]}>
+      <View style={[styles.hero, { paddingTop: topInset + spacing[3] }]}>
         <Svg style={StyleSheet.absoluteFill} width="100%" height="100%" pointerEvents="none" accessible={false}>
           <Defs><LinearGradient id="consentHero" x1="0" y1="0" x2="1" y2="1"><Stop offset="0" stopColor="#16A5EE" /><Stop offset="0.48" stopColor="#0873DF" /><Stop offset="1" stopColor="#0649B9" /></LinearGradient></Defs>
           <Rect width="100%" height="100%" fill="url(#consentHero)" />
@@ -52,11 +52,11 @@ export function ConsentContent({ language, t, topInset, bottomInset, isPending, 
         </View>
         <View style={styles.art} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
           <View style={styles.orbit} />
-          <View style={styles.shield}><ShieldCheck size={48} color={colors.brand.default} strokeWidth={2.1} /></View>
-          <View style={styles.document}><GradientIconBox tone="purple" icon={FileText} size={40} /></View>
-          <View style={styles.plane}><GradientIconBox tone="orange" icon={Plane} size={40} /></View>
-          <View style={styles.briefcase}><GradientIconBox tone="coral" icon={BriefcaseBusiness} size={40} /></View>
-          <View style={styles.tick}><Check size={17} color={colors.success.on} strokeWidth={3} /></View>
+          <View style={styles.shield}><ShieldCheck size={38} color={colors.brand.default} strokeWidth={2.1} /></View>
+          <View style={styles.document}><GradientIconBox tone="purple" icon={FileText} size={32} /></View>
+          <View style={styles.plane}><GradientIconBox tone="orange" icon={Plane} size={32} /></View>
+          <View style={styles.briefcase}><GradientIconBox tone="coral" icon={BriefcaseBusiness} size={32} /></View>
+          <View style={styles.tick}><Check size={14} color={colors.success.on} strokeWidth={3} /></View>
         </View>
         <Text accessibilityRole="header" style={[styles.title, isUrdu && styles.titleUrdu, { fontFamily: getFontFamily(language, 'bold') }]}>{t('consentJourneyTitle')}</Text>
         <Text style={[styles.intro, isUrdu && styles.introUrdu, { fontFamily: getFontFamily(language) }]}>{t('consentJourneyMessage')}</Text>
@@ -64,7 +64,6 @@ export function ConsentContent({ language, t, topInset, bottomInset, isPending, 
       <View style={styles.sheet}>
         <View style={[styles.kickerRow, rowStyle]}>
           <Text accessibilityRole="header" style={[styles.kicker, headingStyle]}>{t('consentStatementTitle')}</Text>
-          <View style={styles.setupBadge}><Text style={[styles.setupText, { fontFamily: getFontFamily(language, 'medium') }]}>{t('consentSetupLabel')}</Text></View>
         </View>
         <View style={styles.policy}>
           {SECTIONS.map(({ title, body, icon, tone }) => (
@@ -91,26 +90,24 @@ export function ConsentContent({ language, t, topInset, bottomInset, isPending, 
 
 const styles = StyleSheet.create({
   content: { flexGrow: 1, backgroundColor: '#F0F7FF' },
-  hero: { paddingHorizontal: spacing[5], paddingBottom: spacing[10], overflow: 'hidden', backgroundColor: '#0873DF' },
+  hero: { paddingHorizontal: spacing[5], paddingBottom: spacing[8], overflow: 'hidden', backgroundColor: '#0873DF' },
   topRow: { alignItems: 'center', justifyContent: 'space-between', gap: spacing[2], flexWrap: 'wrap' },
   language: { minHeight: 44, minWidth: 62, paddingHorizontal: spacing[3], borderRadius: 24, borderWidth: 1, borderColor: 'rgba(255,255,255,0.3)', backgroundColor: 'rgba(255,255,255,0.12)', alignItems: 'center', justifyContent: 'center' },
   languageText: { color: colors.text.inverse, fontSize: 12, lineHeight: 28 },
-  art: { width: 220, height: 132, marginTop: spacing[5], marginBottom: spacing[2], alignSelf: 'center' },
-  orbit: { position: 'absolute', left: 53, top: 4, width: 116, height: 116, borderRadius: 58, borderWidth: 1, borderColor: 'rgba(255,255,255,0.3)' },
-  shield: { position: 'absolute', left: 69, top: 20, width: 85, height: 85, borderRadius: 25, backgroundColor: '#EAFBFF', alignItems: 'center', justifyContent: 'center', transform: [{ rotate: '-8deg' }], ...elevation.lg },
-  document: { position: 'absolute', left: 12, top: 18, transform: [{ rotate: '-10deg' }] },
-  plane: { position: 'absolute', right: 7, top: 12, transform: [{ rotate: '12deg' }] },
-  briefcase: { position: 'absolute', left: 26, bottom: 7, transform: [{ rotate: '9deg' }] },
-  tick: { position: 'absolute', right: 34, bottom: 5, width: 30, height: 30, borderRadius: 15, borderWidth: 3, borderColor: '#157BE0', backgroundColor: colors.success.default, alignItems: 'center', justifyContent: 'center' },
-  title: { textAlign: 'center', fontSize: 27, lineHeight: 34, color: colors.text.inverse },
+  art: { width: 176, height: 106, marginTop: spacing[3], marginBottom: spacing[1], alignSelf: 'center' },
+  orbit: { position: 'absolute', left: 42, top: 3, width: 93, height: 93, borderRadius: 47, borderWidth: 1, borderColor: 'rgba(255,255,255,0.3)' },
+  shield: { position: 'absolute', left: 55, top: 16, width: 68, height: 68, borderRadius: 20, backgroundColor: '#EAFBFF', alignItems: 'center', justifyContent: 'center', transform: [{ rotate: '-8deg' }], ...elevation.lg },
+  document: { position: 'absolute', left: 10, top: 14, transform: [{ rotate: '-10deg' }] },
+  plane: { position: 'absolute', right: 6, top: 10, transform: [{ rotate: '12deg' }] },
+  briefcase: { position: 'absolute', left: 21, bottom: 6, transform: [{ rotate: '9deg' }] },
+  tick: { position: 'absolute', right: 27, bottom: 4, width: 24, height: 24, borderRadius: 12, borderWidth: 3, borderColor: '#157BE0', backgroundColor: colors.success.default, alignItems: 'center', justifyContent: 'center' },
+  title: { textAlign: 'center', fontSize: 25, lineHeight: 32, color: colors.text.inverse },
   titleUrdu: { fontSize: 23, lineHeight: 46 },
   intro: { textAlign: 'center', marginTop: spacing[2], fontSize: 14, lineHeight: 22, color: '#E5F4FF' },
   introUrdu: { lineHeight: 32 },
   sheet: { marginTop: -24, padding: spacing[4], gap: spacing[4], borderTopLeftRadius: 28, borderTopRightRadius: 28, backgroundColor: '#F0F7FF', width: '100%', maxWidth: 600, alignSelf: 'center' },
   kickerRow: { alignItems: 'center', justifyContent: 'space-between', gap: spacing[2], flexWrap: 'wrap' },
   kicker: { fontSize: 12, color: colors.text.primary },
-  setupBadge: { backgroundColor: colors.success.subtle, borderRadius: 20, paddingHorizontal: spacing[2], paddingVertical: spacing[1] },
-  setupText: { fontSize: 11, lineHeight: 24, color: colors.success.emphasis },
   policy: { backgroundColor: colors.surface.raised, padding: spacing[4], borderRadius: 20, gap: spacing[5], ...elevation.sm },
   section: { alignItems: 'flex-start', gap: spacing[3] },
   sectionCopy: { flex: 1, minWidth: 0 },
