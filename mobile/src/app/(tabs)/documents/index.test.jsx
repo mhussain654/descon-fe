@@ -1178,14 +1178,15 @@ describe("DocumentsScreen", () => {
       expect(screen.getByText("Combined PDF")).toBeOnTheScreen();
       expect(screen.getByText("PDF, up to 5 MB per file.")).toBeOnTheScreen();
       expect(screen.queryByText(/as one PDF, or as two photos/)).toBeNull();
-      expect(screen.getByText("Upload the first two pages of your passport as one scanned PDF.")).toBeOnTheScreen();
+      expect(screen.queryByText("Upload")).toBeNull();
+      expect(screen.getByText("Upload one PDF containing scanned images or clear photos of the first two pages of your passport. Both pages must be clear and readable.")).toBeOnTheScreen();
       fireEvent.press(screen.getByRole("button", { name: "Separate photos" }));
       expect(screen.getByText("PDF, JPEG, PNG, up to 5 MB per file.")).toBeOnTheScreen();
       expect(screen.queryByText("PDF, up to 5 MB per file.")).toBeNull();
       expect(screen.getByText("Page 1")).toBeOnTheScreen();
       expect(screen.getByText("Page 2")).toBeOnTheScreen();
-      expect(screen.getByText("Upload the first two pages of your passport separately in the Page 1 and Page 2 slots below.")).toBeOnTheScreen();
-      expect(screen.queryByText("Upload the first two pages of your passport as one scanned PDF.")).toBeNull();
+      expect(screen.getByText("Upload separate scans or clear photos of the first two pages of your passport in the Page 1 and Page 2 slots below. Both pages must be clear and readable.")).toBeOnTheScreen();
+      expect(screen.queryByText("Upload one PDF containing scanned images or clear photos of the first two pages of your passport. Both pages must be clear and readable.")).toBeNull();
       expect(screen.queryByText("Combined PDF")).toBeNull();
       DocumentPicker.getDocumentAsync.mockResolvedValueOnce({ canceled: false, assets: [pdfAsset("page1.pdf")] });
       fireEvent.press(screen.getAllByRole("button", { name: "Choose file" })[0]);
@@ -1252,16 +1253,18 @@ describe("DocumentsScreen", () => {
       await screen.findByText(new RegExp(`Selected file: ${asset.name.replace(".", "\\.")}`));
     }
 
-    it("shows the backend instructions and labelled front/back slots, sending both parts with their labels", async () => {
+    it("shows mode-specific CNIC guidance and labelled front/back slots, sending both parts with their labels", async () => {
       candidateDocumentsClient.getChecklist.mockResolvedValue([cnicItem()]);
       applicationProgressClient.getProgress.mockResolvedValue(progress());
       candidateDocumentsClient.uploadDocument.mockResolvedValue(cnicItem({ status: "uploaded", document: uploadedDocument() }));
       renderDocumentsScreen();
 
       fireEvent.press(await screen.findByRole("button", { name: "Upload" }));
-      expect(screen.getByText("Upload the front and back of your CNIC.")).toBeOnTheScreen();
-      expect(screen.getByText("Front")).toBeOnTheScreen();
-      expect(screen.getByText("Back")).toBeOnTheScreen();
+      expect(screen.getByText("Upload separate scans or clear photos of the front and back of the CNIC. Both sides must be clear and readable.")).toBeOnTheScreen();
+      expect(screen.queryByText("Upload the front and back of your CNIC.")).toBeNull();
+      expect(screen.queryByText("Upload")).toBeNull();
+      expect(screen.getByText("Front side")).toBeOnTheScreen();
+      expect(screen.getByText("Back side")).toBeOnTheScreen();
 
       await chooseFileForNextEmptySlot(imageAsset("front.jpg"));
       await chooseFileForNextEmptySlot(imageAsset("back.jpg"));
@@ -1288,7 +1291,7 @@ describe("DocumentsScreen", () => {
       fireEvent.press(screen.getByRole("button", { name: "Submit" }));
 
       expect(
-        await screen.findByText("Upload both parts of this document (front and back, or page 1 and page 2).")
+        await screen.findByText("Upload both the front and back sides of the CNIC.")
       ).toBeOnTheScreen();
       expect(candidateDocumentsClient.uploadDocument).not.toHaveBeenCalled();
     });
@@ -1299,9 +1302,11 @@ describe("DocumentsScreen", () => {
       renderDocumentsScreen();
 
       fireEvent.press(await screen.findByRole("button", { name: "Upload" }));
-      fireEvent.press(screen.getByRole("button", { name: "One PDF with every page" }));
+      fireEvent.press(screen.getByRole("button", { name: "One PDF" }));
 
       expect(screen.getByText("Combined PDF")).toBeOnTheScreen();
+      expect(screen.getByText("Upload one PDF containing scanned images or clear photos of both the front and back of the CNIC. Both sides must be clear and readable.")).toBeOnTheScreen();
+      expect(screen.queryByText("Upload separate scans or clear photos of the front and back of the CNIC. Both sides must be clear and readable.")).toBeNull();
       expect(screen.queryByRole("button", { name: "Take photo" })).toBeNull();
       expect(screen.getAllByRole("button", { name: "Choose file" })).toHaveLength(1);
     });
