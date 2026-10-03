@@ -1,7 +1,7 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { MemoryRouter, Route, Routes } from "react-router";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, afterEach, describe, expect, it, vi } from "vitest";
 import {
   createMockStaffAuthClient,
   MOCK_STAFF_ACCOUNTS,
@@ -103,7 +103,12 @@ function renderAt(path, client) {
 }
 
 describe("DocumentReviewDetailPage", () => {
+  beforeEach(() => {
+    vi.stubEnv("VITE_API_BASE_URL", "http://localhost:3000/api/v1");
+  });
+
   afterEach(() => {
+    vi.unstubAllEnvs();
     vi.mocked(adminDocumentReviewsClient.getSubmission).mockReset();
     vi.mocked(adminDocumentReviewsClient.requestDocumentAccess).mockReset();
     vi.mocked(adminDocumentReviewsClient.verifyDocument).mockReset();
