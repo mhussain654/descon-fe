@@ -73,7 +73,14 @@ export function DocumentUploadPanel({ labelText, instructions, upload, t, langua
     return <LoadingState message={t('candidateDocumentsUploading')} language={language} />;
   }
 
+  const combinedMode = layout.kind === 'pair' && layout.combinedAllowed && upload.mode === 'combined';
   const canCapture = acceptsImages(rules);
+  const isPassportPair = layout.kind === 'pair' && upload.activeRequirementCode === 'passport';
+  const guidanceKey = isPassportPair
+    ? combinedMode ? 'candidateDocumentsPassportPdfGuidance' : 'candidateDocumentsPassportPartsGuidance'
+    : combinedMode ? 'candidateDocumentsCombinedGuidance' : 'candidateDocumentsPartsGuidance';
+  const acceptedTypes = combinedMode ? ['application/pdf'] : rules.acceptedContentTypes;
+  const typeNames = acceptedTypes.map(type => type === 'application/pdf' ? 'PDF' : type === 'image/jpeg' ? 'JPEG' : type === 'image/png' ? 'PNG' : type).join(', ');
   const fileErrorFor = (file: PickedFile | null) => {
     if (!file || validation?.kind !== 'file' || entries[validation.index]?.file !== file) return null;
     return t(FILE_ERROR_KEYS[validation.code]);
@@ -107,9 +114,9 @@ export function DocumentUploadPanel({ labelText, instructions, upload, t, langua
           ))}
         </View>
       ) : null}
-      {layout.kind === 'pair' ? <HelperText language={language}>{t(upload.mode === 'combined' && layout.combinedAllowed ? 'candidateDocumentsCombinedGuidance' : 'candidateDocumentsPartsGuidance')}</HelperText> : null}
+      {layout.kind === 'pair' ? <HelperText language={language}>{t(guidanceKey)}</HelperText> : null}
       <Label language={language}>{labelText}</Label>
-      {instructions ? (
+      {instructions && !isPassportPair ? (
         <Text style={[styles.instructions, { fontFamily: getFontFamily(language, 'regular') }]}>{instructions}</Text>
       ) : null}
 
@@ -173,7 +180,7 @@ export function DocumentUploadPanel({ labelText, instructions, upload, t, langua
         </View>
       ) : null}
 
-      <HelperText language={language}>{t('candidateDocumentsFileFieldHelper')}</HelperText>
+      <HelperText language={language}>{interpolate(t('candidateDocumentsAcceptedFilesHint'), { types: typeNames, size: formatFileSize(rules.maximumFileSize, language) })}</HelperText>
       {showSetError && validation?.kind === 'set' ? (
         <ValidationMessage tone="error" language={language}>
           {t(FILE_SET_REASON_KEYS[validation.reason] as TranslationKey)}

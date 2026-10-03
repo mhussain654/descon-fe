@@ -39,9 +39,9 @@ export function DocumentViewPanel({ files, isRequesting, error, onView, onDownlo
         <Button variant="outline" size="sm" style={styles.downloadButton} labelStyle={styles.downloadLabel} onPress={() => isMultiFile ? setFileAction('download') : onDownload(files[0]?.id)} disabled={isRequesting} language={language}>{t('candidateDocumentsDownloadAction')}</Button>
       </View>
       {isMultiFile ? files.map(file => (
-        <View key={file.id} style={styles.fileRow}>
+        <View key={file.id} style={[styles.fileRow, language === 'ur' && styles.fileRowRtl]}>
           <Text style={[styles.fileName, { fontFamily: getFontFamily(language, 'medium') }]}>{fileLabel(file)}</Text>
-          {fileAction ? <Button variant="outline" size="sm" style={fileAction === 'view' ? styles.viewButton : styles.downloadButton} labelStyle={fileAction === 'view' ? styles.viewLabel : styles.downloadLabel} onPress={() => fileAction === 'view' ? onView(file.id) : onDownload(file.id)} disabled={isRequesting} language={language}>{t(fileAction === 'view' ? 'candidateDocumentsViewAction' : 'candidateDocumentsDownloadAction')}</Button> : null}
+          {fileAction ? <Button variant="outline" size="sm" style={[fileAction === 'view' ? styles.viewButton : styles.downloadButton, styles.fileButton]} labelStyle={[fileAction === 'view' ? styles.viewLabel : styles.downloadLabel, styles.fileButtonLabel]} onPress={() => fileAction === 'view' ? onView(file.id) : onDownload(file.id)} disabled={isRequesting} language={language}>{t(fileAction === 'view' ? 'candidateDocumentsViewAction' : 'candidateDocumentsDownloadAction')}</Button> : null}
         </View>
       )) : null}
 
@@ -95,7 +95,10 @@ const styles = StyleSheet.create({
   replaceLabel: { color: '#8F4B00' },
   downloadButton: { backgroundColor: '#E6F8EE', borderColor: '#A1DCBD', borderRadius: 12 },
   downloadLabel: { color: '#087443' },
-  fileRow: { marginTop: spacing[3] },
-  fileName: { fontSize: 14, color: colors.text.primary, marginBottom: spacing[1] },
+  fileRow: { marginTop: spacing[3], flexDirection: 'row', alignItems: 'center', gap: spacing[2] },
+  fileRowRtl: { flexDirection: 'row-reverse' },
+  fileButton: { alignSelf: 'center', paddingHorizontal: spacing[2], borderRadius: 10, flexShrink: 0 },
+  fileButtonLabel: { fontSize: 12 },
+  fileName: { flex: 1, minWidth: 0, fontSize: 13, color: colors.text.primary },
   errorNotice: { marginTop: spacing[3] },
 });
