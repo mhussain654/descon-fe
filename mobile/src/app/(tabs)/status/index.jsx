@@ -1,7 +1,10 @@
-import { View, Text, ScrollView, RefreshControl, TouchableOpacity, useColorScheme } from "react-native";
+import { View, Text, ScrollView, RefreshControl } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
-import { CheckCircle, Circle, Clock } from "lucide-react-native";
+import { Download } from "lucide-react-native";
+import { StatusHeader, StatusProgressSummary, StatusStageCard, statusStyles, statusCopyStyle } from "../../../features/candidate/progress/components/StatusPresentation";
+import { ButtonHeightContext } from "../../../design-system/Button";
+import { isStartSide, rowDirectionTowards } from "../../../lib/layoutDirection";
 import { useRouter } from "expo-router";
 import { useAuth } from "../../../contexts/AuthContext";
 import { useLanguage } from "../../../contexts/LanguageContext";
@@ -26,9 +29,9 @@ const VISA_OUTCOME_STAGE_CODE = "visa_issued_or_rejected";
 const FLIGHT_TICKET_STAGE_CODES = new Set(["flight_details_uploaded", "mobilized"]);
 
 const QVC_TONE_COLORS = {
-  success: { bg: "#E6F9F0", text: "#10B981" },
-  warning: { bg: "#FFF7E6", text: "#F59E0B" },
-  danger: { bg: "#FEF2F2", text: "#EF4444" },
+  success: { bg: "#E6F9F0", text: "#087C46" },
+  warning: { bg: "#FFF7E6", text: "#9A5700" },
+  danger: { bg: "#FEF2F2", text: "#B42318" },
 };
 
 function formatStageDate(iso, language) {
@@ -39,8 +42,6 @@ function formatStageDate(iso, language) {
 export default function StatusScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const colorScheme = useColorScheme();
-  const isDark = colorScheme === "dark";
   const { t, language } = useLanguage();
   const { logout } = useAuth();
   const progressQuery = useApplicationProgress();
@@ -51,36 +52,12 @@ export default function StatusScreen() {
   const visaCopyAccess = useVisaCopyAccess();
   useRefetchOnFocus(progressQuery.refetch, progressQuery.isFetching);
   useRefetchOnFocus(historyQuery.refetch, historyQuery.isFetching);
+  useRefetchOnFocus(flightDetailQuery.refetch, flightDetailQuery.isFetching);
+  useRefetchOnFocus(visaDecisionsQuery.refetch, visaDecisionsQuery.isFetching);
 
   const returnToSignIn = async () => {
     await logout("expired");
     router.replace("/login");
-  };
-
-  const getStatusConfig = (status) => {
-    switch (status) {
-      case "completed":
-        return {
-          icon: CheckCircle,
-          iconColor: "#10B981",
-          lineColor: "#10B981",
-          textColor: isDark ? "#FFFFFF" : "#000000",
-        };
-      case "current":
-        return {
-          icon: Clock,
-          iconColor: "#0066CC",
-          lineColor: "#E5E7EB",
-          textColor: isDark ? "#FFFFFF" : "#000000",
-        };
-      default:
-        return {
-          icon: Circle,
-          iconColor: isDark ? "#4B5563" : "#D1D5DB",
-          lineColor: isDark ? "#333333" : "#E5E7EB",
-          textColor: isDark ? "#6B7280" : "#9CA3AF",
-        };
-    }
   };
 
   const workflow = progressQuery.data?.workflow;
@@ -97,55 +74,22 @@ export default function StatusScreen() {
   const lastUpdatedLabel = workflow ? formatStageDate(workflow.updatedAt, language) : null;
 
   return (
-    <View style={{ flex: 1, backgroundColor: isDark ? "#121212" : "#F8F9FA" }}>
-      <StatusBar style={isDark ? "light" : "dark"} />
-
-      {/* Header */}
-      <View
-        style={{
-          paddingTop: insets.top + 16,
-          paddingHorizontal: 20,
-          paddingBottom: 16,
-          backgroundColor: isDark ? "#121212" : "#FFFFFF",
-          borderBottomWidth: 1,
-          borderBottomColor: isDark ? "#333333" : "#F0F0F0",
-        }}
-      >
-        <Text
-          style={{
-            fontSize: 28,
-            fontFamily: getFontFamily(language, "semibold"),
-            color: isDark ? "#FFFFFF" : "#000000",
-            marginBottom: 4,
-          }}
-        >
-          {t("status")}
-        </Text>
-        <Text
-          style={{
-            fontSize: 14,
-            fontFamily: getFontFamily(language, "regular"),
-            color: isDark ? "#9CA3AF" : "#6B7280",
-          }}
-        >
-          {t("mobilizationProgress")}
-        </Text>
-      </View>
-
+    <ButtonHeightContext.Provider value={34}>
+    <View style={statusStyles.screen}>
+      <StatusBar style="light" />
+      <StatusHeader topInset={insets.top} language={language} t={t} />
       <ScrollView
-        style={{ flex: 1 }}
-        contentContainerStyle={{
-          paddingHorizontal: 20,
-          paddingTop: 24,
-          paddingBottom: insets.bottom + 80,
-        }}
+        style={statusStyles.scroll}
+        contentContainerStyle={[statusStyles.content, { paddingBottom: insets.bottom + 80 }]}
         showsVerticalScrollIndicator={false}
         refreshControl={
           <RefreshControl
-            refreshing={progressQuery.isRefetching || historyQuery.isRefetching}
+            refreshing={progressQuery.isRefetching || historyQuery.isRefetching || flightDetailQuery.isRefetching || visaDecisionsQuery.isRefetching}
             onRefresh={() => {
               progressQuery.refetch();
               historyQuery.refetch();
+              flightDetailQuery.refetch();
+              visaDecisionsQuery.refetch();
             }}
             title={t("pullToRefresh")}
           />
@@ -195,24 +139,18 @@ export default function StatusScreen() {
         ) : null}
 
         {!progressQuery.isPending && !progressQuery.error && timeline.length > 0 ? (
-          <View style={{ flexDirection: "row", flexWrap: "wrap", justifyContent: "space-between", marginBottom: 16 }}>
-            <Text style={{ fontSize: 13, fontFamily: getFontFamily(language, "regular"), color: isDark ? "#9CA3AF" : "#6B7280" }}>
-              {t("workflowStagesCompletedPrefix")}: {workflow.completedCount}/{workflow.totalCount}
-            </Text>
-            {lastUpdatedLabel ? (
-              <Text style={{ fontSize: 13, fontFamily: getFontFamily(language, "regular"), color: isDark ? "#9CA3AF" : "#6B7280" }}>
-                {t("workflowLastUpdatedPrefix")}: {lastUpdatedLabel}
-              </Text>
-            ) : null}
-          </View>
+          <StatusProgressSummary workflow={workflow} updatedLabel={lastUpdatedLabel} language={language} t={t} />
+        ) : null}
+
+        {!progressQuery.isPending && !progressQuery.error && timeline.length === 0 ? (
+          <View style={statusStyles.empty}><Text style={[statusStyles.historyName, statusCopyStyle(language)]}>{t("candidateStatusEmpty")}</Text></View>
         ) : null}
 
         {/* Timeline */}
         {!progressQuery.isPending && !progressQuery.error && timeline.length > 0 ? (
           <View>
+            <Text accessibilityRole="header" style={[statusStyles.sectionTitle, statusCopyStyle(language), { fontFamily: getFontFamily(language, "bold") }]}>{t("candidateStatusJourneyTitle")}</Text>
             {timeline.map((stage, index) => {
-              const config = getStatusConfig(stage.status);
-              const StatusIcon = config.icon;
               const isLast = index === timeline.length - 1;
               const startedLabel = formatStageDate(stage.startedAt, language);
               const completedLabel = formatStageDate(stage.completedAt, language);
@@ -220,88 +158,7 @@ export default function StatusScreen() {
               const visaOutcomeTone = latestVisaDecision ? QVC_TONE_COLORS[VISA_OUTCOME_TONES[latestVisaDecision.outcomeCode]] : null;
 
               return (
-                <View key={stage.code} style={{ flexDirection: "row" }}>
-                  {/* Icon Column */}
-                  <View style={{ alignItems: "center", marginEnd: 16 }}>
-                    <View
-                      style={{
-                        width: 32,
-                        height: 32,
-                        borderRadius: 16,
-                        backgroundColor:
-                          stage.status === "current"
-                            ? isDark
-                              ? "#1A2B3D"
-                              : "#E6F2FF"
-                            : isDark
-                              ? "#1E1E1E"
-                              : "#FFFFFF",
-                        borderWidth: stage.status === "pending" ? 2 : 0,
-                        borderColor: isDark ? "#333333" : "#E5E7EB",
-                        justifyContent: "center",
-                        alignItems: "center",
-                      }}
-                    >
-                      <StatusIcon
-                        size={stage.status === "pending" ? 12 : 18}
-                        color={config.iconColor}
-                        fill={stage.status === "completed" ? config.iconColor : "none"}
-                      />
-                    </View>
-
-                    {!isLast && (
-                      <View
-                        style={{
-                          width: 2,
-                          flex: 1,
-                          backgroundColor: config.lineColor,
-                          marginVertical: 4,
-                          minHeight: 40,
-                        }}
-                      />
-                    )}
-                  </View>
-
-                  {/* Content Column */}
-                  <View
-                    style={{
-                      flex: 1,
-                      paddingBottom: isLast ? 0 : 24,
-                    }}
-                  >
-                    <Text
-                      style={{
-                        fontSize: 15,
-                        fontFamily: stage.status === "current" ? getFontFamily(language, "semibold") : getFontFamily(language, "medium"),
-                        color: config.textColor,
-                        marginBottom: 2,
-                      }}
-                    >
-                      {stage.name}
-                    </Text>
-                    {completedLabel ? (
-                      <Text style={{ fontSize: 12, fontFamily: getFontFamily(language, "regular"), color: isDark ? "#9CA3AF" : "#6B7280" }}>
-                        {t("workflowStageCompletedPrefix")} {completedLabel}
-                      </Text>
-                    ) : startedLabel ? (
-                      <Text style={{ fontSize: 12, fontFamily: getFontFamily(language, "regular"), color: isDark ? "#9CA3AF" : "#6B7280" }}>
-                        {t("workflowStageStartedPrefix")} {startedLabel}
-                      </Text>
-                    ) : null}
-                    {stage.status === "current" && (
-                      <View
-                        style={{
-                          backgroundColor: isDark ? "#1A2B3D" : "#E6F2FF",
-                          borderRadius: 8,
-                          paddingHorizontal: 12,
-                          paddingVertical: 8,
-                          marginTop: 8,
-                          alignSelf: "flex-start",
-                        }}
-                      >
-                        <Text style={{ fontSize: 12, fontFamily: getFontFamily(language, "medium"), color: "#0066CC" }}>{t("inProgress")}</Text>
-                      </View>
-                    )}
+                <StatusStageCard key={stage.code} stage={stage} isLast={isLast} language={language} t={t} dateLabel={completedLabel ? `${t("workflowStageCompletedPrefix")} ${completedLabel}` : startedLabel ? `${t("workflowStageStartedPrefix")} ${startedLabel}` : null}>
                     {stage.code === QVC_OUTCOME_STAGE_CODE && qvcOutcome ? (
                       <View
                         style={{
@@ -310,10 +167,10 @@ export default function StatusScreen() {
                           paddingHorizontal: 12,
                           paddingVertical: 8,
                           marginTop: 8,
-                          alignSelf: "flex-start",
+                          alignSelf: isStartSide(language === "ur" ? "right" : "left") ? "flex-start" : "flex-end",
                         }}
                       >
-                        <Text style={{ fontSize: 12, fontFamily: getFontFamily(language, "medium"), color: outcomeTone.text }}>
+                        <Text style={[statusStyles.outcomeText, statusCopyStyle(language), { color: outcomeTone.text }]}>
                           {t("qvcOutcome")}: {t(QVC_OUTCOME_KEYS[qvcOutcome.code])}
                           {formatStageDate(qvcOutcome.date, language) ? ` • ${formatStageDate(qvcOutcome.date, language)}` : ""}
                         </Text>
@@ -328,10 +185,10 @@ export default function StatusScreen() {
                             paddingHorizontal: 12,
                             paddingVertical: 8,
                             marginTop: 8,
-                            alignSelf: "flex-start",
+                            alignSelf: isStartSide(language === "ur" ? "right" : "left") ? "flex-start" : "flex-end",
                           }}
                         >
-                          <Text style={{ fontSize: 12, fontFamily: getFontFamily(language, "medium"), color: visaOutcomeTone.text }}>
+                          <Text style={[statusStyles.outcomeText, statusCopyStyle(language), { color: visaOutcomeTone.text }]}>
                             {t("visaOutcome")}: {t(VISA_OUTCOME_KEYS[latestVisaDecision.outcomeCode])}
                             {formatStageDate(latestVisaDecision.decisionDate, language)
                               ? ` • ${formatStageDate(latestVisaDecision.decisionDate, language)}`
@@ -343,6 +200,9 @@ export default function StatusScreen() {
                             <Button
                               variant="outline"
                               size="sm"
+                              style={[statusStyles.download, { alignSelf: isStartSide(language === "ur" ? "right" : "left") ? "flex-start" : "flex-end" }]}
+                              labelStyle={[statusStyles.downloadText, language === "ur" && statusStyles.downloadTextUrdu]}
+                              leadingIcon={<Download size={14} color="#087443" />}
                               onPress={() => visaCopyAccess.downloadVisaCopy(latestVisaDecision.id)}
                               disabled={visaCopyAccess.isRequesting}
                               language={language}
@@ -365,6 +225,9 @@ export default function StatusScreen() {
                         <Button
                           variant="outline"
                           size="sm"
+                          style={[statusStyles.download, { alignSelf: isStartSide(language === "ur" ? "right" : "left") ? "flex-start" : "flex-end" }]}
+                          labelStyle={[statusStyles.downloadText, language === "ur" && statusStyles.downloadTextUrdu]}
+                          leadingIcon={<Download size={14} color="#087443" />}
                           onPress={ticketAccess.downloadTicket}
                           disabled={ticketAccess.isRequesting}
                           language={language}
@@ -380,8 +243,7 @@ export default function StatusScreen() {
                         ) : null}
                       </View>
                     ) : null}
-                  </View>
-                </View>
+                </StatusStageCard>
               );
             })}
           </View>
@@ -389,44 +251,31 @@ export default function StatusScreen() {
 
         {/* Recent updates */}
         {!progressQuery.isPending && !progressQuery.error && timeline.length > 0 ? (
-          <View
-            style={{
-              marginTop: 24,
-              backgroundColor: isDark ? "#1E1E1E" : "#FFFFFF",
-              borderRadius: 16,
-              padding: 20,
-              borderWidth: 1,
-              borderColor: isDark ? "#333333" : "#E5E7EB",
-            }}
-          >
-            <Text style={{ fontSize: 16, fontFamily: getFontFamily(language, "semibold"), color: isDark ? "#FFFFFF" : "#000000", marginBottom: 16 }}>
-              {t("workflowHistoryTitle")}
-            </Text>
+          <View style={statusStyles.history}>
+            <Text accessibilityRole="header" style={[statusStyles.sectionTitle, statusCopyStyle(language), { fontFamily: getFontFamily(language, "bold") }]}>{t("workflowHistoryTitle")}</Text>
             {historyQuery.isPending ? (
-              <Text style={{ fontSize: 14, fontFamily: getFontFamily(language, "regular"), color: isDark ? "#9CA3AF" : "#6B7280" }}>{t("loading")}</Text>
+              <Text style={[statusStyles.historyName, statusCopyStyle(language)]}>{t("loading")}</Text>
             ) : historyQuery.error ? (
-              <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
-                <Text style={{ fontSize: 14, fontFamily: getFontFamily(language, "regular"), color: isDark ? "#9CA3AF" : "#6B7280" }}>
+              <View style={[statusStyles.historyRow, { flexDirection: rowDirectionTowards(language === "ur" ? "right" : "left") }]}>
+                <Text style={[statusStyles.historyName, statusCopyStyle(language)]}>
                   {t(WORKFLOW_HISTORY_ERROR_KEYS[historyQuery.error.code])}
                 </Text>
-                <TouchableOpacity onPress={() => historyQuery.refetch()}>
-                  <Text style={{ fontSize: 14, fontFamily: getFontFamily(language, "medium"), color: "#0066CC" }}>{t("retry")}</Text>
-                </TouchableOpacity>
+                <Button variant="text" size="sm" onPress={() => historyQuery.refetch()} language={language}>{t("retry")}</Button>
               </View>
             ) : historyItems.length === 0 ? (
-              <Text style={{ fontSize: 14, fontFamily: getFontFamily(language, "regular"), color: isDark ? "#9CA3AF" : "#6B7280" }}>
+              <Text style={[statusStyles.historyName, statusCopyStyle(language)]}>
                 {t("workflowHistoryEmpty")}
               </Text>
             ) : (
               [...historyItems].reverse().map((item) => (
                 <View
                   key={`${item.toStage.code}-${item.occurredAt}`}
-                  style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingVertical: 6 }}
+                  style={[statusStyles.historyRow, { flexDirection: rowDirectionTowards(language === "ur" ? "right" : "left") }]}
                 >
-                  <Text style={{ fontSize: 14, fontFamily: getFontFamily(language, "regular"), color: isDark ? "#FFFFFF" : "#000000" }}>
+                  <Text style={[statusStyles.historyName, statusCopyStyle(language)]}>
                     {item.toStage.name}
                   </Text>
-                  <Text style={{ fontSize: 13, fontFamily: getFontFamily(language, "regular"), color: isDark ? "#9CA3AF" : "#6B7280" }}>
+                  <Text style={[statusStyles.historyDate, statusCopyStyle(language)]}>
                     {formatStageDate(item.occurredAt, language)}
                   </Text>
                 </View>
@@ -436,5 +285,6 @@ export default function StatusScreen() {
         ) : null}
       </ScrollView>
     </View>
+    </ButtonHeightContext.Provider>
   );
 }

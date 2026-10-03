@@ -206,6 +206,24 @@ function stageRow(labelText) {
 }
 
 describe("StatusScreen", () => {
+  it("shows the backend progress percentage rather than inferring progress from the cards", async () => {
+    applicationProgressClient.getProgress.mockResolvedValue(progressPayload({ workflow: workflowPayload({ progressPercentage: 37 }) }));
+    candidateWorkflowClient.getWorkflowHistory.mockResolvedValue(historyPayload());
+    renderStatusScreen();
+    expect(await screen.findByText("37%")).toBeOnTheScreen();
+    expect(screen.getByRole("progressbar")).toHaveAccessibilityValue({ min: 0, max: 100, now: 37 });
+    expect(screen.getByText("Your journey")).toBeOnTheScreen();
+  });
+
+  it("shows an assignment empty state without invented stages or downloads", async () => {
+    applicationProgressClient.getProgress.mockResolvedValue(progressPayload({ workflow: workflowPayload({ timeline: [], completedCount: 0, totalCount: 0, progressPercentage: 0 }) }));
+    candidateWorkflowClient.getWorkflowHistory.mockResolvedValue(historyPayload());
+    renderStatusScreen();
+    expect(await screen.findByText("Your mobilization timeline will appear here once your assignment is ready.")).toBeOnTheScreen();
+    expect(screen.queryByText("Your journey")).toBeNull();
+    expect(screen.queryByText("Download Ticket")).toBeNull();
+    expect(screen.queryByText("Download Visa Copy")).toBeNull();
+  });
   it("shows a loading state before progress resolves", async () => {
     applicationProgressClient.getProgress.mockReturnValue(new Promise(() => {}));
     candidateWorkflowClient.getWorkflowHistory.mockResolvedValue(historyPayload());
@@ -374,11 +392,15 @@ describe("StatusScreen", () => {
     await screen.findByText("Documents Pending");
     applicationProgressClient.getProgress.mockClear();
     candidateWorkflowClient.getWorkflowHistory.mockClear();
+    candidateFlightDetailClient.getFlightDetail.mockClear();
+    candidateVisaDecisionsClient.listVisaDecisions.mockClear();
 
     screen.UNSAFE_getByType(RefreshControl).props.onRefresh();
 
     await waitFor(() => expect(applicationProgressClient.getProgress).toHaveBeenCalledTimes(1));
     expect(candidateWorkflowClient.getWorkflowHistory).toHaveBeenCalledTimes(1);
+    expect(candidateFlightDetailClient.getFlightDetail).toHaveBeenCalledTimes(1);
+    expect(candidateVisaDecisionsClient.listVisaDecisions).toHaveBeenCalledTimes(1);
   });
 
   describe("flight ticket download", () => {
