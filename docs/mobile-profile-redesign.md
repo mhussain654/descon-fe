@@ -13,3 +13,5 @@ Validation covers approved safe fields, a single reference number, grouped secti
 Checks passed: mobile/web typechecks; mobile Jest 131 suites (1,275 passed, 24 skipped); web Vitest 202 files (2,023 passed); web production build; git diff check.
 
 Logged-in Documents, Status, and Profile headers omit the repeated Descon logo and keep their compact page title and icon. Dashboard already has no logo. Login and consent retain branding.
+
+Profile header uses the validated candidate photo in a fixed, circular avatar aligned with the title/subtitle. Without a photo, it shows the name initial; the photo editing controls remain in the identity card.

@@ -143,6 +143,29 @@ describe("ProfileScreen", () => {
     expect(screen.queryByText("42101-1234567-1")).toBeNull();
   });
 
+  it("uses the candidate photo in the header", async () => {
+    const originalApiBase = process.env.EXPO_PUBLIC_API_BASE_URL;
+    process.env.EXPO_PUBLIC_API_BASE_URL = "https://example.com/api/v1";
+    const photoUrl = "https://example.com/profile.jpg";
+    try {
+      candidateProfileClient.getProfile.mockResolvedValue(profilePayload({ photoUrl }));
+      renderProfileScreen();
+      await screen.findByText("Ahmed Ali");
+      expect(screen.getByTestId("profile-header-photo", { includeHiddenElements: true })).toHaveProp("source", [{ uri: photoUrl }]);
+    } finally {
+      if (originalApiBase === undefined) delete process.env.EXPO_PUBLIC_API_BASE_URL;
+      else process.env.EXPO_PUBLIC_API_BASE_URL = originalApiBase;
+    }
+  });
+
+  it("shows the name initial in the header when no photo is uploaded", async () => {
+    candidateProfileClient.getProfile.mockResolvedValue(profilePayload({ photoUrl: null }));
+    renderProfileScreen();
+    await screen.findByText("Ahmed Ali");
+    expect(screen.queryByTestId("profile-header-photo", { includeHiddenElements: true })).toBeNull();
+    expect(screen.getAllByText("A", { includeHiddenElements: true })).toHaveLength(2);
+  });
+
   it("shows the document-verification row reflecting the backend's submissionState", async () => {
     candidateProfileClient.getProfile.mockResolvedValue(profilePayload());
     applicationProgressClient.getProgress.mockResolvedValue(progressPayload({ documents: { ...progressPayload().documents, submissionState: "verified" } }));

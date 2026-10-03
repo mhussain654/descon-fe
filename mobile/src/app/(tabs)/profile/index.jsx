@@ -103,7 +103,7 @@ export default function ProfileScreen() {
     <ButtonHeightContext.Provider value={34}>
       <View style={profileStyles.screen}>
         <StatusBar style="light" />
-        <ProfileHeader topInset={insets.top} language={language} t={t} />
+        <ProfileHeader profile={profile} topInset={insets.top} language={language} t={t} />
         <ScrollView
           style={profileStyles.scroll}
           contentContainerStyle={[profileStyles.content, { paddingBottom: insets.bottom + 80 }]}
