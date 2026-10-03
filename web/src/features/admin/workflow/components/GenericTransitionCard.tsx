@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import type { AllowedWorkflowTransition, WorkflowTransitionField } from '../../../../../../shared/adminWorkflow/types';
 import type { TranslationKey } from '../../../../../../shared/i18n/translations';
 import { useLanguage } from '../../../../contexts/LanguageContext';
@@ -30,6 +30,8 @@ interface GenericTransitionCardProps {
   canTransition: boolean;
   currentStageCode: string | undefined;
   isSubmitting: boolean;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
   conflictMessage?: string;
   nonFieldError?: string;
   onSubmit: (toStageCode: string, currentStageCode: string | undefined, evidence: Record<string, string>) => void;
@@ -55,12 +57,13 @@ export function GenericTransitionCard({
   canTransition,
   currentStageCode,
   isSubmitting,
+  open,
+  onOpenChange,
   conflictMessage,
   nonFieldError,
   onSubmit,
 }: GenericTransitionCardProps) {
   const { t } = useLanguage();
-  const [open, setOpen] = useState(false);
   const [values, setValues] = useState<Record<string, string>>({});
   const [missingFields, setMissingFields] = useState<string[]>([]);
 
@@ -72,11 +75,12 @@ export function GenericTransitionCard({
   const genuineBlockingReasons = transition.blockingReasons.filter((reason) => !ownEvidenceReasons.has(reason));
   const canAttempt = supportedFields && (transition.allowed || genuineBlockingReasons.length === 0);
 
-  const close = () => {
-    setOpen(false);
-    setValues({});
-    setMissingFields([]);
-  };
+  useEffect(() => {
+    if (!open) {
+      setValues({});
+      setMissingFields([]);
+    }
+  }, [open]);
 
   const confirm = () => {
     const missing = transition.fields
@@ -99,7 +103,7 @@ export function GenericTransitionCard({
           <p className="mt-1 text-sm text-text-secondary">{t('adminWorkflowGenericTransitionDescription')}</p>
         </div>
         {canAttempt && canTransition ? (
-          <Button type="button" onClick={() => setOpen(true)}>
+          <Button type="button" onClick={() => onOpenChange(true)}>
             {t('adminWorkflowGenericTransitionAction')}
           </Button>
         ) : null}
@@ -123,7 +127,7 @@ export function GenericTransitionCard({
 
       <ConfirmDialog
         open={open}
-        onOpenChange={(nextOpen) => (!nextOpen ? close() : undefined)}
+        onOpenChange={onOpenChange}
         title={transition.name}
         description={t('adminWorkflowGenericTransitionConfirmDescription')}
         confirmLabel={t('adminWorkflowGenericTransitionAction')}

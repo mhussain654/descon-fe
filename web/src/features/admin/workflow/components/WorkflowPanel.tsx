@@ -33,6 +33,7 @@ import { useWorkflowHistory } from '../hooks/useWorkflowHistory';
 import { useWorkflowState } from '../hooks/useWorkflowState';
 import { FlightDetailPanel } from './FlightDetailPanel';
 import { GenericTransitionCard } from './GenericTransitionCard';
+import { qvcSchedulingAvailable } from '../qvcSchedulingAvailable';
 import { QvcPanel } from './QvcPanel';
 import { VisaDecisionPanel } from './VisaDecisionPanel';
 
@@ -304,6 +305,8 @@ export function WorkflowPanel({ candidateId }: WorkflowPanelProps) {
               canTransition={canTransition}
               currentStageCode={state.currentStage?.code}
               isSubmitting={submit.mutation.isPending}
+              open={submit.pendingToStageCode === item.code}
+              onOpenChange={(open) => open ? submit.openConfirm(item.code) : submit.closeConfirm()}
               conflictMessage={conflictMessage}
               nonFieldError={nonFieldMutationError}
               onSubmit={submit.submitDirect}
@@ -322,6 +325,7 @@ export function WorkflowPanel({ candidateId }: WorkflowPanelProps) {
       ) : null}
 
       <QvcPanel
+        canSchedule={qvcSchedulingAvailable(state, transitions, qvcAttemptsQuery.data?.qvcAttempts ?? []) && qvcAttemptsQuery.isSuccess}
         canTransition={canTransition}
         attemptsQuery={qvcAttemptsQuery}
         actions={qvcActions}
