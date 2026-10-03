@@ -1,7 +1,10 @@
 import { ActivityIndicator, Pressable, StyleSheet, Text, type StyleProp, type TextStyle, type ViewStyle } from 'react-native';
-import type { ReactNode } from 'react';
+import { createContext, useContext, type ReactNode } from 'react';
 import { colors, fontWeights, minTouchTarget, radii, spacing } from './tokens';
 import { getFontFamily } from './fonts';
+
+// A screen can provide its compact button height without changing other screens.
+export const ButtonHeightContext = createContext<number | undefined>(undefined);
 
 export type ButtonVariant = 'primary' | 'secondary' | 'outline' | 'destructive' | 'text';
 export type ButtonSize = 'sm' | 'md' | 'lg';
@@ -37,7 +40,7 @@ const VARIANT_STYLES: Record<ButtonVariant, { background: string; text: string; 
   text: { background: 'transparent', text: colors.brand.default },
 };
 
-/** Primary/secondary/outline/destructive/text button. Height is never below the 44px minimum touch target. */
+/** Primary/secondary/outline/destructive/text button. Defaults to a minimum 44px height; screens can opt into compact sizing. */
 export function Button({
   children,
   onPress,
@@ -52,6 +55,7 @@ export function Button({
   labelStyle,
   language = 'en',
 }: ButtonProps) {
+  const screenButtonHeight = useContext(ButtonHeightContext);
   const isDisabled = disabled || loading;
   const sizeStyle = SIZES[size];
   const variantStyle = VARIANT_STYLES[variant];
@@ -65,7 +69,7 @@ export function Button({
       style={({ pressed }) => [
         styles.base,
         {
-          height: Math.max(sizeStyle.height, minTouchTarget),
+          height: screenButtonHeight ?? Math.max(sizeStyle.height, minTouchTarget),
           paddingHorizontal: sizeStyle.paddingHorizontal,
           backgroundColor: variantStyle.background,
           borderColor: variantStyle.border,
