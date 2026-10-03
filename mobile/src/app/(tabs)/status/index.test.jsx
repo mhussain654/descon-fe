@@ -199,10 +199,11 @@ function renderStatusScreen() {
 
 /** The timeline's own row for a stage name -- picks the first match, since the same stage name can legitimately also appear in the "Recent Updates" history section below the timeline. */
 function stageRow(labelText) {
-  // getByText returns the host Text node; its own `.parent` is Text's
-  // composite wrapper, so the JSX content-column View that also holds the
-  // sibling "In Progress" badge is one level further up.
-  return screen.getAllByText(labelText)[0].parent.parent;
+  // Stage name sits inside the heading row; its parent card also holds dates and downloads.
+  let node = screen.getAllByText(labelText)[0];
+  while (node && !node.props.testID?.startsWith("status-stage-")) node = node.parent;
+  if (!node) throw new Error(`Missing stage card: ${labelText}`);
+  return node;
 }
 
 describe("StatusScreen", () => {
@@ -251,6 +252,8 @@ describe("StatusScreen", () => {
     await screen.findByText("Documents Uploaded");
     expect(within(stageRow("Documents Uploaded")).getByText("In Progress")).toBeOnTheScreen();
     expect(within(stageRow("Verified")).queryByText("In Progress")).toBeNull();
+    expect(within(stageRow("Verified")).getByText("Pending")).toBeOnTheScreen();
+    expect(screen.queryByText("Upcoming")).toBeNull();
   });
 
   it("shows the started/completed date the backend reports for each stage", async () => {
