@@ -41,7 +41,11 @@ const styles = StyleSheet.create({
     gap: spacing[1.5],
     borderRadius: radii.full,
     paddingHorizontal: spacing[3],
-    paddingVertical: spacing[1.5],
+    paddingVertical: spacing[2],
+    minHeight: 44,
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: colors.border.default,
   },
   text: { fontSize: 14, fontWeight: fontWeights.medium },
 });
