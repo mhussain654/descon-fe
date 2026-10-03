@@ -74,3 +74,9 @@ Per user follow-up, the compact per-file View/Download buttons now use a 34-poin
 Documents screen buttons now inherit a screen-scoped 34-point height, including upload pickers, submit/cancel, retry, bank details, removal icons, and confirmation dialog actions. Mode selectors also use 34 points. Per-file View/Download actions override this to 30 points. Other screens retain their existing button sizing.
 
 Sizing validation: mobile typecheck, full Jest suite (131 suites passed, 1,273 tests passed, 24 skipped), and git diff check passed. Native visual QA remains pending.
+
+CNIC and next-of-kin CNIC upload copy now describes front/back sides only, with separate readable scan/photo guidance or one PDF containing both sides. Removed the repeated Upload/Replace heading and backend both-mode paragraph for these cards. Slots read Front side/Back side; incomplete-side validation also uses CNIC-specific copy. English and Urdu included.
+
+Passport uses the same concise structure without a repeated Upload/Replace heading. Its mode copy asks for separate readable scans/photos of the first two pages, or one PDF containing both pages, while retaining Page 1/Page 2 slots.
+
+Copy validation: mobile/web typechecks; mobile full suite 131 suites passed (1,273 passed, 24 skipped); web full suite 202 files/2,023 tests passed; web production build and git diff check passed.
