@@ -34,14 +34,14 @@ export function DocumentViewPanel({ files, isRequesting, error, onView, onDownlo
   return (
     <View style={styles.container}>
       <View style={styles.row}>
-        <Button variant="outline" size="sm" onPress={() => isMultiFile ? setFileAction('view') : onView(files[0]?.id)} disabled={isRequesting} language={language}>{t('candidateDocumentsViewAction')}</Button>
-        {onReplace ? <Button variant="outline" size="sm" onPress={onReplace} disabled={replacementDisabled || isRequesting} language={language}>{t('candidateDocumentsReplaceAction')}</Button> : null}
-        <Button variant="outline" size="sm" onPress={() => isMultiFile ? setFileAction('download') : onDownload(files[0]?.id)} disabled={isRequesting} language={language}>{t('candidateDocumentsDownloadAction')}</Button>
+        <Button variant="outline" size="sm" style={styles.viewButton} labelStyle={styles.viewLabel} onPress={() => isMultiFile ? setFileAction('view') : onView(files[0]?.id)} disabled={isRequesting} language={language}>{t('candidateDocumentsViewAction')}</Button>
+        {onReplace ? <Button variant="outline" size="sm" style={styles.replaceButton} labelStyle={styles.replaceLabel} onPress={onReplace} disabled={replacementDisabled || isRequesting} language={language}>{t('candidateDocumentsReplaceAction')}</Button> : null}
+        <Button variant="outline" size="sm" style={styles.downloadButton} labelStyle={styles.downloadLabel} onPress={() => isMultiFile ? setFileAction('download') : onDownload(files[0]?.id)} disabled={isRequesting} language={language}>{t('candidateDocumentsDownloadAction')}</Button>
       </View>
       {isMultiFile ? files.map(file => (
         <View key={file.id} style={styles.fileRow}>
           <Text style={[styles.fileName, { fontFamily: getFontFamily(language, 'medium') }]}>{fileLabel(file)}</Text>
-          {fileAction ? <Button variant="outline" size="sm" onPress={() => fileAction === 'view' ? onView(file.id) : onDownload(file.id)} disabled={isRequesting} language={language}>{`${t(fileAction === 'view' ? 'candidateDocumentsViewAction' : 'candidateDocumentsDownloadAction')} ${fileLabel(file)}`}</Button> : null}
+          {fileAction ? <Button variant="outline" size="sm" style={fileAction === 'view' ? styles.viewButton : styles.downloadButton} labelStyle={fileAction === 'view' ? styles.viewLabel : styles.downloadLabel} onPress={() => fileAction === 'view' ? onView(file.id) : onDownload(file.id)} disabled={isRequesting} language={language}>{t(fileAction === 'view' ? 'candidateDocumentsViewAction' : 'candidateDocumentsDownloadAction')}</Button> : null}
         </View>
       )) : null}
 
@@ -89,6 +89,12 @@ const styles = StyleSheet.create({
     padding: spacing[4],
   },
   row: { flexDirection: 'row', gap: spacing[2], flexWrap: 'wrap' },
+  viewButton: { backgroundColor: '#E7F1FF', borderColor: '#A8CCFF', borderRadius: 12 },
+  viewLabel: { color: '#0759B8' },
+  replaceButton: { backgroundColor: '#FFF3DF', borderColor: '#EFC789', borderRadius: 12 },
+  replaceLabel: { color: '#8F4B00' },
+  downloadButton: { backgroundColor: '#E6F8EE', borderColor: '#A1DCBD', borderRadius: 12 },
+  downloadLabel: { color: '#087443' },
   fileRow: { marginTop: spacing[3] },
   fileName: { fontSize: 14, color: colors.text.primary, marginBottom: spacing[1] },
   errorNotice: { marginTop: spacing[3] },
