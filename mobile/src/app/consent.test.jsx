@@ -1,3 +1,4 @@
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react-native";
 import { SafeAreaProvider } from "react-native-safe-area-context";
@@ -58,6 +59,7 @@ const { createTestQueryClient, trackRender, cleanup } = createQueryClientTestLif
 
 afterEach(async () => {
   await cleanup();
+  await AsyncStorage.clear();
   jest.mocked(candidateConsentClient.accept).mockReset();
   mockReplace.mockReset();
 });
@@ -84,6 +86,10 @@ describe("ConsentScreen", () => {
     renderConsentScreen();
 
     expect(await screen.findByText("I Agree & Continue")).toBeOnTheScreen();
+    expect(screen.getByRole("button", { name: "I Agree & Continue" })).toBeDisabled();
+    fireEvent.press(screen.getByRole("button", { name: "I Agree & Continue" }));
+    expect(candidateConsentClient.accept).not.toHaveBeenCalled();
+    expect(screen.getByText(/Where necessary, the information may be shared/)).toBeOnTheScreen();
   });
 
   it("records acceptance and navigates to the dashboard on success", async () => {
@@ -94,6 +100,7 @@ describe("ConsentScreen", () => {
     });
     renderConsentScreen();
 
+    fireEvent.press(await screen.findByRole("checkbox"));
     fireEvent.press(await screen.findByText("I Agree & Continue"));
 
     await waitFor(() => expect(mockReplace).toHaveBeenCalledWith("/(tabs)/dashboard"));
@@ -104,10 +111,36 @@ describe("ConsentScreen", () => {
     candidateConsentClient.accept.mockRejectedValue({ code: "SERVER_ERROR" });
     renderConsentScreen();
 
+    fireEvent.press(await screen.findByRole("checkbox"));
     fireEvent.press(await screen.findByText("I Agree & Continue"));
 
     expect(await screen.findByText("We could not record your consent. Please try again.")).toBeOnTheScreen();
     expect(mockReplace).not.toHaveBeenCalled();
+  });
+
+  it("switches the complete statement to Urdu and preserves checkbox selection", async () => {
+    renderConsentScreen();
+    fireEvent.press(await screen.findByRole("checkbox"));
+    fireEvent.press(screen.getByRole("button", { name: "Switch to Urdu" }));
+    expect(await screen.findByText("آپ کی معلومات اور دستاویزات")).toBeOnTheScreen();
+    expect(screen.getByRole("checkbox")).toBeChecked();
+    expect(screen.getByRole("button", { name: "Switch to English" })).toBeOnTheScreen();
+    fireEvent.press(screen.getByRole("button", { name: "Switch to English" }));
+    await screen.findByText("Your information & documents");
+  });
+
+  it("blocks repeated acceptance and logout while the request is pending", async () => {
+    let resolveAcceptance;
+    candidateConsentClient.accept.mockImplementation(() => new Promise(resolve => { resolveAcceptance = resolve; }));
+    renderConsentScreen();
+    fireEvent.press(await screen.findByRole("checkbox"));
+    fireEvent.press(screen.getByRole("button", { name: "I Agree & Continue" }));
+    await waitFor(() => expect(screen.getByRole("checkbox")).toBeDisabled());
+    expect(screen.getByRole("button", { name: "Logout" })).toBeDisabled();
+    fireEvent.press(screen.getByRole("button", { name: "I Agree & Continue" }));
+    expect(candidateConsentClient.accept).toHaveBeenCalledTimes(1);
+    resolveAcceptance({ currentPolicyVersion: "2026-09-06", accepted: true, acceptedAt: "2026-09-06T12:00:00Z" });
+    await waitFor(() => expect(mockReplace).toHaveBeenCalledWith("/(tabs)/dashboard"));
   });
 
   it("logs the candidate out when they decline", async () => {
