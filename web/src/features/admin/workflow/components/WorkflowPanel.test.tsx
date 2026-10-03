@@ -176,6 +176,9 @@ function protectedReadyToFlyTransition(overrides: Record<string, unknown> = {}) 
 function visaTransition(overrides: Record<string, unknown> = {}) {
   return {
     code: "visa_issued_or_rejected",
+    actionType: "visa_decision",
+    required: true,
+    fields: [],
     name: "Visa Issued or Rejected",
     position: 11,
     requiredFields: ["visa_outcome_code", "visa_outcome_date"],
@@ -188,6 +191,9 @@ function visaTransition(overrides: Record<string, unknown> = {}) {
 function flightTransition(overrides: Record<string, unknown> = {}) {
   return {
     code: "flight_details_uploaded",
+    actionType: "flight_details",
+    required: true,
+    fields: [],
     name: "Flight Details Uploaded",
     position: 14,
     requiredFields: ["airline", "flight_reference", "sector", "flight_date"],
@@ -200,6 +206,9 @@ function flightTransition(overrides: Record<string, unknown> = {}) {
 function mobilizeTransition(overrides: Record<string, unknown> = {}) {
   return {
     code: "mobilized",
+    actionType: "mobilization",
+    required: true,
+    fields: [],
     name: "Mobilized",
     position: 15,
     requiredFields: ["mobilized_on"],
@@ -288,12 +297,14 @@ describe("WorkflowPanel", () => {
   // need to set this up themselves; panel-focused tests below override with
   // their own mock.
   beforeEach(() => {
+    vi.stubEnv("VITE_API_BASE_URL", "http://localhost:3000/api/v1");
     adminWorkflowClient.getQvcAttempts.mockResolvedValue(qvcAttempts());
     adminWorkflowClient.getVisaDecisions.mockResolvedValue(visaDecisions());
     adminWorkflowClient.getFlightDetail.mockResolvedValue(flightDetailShow());
   });
 
   afterEach(() => {
+    vi.unstubAllEnvs();
     vi.mocked(adminWorkflowClient.getWorkflowState).mockReset();
     vi.mocked(adminWorkflowClient.getAllowedTransitions).mockReset();
     vi.mocked(adminWorkflowClient.getWorkflowHistory).mockReset();
