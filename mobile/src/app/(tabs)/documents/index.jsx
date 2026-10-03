@@ -33,6 +33,8 @@ import { DocumentsHeader, DocumentsSummary, DocumentCardHeading, documentsStyles
 import { physicalTextAlign, rowDirectionTowards } from "../../../lib/layoutDirection";
 import { PCC_COMPLIANCE_STATUS_KEYS } from "../../../../../shared/candidateDocuments/statusLabels";
 
+import { ButtonHeightContext } from "../../../design-system/Button";
+
 const STATUS_CONFIG = {
   verified: { color: "#087C46", labelKey: "verified" },
   pending_review: { color: "#9A5700", labelKey: "candidateDocumentsStatusPendingReview" },
@@ -202,6 +204,7 @@ export default function DocumentsScreen() {
   };
 
   return (
+    <ButtonHeightContext.Provider value={34}>
     <View style={documentsStyles.screen}>
       <StatusBar style="light" />
       <DocumentsHeader topInset={insets.top} language={language} t={t} />
@@ -242,6 +245,7 @@ export default function DocumentsScreen() {
         ) : null}
       </ConfirmDialog>
     </View>
+    </ButtonHeightContext.Provider>
   );
 }
 
