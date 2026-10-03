@@ -5,8 +5,7 @@ import type { CandidateDocumentChecklistItem } from '../../../../../../shared/ca
 import type { Language, TranslationKey } from '../../../../../../shared/i18n/translations';
 import { getFontFamily } from '../../../../design-system';
 import { elevation, spacing } from '../../../../design-system/tokens';
-import { isStartSide, physicalTextAlign, rowDirectionTowards } from '../../../../lib/layoutDirection';
-import { BrandHeader } from '../../../onboarding/BrandHeader';
+import { physicalTextAlign, rowDirectionTowards } from '../../../../lib/layoutDirection';
 import { GradientIconBox, type IconTone } from '../../home/GradientIconBox';
 
 type LocaleProps = { language: Language; t: (key: TranslationKey) => string };
@@ -24,7 +23,6 @@ export function DocumentsHeader({ language, t, topInset }: LocaleProps & { topIn
         <Rect width="100%" height="100%" fill="url(#documentsHero)" />
         <Circle cx="95%" cy="85%" r="84" stroke="#FFFFFF" strokeOpacity={0.1} strokeWidth={24} fill="none" />
       </Svg>
-      <BrandHeader language={language} primary={t('brandNamePrimary')} secondary={t('brandNameSecondary')} tileAtRowStart={isStartSide(rtl ? 'right' : 'left')} />
       <View style={[documentsStyles.heroCopy, { flexDirection: rowDirectionTowards(rtl ? 'right' : 'left') }]}>
         <View style={documentsStyles.flexCopy}>
           <Text accessibilityRole="header" style={[documentsStyles.heroTitle, copyStyle(language), { fontFamily: getFontFamily(language, 'bold') }, rtl && documentsStyles.heroTitleUrdu]}>{t('documents')}</Text>
@@ -83,7 +81,7 @@ export function DocumentCardHeading({ item, statusLine, statusColor, language, t
 export const documentsStyles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: '#F0F7FF' },
   hero: { paddingHorizontal: spacing[5], paddingBottom: spacing[8], overflow: 'hidden', backgroundColor: '#0873DF' },
-  heroCopy: { alignItems: 'center', gap: spacing[3], marginTop: spacing[4] },
+  heroCopy: { alignItems: 'center', gap: spacing[3], marginTop: 0 },
   heroTitle: { fontSize: 25, lineHeight: 32, color: '#FFFFFF' },
   heroTitleUrdu: { lineHeight: 44 },
   heroSubtitle: { fontSize: 13, lineHeight: 21, color: '#E5F4FF', marginTop: spacing[1] },

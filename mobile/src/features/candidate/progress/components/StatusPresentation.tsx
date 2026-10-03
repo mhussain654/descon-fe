@@ -8,7 +8,6 @@ import { formatNumber } from '../../../../../../shared/i18n/locale';
 import { getFontFamily } from '../../../../design-system';
 import { elevation, spacing } from '../../../../design-system/tokens';
 import { isStartSide, physicalTextAlign, rowDirectionTowards } from '../../../../lib/layoutDirection';
-import { BrandHeader } from '../../../onboarding/BrandHeader';
 import { GradientIconBox } from '../../home/GradientIconBox';
 
 type LocaleProps = { language: Language; t: (key: TranslationKey) => string };
@@ -25,7 +24,6 @@ export function StatusHeader({ language, t, topInset }: LocaleProps & { topInset
         <Rect width="100%" height="100%" fill="url(#statusHero)" />
         <Circle cx="96%" cy="90%" r="78" stroke="#FFFFFF" strokeOpacity={0.12} strokeWidth={22} fill="none" />
       </Svg>
-      <BrandHeader language={language} primary={t('brandNamePrimary')} secondary={t('brandNameSecondary')} tileAtRowStart={isStartSide(rtl ? 'right' : 'left')} />
       <View style={[statusStyles.heroRow, { flexDirection: rowDirectionTowards(rtl ? 'right' : 'left') }]}>
         <View style={statusStyles.flex}>
           <Text accessibilityRole="header" style={[statusStyles.title, statusCopyStyle(language), { fontFamily: getFontFamily(language, 'bold') }]}>{t('status')}</Text>
@@ -88,7 +86,7 @@ export function StatusStageCard({ stage, isLast, dateLabel, language, t, childre
 export const statusStyles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: '#F0F7FF' },
   hero: { paddingHorizontal: spacing[5], paddingBottom: spacing[8], overflow: 'hidden', backgroundColor: '#0873DF' },
-  heroRow: { alignItems: 'center', gap: spacing[3], marginTop: spacing[4] },
+  heroRow: { alignItems: 'center', gap: spacing[3], marginTop: 0 },
   flex: { flex: 1, minWidth: 0 },
   title: { fontSize: 25, lineHeight: 34, color: '#FFFFFF' },
   subtitle: { fontSize: 13, lineHeight: 21, color: '#E5F4FF', marginTop: spacing[1] },
@@ -123,7 +121,7 @@ export const statusStyles = StyleSheet.create({
   outcomeText: { fontSize: 12, lineHeight: 20 },
   downloadTextUrdu: { fontSize: 10, lineHeight: 26 },
   downloadText: { fontSize: 12, color: '#087443' },
-  history: { marginTop: spacing[4], backgroundColor: '#FFFFFF', borderRadius: 20, padding: spacing[4], borderWidth: 1, borderColor: '#DFEAF8' },
+  history: { marginTop: 0, backgroundColor: '#FFFFFF', borderRadius: 20, padding: spacing[4], borderWidth: 1, borderColor: '#DFEAF8' },
   historyRow: { gap: spacing[2], borderTopWidth: 1, borderTopColor: '#EDF2FA', paddingVertical: spacing[3], alignItems: 'flex-start' },
   historyName: { flex: 1, minWidth: 0, fontSize: 13, color: '#172B4D' },
   historyDate: { fontSize: 11, color: '#687A95', maxWidth: '40%' },

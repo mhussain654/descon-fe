@@ -83,6 +83,7 @@ export function ProfilePhotoEditor({ language, t, fullName, photoUri }: ProfileP
           }}
           accessibilityRole="button"
           hitSlop={8}
+          style={styles.photoAction}
         >
           <Text style={[styles.link, font('semibold')]}>{photoUri ? t('profilePhotoChange') : t('profilePhotoAdd')}</Text>
         </Pressable>
@@ -97,14 +98,16 @@ export function ProfilePhotoEditor({ language, t, fullName, photoUri }: ProfileP
   );
 }
 
-const AVATAR_SIZE = 88;
+const AVATAR_SIZE = 72;
 
 const styles = StyleSheet.create({
-  container: { alignItems: 'center', gap: spacing[2], marginBottom: spacing[3] },
+  container: { width: '100%', alignItems: 'center', gap: spacing[2], marginBottom: spacing[3] },
   avatar: {
     width: AVATAR_SIZE,
     height: AVATAR_SIZE,
     borderRadius: AVATAR_SIZE / 2,
+    borderWidth: 3,
+    borderColor: '#BFDDFB',
     backgroundColor: colors.brand.default,
     alignItems: 'center',
     justifyContent: 'center',
@@ -114,6 +117,7 @@ const styles = StyleSheet.create({
   initial: { fontSize: 34, fontWeight: '700', color: colors.text.inverse, fontFamily: getFontFamily('en', 'semibold') },
   savingOverlay: { ...StyleSheet.absoluteFillObject, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(0,0,0,0.35)' },
   status: { fontSize: 13, color: colors.text.secondary },
-  link: { fontSize: 14, color: colors.brand.default },
+  photoAction: { minHeight: 34, paddingHorizontal: spacing[3], borderRadius: 10, backgroundColor: '#E7F1FF', borderWidth: 1, borderColor: '#A8CCFF', justifyContent: 'center' },
+  link: { fontSize: 12, color: '#0759B8' },
   options: { alignSelf: 'stretch', gap: spacing[2] },
 });
