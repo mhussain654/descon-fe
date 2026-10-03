@@ -1143,6 +1143,20 @@ describe("DocumentsScreen", () => {
       await waitFor(() => expect(mockReplace).toHaveBeenCalledWith("/login"));
     });
   });
+  it("shows every common requirement alongside country-specific documents, in backend order", async () => {
+    const names = ["Passport", "CNIC", "Photograph", "Next of kin CNIC", "CV", "Educational certificates", "Experience certificates", "Cheque copy", "Country medical report"];
+    const codes = ["passport", "cnic", "photograph", "next_of_kin_cnic", "cv", "educational_certificates", "experience_certificates", "cheque_copy", "gamca_medical_report"];
+    candidateDocumentsClient.getChecklist.mockResolvedValue(names.map((name, index) => item({ name, requirementCode: codes[index], displayPosition: index + 1, required: index !== 5 })));
+    applicationProgressClient.getProgress.mockResolvedValue(progress());
+    renderDocumentsScreen();
+
+    await screen.findByText("Country medical report");
+    names.forEach(name => expect(screen.getByText(name)).toBeOnTheScreen());
+    expect(screen.getAllByRole("button", { name: "Upload" })).toHaveLength(9);
+    fireEvent.press(screen.getAllByRole("button", { name: "Upload" })[5]);
+    expect(screen.getByRole("button", { name: "Choose file" })).toBeOnTheScreen();
+  });
+
   describe("backend-driven multi-file documents", () => {
     const CNIC_RULES = {
       ...SINGLE_FILE_RULES,
