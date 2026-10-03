@@ -107,9 +107,9 @@ describe("AiCallOperationalSettingsPage", () => {
     const client = await signInAs(ADMIN);
 
     renderPage(client);
-    await screen.findByText("AI call settings");
+    const dailyLimitField = await screen.findByLabelText("Daily outbound call limit");
 
-    fireEvent.change(screen.getByLabelText("Daily outbound call limit"), { target: { value: "50" } });
+    fireEvent.change(dailyLimitField, { target: { value: "50" } });
     fireEvent.click(screen.getByRole("button", { name: "Save" }));
 
     await waitFor(() =>
