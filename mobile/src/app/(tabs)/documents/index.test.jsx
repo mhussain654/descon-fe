@@ -407,7 +407,7 @@ describe("DocumentsScreen", () => {
     process.env.EXPO_PUBLIC_API_BASE_URL = originalApiBaseUrl;
   });
 
-  it("shows both Replace and View/Download actions directly, with no expand step, for a rejected document that still has an attached file", async () => {
+  it("reveals view/download and replacement only after expanding a rejected card", async () => {
     candidateDocumentsClient.getChecklist.mockResolvedValue([
       item({ status: "rejected", document: uploadedDocument({ rejectionReason: "Photo is blurry." }), replacementAllowed: true }),
     ]);
@@ -415,7 +415,11 @@ describe("DocumentsScreen", () => {
     renderDocumentsScreen();
 
     await screen.findByText("Passport");
-    expect(screen.getByRole("button", { name: "Replace" })).toBeOnTheScreen();
+    expect(screen.queryByText("Replace")).toBeNull();
+    expect(screen.queryByRole("button", { name: "View" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Download" })).toBeNull();
+    fireEvent.press(screen.getByRole("button", { name: "Replace" }));
+    expect(screen.getByRole("button", { name: "Replace" }).props.accessibilityState.expanded).toBe(true);
     expect(screen.getByRole("button", { name: "View" })).toBeOnTheScreen();
     expect(screen.getByRole("button", { name: "Download" })).toBeOnTheScreen();
   });
@@ -1151,10 +1155,61 @@ describe("DocumentsScreen", () => {
     renderDocumentsScreen();
 
     await screen.findByText("Country medical report");
-    names.forEach(name => expect(screen.getByText(name)).toBeOnTheScreen());
+    names.forEach(name => expect(screen.getByText(name === "Photograph" ? "Photo" : name)).toBeOnTheScreen());
     expect(screen.getAllByRole("button", { name: "Upload" })).toHaveLength(9);
     fireEvent.press(screen.getAllByRole("button", { name: "Upload" })[5]);
     expect(screen.getByRole("button", { name: "Choose file" })).toBeOnTheScreen();
+  });
+
+  describe("passport upload modes", () => {
+    const passport = () => item({ uploadRules: { ...SINGLE_FILE_RULES, maximumFiles: 2, combinedPdfAllowed: true, allowedSideCodes: ["combined", "page_1", "page_2"] } });
+
+    it("switches from a single PDF to two separate page files and uploads both labels", async () => {
+      candidateDocumentsClient.getChecklist.mockResolvedValue([passport()]);
+      applicationProgressClient.getProgress.mockResolvedValue(progress());
+      candidateDocumentsClient.uploadDocument.mockResolvedValue(item({ status: "uploaded", document: uploadedDocument() }));
+      renderDocumentsScreen();
+      fireEvent.press(await screen.findByRole("button", { name: "Upload" }));
+      expect(screen.getByText("Combined PDF")).toBeOnTheScreen();
+      fireEvent.press(screen.getByRole("button", { name: "Separate photos" }));
+      expect(screen.getByText("Page 1")).toBeOnTheScreen();
+      expect(screen.getByText("Page 2")).toBeOnTheScreen();
+      expect(screen.queryByText("Combined PDF")).toBeNull();
+      DocumentPicker.getDocumentAsync.mockResolvedValueOnce({ canceled: false, assets: [pdfAsset("page1.pdf")] });
+      fireEvent.press(screen.getAllByRole("button", { name: "Choose file" })[0]);
+      await screen.findByText(/Selected file: page1\.pdf/);
+      // Tapping the selected mode must not discard a selected page.
+      fireEvent.press(screen.getByRole("button", { name: "Separate photos" }));
+      expect(screen.getByText(/Selected file: page1\.pdf/)).toBeOnTheScreen();
+      DocumentPicker.getDocumentAsync.mockResolvedValueOnce({ canceled: false, assets: [imagePickerAsset({ name: "page2.jpg", uri: "file:///tmp/page2.jpg", size: 2048, mimeType: "image/jpeg" })] });
+      fireEvent.press(screen.getAllByRole("button", { name: "Choose file" })[0]);
+      await screen.findByText(/Selected file: page2\.jpg/);
+      const appendSpy = jest.spyOn(FormData.prototype, "append");
+      await act(async () => { fireEvent.press(screen.getByRole("button", { name: "Submit" })); });
+      await waitFor(() => expect(candidateDocumentsClient.uploadDocument).toHaveBeenCalledTimes(1));
+      expect(appendSpy.mock.calls.filter(([key]) => key === "candidate_document[files][][side_code]").map(([, value]) => value)).toEqual(["page_1", "page_2"]);
+      appendSpy.mockRestore();
+    });
+
+    it("switches back to one scanned PDF and submits it as combined", async () => {
+      candidateDocumentsClient.getChecklist.mockResolvedValue([passport()]);
+      applicationProgressClient.getProgress.mockResolvedValue(progress());
+      candidateDocumentsClient.uploadDocument.mockResolvedValue(item({ status: "uploaded", document: uploadedDocument() }));
+      renderDocumentsScreen();
+      fireEvent.press(await screen.findByRole("button", { name: "Upload" }));
+      fireEvent.press(screen.getByRole("button", { name: "Separate photos" }));
+      fireEvent.press(screen.getByRole("button", { name: "One PDF with every page" }));
+      expect(screen.queryByText("Page 1")).toBeNull();
+      expect(screen.getAllByRole("button", { name: "Choose file" })).toHaveLength(1);
+      DocumentPicker.getDocumentAsync.mockResolvedValueOnce({ canceled: false, assets: [pdfAsset("passport-scan.pdf")] });
+      fireEvent.press(screen.getByRole("button", { name: "Choose file" }));
+      await screen.findByText(/Selected file: passport-scan\.pdf/);
+      const appendSpy = jest.spyOn(FormData.prototype, "append");
+      await act(async () => { fireEvent.press(screen.getByRole("button", { name: "Submit" })); });
+      await waitFor(() => expect(candidateDocumentsClient.uploadDocument).toHaveBeenCalledTimes(1));
+      expect(appendSpy.mock.calls.filter(([key]) => key === "candidate_document[files][][side_code]").map(([, value]) => value)).toEqual(["combined"]);
+      appendSpy.mockRestore();
+    });
   });
 
   describe("backend-driven multi-file documents", () => {

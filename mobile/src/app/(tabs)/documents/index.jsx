@@ -3,7 +3,7 @@ import { View, Text, ScrollView, RefreshControl, Pressable } from "react-native"
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
 import { useRouter } from "expo-router";
-import { ChevronRight, ChevronLeft, Eye, Download } from "lucide-react-native";
+import { ChevronRight, ChevronLeft, ChevronDown } from "lucide-react-native";
 import { useAuth } from "../../../contexts/AuthContext";
 import { useLanguage } from "../../../contexts/LanguageContext";
 import { useRefetchOnFocus } from "../../../hooks/useRefetchOnFocus";
@@ -28,7 +28,6 @@ import {
   getFontFamily,
 } from "../../../design-system";
 import { CANDIDATE_DOCUMENTS_ERROR_KEYS } from "../../../../../shared/candidateDocuments/errorMessages";
-import { DOCUMENT_ACCESS_ERROR_KEYS } from "../../../../../shared/candidateDocuments/documentAccessErrorMessages";
 import { APPLICATION_PROGRESS_ERROR_KEYS } from "../../../../../shared/applicationProgress/errorMessages";
 import { DocumentsHeader, DocumentsSummary, DocumentCardHeading, documentsStyles } from "../../../features/candidate/documents/components/DocumentsPresentation";
 import { physicalTextAlign, rowDirectionTowards } from "../../../lib/layoutDirection";
@@ -263,16 +262,8 @@ function DocumentRow({
   const canReplace = item.document !== null && item.replacementAllowed;
   const hasAction = canUpload || canReplace;
   const canView = item.document !== null;
-  // A document can be both replaceable and viewable at once (e.g. a
-  // rejected document the candidate may still want to look at before
-  // replacing it) -- the row's main tap target stays reserved for
-  // Upload/Replace in that case, and View/Download is reached via the
-  // small icon pair below instead of the full-row expand.
   const isViewOnly = canView && !hasAction;
   const files = item.document?.files ?? [];
-  // A multi-file document lists every file with its own actions (see
-  // DocumentViewPanel) instead of the single quick View/Download pair.
-  const isMultiFile = files.length > 1;
   const complianceStatus = item.document?.complianceStatus;
 
   const isRequestingThisRow = documentAccess.isRequesting && documentAccess.targetDocumentId === item.document?.id;
@@ -311,20 +302,15 @@ function DocumentRow({
     documentAccess.downloadDocument(item.document.id, fileId);
   };
 
-  // For a view-only row, the row itself is just the expand/collapse toggle
-  // (the actual View/Download actions live in the panel it reveals) -- its
-  // accessible name is the document's own name, not "View"/"Download",
-  // so it never collides with the buttons inside the panel it expands.
+  // Keep action names for assistive technology; collapsed cards show status only.
   const actionLabel = isViewOnly
     ? item.name
     : t(canUpload ? "candidateDocumentsUploadAction" : "candidateDocumentsReplaceAction");
-  const viewLabel = t("candidateDocumentsViewAction");
-  const downloadLabel = t("candidateDocumentsDownloadAction");
   const Chevron = language === "ur" ? ChevronLeft : ChevronRight;
   const rowIsExpandable = hasAction || isViewOnly;
   const rowIsExpanded = isViewOnly ? isViewOpen : isActive;
 
-  const mainContent = <DocumentCardHeading item={item} statusLine={statusLine} statusColor={config.color} language={language} />;
+  const mainContent = <DocumentCardHeading item={item} statusLine={statusLine} statusColor={config.color} language={language} t={t} />;
 
   return (
     <View
@@ -338,69 +324,20 @@ function DocumentRow({
             disabled={!isViewOnly && isAnyUploadPending && !isActive}
             accessibilityRole="button"
             accessibilityLabel={actionLabel}
+            accessibilityState={{ expanded: rowIsExpanded }}
           >
-            {mainContent}
-            {hasAction ? <Text style={[documentsStyles.actionHint, { fontFamily: getFontFamily(language, "medium"), textAlign: physicalTextAlign(language === "ur" ? "right" : "left") }, language === "ur" && documentsStyles.urduBody]}>{actionLabel}</Text> : null}
+            <View style={[documentsStyles.cardRow, { flexDirection: rowDirectionTowards(language === "ur" ? "right" : "left") }]} >
+              <View style={{ flex: 1 }}>{mainContent}</View>
+              {rowIsExpanded ? <ChevronDown size={20} color="#6B7280" /> : <Chevron size={20} color="#9CA3AF" />}
+            </View>
           </Pressable>
         ) : (
           <View style={{ flex: 1 }}>{mainContent}</View>
         )}
 
-        {/* Quick icon pair, only for the rare case a document is both
-            replaceable and viewable -- the row's tap target above is
-            already claimed by Replace, so View/Download need their own
-            small affordance here instead of the expand panel below. */}
-        {canView && hasAction && !isMultiFile ? (
-          <>
-            <Pressable
-              onPress={() => handleQuickView()}
-              disabled={isRequestingThisRow}
-              accessibilityRole="button"
-              accessibilityLabel={viewLabel}
-              style={documentsStyles.quickAction}
-            >
-              <Eye size={20} color={isRequestingThisRow ? (isDark ? "#4B5563" : "#D1D5DB") : "#0066CC"} />
-            </Pressable>
-            <Pressable
-              onPress={() => handleQuickDownload()}
-              disabled={isRequestingThisRow}
-              accessibilityRole="button"
-              accessibilityLabel={downloadLabel}
-              style={documentsStyles.quickAction}
-            >
-              <Download size={20} color={isRequestingThisRow ? (isDark ? "#4B5563" : "#D1D5DB") : "#0066CC"} />
-            </Pressable>
-          </>
-        ) : null}
-
-        {rowIsExpandable ? <Chevron size={20} color={isDark ? "#6B7280" : "#9CA3AF"} /> : null}
       </View>
 
-      {/* The quick-icon dual-action row (replaceable AND viewable) has no
-          expand panel to show its own error inside, so it surfaces here
-          directly under the row. The view-only expand panel below owns its
-          own error display instead, mirroring how DocumentUploadPanel shows
-          its upload error inline. */}
-      {/* A replaceable multi-file document still lists its files for viewing. */}
-      {canView && hasAction && isMultiFile && !rowIsExpanded ? (
-        <DocumentViewPanel
-          files={files}
-          isRequesting={isRequestingThisRow}
-          error={rowAccessError}
-          onView={handleQuickView}
-          onDownload={handleQuickDownload}
-          t={t}
-          language={language}
-        />
-      ) : null}
-
-      {rowAccessError && !isViewOnly && !isMultiFile ? (
-        <ValidationMessage tone="error" language={language}>
-          {rowAccessError.message ?? t(DOCUMENT_ACCESS_ERROR_KEYS[rowAccessError.code])}
-        </ValidationMessage>
-      ) : null}
-
-      {rowIsExpanded && isViewOnly ? (
+      {rowIsExpanded && canView ? (
         <DocumentViewPanel
           files={files}
           isRequesting={isRequestingThisRow}
