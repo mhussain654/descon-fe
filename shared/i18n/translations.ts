@@ -978,6 +978,9 @@ export const translations = {
 
     // Candidate documents
     candidateDocumentsOnePdf: 'One PDF',
+    candidateDocumentsPassportPdfGuidance: 'Upload the first two pages of your passport as one scanned PDF.',
+    candidateDocumentsPassportPartsGuidance: 'Upload the first two pages of your passport separately in the Page 1 and Page 2 slots below.',
+    candidateDocumentsAcceptedFilesHint: '%{types}, up to %{size} per file.',
     candidateDocumentsCombinedGuidance: 'Upload one scanned PDF containing both pages or sides.',
     candidateDocumentsPartsGuidance: 'Upload each page or side separately in the two slots below.',
     candidateDocumentsPhotoName: 'Photo',
@@ -2585,6 +2588,9 @@ export const translations = {
 
     // Candidate documents
     candidateDocumentsOnePdf: 'ایک پی ڈی ایف',
+    candidateDocumentsPassportPdfGuidance: 'اپنے پاسپورٹ کے پہلے دو صفحات ایک اسکین شدہ پی ڈی ایف میں اپ لوڈ کریں۔',
+    candidateDocumentsPassportPartsGuidance: 'اپنے پاسپورٹ کے پہلے دو صفحات نیچے صفحہ ۱ اور صفحہ ۲ کے خانوں میں الگ الگ اپ لوڈ کریں۔',
+    candidateDocumentsAcceptedFilesHint: '%{types}، ہر فائل زیادہ سے زیادہ %{size}۔',
     candidateDocumentsCombinedGuidance: 'دونوں صفحات یا اطراف پر مشتمل ایک اسکین شدہ پی ڈی ایف اپ لوڈ کریں۔',
     candidateDocumentsPartsGuidance: 'ہر صفحہ یا طرف نیچے دیے گئے دو خانوں میں الگ اپ لوڈ کریں۔',
     candidateDocumentsPhotoName: 'تصویر',
