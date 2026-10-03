@@ -977,6 +977,9 @@ export const translations = {
     candidateProfileInactiveAccountAction: 'Return to sign in',
 
     // Candidate documents
+    candidateDocumentsOnePdf: 'One PDF',
+    candidateDocumentsCombinedGuidance: 'Upload one scanned PDF containing both pages or sides.',
+    candidateDocumentsPartsGuidance: 'Upload each page or side separately in the two slots below.',
     candidateDocumentsPhotoName: 'Photo',
     candidateDocumentsChecklistTitle: 'Your document checklist',
     candidateDocumentsSubtitle: 'Upload the documents required for your application.',
@@ -2581,6 +2584,9 @@ export const translations = {
     candidateProfileInactiveAccountAction: 'سائن ان پر واپس جائیں',
 
     // Candidate documents
+    candidateDocumentsOnePdf: 'ایک پی ڈی ایف',
+    candidateDocumentsCombinedGuidance: 'دونوں صفحات یا اطراف پر مشتمل ایک اسکین شدہ پی ڈی ایف اپ لوڈ کریں۔',
+    candidateDocumentsPartsGuidance: 'ہر صفحہ یا طرف نیچے دیے گئے دو خانوں میں الگ اپ لوڈ کریں۔',
     candidateDocumentsPhotoName: 'تصویر',
     candidateDocumentsChecklistTitle: 'آپ کی دستاویزات کی فہرست',
     candidateDocumentsSubtitle: 'اپنی درخواست کے لیے مطلوبہ دستاویزات اپ لوڈ کریں۔',
