@@ -183,11 +183,13 @@ describe("StatusPage", () => {
   // about the flight ticket) don't each need their own mock, matching
   // documents/page.test.jsx's identical established convention.
   beforeEach(() => {
+    vi.stubEnv("VITE_API_BASE_URL", "http://localhost:3000/api/v1");
     candidateFlightDetailClient.getFlightDetail.mockResolvedValue(null);
     candidateVisaDecisionsClient.listVisaDecisions.mockResolvedValue([]);
   });
 
   afterEach(() => {
+    vi.unstubAllEnvs();
     vi.mocked(applicationProgressClient.getProgress).mockReset();
     vi.mocked(candidateWorkflowClient.getWorkflowHistory).mockReset();
     vi.mocked(candidateFlightDetailClient.getFlightDetail).mockReset();
