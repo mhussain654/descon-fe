@@ -8,8 +8,9 @@
 	"scripts": {
 		"dev": "react-router dev",
 		"build": "react-router build",
-		"typecheck": "react-router typegen && tsc --noEmit",
-		"test": "vitest run"
+		"typecheck": "react-router typegen && tsc --noEmit && npm run typecheck:admin-workspace",
+		"test": "vitest run",
+		"typecheck:admin-workspace": "tsc --noEmit -p tsconfig.admin-workspace.json"
 	},
 	"dependencies": {
 		"@chakra-ui/react": "2.8.2",

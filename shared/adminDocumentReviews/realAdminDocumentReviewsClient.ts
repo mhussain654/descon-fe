@@ -325,6 +325,7 @@ function toReviewDecisionResult(raw: unknown): ReviewDecisionResult {
     document: document ?? {
       id: '',
       requirementCode: '',
+      files: [],
       required: false,
       name: '',
       fileName: '',

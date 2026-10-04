@@ -1,0 +1,9 @@
+{
+  "extends": "./tsconfig.json",
+  "include": [
+    "src/features/admin/candidates/components/CandidateWorkspace.tsx",
+    "src/features/admin/payments/components/FeeSettingsCard.tsx",
+    "src/lib/admin-fees-client.ts",
+    "src/global.d.ts"
+  ]
+}

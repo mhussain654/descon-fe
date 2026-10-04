@@ -66,7 +66,7 @@ describe("CandidateAiCallsCard", () => {
 
     renderCard(client);
 
-    expect(await screen.findByText("AI voice calls")).toBeInTheDocument();
+    expect(await screen.findByText("Calls")).toBeInTheDocument();
     const list = within(screen.getByRole("list"));
     expect(list.getByText("Missing documents")).toBeInTheDocument();
     expect(list.getByText("Completed")).toBeInTheDocument();

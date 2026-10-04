@@ -1,3 +1,4 @@
+import { FeeSettingsCard } from "../../../../features/admin/payments/components/FeeSettingsCard";
 import { StaffShell } from "../../../components/staff-shell";
 import { PaymentTransactionList } from "../../../../features/admin/payments/components/PaymentTransactionList";
 
@@ -11,6 +12,7 @@ import { PaymentTransactionList } from "../../../../features/admin/payments/comp
 export default function AdminFinancePaymentsPage() {
   return (
     <StaffShell>
+      <div className="mx-auto max-w-6xl px-4 pt-6 sm:px-6"><FeeSettingsCard /></div>
       <PaymentTransactionList />
     </StaffShell>
   );

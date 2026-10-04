@@ -1,3 +1,4 @@
+import type { TranslationKey } from '../../../../../../shared/i18n/translations';
 import { Link } from 'react-router';
 import { useLanguage } from '../../../../contexts/LanguageContext';
 import { Badge, Card, RetryBanner } from '../../../../design-system';
@@ -55,7 +56,7 @@ export function CandidateDocumentsSummaryCard({ candidateId }: CandidateDocument
 
       {latest ? (
         <div className="flex flex-wrap items-center gap-3">
-          <Badge tone={REVIEW_STATE_TONES[latest.review.reviewState]}>{t(REVIEW_STATE_KEYS[latest.review.reviewState])}</Badge>
+          <Badge tone={REVIEW_STATE_TONES[latest.review.reviewState]}>{t(REVIEW_STATE_KEYS[latest.review.reviewState] as TranslationKey)}</Badge>
           <span className="text-xs text-text-tertiary">
             {t('adminCandidateDocumentsSubmittedOn')}: {formatDate(latest.submittedAt, language, { dateStyle: 'medium' })}
           </span>

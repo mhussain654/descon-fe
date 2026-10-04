@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { useLanguage } from '../../../../contexts/LanguageContext';
 import { useStaffAuth } from '../../../../contexts/StaffAuthContext';
 import {
@@ -39,6 +39,7 @@ import { VisaDecisionPanel } from './VisaDecisionPanel';
 
 export interface WorkflowPanelProps {
   candidateId: string;
+  section?: 'overview' | 'records' | 'activity' | 'all';
 }
 
 /** Stage codes with a real, interactive confirmation card in this build. Every other returned transition renders as a plain, non-interactive row. */
@@ -77,7 +78,7 @@ function stageStatusTone(status: string): 'neutral' | 'success' | 'info' {
  * flight/mobilization -- every other transition the backend returns still
  * renders as a plain informational row with no action.
  */
-export function WorkflowPanel({ candidateId }: WorkflowPanelProps) {
+export function WorkflowPanel({ candidateId, section = 'all' }: WorkflowPanelProps) {
   const { t, language } = useLanguage();
   const { hasPermission, signOut } = useStaffAuth();
   const canTransition = hasPermission('manage_workflow');
@@ -227,7 +228,7 @@ export function WorkflowPanel({ candidateId }: WorkflowPanelProps) {
 
   return (
     <Card>
-      <h2 className="mb-4 text-lg font-semibold text-text-primary">{t('adminWorkflowPanelTitle')}</h2>
+      <h2 className="mb-4 text-lg font-semibold text-text-primary">{t(section === 'records' ? 'adminCandidateRecordsTab' : section === 'activity' ? 'adminCandidateActivityTab' : 'adminWorkflowPanelTitle')}</h2>
       {state.mobilizationProcess?.provisional ? (
         <div
           role="status"
@@ -237,6 +238,7 @@ export function WorkflowPanel({ candidateId }: WorkflowPanelProps) {
         </div>
       ) : null}
 
+      {section === 'all' || section === 'overview' ? <>
       {/* Current stage summary */}
       <div className="mb-6 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border bg-surface-sunken p-4">
         <div>
@@ -324,7 +326,9 @@ export function WorkflowPanel({ candidateId }: WorkflowPanelProps) {
         </div>
       ) : null}
 
-      <QvcPanel
+      </> : null}
+
+      {section === 'all' || section === 'records' || (section === 'overview' && (transitions.allowedNextTransitions.some((item) => componentForWorkflowAction(item.actionType) === 'qvc') || qvcAttemptsQuery.data?.qvcAttempts.some((attempt) => attempt.status === 'scheduled') || qvcSchedulingAvailable(state, transitions, qvcAttemptsQuery.data?.qvcAttempts ?? []))) ? <RecordSection collapsed={section === 'records'} label={t('adminWorkflowQvcPanelTitle')}><QvcPanel
         canSchedule={qvcSchedulingAvailable(state, transitions, qvcAttemptsQuery.data?.qvcAttempts ?? []) && qvcAttemptsQuery.isSuccess}
         canTransition={canTransition}
         attemptsQuery={qvcAttemptsQuery}
@@ -332,7 +336,8 @@ export function WorkflowPanel({ candidateId }: WorkflowPanelProps) {
         currentStageCode={state.currentStage?.code}
       />
 
-      <VisaDecisionPanel
+      </RecordSection> : null}
+      {section === 'all' || section === 'records' || (section === 'overview' && visaTransition) ? <RecordSection collapsed={section === 'records'} label={t('adminWorkflowVisaPanelTitle')}><VisaDecisionPanel
         canTransition={canTransition}
         visaTransition={visaTransition}
         decisionsQuery={visaDecisionsQuery}
@@ -340,7 +345,8 @@ export function WorkflowPanel({ candidateId }: WorkflowPanelProps) {
         currentStageCode={state.currentStage?.code}
       />
 
-      <FlightDetailPanel
+      </RecordSection> : null}
+      {section === 'all' || section === 'records' || (section === 'overview' && (flightTransition || mobilizeTransition)) ? <RecordSection collapsed={section === 'records'} label={t('adminWorkflowFlightPanelTitle')}><FlightDetailPanel
         canTransition={canTransition}
         flightTransition={flightTransition}
         mobilizeTransition={mobilizeTransition}
@@ -349,6 +355,8 @@ export function WorkflowPanel({ candidateId }: WorkflowPanelProps) {
         currentStageCode={state.currentStage?.code}
       />
 
+      </RecordSection> : null}
+      {section === 'all' || section === 'records' ? <RecordSection collapsed={section === 'records'} label={t('adminWorkflowProtectionDetailsTitle')}>
       {/* Protection details */}
       <div className="mt-6 border-t border-border pt-6">
         <h3 className="mb-3 text-sm font-semibold text-text-primary">{t('adminWorkflowProtectionDetailsTitle')}</h3>
@@ -372,13 +380,15 @@ export function WorkflowPanel({ candidateId }: WorkflowPanelProps) {
         )}
       </div>
 
+      </RecordSection> : null}
+      {section === 'all' || section === 'activity' ? <>
       {/* History */}
       <h3 className="mb-3 mt-6 text-sm font-semibold text-text-primary">{t('adminWorkflowHistoryTitle')}</h3>
       {history.history.length === 0 ? (
         <p className="text-sm text-text-secondary">{t('adminWorkflowHistoryEmpty')}</p>
       ) : (
         <ul className="space-y-2">
-          {history.history.map((item, index) => (
+          {[...history.history].sort((a, b) => b.occurredAt.localeCompare(a.occurredAt)).map((item, index) => (
             <li key={`${item.toStage.code}-${item.occurredAt}-${index}`} className="rounded-lg border border-border p-3 text-sm">
               <div className="font-medium text-text-primary">
                 {item.fromStage ? `${item.fromStage.name} → ${item.toStage.name}` : item.toStage.name}
@@ -393,6 +403,7 @@ export function WorkflowPanel({ candidateId }: WorkflowPanelProps) {
         </ul>
       )}
 
+      </> : null}
       <ConfirmDialog
         open={submit.pendingToStageCode === QATAR_BU_STAGE_CODE}
         onOpenChange={(open) => (!open ? submit.closeConfirm() : undefined)}
@@ -632,4 +643,13 @@ function OtherTransitionRow({ transition }: { transition: AllowedWorkflowTransit
       ) : null}
     </div>
   );
+}
+
+
+function RecordSection({ collapsed, label, children }: { collapsed: boolean; label: string; children: ReactNode }) {
+  if (!collapsed) return <>{children}</>;
+  return <details className="mt-4 rounded-xl border border-border bg-surface-raised p-4">
+    <summary className="cursor-pointer text-sm font-semibold text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">{label}</summary>
+    <div className="mt-3">{children}</div>
+  </details>;
 }
