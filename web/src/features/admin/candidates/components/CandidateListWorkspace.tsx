@@ -1,4 +1,4 @@
-import { useCallback, useEffect } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link, useSearchParams } from 'react-router';
 import { SlidersHorizontal, Users } from 'lucide-react';
 import { useLanguage } from '../../../../contexts/LanguageContext';
@@ -26,6 +26,7 @@ import type {
   AdminCandidateStatusSummaryRow,
 } from '../../../../lib/admin-candidates-client';
 import type { TranslationKey } from '../../../../../../shared/i18n/translations';
+import { CategoryBarChart } from '../../reports/components/ReportCharts';
 import { CANDIDATE_LIST_STAGE_LABEL_KEYS } from '../../../../../../shared/adminCandidates/workflowStageLabels';
 import { useDebouncedUrlFilter } from '../../documentReviews/hooks/useDebouncedUrlFilter';
 import { useCandidateList } from '../hooks/useCandidateList';
@@ -36,7 +37,7 @@ function stageLabel(code: string, t: (key: TranslationKey) => string): string {
   return key ? t(key) : code;
 }
 
-function CandidateStatusSummaryCard({ summary, selected, onSelect, t }: { summary?: AdminCandidateStatusSummaryRow[]; selected?: string; onSelect: (code: string | undefined) => void; t: (key: TranslationKey) => string }) {
+function CandidateStatusSummaryCard({ summary, selected, onSelect, graphical = false, t }: { graphical?: boolean; summary?: AdminCandidateStatusSummaryRow[]; selected?: string; onSelect: (code: string | undefined) => void; t: (key: TranslationKey) => string }) {
   if (!summary?.some((row) => row.count > 0)) return null;
   const active = summary.filter((row) => row.count > 0 || row.code === selected)
     .sort((a, b) => Number(b.code === selected) - Number(a.code === selected) || b.count - a.count)
@@ -51,7 +52,8 @@ function CandidateStatusSummaryCard({ summary, selected, onSelect, t }: { summar
   return (
     <Card className="mb-5 p-5">
       <h2 className="font-semibold text-text-primary">{t('adminCandidateListStatusSummaryTitle')}</h2>
-      <p className="mb-4 mt-1 text-xs text-text-secondary">{t('adminCandidateListStatusSummarySubtitle')}</p>
+      <p className="mb-4 mt-1 text-xs text-text-secondary">{t(graphical ? 'adminCandidateListGraphScope' : 'adminCandidateListStatusSummarySubtitle')}</p>
+      {graphical ? <div className="mb-5 max-h-96 overflow-auto"><div className="min-w-[480px]"><CategoryBarChart data={summary.filter((row) => row.count > 0).map((row) => ({ key: row.code, label: stageLabel(row.code, t), value: row.count }))} /></div></div> : null}
       <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-3">{active.map(stageButton)}</div>
       <details className="mt-4">
         <summary className="cursor-pointer text-sm font-semibold text-brand focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand">{t('adminCandidateListAllStages')}</summary>
@@ -72,7 +74,9 @@ const SORT_OPTIONS: { value: AdminCandidateListSort; labelKey: TranslationKey }[
 
 /** The full admin candidate list workspace: search, filters, sort and pagination, all backed by the URL -- mirrors DocumentReviewQueue.tsx's identical structure. */
 export function CandidateListWorkspace() {
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
+  const [view, setView] = useState<"list" | "graph">("list");
+  const viewTabs = useRef<(HTMLButtonElement | null)[]>([]);
   const { hasPermission, signOut } = useStaffAuth();
   const [searchParams, setSearchParams] = useSearchParams();
   const { filters, sort, page } = readCandidateListStateFromSearchParams(searchParams);
@@ -219,9 +223,28 @@ export function CandidateListWorkspace() {
         ) : null}
       </Card>
 
-      <CandidateStatusSummaryCard summary={query.data?.summary} selected={filters.status} onSelect={(status) => updateFilters({ status })} t={t} />
+      <div role="tablist" aria-label={t('adminCandidateListViewTabs')} className="mb-5 flex flex-wrap gap-2 rounded-xl border border-border bg-surface p-2">
+        {(['list', 'graph'] as const).map((id, index) => (
+          <button key={id} ref={(element) => { viewTabs.current[index] = element; }} type="button" role="tab"
+            id={`candidate-list-tab-${id}`} aria-controls={`candidate-list-panel-${id}`} aria-selected={view === id} tabIndex={view === id ? 0 : -1}
+            onClick={() => setView(id)} onKeyDown={(event) => {
+              let target: number | undefined;
+              if (event.key === 'Home') target = 0;
+              if (event.key === 'End') target = 1;
+              if (event.key === 'ArrowRight' || event.key === 'ArrowLeft') target = 1 - index;
+              if (target !== undefined) { event.preventDefault(); setView(target === 0 ? 'list' : 'graph'); viewTabs.current[target]?.focus(); }
+            }} className={`rounded-lg px-4 py-2 text-sm font-semibold focus-visible:ring-2 focus-visible:ring-ring ${view === id ? 'bg-brand text-white shadow-sm' : 'text-text-secondary hover:bg-surface-sunken'}`}>
+            {t(id === 'list' ? 'adminCandidateListViewList' : 'adminCandidateListViewGraph')}
+          </button>
+        ))}
+      </div>
+      <section role="tabpanel" id={`candidate-list-panel-${view}`} aria-labelledby={`candidate-list-tab-${view}`} tabIndex={0} dir={language === 'ur' ? 'rtl' : 'ltr'}>
+      {view === 'list' ? <CandidateStatusSummaryCard summary={query.data?.summary} selected={filters.status} onSelect={(status) => updateFilters({ status })} t={t} /> : null}
 
       <ListContent
+        graphical={view === "graph"}
+        selected={filters.status}
+        onStageSelect={(status) => { updateFilters({ status }); setView("list"); }}
         query={query}
         columns={columns}
         page={page}
@@ -229,11 +252,15 @@ export function CandidateListWorkspace() {
         hasActiveFilters={hasActiveFilters}
         t={t}
       />
+      </section>
     </div>
   );
 }
 
 interface ListContentProps {
+  graphical: boolean;
+  selected?: string;
+  onStageSelect: (status: string | undefined) => void;
   query: ReturnType<typeof useCandidateList>;
   columns: DataTableColumn<AdminCandidateDetail>[];
   page: { number?: number; size?: number };
@@ -242,7 +269,7 @@ interface ListContentProps {
   t: (key: TranslationKey) => string;
 }
 
-function ListContent({ query, columns, page, onPageChange, hasActiveFilters, t }: ListContentProps) {
+function ListContent({ graphical, selected, onStageSelect, query, columns, page, onPageChange, hasActiveFilters, t }: ListContentProps) {
   if (query.isLoading) {
     return <LoadingState message={t('loading')} />;
   }
@@ -268,6 +295,13 @@ function ListContent({ query, columns, page, onPageChange, hasActiveFilters, t }
   const result = query.data;
   const items = result?.items ?? [];
   const pagination = result?.pagination;
+
+  if (graphical) {
+    return <>
+      {query.isError ? <RetryBanner message={t('adminCandidateListLoadError')} retryLabel={t('retry')} onRetry={() => query.refetch()} /> : null}
+      {result?.summary?.some((row) => row.count > 0) ? <CandidateStatusSummaryCard summary={result.summary} selected={selected} onSelect={onStageSelect} graphical t={t} /> : <EmptyState title={t('adminCandidateListGraphEmpty')} description={t('adminCandidateListGraphScope')} />}
+    </>;
+  }
 
   if (items.length === 0) {
     return hasActiveFilters ? (

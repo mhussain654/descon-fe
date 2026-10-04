@@ -24,7 +24,7 @@ Ruby/Bundler are unavailable in this workspace, so backend RSpec, migration exec
 
 Overview displays the backend effective fee amount beside the workflow payment status, including the original bill amount after payment. The fee editor and Overview share a query cache, so a saved change updates both. Staff without fee-read permissions retain the status without an amount.
 
-Admin typography is increased by 4px, including navigation, sign-in, dialog content and chart labels. This is scoped to admin surfaces; candidate typography and global rem spacing remain unchanged.
+Admin typography is increased by 2px, including navigation, sign-in, dialog content and chart labels. This is scoped to admin surfaces; candidate typography and global rem spacing remain unchanged.
 
 Follow-up validation: all 204 web test files / 2044 tests passed, web typechecking (including the explicit admin workspace check), production build and diff checks passed. Live layout verification remains to be completed in the running admin app.
 
@@ -35,3 +35,11 @@ The candidate index places search, status and sorting immediately under a compac
 Country-specific stages from docs-per-country are now localized in English/Urdu and supported by the status selector and URL parser. Existing candidate links, creation permissions, controlled table scrolling, errors, retry and pagination are retained. This follow-up is based on frontend feat/mobile-consent-redesign at 73727fb; no backend mutation or deployment is required.
 
 Directory follow-up verification: 204 web files / 2046 tests passed, including country-stage URL persistence, shortcut filtering and Urdu labels. Web typecheck, production build and diff checks passed. Live responsive layout verification remains to be completed in the running admin app.
+
+## Graphical candidate view
+
+List view remains the default. A keyboard-accessible Graphical view tab displays the backend stage summary in a bounded, scrollable bar chart, with stage counts also available as ordinary accessible buttons. Selecting a stage opens List view with that status and resets pagination; search and other URL filters remain intact. The graph uses the backend summary across all pages: assignment filters apply, while search and status apply to the list. Zero-count stages remain in the expandable breakdown; empty summaries and loading/error/retry states are explicit. English and Urdu labels are supported.
+
+Admin text is reduced by 2px from the previous larger scale, including responsive utility sizes, sidebar labels, sign-in, portal dialogs and chart annotations. The candidate-facing font scale is unchanged.
+
+Graphical view follow-up validation: all 204 web files / 2048 tests passed, including keyboard tab switching, stage-to-list navigation, retained search, empty graph and Urdu labels. Web typecheck, production build and diff checks passed. Live responsive visual review remains to be completed on the running app.

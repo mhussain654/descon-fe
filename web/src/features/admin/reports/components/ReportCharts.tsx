@@ -96,7 +96,7 @@ export interface CategoryDatum {
 // than inline CSS, which doesn't reliably resolve custom properties across
 // browsers -- not worth the risk for supplementary chart chrome.
 const GRID_STROKE = '#94A3B8';
-const AXIS_TICK_STYLE = { fontSize: 15, fill: '#64748B' };
+const AXIS_TICK_STYLE = { fontSize: 13, fill: '#64748B' };
 
 function hasAnyValue(data: { value: number }[]): boolean {
   return data.some((d) => d.value > 0);
@@ -183,7 +183,7 @@ export function CraftSummaryChart({
           <XAxis type="number" allowDecimals={false} tick={AXIS_TICK_STYLE} axisLine={false} tickLine={false} />
           <YAxis type="category" dataKey="label" width={150} tick={AXIS_TICK_STYLE} axisLine={false} tickLine={false} />
           <Tooltip />
-          <Legend wrapperStyle={{ fontSize: 16 }} />
+          <Legend wrapperStyle={{ fontSize: 14 }} />
           <Bar dataKey="mobilized" name={mobilizedLabel} stackId="craft" fill={CHART_TONE_HEX.success} maxBarSize={18} />
           <Bar dataKey="remaining" name={remainingLabel} stackId="craft" fill={CHART_TONE_HEX.neutral} radius={[0, 4, 4, 0]} maxBarSize={18} />
         </BarChart>

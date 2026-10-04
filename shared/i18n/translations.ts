@@ -9,6 +9,12 @@ export const SUPPORTED_LANGUAGES: Language[] = ['en', 'ur'];
 
 export const translations = {
   en: {
+    adminCandidateListViewTabs: 'Candidate views',
+    adminCandidateListViewList: 'List view',
+    adminCandidateListViewGraph: 'Graphical view',
+    adminCandidateListGraphScope: 'Stage counts cover all pages and reflect assignment filters. Search and status filter the list.',
+    adminCandidateListGraphEmpty: 'No stage counts available',
+
     adminCandidateListAllStages: 'All stages',
     adminListStageCampaignNomination: 'Campaign nomination',
     adminListStageMedicalPending: 'Medical pending',
@@ -1690,6 +1696,12 @@ export const translations = {
     consentErrorMessage: 'We could not record your consent. Please try again.',
   },
   ur: {
+    adminCandidateListViewTabs: 'امیدواروں کے نظارے',
+    adminCandidateListViewList: 'فہرست',
+    adminCandidateListViewGraph: 'گرافیکل نظارہ',
+    adminCandidateListGraphScope: 'مرحلے کے اعداد اسائنمنٹ فلٹرز کے مطابق تمام صفحات کے لیے ہیں۔ تلاش اور اسٹیٹس فلٹر فہرست پر لاگو ہوتے ہیں۔',
+    adminCandidateListGraphEmpty: 'مرحلے کے اعداد دستیاب نہیں',
+
     adminCandidateListAllStages: 'تمام مراحل',
     adminListStageCampaignNomination: 'مہم کے لیے نامزدگی',
     adminListStageMedicalPending: 'میڈیکل زیر التوا',
