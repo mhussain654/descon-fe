@@ -158,6 +158,12 @@ function StaffShellContent({ children }: { children: ReactNode }) {
       key: 'dashboards',
       children: [
         {
+          href: '/admin/management-dashboard',
+          labelKey: 'staffNavManagementDashboard',
+          visible: hasPermission('view_management_dashboard'),
+          icon: TrendingUp,
+        },
+        {
           href: '/admin/dashboard',
           labelKey: 'staffNavAdminDashboard',
           visible: hasPermission('view_admin_dashboard'),
@@ -168,12 +174,6 @@ function StaffShellContent({ children }: { children: ReactNode }) {
           labelKey: 'staffNavMpsDashboard',
           visible: hasPermission('view_mps_dashboard'),
           icon: Activity,
-        },
-        {
-          href: '/admin/management-dashboard',
-          labelKey: 'staffNavManagementDashboard',
-          visible: hasPermission('view_management_dashboard'),
-          icon: TrendingUp,
         },
       ],
     },

@@ -68,7 +68,7 @@ describe('ManagementDashboard', () => {
     await screen.findAllByText('72%');
 
     const headings = [...container.querySelectorAll('h2')].map((heading) => heading.textContent);
-    expect(headings.indexOf('Conversion funnel')).toBeLessThan(headings.indexOf('Outcome tracking'));
+    expect(headings.findIndex((heading) => heading.includes('Conversion funnel'))).toBeLessThan(headings.findIndex((heading) => heading.includes('Outcome tracking')));
   });
 
   it('re-fetches with the selected granularity', async () => {
@@ -80,6 +80,15 @@ describe('ManagementDashboard', () => {
     fireEvent.change(screen.getByRole('combobox'), { target: { value: 'daily' } });
 
     await waitFor(() => expect(adminManagementDashboardClient.getDashboard).toHaveBeenCalledWith('daily'));
+  });
+
+  it('renders localized management headings and the existing data in Urdu', async () => {
+    localStorage.setItem('descon.language', 'ur');
+    adminManagementDashboardClient.getDashboard.mockResolvedValue(summary());
+    try {
+      await renderAs(MANAGEMENT);
+      expect(await screen.findByRole('heading', { name: 'مینجمنٹ ڈیش بورڈ' })).toBeInTheDocument();
+    } finally { localStorage.removeItem('descon.language'); }
   });
 
   it('shows the FORBIDDEN state for a staff member without view_management_dashboard', async () => {

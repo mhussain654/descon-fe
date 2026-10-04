@@ -1514,7 +1514,7 @@ export const translations = {
     staffAdminStatusUpdatedToast: 'Status updated',
 
     // Dashboards & MIS reporting (MPS-801/802/803/804/805/806)
-    staffNavAdminDashboard: 'Dashboard',
+    staffNavAdminDashboard: 'Admin Dashboard',
     staffNavMpsDashboard: 'Operations Dashboard',
     staffNavManagementDashboard: 'Management Dashboard',
     staffNavReports: 'Reports',
@@ -3211,7 +3211,7 @@ export const translations = {
     staffAdminStatusUpdatedToast: 'حیثیت اپ ڈیٹ ہو گئی',
 
     // Dashboards & MIS reporting (MPS-801/802/803/804/805/806)
-    staffNavAdminDashboard: 'ڈیش بورڈ',
+    staffNavAdminDashboard: 'ایڈمن ڈیش بورڈ',
     staffNavMpsDashboard: 'آپریشنز ڈیش بورڈ',
     staffNavManagementDashboard: 'مینجمنٹ ڈیش بورڈ',
     staffNavReports: 'رپورٹس',
