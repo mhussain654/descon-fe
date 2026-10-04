@@ -17,7 +17,7 @@ describe("PaymentPendingPage", () => {
 
     expect(screen.getByText("Payment confirmation pending")).toBeInTheDocument();
     expect(
-      screen.getByText("Your payment provider is processing the payment. Return to Descon to check the confirmed status.")
+      screen.getByText("Your payment provider is processing the payment. Return to MPS Connect to check the confirmed status.")
     ).toBeInTheDocument();
   });
 

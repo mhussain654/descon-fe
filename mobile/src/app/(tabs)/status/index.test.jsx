@@ -207,6 +207,12 @@ function stageRow(labelText) {
 }
 
 describe("StatusScreen", () => {
+  it("shows the Business Unit from the backend mobilization process", async () => {
+    applicationProgressClient.getProgress.mockResolvedValue(progressPayload({ workflow: workflowPayload({ mobilizationProcess: { code: 'qatar-v1', version: 1, provisional: false, countryCode: 'qatar' } }) }));
+    renderStatusScreen();
+    expect(await screen.findByText('Destination (Business Unit): Qatar')).toBeOnTheScreen();
+  });
+
   it("shows the backend progress percentage rather than inferring progress from the cards", async () => {
     applicationProgressClient.getProgress.mockResolvedValue(progressPayload({ workflow: workflowPayload({ progressPercentage: 37 }) }));
     candidateWorkflowClient.getWorkflowHistory.mockResolvedValue(historyPayload());

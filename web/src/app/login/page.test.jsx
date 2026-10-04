@@ -141,17 +141,21 @@ describe('LoginPage', () => {
 
   // Client-approved, deliberate exception to the usual non-enumerating
   // response -- see shared/auth/types.ts's AuthErrorCode doc comment.
-  it('shows the not-found error message the backend sends, verbatim, naming the submitted CNIC', async () => {
+  it('shows the non-registration message and guidance, then lets the candidate correct the CNIC', async () => {
     vi.spyOn(candidateAuthClient, 'requestOtp').mockRejectedValueOnce({
       code: 'CNIC_NOT_FOUND',
-      message: "We couldn't find your record with this CNIC: 12345-1234567-1",
+      message: "Sorry, you are not registered for the current mobilization.",
     });
     renderLoginPage();
 
     fireEvent.change(screen.getByLabelText('CNIC Number'), { target: { value: '1234512345671' } });
     fireEvent.click(screen.getByRole('button', { name: 'Send OTP' }));
 
-    expect(await screen.findByText("We couldn't find your record with this CNIC: 12345-1234567-1")).toBeInTheDocument();
+    await screen.findByRole("dialog");
+    expect(screen.getByText("Sorry, you are not registered for the current mobilization.")).toBeInTheDocument();
+    expect(screen.getByRole("dialog")).toBeInTheDocument();
+    expect(screen.getByText(/Check your CNIC and try again/)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Change CNIC" }));
 
     vi.restoreAllMocks();
   });
@@ -161,20 +165,21 @@ describe('LoginPage', () => {
   // typing a correction, the still-displayed error silently relabeled
   // itself to whatever was now typed instead of what was actually
   // submitted. The backend-provided message must stay frozen regardless.
-  it('keeps the not-found message frozen on the originally-submitted CNIC after the candidate starts typing a correction', async () => {
+  it('keeps the non-registration message stable after the candidate starts typing a correction', async () => {
     vi.spyOn(candidateAuthClient, 'requestOtp').mockRejectedValueOnce({
       code: 'CNIC_NOT_FOUND',
-      message: "We couldn't find your record with this CNIC: 12345-1234567-1",
+      message: "Sorry, you are not registered for the current mobilization.",
     });
     renderLoginPage();
 
     fireEvent.change(screen.getByLabelText('CNIC Number'), { target: { value: '1234512345671' } });
     fireEvent.click(screen.getByRole('button', { name: 'Send OTP' }));
-    await screen.findByText("We couldn't find your record with this CNIC: 12345-1234567-1");
+    await screen.findByRole("dialog");
+    fireEvent.click(screen.getByRole("button", { name: "Change CNIC" }));
 
     fireEvent.change(screen.getByLabelText('CNIC Number'), { target: { value: '9999912345671' } });
 
-    expect(screen.getByText("We couldn't find your record with this CNIC: 12345-1234567-1")).toBeInTheDocument();
+    expect(screen.getByText("Sorry, you are not registered for the current mobilization.")).toBeInTheDocument();
     expect(screen.queryByText(/99999-1234567-1/)).not.toBeInTheDocument();
 
     vi.restoreAllMocks();

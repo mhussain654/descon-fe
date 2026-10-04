@@ -1,9 +1,9 @@
-import { useCallback, useEffect } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useNavigate } from "react-router";
 import { Shield } from "lucide-react";
 import { useAuth } from "../../contexts/AuthContext";
 import { useLanguage } from "../../contexts/LanguageContext";
-import { Button, CnicField, OtpField, RetryBanner, ValidationMessage, toast } from "../../design-system";
+import { Button, Dialog, DialogContent, CnicField, OtpField, RetryBanner, ValidationMessage, toast } from "../../design-system";
 import { AUTH_ERROR_KEYS, CNIC_FIELD_ERROR_KEYS } from "../../../../shared/auth/errorMessages";
 import { withCountdown } from "../../../../shared/auth/cnicOtpFlow";
 import { OTP_LENGTH } from "../../../../shared/auth/types";
@@ -25,6 +25,7 @@ export default function LoginPage() {
     [login, navigate]
   );
 
+  const [registrationGuidanceOpen, setRegistrationGuidanceOpen] = useState(false);
   const flow = useCnicOtpFlow({ client: candidateAuthClient, onAuthenticated });
   const {
     step,
@@ -48,6 +49,10 @@ export default function LoginPage() {
     resendOtp,
     backToCnic,
   } = flow;
+
+  useEffect(() => {
+    setRegistrationGuidanceOpen(otpError?.code === "CNIC_NOT_FOUND");
+  }, [otpError]);
 
   useEffect(() => {
     if (sessionExpired) {
@@ -84,6 +89,11 @@ export default function LoginPage() {
 
   return (
     <main className="min-h-screen bg-background">
+      <Dialog open={registrationGuidanceOpen} onOpenChange={setRegistrationGuidanceOpen}>
+        <DialogContent title={t("authCnicNotFoundError")} description={t("authRegistrationGuidance")} closeLabel={t("dsClose")}>
+          <Button fullWidth onClick={() => setRegistrationGuidanceOpen(false)}>{t("authChangeCnic")}</Button>
+        </DialogContent>
+      </Dialog>
       <div className="mx-auto flex min-h-screen w-full max-w-xl flex-col px-6 pb-8 pt-16">
         <div className="mb-10 flex items-center justify-between">
           <button
@@ -126,7 +136,7 @@ export default function LoginPage() {
               disabled={isSubmittingCnic}
               autoFocus
             />
-            {!cnicError && otpError ? (
+            {!cnicError && otpError && !registrationGuidanceOpen ? (
               <ValidationMessage tone="error">
                 {isCnicRateLimited
                   ? withCountdown(t("authRetryAvailableIn"), secondsUntilRateLimitCleared ?? 0)

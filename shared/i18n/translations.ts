@@ -11,7 +11,7 @@ export const translations = {
   en: {
     // Welcome
     welcomeTitle: 'Welcome',
-    welcomeMessage: 'Descon Engineering Manpower Onboarding Portal',
+    welcomeMessage: 'MPS Connect Manpower Onboarding Portal',
     selectLanguage: 'Select Your Preferred Language',
     continue: 'Continue',
     englishLabel: 'English',
@@ -50,7 +50,8 @@ export const translations = {
     // Candidate authentication (MPS-F201)
     authCnicRequiredError: 'Enter your CNIC to continue.',
     authCnicFormatError: 'Enter a valid 13-digit CNIC.',
-    authCnicNotFoundError: "We couldn't find your record with this CNIC",
+    authCnicNotFoundError: 'Sorry, you are not registered for the current mobilization.',
+    authRegistrationGuidance: 'Check your CNIC and try again. If it is correct, contact the MPS team to confirm your registration.',
     authOtpRequestFailedError: "We couldn't send a code right now. Please try again.",
     authOtpInvalidError: 'Incorrect code. Please try again.',
     authOtpExpiredError: 'This code has expired.',
@@ -72,7 +73,14 @@ export const translations = {
     greetingMorning: 'Good morning',
     greetingAfternoon: 'Good afternoon',
     greetingEvening: 'Good evening',
-    homeReference: 'Reference: %{reference}',
+    homeReference: 'HOF # %{reference}',
+    buQatar: 'Qatar',
+    buSaudiArabia: 'Saudi Arabia',
+    buUae: 'United Arab Emirates',
+    buOman: 'Oman',
+    buKuwait: 'Kuwait',
+    buAzerbaijan: 'Azerbaijan',
+    buSouthAfrica: 'South Africa',
     homeProfilePhoto: 'Profile photo',
     homeMyJourney: 'My Journey',
     homeStepsComplete: '%{completed} of %{total} steps completed',
@@ -133,8 +141,8 @@ export const translations = {
     profilePhotoCameraDenied: 'Allow camera access to take a photo.',
     profilePhotoGalleryDenied: 'Allow photo access to choose a photo.',
     profilePhotoPermissionBlocked: 'Access is turned off. Enable it in your phone’s settings to continue.',
-    brandNamePrimary: 'DESCON',
-    brandNameSecondary: 'MPS',
+    brandNamePrimary: 'MPS',
+    brandNameSecondary: 'Connect',
     welcomeHeroTitle: 'Welcome!\nYour next step starts here.',
     welcomeHeroSubtitle: 'Track your progress, upload documents and get help — all in one simple app.',
     welcomeChooseLanguage: 'Choose your language',
@@ -185,7 +193,7 @@ export const translations = {
     paymentBlockingDocumentsNotVerified: 'Payment becomes available once your documents are verified.',
     paymentBlockingUnknown: 'Payment is not available right now.',
     paymentPendingReturnTitle: 'Payment confirmation pending',
-    paymentPendingReturnDescription: 'Your payment provider is processing the payment. Return to Descon to check the confirmed status.',
+    paymentPendingReturnDescription: 'Your payment provider is processing the payment. Return to MPS Connect to check the confirmed status.',
     complete: 'complete',
 
     // Documents
@@ -437,7 +445,7 @@ export const translations = {
 
     // Staff authentication (MPS-F202)
     staffAuthSignInTitle: 'Staff sign-in',
-    staffAuthSignInMessage: 'Sign in with your Descon staff account.',
+    staffAuthSignInMessage: 'Sign in to MPS Connect with your staff account.',
     staffAuthEnterEmail: 'Enter your email',
     staffAuthEnterPassword: 'Enter your password',
     staffAuthEmailRequiredError: 'Email is required.',
@@ -461,7 +469,7 @@ export const translations = {
     staffNavToggleMenu: 'Menu',
     staffNavCollapseSidebar: 'Collapse sidebar',
     staffNavExpandSidebar: 'Expand sidebar',
-    staffPortalTitle: 'Descon Admin Portal',
+    staffPortalTitle: 'MPS Connect Admin Portal',
     staffUserMenuProfile: 'Profile',
     staffHeaderSearchLabel: 'Search candidates',
     staffHeaderSearchPlaceholder: 'Search by name or reference number...',
@@ -470,7 +478,7 @@ export const translations = {
     staffHeaderThemeToggleToDark: 'Switch to dark mode',
     staffHeaderAccountMenuLabel: 'Account menu',
     staffProfileTitle: 'Profile',
-    staffProfileSubtitle: 'Your account details for the Descon Admin Portal.',
+    staffProfileSubtitle: 'Your account details for the MPS Connect Admin Portal.',
     staffProfileEmailLabel: 'Email',
     staffProfileRoleLabel: 'Role',
 
@@ -1635,7 +1643,7 @@ export const translations = {
   ur: {
     // Welcome
     welcomeTitle: 'خوش آمدید',
-    welcomeMessage: 'ڈیسکون انجینئرنگ مین پاور آن بورڈنگ پورٹل',
+    welcomeMessage: 'ایم پی ایس کنیکٹ مین پاور آن بورڈنگ پورٹل',
     selectLanguage: 'اپنی پسندیدہ زبان منتخب کریں',
     continue: 'جاری رکھیں',
     englishLabel: 'English',
@@ -1674,7 +1682,8 @@ export const translations = {
     // Candidate authentication (MPS-F201)
     authCnicRequiredError: 'جاری رکھنے کے لیے اپنا شناختی کارڈ نمبر درج کریں۔',
     authCnicFormatError: '13 ہندسوں کا درست شناختی کارڈ نمبر درج کریں۔',
-    authCnicNotFoundError: 'ہمیں اس شناختی کارڈ نمبر سے آپ کا ریکارڈ نہیں ملا',
+    authCnicNotFoundError: 'معذرت، آپ موجودہ موبلائزیشن کے لیے رجسٹرڈ نہیں ہیں۔',
+    authRegistrationGuidance: 'اپنا شناختی کارڈ نمبر چیک کر کے دوبارہ کوشش کریں۔ اگر نمبر درست ہے تو اپنی رجسٹریشن کی تصدیق کے لیے ایم پی ایس ٹیم سے رابطہ کریں۔',
     authOtpRequestFailedError: 'ابھی کوڈ نہیں بھیجا جا سکا۔ براہ کرم دوبارہ کوشش کریں۔',
     authOtpInvalidError: 'غلط کوڈ۔ براہ کرم دوبارہ کوشش کریں۔',
     authOtpExpiredError: 'اس کوڈ کی میعاد ختم ہو چکی ہے۔',
@@ -1696,7 +1705,14 @@ export const translations = {
     greetingMorning: 'صبح بخیر',
     greetingAfternoon: 'سہ پہر بخیر',
     greetingEvening: 'شام بخیر',
-    homeReference: 'حوالہ: %{reference}',
+    homeReference: 'HOF # %{reference}',
+    buQatar: 'قطر',
+    buSaudiArabia: 'سعودی عرب',
+    buUae: 'متحدہ عرب امارات',
+    buOman: 'عمان',
+    buKuwait: 'کویت',
+    buAzerbaijan: 'آذربائیجان',
+    buSouthAfrica: 'جنوبی افریقہ',
     homeProfilePhoto: 'پروفائل تصویر',
     homeMyJourney: 'میرا سفر',
     homeStepsComplete: '%{total} میں سے %{completed} مراحل مکمل',
@@ -1757,8 +1773,8 @@ export const translations = {
     profilePhotoCameraDenied: 'تصویر لینے کے لیے کیمرے تک رسائی کی اجازت دیں۔',
     profilePhotoGalleryDenied: 'تصویر منتخب کرنے کے لیے فوٹو تک رسائی کی اجازت دیں۔',
     profilePhotoPermissionBlocked: 'رسائی بند ہے۔ جاری رکھنے کے لیے اسے اپنے فون کی سیٹنگز میں فعال کریں۔',
-    brandNamePrimary: 'ڈیسکون',
-    brandNameSecondary: 'ایم پی ایس',
+    brandNamePrimary: 'ایم پی ایس',
+    brandNameSecondary: 'کنیکٹ',
     // Line breaks are presentation only -- they keep Nastaliq phrases (e.g.
     // 'اپ لوڈ کریں') together and the copy clear of the hero artwork.
     welcomeHeroTitle: 'خوش آمدید!\nآپ کا اگلا قدم\nیہاں سے شروع ہوتا ہے۔',
@@ -1811,7 +1827,7 @@ export const translations = {
     paymentBlockingDocumentsNotVerified: 'آپ کی دستاویزات کی تصدیق ہونے کے بعد ادائیگی دستیاب ہو جائے گی۔',
     paymentBlockingUnknown: 'ادائیگی اس وقت دستیاب نہیں ہے۔',
     paymentPendingReturnTitle: 'ادائیگی کی تصدیق زیر التواء ہے',
-    paymentPendingReturnDescription: 'آپ کا پیمنٹ فراہم کنندہ ادائیگی پر کارروائی کر رہا ہے۔ تصدیق شدہ صورتحال دیکھنے کے لیے ڈیسکون پر واپس جائیں۔',
+    paymentPendingReturnDescription: 'آپ کا پیمنٹ فراہم کنندہ ادائیگی پر کارروائی کر رہا ہے۔ تصدیق شدہ صورتحال دیکھنے کے لیے ایم پی ایس کنیکٹ پر واپس جائیں۔',
     complete: 'مکمل',
 
     // Documents
@@ -2063,7 +2079,7 @@ export const translations = {
 
     // Staff authentication (MPS-F202)
     staffAuthSignInTitle: 'اسٹاف سائن ان',
-    staffAuthSignInMessage: 'اپنے ڈیسکون اسٹاف اکاؤنٹ سے سائن ان کریں۔',
+    staffAuthSignInMessage: 'اپنے اسٹاف اکاؤنٹ سے ایم پی ایس کنیکٹ میں سائن ان کریں۔',
     staffAuthEnterEmail: 'اپنا ای میل درج کریں',
     staffAuthEnterPassword: 'اپنا پاس ورڈ درج کریں',
     staffAuthEmailRequiredError: 'ای میل درکار ہے۔',
@@ -2087,7 +2103,7 @@ export const translations = {
     staffNavToggleMenu: 'مینو',
     staffNavCollapseSidebar: 'سائیڈ بار سمیٹیں',
     staffNavExpandSidebar: 'سائیڈ بار پھیلائیں',
-    staffPortalTitle: 'ڈیسکون ایڈمن پورٹل',
+    staffPortalTitle: 'ایم پی ایس کنیکٹ ایڈمن پورٹل',
     staffUserMenuProfile: 'پروفائل',
     staffHeaderSearchLabel: 'امیدواروں کو تلاش کریں',
     staffHeaderSearchPlaceholder: 'نام یا حوالہ نمبر سے تلاش کریں...',
@@ -2096,7 +2112,7 @@ export const translations = {
     staffHeaderThemeToggleToDark: 'ڈارک موڈ پر جائیں',
     staffHeaderAccountMenuLabel: 'اکاؤنٹ مینو',
     staffProfileTitle: 'پروفائل',
-    staffProfileSubtitle: 'ڈیسکون ایڈمن پورٹل کے لیے آپ کے اکاؤنٹ کی تفصیلات۔',
+    staffProfileSubtitle: 'ایم پی ایس کنیکٹ ایڈمن پورٹل کے لیے آپ کے اکاؤنٹ کی تفصیلات۔',
     staffProfileEmailLabel: 'ای میل',
     staffProfileRoleLabel: 'کردار',
 

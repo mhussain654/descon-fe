@@ -188,12 +188,12 @@ describe('LoginScreen', () => {
 
   // Client-approved, deliberate exception to the usual non-enumerating
   // response -- see shared/auth/types.ts's AuthErrorCode doc comment.
-  it('shows the not-found error message the backend sends, verbatim, naming the submitted CNIC', async () => {
+  it('shows the non-registration message and guidance, then lets the candidate correct the CNIC', async () => {
     globalThis.fetch = jest.fn(() =>
       Promise.resolve(
         new Response(
           JSON.stringify({
-            errors: [{ code: 'candidate_cnic_not_found', message: "We couldn't find your record with this CNIC: 12345-1234567-1" }],
+            errors: [{ code: 'candidate_cnic_not_found', message: "Sorry, you are not registered for the current mobilization." }],
           }),
           { status: 404, headers: { 'Content-Type': 'application/json' } }
         )
@@ -204,7 +204,9 @@ describe('LoginScreen', () => {
     fireEvent.changeText(await screen.findByLabelText('CNIC Number'), '1234512345671');
     fireEvent.press(screen.getByRole('button', { name: 'Send OTP' }));
 
-    expect(await screen.findByText("We couldn't find your record with this CNIC: 12345-1234567-1")).toBeOnTheScreen();
+    expect(await screen.findByText("Sorry, you are not registered for the current mobilization.")).toBeOnTheScreen();
+    expect(screen.getByText(/Check your CNIC and try again/)).toBeOnTheScreen();
+    fireEvent.press(screen.getByRole("button", { name: "Change CNIC" }));
   });
 
   // Regression: the message used to be reconstructed client-side by
@@ -212,12 +214,12 @@ describe('LoginScreen', () => {
   // typing a correction, the still-displayed error silently relabeled
   // itself to whatever was now typed instead of what was actually
   // submitted. The backend-provided message must stay frozen regardless.
-  it('keeps the not-found message frozen on the originally-submitted CNIC after the candidate starts typing a correction', async () => {
+  it('keeps the non-registration message stable after the candidate starts typing a correction', async () => {
     globalThis.fetch = jest.fn(() =>
       Promise.resolve(
         new Response(
           JSON.stringify({
-            errors: [{ code: 'candidate_cnic_not_found', message: "We couldn't find your record with this CNIC: 12345-1234567-1" }],
+            errors: [{ code: 'candidate_cnic_not_found', message: "Sorry, you are not registered for the current mobilization." }],
           }),
           { status: 404, headers: { 'Content-Type': 'application/json' } }
         )
@@ -227,11 +229,12 @@ describe('LoginScreen', () => {
 
     fireEvent.changeText(await screen.findByLabelText('CNIC Number'), '1234512345671');
     fireEvent.press(screen.getByRole('button', { name: 'Send OTP' }));
-    await screen.findByText("We couldn't find your record with this CNIC: 12345-1234567-1");
+    await screen.findByText("Sorry, you are not registered for the current mobilization.");
+    fireEvent.press(screen.getByRole("button", { name: "Change CNIC" }));
 
     fireEvent.changeText(screen.getByLabelText('CNIC Number'), '9999912345671');
 
-    expect(screen.getByText("We couldn't find your record with this CNIC: 12345-1234567-1")).toBeOnTheScreen();
+    expect(screen.getByText("Sorry, you are not registered for the current mobilization.")).toBeOnTheScreen();
     expect(screen.queryByText(/99999-1234567-1/)).toBeNull();
   });
 

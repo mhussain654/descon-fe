@@ -195,10 +195,10 @@ describe('StaffShell sidebar navigation', () => {
 });
 
 describe('StaffShell branding', () => {
-  it('shows "Descon Admin Portal" as the portal name', async () => {
+  it('shows "MPS Connect Admin Portal" as the portal name', async () => {
     await renderShellAs(ADMIN);
 
-    expect((await screen.findAllByText('Descon Admin Portal')).length).toBeGreaterThan(0);
+    expect((await screen.findAllByText('MPS Connect Admin Portal')).length).toBeGreaterThan(0);
   });
 });
 

@@ -15,7 +15,9 @@ export function statusCopyStyle(language: Language) {
   return { fontFamily: getFontFamily(language), textAlign: physicalTextAlign(language === 'ur' ? 'right' : 'left'), writingDirection: language === 'ur' ? 'rtl' as const : 'ltr' as const, ...(language === 'ur' ? { lineHeight: 30 } : {}) };
 }
 
-export function StatusHeader({ language, t, topInset }: LocaleProps & { topInset: number }) {
+const BUSINESS_UNIT_KEYS: Record<string, TranslationKey> = { qatar: 'buQatar', saudi_arabia: 'buSaudiArabia', uae: 'buUae', oman: 'buOman', kuwait: 'buKuwait', azerbaijan: 'buAzerbaijan', south_africa: 'buSouthAfrica' };
+
+export function StatusHeader({ language, t, topInset, countryCode }: LocaleProps & { topInset: number; countryCode?: string }) {
   const rtl = language === 'ur';
   return (
     <View style={[statusStyles.hero, { paddingTop: topInset + spacing[3] }]}>
@@ -31,6 +33,7 @@ export function StatusHeader({ language, t, topInset }: LocaleProps & { topInset
         </View>
         <View style={statusStyles.heroIcon} accessible={false}><Plane size={29} color="#0873DF" /></View>
       </View>
+      {countryCode && BUSINESS_UNIT_KEYS[countryCode] ? <Text style={[statusStyles.businessUnit, statusCopyStyle(language)]}>{t('candidateProfileBusinessUnitLabel')}: {t(BUSINESS_UNIT_KEYS[countryCode])}</Text> : null}
     </View>
   );
 }
@@ -86,6 +89,7 @@ export function StatusStageCard({ stage, isLast, dateLabel, language, t, childre
 export const statusStyles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: '#F0F7FF' },
   hero: { paddingHorizontal: spacing[5], paddingBottom: spacing[8], overflow: 'hidden', backgroundColor: '#0873DF' },
+  businessUnit: { marginTop: spacing[2], color: '#FFFFFF', fontSize: 12, lineHeight: 22 },
   heroRow: { alignItems: 'center', gap: spacing[3], marginTop: 0 },
   flex: { flex: 1, minWidth: 0 },
   title: { fontSize: 25, lineHeight: 34, color: '#FFFFFF' },
