@@ -21,7 +21,7 @@ export interface AttentionListItem {
  * each building its own `items` from whatever real exception data it has,
  * rather than duplicating this row markup per dashboard.
  */
-export function AttentionListPanel({ items, emptyTitle }: { items: AttentionListItem[]; emptyTitle: string }) {
+export function AttentionListPanel({ items, emptyTitle, className = 'flex flex-col gap-2' }: { items: AttentionListItem[]; emptyTitle: string; className?: string }) {
   const total = items.reduce((sum, item) => sum + item.count, 0);
 
   if (total === 0) {
@@ -29,7 +29,7 @@ export function AttentionListPanel({ items, emptyTitle }: { items: AttentionList
   }
 
   return (
-    <ul className="flex flex-col gap-2">
+    <ul className={className}>
       {items.map((item) => {
         const Icon = item.icon;
         const content = (

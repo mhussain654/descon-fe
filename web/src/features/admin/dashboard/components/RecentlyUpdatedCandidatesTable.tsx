@@ -1,3 +1,4 @@
+import { ArrowUpRight } from 'lucide-react';
 import { Link } from 'react-router';
 import { Badge, DataTable, EmptyState, type DataTableColumn } from '../../../../design-system';
 import { formatDate } from '../../../../../../shared/i18n/locale';
@@ -49,7 +50,7 @@ export function RecentlyUpdatedCandidatesTable({
       ),
     },
     { key: 'updated', header: t('adminDashboardColumnLastUpdated'), render: (row) => formatDate(row.lastUpdatedAt, language) },
-    { key: 'nextAction', header: t('adminDashboardColumnNextAction'), render: (row) => nextActionLabel(row.workflowStageCode, t) },
+    { key: 'nextAction', header: t('adminDashboardColumnNextAction'), render: (row) => row.workflowStageCode === 'mobilized' ? nextActionLabel(row.workflowStageCode, t) : <Link to={`/admin/candidates/${row.candidatePublicId}`} className="inline-flex items-center gap-2 rounded-lg bg-brand-subtle px-3 py-2 text-sm font-medium text-brand hover:bg-brand-subtle/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand">{nextActionLabel(row.workflowStageCode, t)}<ArrowUpRight className="h-4 w-4 shrink-0" aria-hidden="true" /></Link> },
   ];
 
   return (
