@@ -24,6 +24,11 @@ describe('candidateListUrlState', () => {
     expect(state.page).toEqual({ number: 3, size: 50 });
   });
 
+  it('preserves country-specific stages across reloads', () => {
+    expect(readCandidateListStateFromSearchParams(new URLSearchParams('status=medical_pending')).filters.status).toBe('medical_pending');
+    expect(readCandidateListStateFromSearchParams(new URLSearchParams('status=ticket_handover')).filters.status).toBe('ticket_handover');
+  });
+
   it('drops an unrecognized status code rather than forwarding it to the backend', () => {
     const state = readCandidateListStateFromSearchParams(new URLSearchParams('status=not_a_real_stage'));
     expect(state.filters.status).toBeUndefined();

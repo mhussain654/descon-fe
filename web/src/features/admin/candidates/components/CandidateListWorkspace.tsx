@@ -26,39 +26,37 @@ import type {
   AdminCandidateStatusSummaryRow,
 } from '../../../../lib/admin-candidates-client';
 import type { TranslationKey } from '../../../../../../shared/i18n/translations';
-import { CANONICAL_WORKFLOW_STAGE_CODES, WORKFLOW_STAGE_LABEL_KEYS } from '../../../../../../shared/adminWorkflow/canonicalStages';
-import { CategoryBarChart } from '../../reports/components/ReportCharts';
+import { CANDIDATE_LIST_STAGE_LABEL_KEYS } from '../../../../../../shared/adminCandidates/workflowStageLabels';
 import { useDebouncedUrlFilter } from '../../documentReviews/hooks/useDebouncedUrlFilter';
 import { useCandidateList } from '../hooks/useCandidateList';
 import { readCandidateListStateFromSearchParams, writeCandidateListStateToSearchParams } from '../candidateListUrlState';
 
 function stageLabel(code: string, t: (key: TranslationKey) => string): string {
-  const key = WORKFLOW_STAGE_LABEL_KEYS[code as (typeof CANONICAL_WORKFLOW_STAGE_CODES)[number]] as TranslationKey | undefined;
+  const key = CANDIDATE_LIST_STAGE_LABEL_KEYS[code];
   return key ? t(key) : code;
 }
 
-function CandidateStatusSummaryCard({ summary, t }: { summary?: AdminCandidateStatusSummaryRow[]; t: (key: TranslationKey) => string }) {
-  if (!summary || summary.length === 0) return null;
-
-  const hasAnyCount = summary.some((row) => row.count > 0);
-  if (!hasAnyCount) return null;
-
-  const chartData = summary.map((row) => ({ key: row.code, label: stageLabel(row.code, t), value: row.count }));
-
+function CandidateStatusSummaryCard({ summary, selected, onSelect, t }: { summary?: AdminCandidateStatusSummaryRow[]; selected?: string; onSelect: (code: string | undefined) => void; t: (key: TranslationKey) => string }) {
+  if (!summary?.some((row) => row.count > 0)) return null;
+  const active = summary.filter((row) => row.count > 0 || row.code === selected)
+    .sort((a, b) => Number(b.code === selected) - Number(a.code === selected) || b.count - a.count)
+    .slice(0, 6);
+  const stageButton = (row: AdminCandidateStatusSummaryRow) => (
+    <button key={row.code} type="button" aria-pressed={selected === row.code} onClick={() => onSelect(selected === row.code ? undefined : row.code)}
+      className={`flex min-w-0 items-center justify-between gap-3 rounded-xl border px-4 py-3 text-start transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand ${selected === row.code ? 'border-brand bg-brand-subtle text-brand' : 'border-border bg-surface hover:bg-surface-sunken'}`}>
+      <span className="text-sm font-medium">{stageLabel(row.code, t)}</span>
+      <span className="text-lg font-semibold tabular-nums">{row.count}</span>
+    </button>
+  );
   return (
     <Card className="mb-5 p-5">
-      <h2 className="mb-1 font-semibold text-text-primary">{t('adminCandidateListStatusSummaryTitle')}</h2>
-      <p className="mb-4 text-xs text-text-secondary">{t('adminCandidateListStatusSummarySubtitle')}</p>
-      <CategoryBarChart data={chartData} />
-      {/* The chart above is aria-hidden/decorative; this grid is the accessible source of truth for every stage count. */}
-      <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5">
-        {chartData.map((row) => (
-          <div key={row.key} className="rounded-lg bg-surface-sunken px-3 py-2">
-            <p className="text-lg font-semibold text-text-primary">{row.value}</p>
-            <p className="text-xs text-text-secondary">{row.label}</p>
-          </div>
-        ))}
-      </div>
+      <h2 className="font-semibold text-text-primary">{t('adminCandidateListStatusSummaryTitle')}</h2>
+      <p className="mb-4 mt-1 text-xs text-text-secondary">{t('adminCandidateListStatusSummarySubtitle')}</p>
+      <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-3">{active.map(stageButton)}</div>
+      <details className="mt-4">
+        <summary className="cursor-pointer text-sm font-semibold text-brand focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand">{t('adminCandidateListAllStages')}</summary>
+        <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-3">{summary.filter((row) => !active.includes(row)).map(stageButton)}</div>
+      </details>
     </Card>
   );
 }
@@ -160,7 +158,7 @@ export function CandidateListWorkspace() {
       <div className="relative mb-5 overflow-hidden rounded-2xl bg-brand shadow-md">
         <div aria-hidden="true" className="absolute -right-14 -top-20 h-52 w-52 rounded-full border-[28px] border-white/10" />
         <div aria-hidden="true" className="absolute -bottom-16 right-40 h-36 w-36 rounded-full bg-white/5" />
-        <div className="relative flex flex-col gap-5 px-6 py-7 sm:flex-row sm:items-center sm:justify-between lg:px-8">
+        <div className="relative flex flex-col gap-4 px-6 py-5 sm:flex-row sm:items-center sm:justify-between lg:px-8">
           <div className="max-w-2xl">
             <p className="mb-2 text-xs font-semibold uppercase tracking-widest text-white/70">{t('adminCandidateListEyebrow')}</p>
             <h1 className="text-2xl font-semibold tracking-tight text-white sm:text-3xl">{t('adminCandidateListTitle')}</h1>
@@ -176,8 +174,6 @@ export function CandidateListWorkspace() {
           ) : null}
         </div>
       </div>
-
-      <CandidateStatusSummaryCard summary={query.data?.summary} t={t} />
 
       <Card className="mb-5 p-5">
         <div className="mb-4 flex items-center gap-3">
@@ -204,7 +200,7 @@ export function CandidateListWorkspace() {
             onChange={(event) => updateFilters({ status: event.target.value || undefined })}
             options={[
               { value: '', label: t('adminCandidateListFilterAllStatuses') },
-              ...CANONICAL_WORKFLOW_STAGE_CODES.map((code) => ({ value: code, label: t(WORKFLOW_STAGE_LABEL_KEYS[code]) })),
+              ...Object.keys(CANDIDATE_LIST_STAGE_LABEL_KEYS).map((code) => ({ value: code, label: stageLabel(code, t) })),
             ]}
           />
           <Select
@@ -222,6 +218,8 @@ export function CandidateListWorkspace() {
           </div>
         ) : null}
       </Card>
+
+      <CandidateStatusSummaryCard summary={query.data?.summary} selected={filters.status} onSelect={(status) => updateFilters({ status })} t={t} />
 
       <ListContent
         query={query}

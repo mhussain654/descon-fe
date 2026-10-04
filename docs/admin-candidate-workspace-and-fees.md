@@ -27,3 +27,11 @@ Overview displays the backend effective fee amount beside the workflow payment s
 Admin typography is increased by 4px, including navigation, sign-in, dialog content and chart labels. This is scoped to admin surfaces; candidate typography and global rem spacing remain unchanged.
 
 Follow-up validation: all 204 web test files / 2044 tests passed, web typechecking (including the explicit admin workspace check), production build and diff checks passed. Live layout verification remains to be completed in the running admin app.
+
+## Candidate directory redesign
+
+The candidate index places search, status and sorting immediately under a compact header. The oversized chart and duplicate count grid are replaced with up to six stage shortcuts, ordered by count with the selected stage kept visible. All other stages, including zero counts, remain available in an expandable breakdown. Clicking a shortcut toggles the status filter and resets pagination; URL filters still survive refresh and navigation. Counts come from the backend and retain its summary scope.
+
+Country-specific stages from docs-per-country are now localized in English/Urdu and supported by the status selector and URL parser. Existing candidate links, creation permissions, controlled table scrolling, errors, retry and pagination are retained. This follow-up is based on frontend feat/mobile-consent-redesign at 73727fb; no backend mutation or deployment is required.
+
+Directory follow-up verification: 204 web files / 2046 tests passed, including country-stage URL persistence, shortcut filtering and Urdu labels. Web typecheck, production build and diff checks passed. Live responsive layout verification remains to be completed in the running admin app.

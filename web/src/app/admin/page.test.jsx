@@ -195,6 +195,23 @@ describe("AdminCandidateListPage", () => {
       expect(screen.getByText("12")).toBeInTheDocument();
     });
 
+    it("filters from a stage shortcut and resets pagination", async () => {
+      adminCandidateClient.listCandidates.mockResolvedValue(listResult([candidate()], undefined, {}, [
+        { code: "registered", count: 12 }, { code: "medical_pending", count: 3 },
+      ]));
+      renderAt("/admin?page=2", await signInAs(HR));
+      const shortcut = await screen.findByRole("button", { name: /Medical pending.*3/ });
+      fireEvent.click(shortcut);
+      await waitFor(() => expect(adminCandidateClient.listCandidates).toHaveBeenLastCalledWith(
+        expect.objectContaining({ status: "medical_pending" }), undefined, expect.objectContaining({ number: 1 }),
+      ));
+      expect(shortcut).toHaveAttribute("aria-pressed", "true");
+      fireEvent.click(shortcut);
+      await waitFor(() => expect(adminCandidateClient.listCandidates).toHaveBeenLastCalledWith(
+        expect.objectContaining({ status: undefined }), undefined, expect.objectContaining({ number: 1 }),
+      ));
+    });
+
     it("omits the pipeline breakdown card when the backend returns no summary", async () => {
       adminCandidateClient.listCandidates.mockResolvedValue(listResult([candidate()]));
       const client = await signInAs(HR);
@@ -385,11 +402,12 @@ describe("AdminCandidateListPage", () => {
   });
 
   it("renders in Urdu", async () => {
-    adminCandidateClient.listCandidates.mockResolvedValue(listResult([candidate()]));
+    adminCandidateClient.listCandidates.mockResolvedValue(listResult([candidate()], undefined, {}, [{ code: "medical_pending", count: 3 }]));
     localStorage.setItem("descon.language", "ur");
     const client = await signInAs(HR);
     renderAt("/admin", client);
 
     expect(await screen.findByRole("heading", { name: "امیدوار" })).toBeInTheDocument();
+    expect(await screen.findByRole("button", { name: /میڈیکل زیر التوا.*3/ })).toBeInTheDocument();
   });
 });
