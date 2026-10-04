@@ -4,6 +4,8 @@
 // descon-be. Do not add a field here that the backend doesn't actually
 // return; do not guess from the prototype.
 
+import type { CandidateDocumentFile } from '../candidateDocuments/types';
+
 /** The four review states the backend can report today (Admin::DocumentReviewQueueParams::REVIEW_STATES). */
 export type ReviewState = 'pending_review' | 'partially_reviewed' | 'changes_required' | 'verified';
 
@@ -64,9 +66,12 @@ export interface SubmissionDocument {
   requirementCode: string;
   required: boolean;
   name: string;
+  /** Deprecated single-file fields describing the representative file -- prefer `files`. */
   fileName: string;
   contentType: string;
   fileSize: number;
+  /** The whole file set reviewed together (e.g. CNIC front and back), in upload order. */
+  files: CandidateDocumentFile[];
   uploadedAt: string;
   status: DocumentDisplayStatus;
   verifiedAt?: string;
@@ -139,6 +144,8 @@ export interface DocumentReviewQueuePage {
 /** A short-lived, single-use credential for previewing one document. Never persist beyond the current preview session (see the ticket's "Secure document access" rules). */
 export interface DocumentAccess {
   documentId: string;
+  /** The file this credential serves. */
+  fileId: string;
   url: string;
   /** ISO 8601 timestamp; the caller must request a fresh access after this passes. */
   expiresAt: string;
@@ -205,7 +212,8 @@ export interface AdminDocumentReviewError {
 export interface AdminDocumentReviewsClient {
   getQueue(filters: DocumentReviewQueueFilters, page: DocumentReviewQueuePage): Promise<DocumentReviewQueueResult>;
   getSubmission(submissionId: string): Promise<DocumentSubmissionDetail>;
-  requestDocumentAccess(documentId: string): Promise<DocumentAccess>;
+  /** `fileId` picks one file of a multi-file document; without it the backend serves the representative file. */
+  requestDocumentAccess(documentId: string, fileId?: string): Promise<DocumentAccess>;
   verifyDocument(documentId: string, idempotencyKey: string, dates?: VerifyDocumentDates): Promise<ReviewDecisionResult>;
   rejectDocument(documentId: string, reason: string, idempotencyKey: string): Promise<ReviewDecisionResult>;
   getExtraction(documentId: string): Promise<DocumentExtraction>;

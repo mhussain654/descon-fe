@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import * as DocumentPicker from 'expo-document-picker';
 import * as ImagePicker from 'expo-image-picker';
@@ -14,16 +14,35 @@ import {
   resolveIdempotencyKey,
   type IdempotencyKeyState,
 } from '../../../../../../shared/candidateDocuments/idempotency';
-import { validateSelectedFile, type FileValidationError } from '../../../../../../shared/candidateDocuments/fileValidation';
+import {
+  appendEntries,
+  layoutFor,
+  orderedEntries,
+  replaceSlot,
+  validateFileSet,
+  type FileSetEntry,
+  type FileSetLayout,
+  type FileSetValidationError,
+  type PairUploadMode,
+} from '../../../../../../shared/candidateDocuments/fileSet';
+import type { SelectedFileDescriptor } from '../../../../../../shared/candidateDocuments/fileValidation';
 import { PCC_REQUIREMENT_CODE, validatePccIssueDate, type PccIssueDateError } from '../../../../../../shared/candidateDocuments/pccIssueDate';
+import type { DocumentSideCode, DocumentUploadRules } from '../../../../../../shared/candidateDocuments/types';
 import { documentQueries } from '../../../../../../shared/queryKeys/documentQueries';
 
-/** iOS/Android both report `size`/`mimeType` on a picked asset, but neither is guaranteed on every device/provider -- validation and the idempotency signature both tolerate either being absent, matching web's handling of a platform that doesn't report a MIME type. */
+/** iOS/Android both report `size`/`mimeType` on a picked asset, but neither is guaranteed on every device/provider -- validation and the idempotency signature both tolerate either being absent. */
 export type PickedDocument = DocumentPicker.DocumentPickerAsset;
+
+/** A picked asset reduced to the descriptor shared validation reads, keeping the asset for upload. */
+export interface PickedFile extends SelectedFileDescriptor {
+  asset: PickedDocument;
+}
+
+export type PickSource = 'file' | 'camera' | 'gallery';
 
 interface UploadVariables {
   requirementCode: string;
-  document: PickedDocument;
+  entries: FileSetEntry<PickedFile>[];
   issuedOn: string;
   idempotencyKey: string;
   accessTokenAtCallTime: string;
@@ -31,28 +50,26 @@ interface UploadVariables {
 
 /**
  * Set when a camera/gallery permission request came back denied, so the
- * panel can show localized recovery guidance next to the capture buttons
- * instead of silently doing nothing. `blocked` distinguishes "permanently
- * denied -- only Settings can fix this" (`canAskAgain: false`) from a
- * transient denial the candidate can retry from within the app.
+ * panel can show localized recovery guidance instead of silently doing
+ * nothing. `blocked` means only Settings can fix it (`canAskAgain: false`).
  */
 export interface CapturePermissionNotice {
   source: 'camera' | 'gallery';
   blocked: boolean;
 }
 
-const ALLOWED_MIME_TYPES = ['application/pdf', 'image/jpeg', 'image/png'];
+function toPickedFile(asset: PickedDocument): PickedFile {
+  return { name: asset.name, size: asset.size, type: asset.mimeType, asset };
+}
 
 /**
- * `expo-image-picker` reports a photo/video asset's name as `fileName`
- * (nullable) and size as `fileSize`, unlike `expo-document-picker`'s
- * `name`/`size` -- normalized here to the exact same `PickedDocument` shape
- * so validation, the idempotency signature and `buildFormData` never need
- * to know which source an asset came from. `lastModified` isn't reported by
- * the image picker at all; the exact value only matters for detecting an
- * unchanged retry within one picking session, so "now" is a safe default.
+ * `expo-image-picker` reports a photo's name as `fileName` (nullable) and its
+ * size as `fileSize`, unlike `expo-document-picker`'s `name`/`size` --
+ * normalized here to the same `PickedDocument` shape. `lastModified` isn't
+ * reported by the image picker; "now" is a safe default since it only
+ * distinguishes an unchanged retry within one picking session.
  */
-function toPickedDocument(asset: ImagePicker.ImagePickerAsset, fallbackPrefix: string): PickedDocument {
+function fromImageAsset(asset: ImagePicker.ImagePickerAsset, fallbackPrefix: string): PickedDocument {
   const mimeType = asset.mimeType || 'image/jpeg';
   const extension = mimeType === 'image/png' ? 'png' : 'jpg';
   return {
@@ -61,57 +78,42 @@ function toPickedDocument(asset: ImagePicker.ImagePickerAsset, fallbackPrefix: s
     size: asset.fileSize,
     mimeType,
     lastModified: Date.now(),
-    // Web-only: expo-image-picker/document-picker both hand back a real
-    // File on web (see buildFormData's comment) -- dropped here entirely
-    // would leave the Expo web build with no working upload path at all.
+    // Web-only: both pickers hand back a real File on Expo web (see buildFormData).
     file: asset.file,
   };
 }
 
-/**
- * Includes `issuedOn` so a candidate editing the PCC issue date between
- * attempts is treated the same as picking a different file -- the backend's
- * own idempotency fingerprint (Candidates::Documents::UploadFingerprint)
- * hashes `issued_on` alongside the file, so reusing a key across a changed
- * date would otherwise surface as a confusing idempotency_conflict instead
- * of just starting a fresh attempt.
- */
-function documentSignature(document: PickedDocument, issuedOn: string): string {
-  return `${document.uri}:${document.size ?? 'unknown'}:${document.lastModified}:${issuedOn}`;
+/** Identifies the whole file set plus the PCC issue date, matching the backend's own idempotency fingerprint. */
+function fileSetSignature(entries: FileSetEntry<PickedFile>[], issuedOn: string): string {
+  const files = entries.map(
+    ({ sideCode, file }) => `${sideCode ?? '-'}:${file.asset.uri}:${file.size ?? 'unknown'}:${file.asset.lastModified}`
+  );
+  return `${files.join('|')}#${issuedOn}`;
 }
 
 /**
- * Builds the multipart body for a picked document. Native React Native's
- * `fetch`/`FormData` accept a `{ uri, name, type }` part in place of a real
- * `Blob` for a file field -- the standard RN upload pattern. Running the
- * same code via Expo web is also supported (see app.json's `web` config),
- * and the browser's real `FormData.append` does NOT understand that `{uri,
- * name, type}` shape: passed a plain object, it silently stringifies it
- * (`"[object Object]"`), which is exactly what a plain object would look
- * like once serialized -- so on web the picker's own `file` (a real `File`,
- * `@platform web` on both expo-document-picker and expo-image-picker
- * assets) must be appended directly instead.
- *
- * `issuedOn` is only appended for the police_character requirement -- the
- * backend rejects the request entirely if `expires_on` is ever supplied by
- * the client (PccExpiryNotEditableError), so that field is never sent here
- * at all; expiry is always server-calculated.
+ * Builds the multipart body: each file as `files[][file]` plus its part label
+ * (`files[][side_code]`) when the requirement uses labels. Native React
+ * Native accepts a `{ uri, name, type }` part for a file field; on Expo web
+ * the browser's FormData needs the picker's real `File` instead (a plain
+ * object would be stringified). `issued_on` is only sent for the PCC
+ * requirement; `expires_on` never -- the backend always calculates it.
  */
-export function buildFormData(requirementCode: string, document: PickedDocument, issuedOn: string): FormData {
+export function buildFormData(requirementCode: string, entries: FileSetEntry<PickedFile>[], issuedOn: string): FormData {
   const formData = new FormData();
   formData.append('candidate_document[requirement_code]', requirementCode);
-  if (document.file) {
-    formData.append('candidate_document[file]', document.file, document.name);
-  } else {
-    formData.append(
-      'candidate_document[file]',
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RN's FormData typing models web's Blob-only signature; the platform's actual runtime accepts this shape for a file part.
-      {
-        uri: document.uri,
-        name: document.name,
-        type: document.mimeType || 'application/octet-stream',
-      } as any
-    );
+  for (const { sideCode, file } of entries) {
+    const { asset } = file;
+    if (asset.file) {
+      formData.append('candidate_document[files][][file]', asset.file, asset.name);
+    } else {
+      formData.append(
+        'candidate_document[files][][file]',
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RN's FormData typing models web's Blob-only signature; the platform's runtime accepts this shape for a file part.
+        { uri: asset.uri, name: asset.name, type: asset.mimeType || 'application/octet-stream' } as any
+      );
+    }
+    if (sideCode) formData.append('candidate_document[files][][side_code]', sideCode);
   }
   if (requirementCode === PCC_REQUIREMENT_CODE && issuedOn.trim()) {
     formData.append('candidate_document[issued_on]', issuedOn.trim());
@@ -119,12 +121,16 @@ export function buildFormData(requirementCode: string, document: PickedDocument,
   return formData;
 }
 
+interface ActiveRequirement {
+  requirementCode: string;
+  rules: DocumentUploadRules;
+}
+
 /**
- * Owns the single active "upload or replace" flow across the whole
- * checklist -- mirrors web/src/features/candidate/documents/hooks/useDocumentUpload.ts's
- * design and every idempotency/race-safety rule it documents, swapping the
- * browser `File` for an `expo-document-picker` asset, and additionally
- * collects the PCC issue date the police_character requirement now requires.
+ * Owns the single active "upload or replace" flow across the whole checklist
+ * -- mirrors web's useDocumentUpload.ts: the selected file set is shaped by
+ * the requirement's backend rules (shared/candidateDocuments/fileSet.ts),
+ * swapping the browser File for picker assets (file, camera or gallery).
  */
 export function useDocumentUpload() {
   const { session } = useAuth();
@@ -132,36 +138,44 @@ export function useDocumentUpload() {
   const queryClient = useQueryClient();
   const candidateId = session?.candidateId ?? 'anonymous';
 
-  const [activeRequirementCode, setActiveRequirementCode] = useState<string | null>(null);
-  const [document, setDocument] = useState<PickedDocument | null>(null);
-  const [validationError, setValidationError] = useState<FileValidationError | null>(null);
+  const [active, setActive] = useState<ActiveRequirement | null>(null);
+  const [mode, setModeState] = useState<PairUploadMode>('parts');
+  const [entries, setEntries] = useState<FileSetEntry<PickedFile>[]>([]);
+  const [showSetError, setShowSetError] = useState(false);
   const [issuedOn, setIssuedOnState] = useState('');
   const [issuedOnError, setIssuedOnError] = useState<PccIssueDateError | null>(null);
   const [idempotencyState, setIdempotencyState] = useState<IdempotencyKeyState>(EMPTY_IDEMPOTENCY_KEY_STATE);
   const [permissionNotice, setPermissionNotice] = useState<CapturePermissionNotice | null>(null);
 
   const activeRequirementCodeRef = useRef<string | null>(null);
-  activeRequirementCodeRef.current = activeRequirementCode;
+  activeRequirementCodeRef.current = active?.requirementCode ?? null;
 
-  const isPccRequirement = activeRequirementCode === PCC_REQUIREMENT_CODE;
+  const layout: FileSetLayout | null = useMemo(() => (active ? layoutFor(active.rules) : null), [active]);
+  const validation: FileSetValidationError | null = useMemo(
+    () => (active ? validateFileSet(active.rules, entries) : null),
+    [active, entries]
+  );
+  const isPccRequirement = active?.requirementCode === PCC_REQUIREMENT_CODE;
+
+  const resetSelection = useCallback(() => {
+    setEntries([]);
+    setShowSetError(false);
+    setIssuedOnState('');
+    setIssuedOnError(null);
+    setIdempotencyState(EMPTY_IDEMPOTENCY_KEY_STATE);
+    setPermissionNotice(null);
+  }, []);
 
   const mutation = useMutation<CandidateDocumentChecklistItem, CandidateDocumentsError, UploadVariables>({
-    mutationFn: async ({ requirementCode, document, issuedOn, idempotencyKey, accessTokenAtCallTime }) => {
+    mutationFn: async ({ requirementCode, entries: files, issuedOn: date, idempotencyKey, accessTokenAtCallTime }) => {
       let formData: FormData;
       try {
-        formData = buildFormData(requirementCode, document, issuedOn);
+        formData = buildFormData(requirementCode, files, date);
       } catch {
-        // The picked file (or its cached copy) is no longer accessible on
-        // disk -- caught here rather than left to crash the app (ticket:
-        // "Handle inaccessible/deleted local files.").
+        // A picked file (or its cached copy) is no longer accessible on disk.
         throw { code: 'UNKNOWN' } satisfies CandidateDocumentsError;
       }
-      return candidateDocumentsClient.uploadDocument({
-        accessToken: accessTokenAtCallTime,
-        requirementCode,
-        formData,
-        idempotencyKey,
-      });
+      return candidateDocumentsClient.uploadDocument({ accessToken: accessTokenAtCallTime, requirementCode, formData, idempotencyKey });
     },
     onSuccess: (result, variables) => {
       if (session?.accessToken !== variables.accessTokenAtCallTime) return;
@@ -169,24 +183,14 @@ export function useDocumentUpload() {
       queryClient.setQueryData<CandidateDocumentChecklistItem[]>(documentQueries.candidateChecklist(candidateId, language), (old) =>
         old ? old.map((item) => (item.requirementCode === result.requirementCode ? result : item)) : old
       );
-      // A new/replaced document changes required-document counts, submission
-      // state, compliance and the next recommended action -- all served by
-      // the same application-progress response that Dashboard, Status and
-      // Profile already read. Without this, those screens would keep
-      // showing stale counts/next-action until their own query happened to
-      // refetch on its own (focus/pull-to-refresh), even though the
-      // checklist row above already updated (ticket: "refresh/invalidate
-      // ... Application progress, Dashboard next action, Relevant
-      // profile/document summaries").
+      // Counts, submission state and the next action on Dashboard/Status/
+      // Profile all come from application progress -- refresh it too.
       queryClient.invalidateQueries({ queryKey: documentQueries.applicationProgress(candidateId, language) });
       toast.success(t('candidateDocumentsUploadSuccessToast'));
 
       if (activeRequirementCodeRef.current === result.requirementCode) {
-        setActiveRequirementCode(null);
-        setDocument(null);
-        setValidationError(null);
-        setIssuedOnState('');
-        setIssuedOnError(null);
+        setActive(null);
+        resetSelection();
         setIdempotencyState(clearIdempotencyKey());
       }
     },
@@ -197,106 +201,114 @@ export function useDocumentUpload() {
       if (error.code === 'REPLACEMENT_NOT_ALLOWED') {
         queryClient.invalidateQueries({ queryKey: documentQueries.candidateChecklist(candidateId, language) });
       }
-      // VALIDATION_ERROR (a bad/missing PCC issue date): the panel stays
-      // open with the typed date preserved so the candidate can fix it --
-      // resolveIdempotencyKey below already mints a fresh key on the next
-      // submit if they change the date, and reuses the same one if they
-      // don't, matching the backend's own fingerprint (which hashes
-      // issued_on alongside the file).
     },
   });
 
   const startUpload = useCallback(
-    (requirementCode: string) => {
-      setActiveRequirementCode(requirementCode);
-      setDocument(null);
-      setValidationError(null);
-      setIssuedOnState('');
-      setIssuedOnError(null);
-      setIdempotencyState(EMPTY_IDEMPOTENCY_KEY_STATE);
-      setPermissionNotice(null);
+    (item: Pick<CandidateDocumentChecklistItem, 'requirementCode' | 'uploadRules'>) => {
+      setActive({ requirementCode: item.requirementCode, rules: item.uploadRules });
+      setModeState('parts');
+      resetSelection();
       mutation.reset();
     },
-    [mutation]
+    [mutation, resetSelection]
   );
 
   const cancelUpload = useCallback(() => {
-    setActiveRequirementCode(null);
-    setDocument(null);
-    setValidationError(null);
-    setIssuedOnState('');
-    setIssuedOnError(null);
-    setIdempotencyState(EMPTY_IDEMPOTENCY_KEY_STATE);
-    setPermissionNotice(null);
+    setActive(null);
+    resetSelection();
     mutation.reset();
-  }, [mutation]);
+  }, [mutation, resetSelection]);
 
-  /** Opens the native document/file picker and applies its result -- a cancellation is a normal, silent no-op, never an error (ticket: "Handle picker cancellation as a normal non-error state."). No permission is required for this picker (it's the system's own file/Files-app UI, not the camera or photo library), so it stays available even when camera/gallery access is denied or blocked. */
-  const pickDocument = useCallback(async () => {
-    if (!activeRequirementCode) return;
-    const result = await DocumentPicker.getDocumentAsync({
-      type: ALLOWED_MIME_TYPES,
-      copyToCacheDirectory: true,
-      multiple: false,
-    });
-    if (result.canceled) return;
-
-    const asset = result.assets[0];
-    setPermissionNotice(null);
-    setDocument(asset);
-    setValidationError(validateSelectedFile({ name: asset.name, size: asset.size, type: asset.mimeType }));
-    mutation.reset();
-  }, [activeRequirementCode, mutation]);
-
-  const applyPickedImage = useCallback(
-    (result: ImagePicker.ImagePickerResult, fallbackPrefix: string) => {
-      if (result.canceled) return;
-      const asset = toPickedDocument(result.assets[0], fallbackPrefix);
-      setPermissionNotice(null);
-      setDocument(asset);
-      setValidationError(validateSelectedFile({ name: asset.name, size: asset.size, type: asset.mimeType }));
+  /** Switching between one combined PDF and separate parts starts the selection over. */
+  const setMode = useCallback(
+    (nextMode: PairUploadMode) => {
+      setModeState(nextMode);
+      setEntries([]);
+      setShowSetError(false);
       mutation.reset();
     },
     [mutation]
   );
 
+  /** Places picked assets: into a repeatable list (`multiple` layout) or into the given slot. */
+  const placeAssets = useCallback(
+    (assets: PickedDocument[], sideCode: DocumentSideCode | null) => {
+      if (!layout || assets.length === 0) return;
+      const files = assets.map(toPickedFile);
+      setPermissionNotice(null);
+      setEntries((current) =>
+        layout.kind === 'multiple'
+          ? appendEntries(current, layout.sideCode, files, layout.maximumFiles)
+          : replaceSlot(current, sideCode, files[0])
+      );
+      mutation.reset();
+    },
+    [layout, mutation]
+  );
+
   /**
-   * Opens the camera, requesting permission first. A cancelled capture is a
-   * silent no-op, same as `pickDocument`. A denied/blocked permission sets
-   * `permissionNotice` instead of throwing or silently doing nothing, so the
-   * panel can show localized recovery guidance (and an Open Settings action
-   * when the OS will no longer prompt again) -- the candidate can always
-   * fall back to `pickDocument` regardless of this outcome.
+   * Opens a picker for one slot (or, for a repeatable document, to add files).
+   * A cancelled pick is a silent no-op. The file picker needs no permission;
+   * a denied camera/gallery permission sets `permissionNotice` instead.
    */
-  const pickFromCamera = useCallback(async () => {
-    if (!activeRequirementCode) return;
-    const permission = await ImagePicker.requestCameraPermissionsAsync();
-    if (!permission.granted) {
-      setPermissionNotice({ source: 'camera', blocked: !permission.canAskAgain });
-      return;
-    }
-    const result = await ImagePicker.launchCameraAsync({ mediaTypes: ['images'], quality: 0.8 });
-    applyPickedImage(result, 'photo');
-  }, [activeRequirementCode, applyPickedImage]);
+  const pick = useCallback(
+    async (source: PickSource, sideCode: DocumentSideCode | null) => {
+      if (!active || !layout) return;
+      const allowsMultiple = layout.kind === 'multiple';
 
-  /** Opens the photo library, requesting permission first -- mirrors `pickFromCamera`'s permission/cancellation handling exactly. */
-  const pickFromGallery = useCallback(async () => {
-    if (!activeRequirementCode) return;
-    const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (!permission.granted) {
-      setPermissionNotice({ source: 'gallery', blocked: !permission.canAskAgain });
-      return;
-    }
-    const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], quality: 0.8 });
-    applyPickedImage(result, 'image');
-  }, [activeRequirementCode, applyPickedImage]);
+      if (source === 'file') {
+        const result = await DocumentPicker.getDocumentAsync({
+          type: sideCode === 'combined' ? ['application/pdf'] : [...active.rules.acceptedContentTypes],
+          copyToCacheDirectory: true,
+          multiple: allowsMultiple,
+        });
+        if (!result.canceled) placeAssets(result.assets, sideCode);
+        return;
+      }
 
-  const removeDocument = useCallback(() => {
-    setDocument(null);
-    setValidationError(null);
-    setPermissionNotice(null);
-    mutation.reset();
-  }, [mutation]);
+      const permission =
+        source === 'camera'
+          ? await ImagePicker.requestCameraPermissionsAsync()
+          : await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (!permission.granted) {
+        setPermissionNotice({ source, blocked: !permission.canAskAgain });
+        return;
+      }
+      const result =
+        source === 'camera'
+          ? await ImagePicker.launchCameraAsync({ mediaTypes: ['images'], quality: 0.8 })
+          : await ImagePicker.launchImageLibraryAsync({
+              mediaTypes: ['images'],
+              quality: 0.8,
+              allowsMultipleSelection: allowsMultiple,
+            });
+      if (result.canceled) return;
+      placeAssets(
+        result.assets.map((asset) => fromImageAsset(asset, source === 'camera' ? 'photo' : 'image')),
+        sideCode
+      );
+    },
+    [active, layout, placeAssets]
+  );
+
+  /** Empties one slot. */
+  const removeSlot = useCallback(
+    (sideCode: DocumentSideCode | null) => {
+      setEntries((current) => replaceSlot(current, sideCode, null));
+      mutation.reset();
+    },
+    [mutation]
+  );
+
+  /** Removes one file from a repeatable document's list. */
+  const removeFileAt = useCallback(
+    (index: number) => {
+      setEntries((current) => current.filter((_, position) => position !== index));
+      mutation.reset();
+    },
+    [mutation]
+  );
 
   const setIssuedOn = useCallback((value: string) => {
     setIssuedOnState(value);
@@ -304,10 +316,9 @@ export function useDocumentUpload() {
   }, []);
 
   const submit = useCallback(() => {
-    if (!document || !activeRequirementCode || !session || mutation.isPending) return;
-    const fileError = validateSelectedFile({ name: document.name, size: document.size, type: document.mimeType });
-    setValidationError(fileError);
-    if (fileError) return;
+    if (!active || !layout || !session || mutation.isPending) return;
+    setShowSetError(true);
+    if (validation) return;
 
     if (isPccRequirement) {
       const dateError = validatePccIssueDate(issuedOn);
@@ -315,26 +326,32 @@ export function useDocumentUpload() {
       if (dateError) return;
     }
 
+    const files = orderedEntries(layout, entries);
     const resolved = resolveIdempotencyKey(
       idempotencyState,
-      { requirementCode: activeRequirementCode, fileSignature: documentSignature(document, issuedOn) },
+      { requirementCode: active.requirementCode, fileSignature: fileSetSignature(files, issuedOn) },
       randomIdempotencyKey
     );
     setIdempotencyState(resolved);
 
     mutation.mutate({
-      requirementCode: activeRequirementCode,
-      document,
+      requirementCode: active.requirementCode,
+      entries: files,
       issuedOn,
       idempotencyKey: resolved.key as string,
       accessTokenAtCallTime: session.accessToken,
     });
-  }, [document, activeRequirementCode, session, idempotencyState, mutation, isPccRequirement, issuedOn]);
+  }, [active, layout, session, mutation, validation, isPccRequirement, issuedOn, entries, idempotencyState]);
 
   return {
-    activeRequirementCode,
-    document,
-    validationError,
+    activeRequirementCode: active?.requirementCode ?? null,
+    rules: active?.rules ?? null,
+    layout,
+    mode,
+    setMode,
+    entries,
+    validation,
+    showSetError,
     isPccRequirement,
     issuedOn,
     setIssuedOn,
@@ -342,12 +359,13 @@ export function useDocumentUpload() {
     permissionNotice,
     startUpload,
     cancelUpload,
-    pickDocument,
-    pickFromCamera,
-    pickFromGallery,
-    removeDocument,
+    pick,
+    removeSlot,
+    removeFileAt,
     submit,
     retry: submit,
     mutation,
   };
 }
+
+export type DocumentUploadController = ReturnType<typeof useDocumentUpload>;

@@ -337,9 +337,44 @@ describe('createAdminDocumentReviewsClient (real)', () => {
       expect(capturedUrl).toContain('/admin/candidate_documents/doc-1/access');
       expect(access).toEqual({
         documentId: 'doc-1',
+        fileId: '',
         url: '/rails/active_storage/blobs/redirect/xyz/passport.pdf',
         expiresAt: '2026-08-26T09:05:00Z',
       });
+    });
+
+    it('asks for one specific file of a multi-file document', async () => {
+      let capturedUrl: string | undefined;
+      stubFetch(async (url) => {
+        capturedUrl = String(url);
+        return jsonResponse(
+          successEnvelope({ document_id: 'doc-1', file_id: 'file-back', url: '/x/back.jpg', expires_at: '2026-08-26T09:05:00Z' })
+        );
+      });
+
+      const access = await buildClient().requestDocumentAccess('doc-1', 'file-back');
+
+      expect(capturedUrl).toContain('/admin/candidate_documents/doc-1/access?file_id=file-back');
+      expect(access.fileId).toBe('file-back');
+    });
+  });
+
+  describe('multi-file documents', () => {
+    it('maps every file of a submitted document in position order', async () => {
+      const files = [
+        { id: 'file-back', side_code: 'back', position: 2, file_name: 'back.jpg', content_type: 'image/jpeg', file_size: 20 },
+        { id: 'file-front', side_code: 'front', position: 1, file_name: 'front.jpg', content_type: 'image/jpeg', file_size: 10 },
+      ];
+      stubFetch(async () =>
+        jsonResponse(successEnvelope({ ...queueItemResponse(), documents: [submissionDocumentResponse({ files })] }))
+      );
+
+      const detail = await buildClient().getSubmission('submission-1');
+
+      expect(detail.documents[0].files).toEqual([
+        { id: 'file-front', sideCode: 'front', position: 1, fileName: 'front.jpg', contentType: 'image/jpeg', fileSize: 10 },
+        { id: 'file-back', sideCode: 'back', position: 2, fileName: 'back.jpg', contentType: 'image/jpeg', fileSize: 20 },
+      ]);
     });
   });
 

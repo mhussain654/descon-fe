@@ -54,7 +54,7 @@ function buildClient(locale: 'en' | 'ur' = 'en', onFailure?: StaffAuthError) {
 }
 
 function timelineStageResponse(overrides: Record<string, unknown> = {}) {
-  return { code: 'fee_paid', name: 'Fee Paid', position: 7, status: 'completed', completed_at: '2026-08-30T09:00:00Z', ...overrides };
+  return { code: 'fee_paid', name: 'Fee Paid', position: 7, action_type: 'payment', required: true, status: 'completed', completed_at: '2026-08-30T09:00:00Z', ...overrides };
 }
 
 function workflowStateResponse(overrides: Record<string, unknown> = {}) {
@@ -77,6 +77,9 @@ function allowedTransitionResponse(overrides: Record<string, unknown> = {}) {
     code: 'documents_shared_with_qatar_bu',
     name: 'Documents Shared with Qatar BU',
     position: 8,
+    action_type: 'none',
+    required: true,
+    fields: [],
     required_fields: [],
     allowed: true,
     blocking_reasons: [],
@@ -117,6 +120,8 @@ describe('createAdminWorkflowClient (real)', () => {
         code: 'fee_paid',
         name: 'Fee Paid',
         position: 7,
+        actionType: 'payment',
+        required: true,
         status: 'current',
         startedAt: '2026-08-30T09:00:00Z',
         completedAt: undefined,
@@ -216,11 +221,35 @@ describe('createAdminWorkflowClient (real)', () => {
         code: 'documents_shared_with_qatar_bu',
         name: 'Documents Shared with Qatar BU',
         position: 8,
+        actionType: 'none',
+        required: true,
+        fields: [],
         requiredFields: [],
         allowed: true,
         blockingReasons: [],
       });
       expect(result.allowedNextTransitions[1].blockingReasons).toEqual(['payment_required']);
+    });
+
+    it('maps typed evidence and does not infer missing action metadata from a stage code', async () => {
+      stubFetch(async () => jsonResponse(successEnvelope({
+        allowed_next_transitions: [
+          allowedTransitionResponse({ code: 'visa_issued_or_rejected', action_type: undefined }),
+          allowedTransitionResponse({
+            code: 'medical_completed', action_type: 'medical_outcome', required: false,
+            required_fields: ['medical_outcome_code'],
+            fields: [{ name: 'medical_outcome_code', type: 'enum', required: true, values: ['fit', 'unfit'] }],
+          }),
+        ],
+      })));
+
+      const result = await buildClient().getAllowedTransitions('candidate-1');
+
+      expect(result.allowedNextTransitions[0].actionType).toBe('unknown');
+      expect(result.allowedNextTransitions[1]).toMatchObject({
+        actionType: 'medical_outcome', required: false, requiredFields: ['medical_outcome_code'],
+        fields: [{ name: 'medical_outcome_code', type: 'enum', required: true, values: ['fit', 'unfit'] }],
+      });
     });
 
     it('falls back to an empty list for a malformed response', async () => {

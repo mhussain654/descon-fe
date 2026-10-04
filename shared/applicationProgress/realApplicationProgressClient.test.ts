@@ -32,6 +32,8 @@ function workflowTimelineStagePayload(overrides: Record<string, unknown> = {}) {
     code: 'registered',
     name: 'Registered',
     position: 1,
+    action_type: 'none',
+    required: true,
     status: 'completed',
     started_at: '2026-08-01T00:00:00Z',
     completed_at: '2026-08-01T00:00:00Z',
@@ -143,9 +145,10 @@ describe('createApplicationProgressClient (real) -- getProgress', () => {
       candidateStatus: 'registered',
       currentWorkflowStage: { code: 'registered', name: 'Registered' },
       workflow: {
+        mobilizationProcess: null,
         timeline: [
-          { code: 'registered', name: 'Registered', position: 1, status: 'completed', startedAt: '2026-08-01T00:00:00Z', completedAt: '2026-08-01T00:00:00Z' },
-          { code: 'documents_pending', name: 'Documents Pending', position: 2, status: 'current', startedAt: '2026-08-02T00:00:00Z', completedAt: null },
+          { code: 'registered', name: 'Registered', position: 1, actionType: 'none', required: true, status: 'completed', startedAt: '2026-08-01T00:00:00Z', completedAt: '2026-08-01T00:00:00Z' },
+          { code: 'documents_pending', name: 'Documents Pending', position: 2, actionType: 'none', required: true, status: 'current', startedAt: '2026-08-02T00:00:00Z', completedAt: null },
         ],
         completedCount: 1,
         totalCount: 15,
@@ -176,6 +179,28 @@ describe('createApplicationProgressClient (real) -- getProgress', () => {
         latestPayment: null,
       },
     });
+  });
+
+  it('preserves a variable process timeline and its optional action metadata', async () => {
+    stubFetch(async () => jsonResponse(successEnvelope(progressPayload({ workflow: workflowPayload({
+      mobilization_process: { code: 'saudi', version: 2, provisional: true, country_code: 'saudi_arabia' },
+      timeline: [
+        workflowTimelineStagePayload({ code: 'medical_completed', position: 8, action_type: 'medical_outcome', required: false }),
+        workflowTimelineStagePayload({ code: 'future_stage', position: 3, action_type: 'future_action' }),
+      ],
+      total_count: 2,
+    }) }))));
+
+    const result = await buildClient().getProgress('token');
+
+    expect(result.workflow.mobilizationProcess).toEqual({
+      code: 'saudi', version: 2, provisional: true, countryCode: 'saudi_arabia',
+    });
+    expect(result.workflow.totalCount).toBe(2);
+    expect(result.workflow.timeline.map(({ code, actionType, required }) => ({ code, actionType, required }))).toEqual([
+      { code: 'medical_completed', actionType: 'medical_outcome', required: false },
+      { code: 'future_stage', actionType: 'unknown', required: true },
+    ]);
   });
 
   it('maps a real payment eligibility embedded in the application-progress response (MPS-F601)', async () => {
@@ -218,7 +243,7 @@ describe('createApplicationProgressClient (real) -- getProgress', () => {
     const client = buildClient();
     const progress = await client.getProgress('token');
 
-    expect(progress.workflow).toEqual({ timeline: [], completedCount: 0, totalCount: 0, progressPercentage: 0, updatedAt: null });
+    expect(progress.workflow).toEqual({ mobilizationProcess: null, timeline: [], completedCount: 0, totalCount: 0, progressPercentage: 0, updatedAt: null });
   });
 
   it('drops a malformed workflow timeline stage (missing code) rather than crashing or fabricating one', async () => {

@@ -8,6 +8,7 @@
 // Platform-independent only -- no browser or React Native types appear
 // anywhere in this module, matching shared/candidateDocuments/types.ts.
 import type { PaymentEligibility } from '../payments/types';
+import type { MobilizationProcessSummary, WorkflowActionType } from '../adminWorkflow/types';
 
 export type ApplicationSubmissionState =
   | 'no_assignment'
@@ -62,6 +63,8 @@ export interface WorkflowTimelineStage {
   name: string;
   /** 1-15, matching the canonical stage order. */
   position: number;
+  actionType: WorkflowActionType;
+  required: boolean;
   status: WorkflowTimelineStageStatus;
   /** ISO 8601. Present only when `status` is `'current'` (or, for a terminal/completed workflow, may also be absent -- always render conditionally, never assume presence from `status` alone). */
   startedAt: string | null;
@@ -70,6 +73,7 @@ export interface WorkflowTimelineStage {
 }
 
 export interface ApplicationProgressWorkflow {
+  mobilizationProcess: MobilizationProcessSummary | null;
   timeline: WorkflowTimelineStage[];
   completedCount: number;
   totalCount: number;

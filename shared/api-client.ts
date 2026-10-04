@@ -28,6 +28,8 @@ export interface ApiErrorItem {
   code: string;
   message: string;
   field?: string;
+  /** Structured, non-localized context some errors carry (e.g. `{ reason: 'incomplete_side_pair' }`). */
+  details?: Record<string, unknown>;
 }
 
 export interface ApiError {

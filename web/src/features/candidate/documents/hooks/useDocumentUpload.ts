@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '../../../../contexts/AuthContext';
 import { useLanguage } from '../../../../contexts/LanguageContext';
@@ -12,56 +12,70 @@ import {
   resolveIdempotencyKey,
   type IdempotencyKeyState,
 } from '../../../../../../shared/candidateDocuments/idempotency';
-import { validateSelectedFile, type FileValidationError } from '../../../../../../shared/candidateDocuments/fileValidation';
+import {
+  appendEntries,
+  layoutFor,
+  orderedEntries,
+  replaceSlot,
+  validateFileSet,
+  type FileSetEntry,
+  type FileSetLayout,
+  type FileSetValidationError,
+  type PairUploadMode,
+} from '../../../../../../shared/candidateDocuments/fileSet';
 import { PCC_REQUIREMENT_CODE, validatePccIssueDate, type PccIssueDateError } from '../../../../../../shared/candidateDocuments/pccIssueDate';
+import type { DocumentSideCode, DocumentUploadRules } from '../../../../../../shared/candidateDocuments/types';
 import { documentQueries } from '../../../../../../shared/queryKeys/documentQueries';
 
 interface UploadVariables {
   requirementCode: string;
-  file: File;
+  entries: FileSetEntry<File>[];
   issuedOn: string;
   idempotencyKey: string;
-  /** Captured at the moment `mutate()` is called, not read reactively when the request resolves -- lets onSuccess detect "the candidate logged out (or a different candidate is now signed in) since this request started" and skip touching the cache (ticket: "A completed upload must not update candidate data after logout" / "Do not leak one candidate's checklist into another candidate's session."). */
+  /** Captured at the moment `mutate()` is called -- lets onSuccess skip touching the cache if the candidate logged out (or another candidate signed in) since this request started. */
   accessTokenAtCallTime: string;
 }
 
 /**
- * Includes `issuedOn` so a candidate editing the PCC issue date between
- * attempts is treated the same as picking a different file -- the backend's
- * own idempotency fingerprint (Candidates::Documents::UploadFingerprint)
- * hashes `issued_on` alongside the file, so reusing a key across a changed
- * date would otherwise surface as a confusing idempotency_conflict instead
- * of just starting a fresh attempt. Mirrors mobile's useDocumentUpload.ts.
+ * Identifies the whole file set (each file, its part label and order) plus
+ * the PCC issue date, matching what the backend's own idempotency fingerprint
+ * covers -- any change starts a fresh attempt with a new key.
  */
-function fileSignature(file: File, issuedOn: string): string {
-  return `${file.name}:${file.size}:${file.lastModified}:${issuedOn}`;
+function fileSetSignature(entries: FileSetEntry<File>[], issuedOn: string): string {
+  const files = entries.map(({ sideCode, file }) => `${sideCode ?? '-'}:${file.name}:${file.size}:${file.lastModified}`);
+  return `${files.join('|')}#${issuedOn}`;
 }
 
 /**
- * `issuedOn` is only appended for the police_character requirement -- the
- * backend rejects the request entirely if `expires_on` is ever supplied by
- * the client (PccExpiryNotEditableError), so that field is never sent here
- * at all; expiry is always server-calculated. Mirrors mobile's
- * useDocumentUpload.ts's buildFormData exactly.
+ * Sends the file set as `files[]` (each a file plus its part label, when the
+ * requirement uses labels). `issued_on` is only sent for the PCC requirement;
+ * `expires_on` is never sent -- the backend always calculates it.
  */
-function buildFormData(requirementCode: string, file: File, issuedOn: string): FormData {
+function buildFormData(requirementCode: string, entries: FileSetEntry<File>[], issuedOn: string): FormData {
   const formData = new FormData();
   formData.append('candidate_document[requirement_code]', requirementCode);
-  formData.append('candidate_document[file]', file);
+  for (const { sideCode, file } of entries) {
+    formData.append('candidate_document[files][][file]', file);
+    if (sideCode) formData.append('candidate_document[files][][side_code]', sideCode);
+  }
   if (requirementCode === PCC_REQUIREMENT_CODE && issuedOn.trim()) {
     formData.append('candidate_document[issued_on]', issuedOn.trim());
   }
   return formData;
 }
 
+interface ActiveRequirement {
+  requirementCode: string;
+  rules: DocumentUploadRules;
+}
+
 /**
  * Owns the single active "upload or replace" flow across the whole
- * checklist: which requirement is being acted on, the selected file, its
- * validation, the idempotency key, and the upload mutation itself. Only one
- * requirement can be active at a time (ticket: "Prevent concurrent uploads
- * for the same requirement" / "Switching requirements must invalidate the
- * previous local selection state") -- the checklist view is responsible for
- * disabling other rows' actions while `mutation.isPending`.
+ * checklist: which requirement is being acted on, the selected file set
+ * (shaped by that requirement's backend rules -- see shared/candidateDocuments/fileSet.ts),
+ * its validation, the idempotency key and the upload mutation. Only one
+ * requirement can be active at a time; the checklist disables other rows'
+ * actions while `mutation.isPending`.
  */
 export function useDocumentUpload() {
   const { session } = useAuth();
@@ -69,29 +83,42 @@ export function useDocumentUpload() {
   const queryClient = useQueryClient();
   const candidateId = session?.candidateId ?? 'anonymous';
 
-  const [activeRequirementCode, setActiveRequirementCode] = useState<string | null>(null);
-  const [file, setFile] = useState<File | null>(null);
-  const [validationError, setValidationError] = useState<FileValidationError | null>(null);
+  const [active, setActive] = useState<ActiveRequirement | null>(null);
+  const [mode, setModeState] = useState<PairUploadMode>('parts');
+  const [entries, setEntries] = useState<FileSetEntry<File>[]>([]);
+  // Set-level problems (e.g. a missing back side) are only shown once the
+  // candidate tries to submit -- not while they're still choosing files.
+  const [showSetError, setShowSetError] = useState(false);
   const [issuedOn, setIssuedOnState] = useState('');
   const [issuedOnError, setIssuedOnError] = useState<PccIssueDateError | null>(null);
   const [idempotencyState, setIdempotencyState] = useState<IdempotencyKeyState>(EMPTY_IDEMPOTENCY_KEY_STATE);
 
-  // A response for an item the candidate has since navigated away from
-  // (by opening a different requirement's uploader) must not clear *that
-  // new* selection's local state -- only the query cache update applies
-  // unconditionally (it's keyed by the response's own requirementCode, so
-  // it's race-safe regardless of what's currently active).
+  // A response for an item the candidate has since navigated away from must
+  // not clear *that new* selection's local state.
   const activeRequirementCodeRef = useRef<string | null>(null);
-  activeRequirementCodeRef.current = activeRequirementCode;
+  activeRequirementCodeRef.current = active?.requirementCode ?? null;
 
-  const isPccRequirement = activeRequirementCode === PCC_REQUIREMENT_CODE;
+  const layout: FileSetLayout | null = useMemo(() => (active ? layoutFor(active.rules) : null), [active]);
+  const validation: FileSetValidationError | null = useMemo(
+    () => (active ? validateFileSet(active.rules, entries) : null),
+    [active, entries]
+  );
+  const isPccRequirement = active?.requirementCode === PCC_REQUIREMENT_CODE;
+
+  const resetSelection = useCallback(() => {
+    setEntries([]);
+    setShowSetError(false);
+    setIssuedOnState('');
+    setIssuedOnError(null);
+    setIdempotencyState(EMPTY_IDEMPOTENCY_KEY_STATE);
+  }, []);
 
   const mutation = useMutation<CandidateDocumentChecklistItem, CandidateDocumentsError, UploadVariables>({
-    mutationFn: ({ requirementCode, file, issuedOn, idempotencyKey, accessTokenAtCallTime }) =>
+    mutationFn: ({ requirementCode, entries: files, issuedOn: date, idempotencyKey, accessTokenAtCallTime }) =>
       candidateDocumentsClient.uploadDocument({
         accessToken: accessTokenAtCallTime,
         requirementCode,
-        formData: buildFormData(requirementCode, file, issuedOn),
+        formData: buildFormData(requirementCode, files, date),
         idempotencyKey,
       }),
     onSuccess: (result, variables) => {
@@ -100,47 +127,20 @@ export function useDocumentUpload() {
       queryClient.setQueryData<CandidateDocumentChecklistItem[]>(documentQueries.candidateChecklist(candidateId, language), (old) =>
         old ? old.map((item) => (item.requirementCode === result.requirementCode ? result : item)) : old
       );
-      // A new/replaced document changes required-document counts, submission
-      // state, compliance and the next recommended action -- all served by
-      // the same application-progress response that Dashboard, Status and
-      // Profile already read. Without this, those screens would keep
-      // showing stale counts/next-action until their own query happened to
-      // refetch on its own (focus/pull-to-refresh), even though the
-      // checklist row above already updated (ticket: "refresh/invalidate
-      // ... Application progress, Dashboard next action, Relevant
-      // profile/document summaries").
+      // Counts, submission state and the next action on Dashboard/Status/
+      // Profile all come from application progress -- refresh it too.
       queryClient.invalidateQueries({ queryKey: documentQueries.applicationProgress(candidateId, language) });
       toast.success(t('candidateDocumentsUploadSuccessToast'));
 
-      // Collapse the panel back to the row's normal display -- the
-      // checklist item itself (now updated above) is the "success" state;
-      // leaving the panel open would just silently relabel its own
-      // Upload/Replace heading with no clear signal that anything happened.
       if (activeRequirementCodeRef.current === result.requirementCode) {
-        setActiveRequirementCode(null);
-        setFile(null);
-        setValidationError(null);
-        setIssuedOnState('');
-        setIssuedOnError(null);
+        setActive(null);
+        resetSelection();
         setIdempotencyState(clearIdempotencyKey());
       }
     },
     onError: (error) => {
-      // A conflict means this exact key was already consumed by a
-      // different (or already-processing) request -- reusing it again
-      // would just conflict again, so force the *next* submit (even for
-      // the identical file) to mint a fresh key rather than silently
-      // replaying the same doomed attempt (ticket: "Do not automatically
-      // retry ... idempotency conflicts" / "allow the user to select the
-      // file again, which should create a new key").
-      //
-      // A forbidden replacement means the item's eligibility may have
-      // changed since the checklist was loaded -- refetch it so the row
-      // reflects the current `replacement_allowed` (and hide its Replace
-      // action if it's now false), and likewise never let a retry reuse
-      // the same now-rejected key (ticket: "Do not keep retrying
-      // automatically. Refresh the checklist... Hide the replace action if
-      // the refreshed item disallows replacement.").
+      // A consumed/conflicting key or a now-forbidden replacement must never
+      // be replayed: the next submit mints a fresh key.
       if (error.code === 'CONFLICT' || error.code === 'REPLACEMENT_NOT_ALLOWED') {
         setIdempotencyState(EMPTY_IDEMPOTENCY_KEY_STATE);
       }
@@ -151,38 +151,57 @@ export function useDocumentUpload() {
   });
 
   const startUpload = useCallback(
-    (requirementCode: string) => {
-      setActiveRequirementCode(requirementCode);
-      setFile(null);
-      setValidationError(null);
-      setIssuedOnState('');
-      setIssuedOnError(null);
-      setIdempotencyState(EMPTY_IDEMPOTENCY_KEY_STATE);
+    (item: Pick<CandidateDocumentChecklistItem, 'requirementCode' | 'uploadRules'>) => {
+      setActive({ requirementCode: item.requirementCode, rules: item.uploadRules });
+      setModeState('parts');
+      resetSelection();
+      mutation.reset();
+    },
+    [mutation, resetSelection]
+  );
+
+  const cancelUpload = useCallback(() => {
+    setActive(null);
+    resetSelection();
+    mutation.reset();
+  }, [mutation, resetSelection]);
+
+  /** Switching between one combined PDF and separate parts starts the selection over. */
+  const setMode = useCallback(
+    (nextMode: PairUploadMode) => {
+      setModeState(nextMode);
+      setEntries([]);
+      setShowSetError(false);
       mutation.reset();
     },
     [mutation]
   );
 
-  const cancelUpload = useCallback(() => {
-    setActiveRequirementCode(null);
-    setFile(null);
-    setValidationError(null);
-    setIssuedOnState('');
-    setIssuedOnError(null);
-    setIdempotencyState(EMPTY_IDEMPOTENCY_KEY_STATE);
-    mutation.reset();
-  }, [mutation]);
-
-  const selectFile = useCallback(
-    (nextFile: File | null) => {
-      if (!activeRequirementCode) return;
-      setFile(nextFile);
-      setValidationError(
-        validateSelectedFile(nextFile ? { name: nextFile.name, size: nextFile.size, type: nextFile.type } : null)
-      );
+  /** Fills (or, with null, empties) one slot: a pair part, the combined PDF, or the single file. */
+  const selectSlotFile = useCallback(
+    (sideCode: DocumentSideCode | null, file: File | null) => {
+      setEntries((current) => replaceSlot(current, sideCode, file));
       mutation.reset();
     },
-    [activeRequirementCode, mutation]
+    [mutation]
+  );
+
+  /** Adds files to a repeatable document (several certificates). */
+  const addFiles = useCallback(
+    (files: File[]) => {
+      if (!layout || layout.kind !== 'multiple') return;
+      setEntries((current) => appendEntries(current, layout.sideCode, files, layout.maximumFiles));
+      mutation.reset();
+    },
+    [layout, mutation]
+  );
+
+  const removeFileAt = useCallback(
+    (index: number) => {
+      setEntries((current) => current.filter((_, position) => position !== index));
+      mutation.reset();
+    },
+    [mutation]
   );
 
   const setIssuedOn = useCallback((value: string) => {
@@ -191,10 +210,9 @@ export function useDocumentUpload() {
   }, []);
 
   const submit = useCallback(() => {
-    if (!file || !activeRequirementCode || !session || mutation.isPending) return;
-    const error = validateSelectedFile({ name: file.name, size: file.size, type: file.type });
-    setValidationError(error);
-    if (error) return;
+    if (!active || !layout || !session || mutation.isPending) return;
+    setShowSetError(true);
+    if (validation) return;
 
     if (isPccRequirement) {
       const dateError = validatePccIssueDate(issuedOn);
@@ -202,42 +220,48 @@ export function useDocumentUpload() {
       if (dateError) return;
     }
 
-    // Resolved synchronously (not via a setState updater) so the freshly
-    // decided key is available immediately for this same call -- reused
-    // when the file/requirement/issue-date are unchanged from the last
-    // attempt (a retry), minted fresh otherwise (a new file, a new
-    // requirement, a changed issue date, or a key onError already cleared
-    // after a conflict/forbidden replacement).
+    const files = orderedEntries(layout, entries);
+    // Reused for an unchanged retry; minted fresh for any change to the set,
+    // the requirement or the issue date.
     const resolved = resolveIdempotencyKey(
       idempotencyState,
-      { requirementCode: activeRequirementCode, fileSignature: fileSignature(file, issuedOn) },
+      { requirementCode: active.requirementCode, fileSignature: fileSetSignature(files, issuedOn) },
       randomIdempotencyKey
     );
     setIdempotencyState(resolved);
 
     mutation.mutate({
-      requirementCode: activeRequirementCode,
-      file,
+      requirementCode: active.requirementCode,
+      entries: files,
       issuedOn,
       idempotencyKey: resolved.key as string,
       accessTokenAtCallTime: session.accessToken,
     });
-  }, [file, activeRequirementCode, session, idempotencyState, mutation, isPccRequirement, issuedOn]);
+  }, [active, layout, session, mutation, validation, isPccRequirement, issuedOn, entries, idempotencyState]);
 
   return {
-    activeRequirementCode,
-    file,
-    validationError,
+    activeRequirementCode: active?.requirementCode ?? null,
+    rules: active?.rules ?? null,
+    layout,
+    mode,
+    setMode,
+    entries,
+    validation,
+    showSetError,
     isPccRequirement,
     issuedOn,
     setIssuedOn,
     issuedOnError,
     startUpload,
     cancelUpload,
-    selectFile,
+    selectSlotFile,
+    addFiles,
+    removeFileAt,
     submit,
-    /** Retry reuses the exact same call -- resolveIdempotencyKey already kept the same key since neither the file, requirement nor issue date changed. */
+    /** Retry reuses the same key, since nothing about the selection changed. */
     retry: submit,
     mutation,
   };
 }
+
+export type DocumentUploadController = ReturnType<typeof useDocumentUpload>;
