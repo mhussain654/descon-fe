@@ -260,6 +260,7 @@ export function CandidateCreateForm() {
           />
           <ReferenceDataSelectField
             label={t('adminCandidateCountryLabel')}
+            required
             query={countriesQuery}
             value={form.countryCode}
             onChange={(value) => setField('countryCode', value)}
@@ -313,6 +314,7 @@ interface ReferenceDataSelectFieldProps {
   onChange: (value: string) => void;
   errorMessage: string | undefined;
   emptyMessage: string;
+  required?: boolean;
 }
 
 /**
@@ -321,7 +323,7 @@ interface ReferenceDataSelectFieldProps {
  * crafts must not block the country and project fields the staff member can
  * otherwise complete (ticket: "Partial reference-data failure").
  */
-function ReferenceDataSelectField({ label, query, value, onChange, errorMessage, emptyMessage }: ReferenceDataSelectFieldProps) {
+function ReferenceDataSelectField({ label, query, value, onChange, errorMessage, emptyMessage, required = false }: ReferenceDataSelectFieldProps) {
   const { t } = useLanguage();
 
   if (query.isLoading) {
@@ -356,6 +358,10 @@ function ReferenceDataSelectField({ label, query, value, onChange, errorMessage,
   return (
     <Select
       label={label}
+      required={required}
+      requirementText={required ? t('dsRequiredField') : undefined}
+      aria-label={required ? label : undefined}
+      aria-required={required}
       value={value}
       onChange={(event) => onChange(event.target.value)}
       errorMessage={errorMessage}

@@ -1,9 +1,9 @@
 import { useEffect, useState } from "react";
-import { View, Text, ScrollView, RefreshControl, TouchableOpacity, Pressable, useColorScheme } from "react-native";
+import { View, Text, ScrollView, RefreshControl, Pressable } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
 import { useRouter } from "expo-router";
-import { Upload, CheckCircle, XCircle, Clock, ChevronRight, ChevronLeft, Eye, Download } from "lucide-react-native";
+import { ChevronRight, ChevronLeft, ChevronDown } from "lucide-react-native";
 import { useAuth } from "../../../contexts/AuthContext";
 import { useLanguage } from "../../../contexts/LanguageContext";
 import { useRefetchOnFocus } from "../../../hooks/useRefetchOnFocus";
@@ -28,24 +28,26 @@ import {
   getFontFamily,
 } from "../../../design-system";
 import { CANDIDATE_DOCUMENTS_ERROR_KEYS } from "../../../../../shared/candidateDocuments/errorMessages";
-import { DOCUMENT_ACCESS_ERROR_KEYS } from "../../../../../shared/candidateDocuments/documentAccessErrorMessages";
 import { APPLICATION_PROGRESS_ERROR_KEYS } from "../../../../../shared/applicationProgress/errorMessages";
+import { DocumentsHeader, DocumentsSummary, DocumentCardHeading, documentsStyles } from "../../../features/candidate/documents/components/DocumentsPresentation";
+import { physicalTextAlign, rowDirectionTowards } from "../../../lib/layoutDirection";
 import { PCC_COMPLIANCE_STATUS_KEYS } from "../../../../../shared/candidateDocuments/statusLabels";
 
+import { ButtonHeightContext } from "../../../design-system/Button";
+
 const STATUS_CONFIG = {
-  verified: { icon: CheckCircle, color: "#10B981", bgLight: "#E6F9F0", bgDark: "#1A2E1A", labelKey: "verified" },
-  pending_review: { icon: Clock, color: "#F59E0B", bgLight: "#FFF7E6", bgDark: "#2E2416", labelKey: "candidateDocumentsStatusPendingReview" },
-  uploaded: { icon: Upload, color: "#0066CC", bgLight: "#E6F2FF", bgDark: "#1A2B3D", labelKey: "uploaded" },
-  rejected: { icon: XCircle, color: "#EF4444", bgLight: "#FEF2F2", bgDark: "#2D1B1B", labelKey: "rejected" },
-  missing: { icon: Upload, color: "#6B7280", bgLight: "#F6F6F6", bgDark: "#1E1E1E", labelKey: "pending" },
-  unknown: { icon: Upload, color: "#6B7280", bgLight: "#F6F6F6", bgDark: "#1E1E1E", labelKey: "candidateDocumentsStatusUnknown" },
+  verified: { color: "#087C46", labelKey: "verified" },
+  pending_review: { color: "#9A5700", labelKey: "candidateDocumentsStatusPendingReview" },
+  uploaded: { color: "#0862BC", labelKey: "uploaded" },
+  rejected: { color: "#B42318", labelKey: "rejected" },
+  missing: { color: "#6B7280", labelKey: "pending" },
+  unknown: { color: "#6B7280", labelKey: "candidateDocumentsStatusUnknown" },
 };
 
 export default function DocumentsScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const colorScheme = useColorScheme();
-  const isDark = colorScheme === "dark";
+  const isDark = false;
   const { t, language } = useLanguage();
   const { logout } = useAuth();
   const checklistQuery = useCandidateDocuments();
@@ -165,38 +167,7 @@ export default function DocumentsScreen() {
 
     return (
       <>
-        {/* Stats */}
-        <View style={{ flexDirection: "row", marginBottom: 20, marginHorizontal: -4 }}>
-          <StatTile
-            value={stats.verified}
-            labelKey="verified"
-            color="#10B981"
-            labelColor="#10B981"
-            bg={isDark ? "#1A2E1A" : "#E6F9F0"}
-            isDark={isDark}
-            language={language}
-            t={t}
-          />
-          <StatTile
-            value={stats.pendingReview}
-            labelKey="candidateDocumentsStatusPendingReview"
-            color="#F59E0B"
-            labelColor="#F59E0B"
-            bg={isDark ? "#2E2416" : "#FFF7E6"}
-            isDark={isDark}
-            language={language}
-            t={t}
-          />
-          <StatTile
-            value={stats.missing}
-            labelKey="pending"
-            color="#6B7280"
-            bg={isDark ? "#1E1E1E" : "#F6F6F6"}
-            isDark={isDark}
-            language={language}
-            t={t}
-          />
-        </View>
+        <DocumentsSummary stats={stats} language={language} t={t} />
 
         {documents?.canSubmit ? (
           <View style={{ marginBottom: 20 }}>
@@ -206,6 +177,7 @@ export default function DocumentsScreen() {
           </View>
         ) : null}
 
+        <Text accessibilityRole="header" style={[documentsStyles.sectionHeading, { fontFamily: getFontFamily(language, "bold"), textAlign: physicalTextAlign(language === "ur" ? "right" : "left") }, language === "ur" && documentsStyles.urduBody]}>{t("candidateDocumentsChecklistTitle")}</Text>
         <View>
           {checklist.map((item) => (
             <DocumentRow
@@ -232,32 +204,14 @@ export default function DocumentsScreen() {
   };
 
   return (
-    <View style={{ flex: 1, backgroundColor: isDark ? "#121212" : "#F8F9FA" }}>
-      <StatusBar style={isDark ? "light" : "dark"} />
-
-      {/* Header */}
-      <View
-        style={{
-          paddingTop: insets.top + 16,
-          paddingHorizontal: 20,
-          paddingBottom: 16,
-          backgroundColor: isDark ? "#121212" : "#FFFFFF",
-          borderBottomWidth: 1,
-          borderBottomColor: isDark ? "#333333" : "#F0F0F0",
-        }}
-      >
-        <Text style={{ fontSize: 28, fontFamily: getFontFamily(language, "semibold"), color: isDark ? "#FFFFFF" : "#000000" }}>
-          {t("documents")}
-        </Text>
-      </View>
+    <ButtonHeightContext.Provider value={34}>
+    <View style={documentsStyles.screen}>
+      <StatusBar style="light" />
+      <DocumentsHeader topInset={insets.top} language={language} t={t} />
 
       <ScrollView
-        style={{ flex: 1 }}
-        contentContainerStyle={{
-          paddingHorizontal: 20,
-          paddingTop: 20,
-          paddingBottom: insets.bottom + 80,
-        }}
+        style={documentsStyles.scroll}
+        contentContainerStyle={[documentsStyles.content, { paddingBottom: insets.bottom + 80 }]}
         showsVerticalScrollIndicator={false}
         refreshControl={
           <RefreshControl
@@ -291,19 +245,7 @@ export default function DocumentsScreen() {
         ) : null}
       </ConfirmDialog>
     </View>
-  );
-}
-
-function StatTile({ value, labelKey, color, labelColor, bg, isDark, language, t }) {
-  return (
-    <View style={{ flex: 1, paddingHorizontal: 4 }}>
-      <View style={{ backgroundColor: bg, borderRadius: 12, padding: 12, alignItems: "center" }}>
-        <Text style={{ fontSize: 24, fontFamily: getFontFamily(language, "semibold"), color, marginBottom: 2 }}>{value}</Text>
-        <Text style={{ fontSize: 11, fontFamily: getFontFamily(language, "regular"), color: labelColor ?? (isDark ? "#FFFFFF" : "#000000") }}>
-          {t(labelKey)}
-        </Text>
-      </View>
-    </View>
+    </ButtonHeightContext.Provider>
   );
 }
 
@@ -320,21 +262,12 @@ function DocumentRow({
   onToggleView,
 }) {
   const config = STATUS_CONFIG[item.status] ?? STATUS_CONFIG.unknown;
-  const StatusIcon = config.icon;
   const canUpload = item.status === "missing";
   const canReplace = item.document !== null && item.replacementAllowed;
   const hasAction = canUpload || canReplace;
   const canView = item.document !== null;
-  // A document can be both replaceable and viewable at once (e.g. a
-  // rejected document the candidate may still want to look at before
-  // replacing it) -- the row's main tap target stays reserved for
-  // Upload/Replace in that case, and View/Download is reached via the
-  // small icon pair below instead of the full-row expand.
-  const isViewOnly = canView && !hasAction;
+  const isViewOnly = canView;
   const files = item.document?.files ?? [];
-  // A multi-file document lists every file with its own actions (see
-  // DocumentViewPanel) instead of the single quick View/Download pair.
-  const isMultiFile = files.length > 1;
   const complianceStatus = item.document?.complianceStatus;
 
   const isRequestingThisRow = documentAccess.isRequesting && documentAccess.targetDocumentId === item.document?.id;
@@ -352,6 +285,7 @@ function DocumentRow({
 
   const handlePress = () => {
     if (isViewOnly) {
+      if (isActive) upload.cancelUpload();
       onToggleView();
       return;
     }
@@ -373,60 +307,21 @@ function DocumentRow({
     documentAccess.downloadDocument(item.document.id, fileId);
   };
 
-  // For a view-only row, the row itself is just the expand/collapse toggle
-  // (the actual View/Download actions live in the panel it reveals) -- its
-  // accessible name is the document's own name, not "View"/"Download",
-  // so it never collides with the buttons inside the panel it expands.
+  // Keep action names for assistive technology; collapsed cards show status only.
   const actionLabel = isViewOnly
     ? item.name
     : t(canUpload ? "candidateDocumentsUploadAction" : "candidateDocumentsReplaceAction");
-  const viewLabel = t("candidateDocumentsViewAction");
-  const downloadLabel = t("candidateDocumentsDownloadAction");
   const Chevron = language === "ur" ? ChevronLeft : ChevronRight;
   const rowIsExpandable = hasAction || isViewOnly;
   const rowIsExpanded = isViewOnly ? isViewOpen : isActive;
 
-  const mainContent = (
-    <View style={{ flexDirection: "row", alignItems: "center" }}>
-      <View
-        style={{
-          width: 40,
-          height: 40,
-          borderRadius: 20,
-          backgroundColor: isDark ? config.bgDark : config.bgLight,
-          justifyContent: "center",
-          alignItems: "center",
-        }}
-      >
-        <StatusIcon size={20} color={config.color} />
-      </View>
-
-      <View style={{ flex: 1, marginStart: 12 }}>
-        <Text style={{ fontSize: 15, fontFamily: getFontFamily(language, "medium"), color: isDark ? "#FFFFFF" : "#000000", marginBottom: 2 }}>
-          {item.name}
-        </Text>
-        <Text style={{ fontSize: 13, fontFamily: getFontFamily(language, "regular"), color: config.color }}>{statusLine}</Text>
-        {item.document?.rejectionReason ? (
-          <Text style={{ fontSize: 12, fontFamily: getFontFamily(language, "regular"), color: "#EF4444", marginTop: 4 }}>
-            {item.document.rejectionReason}
-          </Text>
-        ) : null}
-      </View>
-    </View>
-  );
+  const mainContent = <DocumentCardHeading item={item} statusLine={statusLine} statusColor={config.color} language={language} t={t} />;
 
   return (
     <View
-      style={{
-        backgroundColor: isDark ? "#1E1E1E" : "#FFFFFF",
-        borderRadius: 12,
-        padding: 16,
-        marginBottom: 12,
-        borderWidth: 1,
-        borderColor: isDark ? "#333333" : "#E5E7EB",
-      }}
+      style={[documentsStyles.card, { backgroundColor: "#FFFFFF", borderColor: rowIsExpanded ? "#78B8F6" : "#E0ECF9" }]}
     >
-      <View style={{ flexDirection: "row", alignItems: "center" }}>
+      <View style={[documentsStyles.cardRow, { flexDirection: rowDirectionTowards(language === "ur" ? "right" : "left") }]}>
         {rowIsExpandable ? (
           <Pressable
             style={{ flex: 1 }}
@@ -434,80 +329,34 @@ function DocumentRow({
             disabled={!isViewOnly && isAnyUploadPending && !isActive}
             accessibilityRole="button"
             accessibilityLabel={actionLabel}
+            accessibilityState={{ expanded: rowIsExpanded }}
           >
-            {mainContent}
+            <View style={[documentsStyles.cardRow, { flexDirection: rowDirectionTowards(language === "ur" ? "right" : "left") }]} >
+              <View style={{ flex: 1 }}>{mainContent}</View>
+              {rowIsExpanded ? <ChevronDown size={20} color="#6B7280" /> : <Chevron size={20} color="#9CA3AF" />}
+            </View>
           </Pressable>
         ) : (
           <View style={{ flex: 1 }}>{mainContent}</View>
         )}
 
-        {/* Quick icon pair, only for the rare case a document is both
-            replaceable and viewable -- the row's tap target above is
-            already claimed by Replace, so View/Download need their own
-            small affordance here instead of the expand panel below. */}
-        {canView && hasAction && !isMultiFile ? (
-          <>
-            <Pressable
-              onPress={() => handleQuickView()}
-              disabled={isRequestingThisRow}
-              accessibilityRole="button"
-              accessibilityLabel={viewLabel}
-              style={{ paddingHorizontal: 6, paddingVertical: 8, marginStart: 4 }}
-            >
-              <Eye size={20} color={isRequestingThisRow ? (isDark ? "#4B5563" : "#D1D5DB") : "#0066CC"} />
-            </Pressable>
-            <Pressable
-              onPress={() => handleQuickDownload()}
-              disabled={isRequestingThisRow}
-              accessibilityRole="button"
-              accessibilityLabel={downloadLabel}
-              style={{ paddingHorizontal: 6, paddingVertical: 8 }}
-            >
-              <Download size={20} color={isRequestingThisRow ? (isDark ? "#4B5563" : "#D1D5DB") : "#0066CC"} />
-            </Pressable>
-          </>
-        ) : null}
-
-        {rowIsExpandable ? <Chevron size={20} color={isDark ? "#6B7280" : "#9CA3AF"} /> : null}
       </View>
 
-      {/* The quick-icon dual-action row (replaceable AND viewable) has no
-          expand panel to show its own error inside, so it surfaces here
-          directly under the row. The view-only expand panel below owns its
-          own error display instead, mirroring how DocumentUploadPanel shows
-          its upload error inline. */}
-      {/* A replaceable multi-file document still lists its files for viewing. */}
-      {canView && hasAction && isMultiFile && !rowIsExpanded ? (
+      {rowIsExpanded && canView ? (
         <DocumentViewPanel
           files={files}
           isRequesting={isRequestingThisRow}
           error={rowAccessError}
           onView={handleQuickView}
           onDownload={handleQuickDownload}
+          onReplace={() => upload.startUpload(item)}
+          replacementDisabled={!canReplace || isAnyUploadPending}
           t={t}
           language={language}
         />
       ) : null}
 
-      {rowAccessError && !isViewOnly && !isMultiFile ? (
-        <ValidationMessage tone="error" language={language}>
-          {rowAccessError.message ?? t(DOCUMENT_ACCESS_ERROR_KEYS[rowAccessError.code])}
-        </ValidationMessage>
-      ) : null}
-
-      {rowIsExpanded && isViewOnly ? (
-        <DocumentViewPanel
-          files={files}
-          isRequesting={isRequestingThisRow}
-          error={rowAccessError}
-          onView={handleQuickView}
-          onDownload={handleQuickDownload}
-          t={t}
-          language={language}
-        />
-      ) : null}
-
-      {rowIsExpanded && !isViewOnly ? (
+      {rowIsExpanded && isActive ? (
         <DocumentUploadPanel
           labelText={t(canUpload ? "candidateDocumentsUploadAction" : "candidateDocumentsReplaceAction")}
           instructions={item.instructions}

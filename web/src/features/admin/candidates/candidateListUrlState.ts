@@ -4,7 +4,7 @@
 // without mounting a router, mirroring
 // web/src/features/admin/documentReviews/queueUrlState.ts's identical
 // rationale and structure.
-import { CANONICAL_WORKFLOW_STAGE_CODES } from '../../../../../shared/adminWorkflow/canonicalStages';
+import { CANDIDATE_LIST_STAGE_LABEL_KEYS } from '../../../../../shared/adminCandidates/workflowStageLabels';
 import type { AdminCandidateListFilters, AdminCandidateListPage, AdminCandidateListSort } from '../../../lib/admin-candidates-client';
 
 export const DEFAULT_PAGE_SIZE = 20;
@@ -16,7 +16,7 @@ function isCandidateListSort(value: string): value is AdminCandidateListSort {
 }
 
 function isKnownStageCode(value: string): boolean {
-  return (CANONICAL_WORKFLOW_STAGE_CODES as readonly string[]).includes(value);
+  return Object.hasOwn(CANDIDATE_LIST_STAGE_LABEL_KEYS, value);
 }
 
 export interface CandidateListUrlState {

@@ -4,5 +4,6 @@
 import type { Language } from '../i18n/translations';
 
 export const paymentQueries = {
+  all: ['payments'] as const,
   eligibility: (candidateId: string, locale: Language) => ['payments', 'eligibility', candidateId, locale] as const,
 };

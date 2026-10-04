@@ -91,7 +91,7 @@ describe('WelcomeScreen', () => {
     ).toBeOnTheScreen();
     expect(screen.getByText('You can change it later from your profile.')).toBeOnTheScreen();
     expect(screen.getByText('Securely managed by Descon Manpower Services')).toBeOnTheScreen();
-    expect(screen.getByLabelText('DESCON MPS')).toBeOnTheScreen();
+    expect(screen.getByLabelText('MPS Connect')).toBeOnTheScreen();
   });
 
   it('marks the chosen language card selected and renders the screen in Urdu', async () => {
@@ -106,7 +106,7 @@ describe('WelcomeScreen', () => {
     expect(await screen.findByText('اپنی زبان منتخب کریں')).toBeOnTheScreen();
     expect(screen.getByRole('button', { name: /اردو/ })).toBeSelected();
     expect(screen.getByRole('button', { name: /English/ })).not.toBeSelected();
-    expect(screen.getByLabelText('ڈیسکون ایم پی ایس')).toBeOnTheScreen();
+    expect(screen.getByLabelText('ایم پی ایس کنیکٹ')).toBeOnTheScreen();
   });
 
   it('redirects an already-authenticated candidate to the dashboard instead of showing Welcome', async () => {

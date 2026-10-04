@@ -1,4 +1,4 @@
-import type { AllowedWorkflowTransition } from '../../../../../../shared/adminWorkflow/types';
+import type { AllowedWorkflowTransition } from '../../../../../shared/adminWorkflow/types';
 
 /**
  * `allowed_next_transitions` evaluates every stage's prerequisites using

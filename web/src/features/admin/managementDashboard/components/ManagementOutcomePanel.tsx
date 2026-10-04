@@ -25,7 +25,7 @@ export function ManagementOutcomePanel({ summary, t, language }: { summary: Outc
             </span>
             <div className="min-w-0 flex-1">
               <div className="flex items-center justify-between gap-3">
-                <span className="truncate text-sm font-medium text-text-primary">{label}</span>
+                <span className="text-sm font-medium text-text-primary">{label}</span>
                 <span className="font-semibold tabular-nums text-text-primary">{formatNumber(value, language)}</span>
               </div>
               <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-surface-raised" aria-hidden="true">

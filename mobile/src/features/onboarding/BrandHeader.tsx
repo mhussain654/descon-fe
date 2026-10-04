@@ -39,8 +39,8 @@ export function BrandHeader({ language, primary, secondary, tileAtRowStart }: Br
 }
 
 const styles = StyleSheet.create({
-  row: { flexDirection: 'row', alignItems: 'center', gap: spacing[3] },
-  rowReversed: { flexDirection: 'row-reverse' },
+  row: { alignItems: 'flex-start', gap: spacing[1] },
+  rowReversed: { alignItems: 'flex-end' },
   tile: {
     width: 40,
     height: 40,
@@ -51,6 +51,6 @@ const styles = StyleSheet.create({
     ...elevation.md,
   },
   logo: { width: 31, height: 30 },
-  name: { fontSize: 22, lineHeight: 28, color: colors.text.inverse, letterSpacing: 0.5 },
-  nameUrdu: { fontSize: 19, lineHeight: 38, letterSpacing: 0 },
+  name: { fontSize: 14, lineHeight: 22, color: colors.text.inverse, letterSpacing: 0.5 },
+  nameUrdu: { fontSize: 13, lineHeight: 28, letterSpacing: 0 },
 });

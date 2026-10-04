@@ -225,7 +225,7 @@ describe("DashboardScreen", () => {
     renderDashboardScreen();
 
     expect(await screen.findByText("Ahmed Ali")).toBeOnTheScreen();
-    expect(screen.getByText("Reference: DES-001001")).toBeOnTheScreen();
+    expect(screen.getByText("HOF # DES-001001")).toBeOnTheScreen();
     // The current stage is the highlighted status badge on "My Journey".
     expect(screen.getByText("Documents Uploaded")).toBeOnTheScreen();
     expect(screen.getByText("2 of 15 steps completed")).toBeOnTheScreen();

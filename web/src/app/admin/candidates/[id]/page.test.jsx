@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { MemoryRouter } from "react-router";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -140,9 +140,17 @@ describe("CandidateDetailsPage", () => {
     expect(await screen.findByText("Workflow")).toBeInTheDocument();
     expect(screen.getAllByText("Documents Pending").length).toBeGreaterThan(0);
     expect(screen.getByText("Payment")).toBeInTheDocument();
-    expect(screen.getByText("Documents")).toBeInTheDocument();
+    expect(screen.getByRole("tab", { name: "Documents" })).toBeInTheDocument();
     expect(screen.getByText("No document submissions yet.")).toBeInTheDocument();
-    expect(await screen.findByText("AI voice calls")).toBeInTheDocument();
+    expect(screen.queryByText("Personal Information")).not.toBeInTheDocument();
+    expect(screen.queryByText("No admin-triggered calls yet.")).not.toBeInTheDocument();
+    const overview = screen.getByRole("tab", { name: "Overview" });
+    fireEvent.keyDown(overview, { key: "ArrowRight" });
+    expect(screen.getByRole("tab", { name: "Profile" })).toHaveFocus();
+    expect(screen.getByRole("tab", { name: "Profile" })).toHaveAttribute("aria-selected", "true");
+    expect(await screen.findByText("Personal Information")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("tab", { name: "Records" }));
+    expect(await screen.findByText("Calls")).toBeInTheDocument();
     expect(screen.getByText("No admin-triggered calls yet.")).toBeInTheDocument();
     expect(adminDocumentReviewsClient.getQueue).toHaveBeenCalledWith(
       { candidatePublicId: "candidate-1", status: ["pending_review", "partially_reviewed", "changes_required", "verified"] },

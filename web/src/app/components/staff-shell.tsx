@@ -158,6 +158,12 @@ function StaffShellContent({ children }: { children: ReactNode }) {
       key: 'dashboards',
       children: [
         {
+          href: '/admin/management-dashboard',
+          labelKey: 'staffNavManagementDashboard',
+          visible: hasPermission('view_management_dashboard'),
+          icon: TrendingUp,
+        },
+        {
           href: '/admin/dashboard',
           labelKey: 'staffNavAdminDashboard',
           visible: hasPermission('view_admin_dashboard'),
@@ -168,12 +174,6 @@ function StaffShellContent({ children }: { children: ReactNode }) {
           labelKey: 'staffNavMpsDashboard',
           visible: hasPermission('view_mps_dashboard'),
           icon: Activity,
-        },
-        {
-          href: '/admin/management-dashboard',
-          labelKey: 'staffNavManagementDashboard',
-          visible: hasPermission('view_management_dashboard'),
-          icon: TrendingUp,
         },
       ],
     },
@@ -297,7 +297,7 @@ function StaffShellContent({ children }: { children: ReactNode }) {
   const roleLabel = t(STAFF_ROLE_LABEL_KEYS[session.role]);
 
   return (
-    <div className={`min-h-screen bg-surface-background ${theme === 'dark' ? 'dark' : ''}`}>
+    <div className={`admin-typography min-h-screen bg-surface-background ${theme === 'dark' ? 'dark' : ''}`}>
       {/* Mobile-only top bar: the sidebar itself is hidden below `lg`, so this is
           the only way to reach it on small screens. Dark, matching the sidebar/
           drawer it opens, so the mobile and desktop nav chrome feel like the

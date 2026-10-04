@@ -1,9 +1,8 @@
-import { Image, Linking, StyleSheet, Text, View } from 'react-native';
+import { Image, Linking, Pressable, StyleSheet, Text, View } from 'react-native';
 import { X } from 'lucide-react-native';
 import {
   Button,
   ErrorState,
-  FilterChip,
   HelperText,
   IconButton,
   Label,
@@ -74,12 +73,24 @@ export function DocumentUploadPanel({ labelText, instructions, upload, t, langua
     return <LoadingState message={t('candidateDocumentsUploading')} language={language} />;
   }
 
+  const combinedMode = layout.kind === 'pair' && layout.combinedAllowed && upload.mode === 'combined';
   const canCapture = acceptsImages(rules);
+  const isPassportPair = layout.kind === 'pair' && upload.activeRequirementCode === 'passport';
+  const isCnicPair = layout.kind === 'pair' && ['cnic', 'next_of_kin_cnic'].includes(upload.activeRequirementCode ?? '');
+  const guidanceKey = isCnicPair
+    ? combinedMode ? 'candidateDocumentsCnicPdfGuidance' : 'candidateDocumentsCnicPartsGuidance'
+    : isPassportPair
+    ? combinedMode ? 'candidateDocumentsPassportPdfGuidance' : 'candidateDocumentsPassportPartsGuidance'
+    : combinedMode ? 'candidateDocumentsCombinedGuidance' : 'candidateDocumentsPartsGuidance';
+  const acceptedTypes = combinedMode ? ['application/pdf'] : rules.acceptedContentTypes;
+  const typeNames = acceptedTypes.map(type => type === 'application/pdf' ? 'PDF' : type === 'image/jpeg' ? 'JPEG' : type === 'image/png' ? 'PNG' : type).join(', ');
   const fileErrorFor = (file: PickedFile | null) => {
     if (!file || validation?.kind !== 'file' || entries[validation.index]?.file !== file) return null;
     return t(FILE_ERROR_KEYS[validation.code]);
   };
   const slot = (sideCode: DocumentSideCode | null, label: string | null) => {
+    if (isCnicPair && sideCode === 'front') label = t('candidateDocumentsFrontSide');
+    if (isCnicPair && sideCode === 'back') label = t('candidateDocumentsBackSide');
     const file = slotFile(entries, sideCode);
     return (
       <FileSlot
@@ -99,8 +110,18 @@ export function DocumentUploadPanel({ labelText, instructions, upload, t, langua
 
   return (
     <View style={styles.container}>
-      <Label language={language}>{labelText}</Label>
-      {instructions ? (
+      {layout.kind === 'pair' && layout.combinedAllowed ? (
+        <View style={styles.modeRow} accessibilityLabel={t('candidateDocumentsUploadModeLabel')}>
+          {(['parts', 'combined'] as const).map(mode => (
+            <Pressable key={mode} accessibilityRole="button" accessibilityLabel={t(mode === 'parts' ? 'candidateDocumentsUploadModeParts' : isCnicPair ? 'candidateDocumentsOnePdf' : 'candidateDocumentsUploadModeCombined')} accessibilityState={{ selected: upload.mode === mode }} onPress={() => upload.setMode(mode)} style={[styles.modeButton, upload.mode === mode && styles.modeSelected]}>
+              <Text style={[styles.modeText, { fontFamily: getFontFamily(language, 'medium') }, upload.mode === mode && styles.modeTextSelected, language === 'ur' && styles.modeTextUrdu]}>{t(mode === 'parts' ? 'candidateDocumentsUploadModeParts' : 'candidateDocumentsOnePdf')}</Text>
+            </Pressable>
+          ))}
+        </View>
+      ) : null}
+      {layout.kind === 'pair' ? <HelperText language={language}>{t(guidanceKey)}</HelperText> : null}
+      {!isCnicPair && !isPassportPair ? <Label language={language}>{labelText}</Label> : null}
+      {instructions && !isPassportPair && !isCnicPair ? (
         <Text style={[styles.instructions, { fontFamily: getFontFamily(language, 'regular') }]}>{instructions}</Text>
       ) : null}
 
@@ -120,22 +141,12 @@ export function DocumentUploadPanel({ labelText, instructions, upload, t, langua
       ) : null}
 
       {/* Capture guidance, not automated validation -- plain instruction text only. */}
-      {canCapture ? <HelperText language={language}>{t('candidateDocumentsCaptureGuidance')}</HelperText> : null}
+      {canCapture && !(layout.kind === 'pair' && upload.mode === 'combined' && layout.combinedAllowed) ? <HelperText language={language}>{t('candidateDocumentsCaptureGuidance')}</HelperText> : null}
 
       {layout.kind === 'single' ? slot(null, null) : null}
 
       {layout.kind === 'pair' ? (
         <>
-          {layout.combinedAllowed ? (
-            <View style={styles.modeRow} accessibilityLabel={t('candidateDocumentsUploadModeLabel')}>
-              <FilterChip selected={upload.mode === 'parts'} onPress={() => upload.setMode('parts')} language={language}>
-                {t('candidateDocumentsUploadModeParts')}
-              </FilterChip>
-              <FilterChip selected={upload.mode === 'combined'} onPress={() => upload.setMode('combined')} language={language}>
-                {t('candidateDocumentsUploadModeCombined')}
-              </FilterChip>
-            </View>
-          ) : null}
           {upload.mode === 'combined' && layout.combinedAllowed
             ? slot('combined', t(SIDE_CODE_LABEL_KEYS.combined as TranslationKey))
             : layout.parts.map((part) => slot(part, t(SIDE_CODE_LABEL_KEYS[part] as TranslationKey)))}
@@ -174,10 +185,10 @@ export function DocumentUploadPanel({ labelText, instructions, upload, t, langua
         </View>
       ) : null}
 
-      <HelperText language={language}>{t('candidateDocumentsFileFieldHelper')}</HelperText>
+      <HelperText language={language}>{interpolate(t('candidateDocumentsAcceptedFilesHint'), { types: typeNames, size: formatFileSize(rules.maximumFileSize, language) })}</HelperText>
       {showSetError && validation?.kind === 'set' ? (
         <ValidationMessage tone="error" language={language}>
-          {t(FILE_SET_REASON_KEYS[validation.reason] as TranslationKey)}
+          {t(isCnicPair && validation.reason === 'incomplete_side_pair' ? 'candidateDocumentsCnicBothSidesRequired' : FILE_SET_REASON_KEYS[validation.reason] as TranslationKey)}
         </ValidationMessage>
       ) : null}
 
@@ -314,7 +325,12 @@ const styles = StyleSheet.create({
   },
   instructions: { fontSize: 13, color: colors.text.secondary, marginBottom: spacing[3] },
   section: { marginTop: spacing[2] },
-  modeRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing[2], marginTop: spacing[2] },
+  modeRow: { flexDirection: 'row', gap: spacing[2], marginBottom: spacing[3] },
+  modeButton: { flex: 1, minWidth: 0, height: 34, paddingVertical: 0, paddingHorizontal: spacing[1], borderWidth: 1, borderColor: '#A8CCFF', borderRadius: 12, alignItems: 'center', justifyContent: 'center', backgroundColor: '#E7F1FF' },
+  modeSelected: { backgroundColor: '#0862BC', borderColor: '#0862BC' },
+  modeText: { color: '#0759B8', fontSize: 12, lineHeight: 18, textAlign: 'center' },
+  modeTextSelected: { color: '#FFFFFF' },
+  modeTextUrdu: { fontSize: 11, lineHeight: 28 },
   slotLabel: { fontSize: 14, color: colors.text.primary, marginBottom: spacing[1] },
   row: { flexDirection: 'row', alignItems: 'center', gap: spacing[3], flexWrap: 'wrap', marginTop: spacing[1] },
   listItem: { marginBottom: spacing[2] },

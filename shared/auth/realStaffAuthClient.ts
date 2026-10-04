@@ -51,7 +51,7 @@ interface SessionPayload {
 interface UserProfilePayload {
   id: string;
   email: string;
-  role: string;
+  role: StaffRole;
   permissions: string[];
 }
 

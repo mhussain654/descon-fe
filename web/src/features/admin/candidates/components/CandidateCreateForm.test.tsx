@@ -61,6 +61,7 @@ describe("CandidateCreateForm", () => {
     expect(await screen.findByRole("option", { name: "Qatar" })).toBeInTheDocument();
     expect(screen.getByRole("option", { name: "Qatar Infrastructure" })).toBeInTheDocument();
     expect(screen.getByRole("option", { name: "Electrician" })).toBeInTheDocument();
+    expect(screen.getByRole("combobox", { name: "Country" })).toBeRequired();
   });
 
   it("shows an empty state for a reference-data list that has no active options", async () => {

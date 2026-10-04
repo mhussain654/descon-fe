@@ -14,5 +14,5 @@ export function RequiresAttentionPanel({ rows, t }: { rows: RequiresAttentionRow
     linkPath: ATTENTION_LINK_PATH[row.code],
   }));
 
-  return <AttentionListPanel items={items} emptyTitle={t('adminDashboardRequiresAttentionEmpty')} />;
+  return <AttentionListPanel items={items} className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4" emptyTitle={t('adminDashboardRequiresAttentionEmpty')} />;
 }

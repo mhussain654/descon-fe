@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { useLanguage } from '../../../../contexts/LanguageContext';
 import { adminCandidateAiCallsClient } from '../../../../lib/admin-candidate-ai-calls-client';
-import type { AdminCandidateAiCall } from '../../../../lib/admin-candidate-ai-calls-client';
+import type { AdminCandidateAiCall, AdminCandidateAiCallError } from '../../../../lib/admin-candidate-ai-calls-client';
 import { adminCandidateAiCallQueries } from '../../../../../../shared/queryKeys/adminCandidateAiCallQueries';
 import { isTerminalAiCallStatus } from '../../../../../../shared/adminCandidateAiCalls/types';
 
@@ -32,7 +32,7 @@ export function nextAiCallPollInterval(calls: AdminCandidateAiCall[] | undefined
 export function useCandidateAiCallList(candidateId: string | undefined) {
   const { language } = useLanguage();
 
-  return useQuery({
+  return useQuery<AdminCandidateAiCall[], AdminCandidateAiCallError>({
     queryKey: adminCandidateAiCallQueries.list(candidateId ?? '', language),
     queryFn: () => adminCandidateAiCallsClient.listCandidateAiCalls(candidateId as string),
     enabled: Boolean(candidateId),

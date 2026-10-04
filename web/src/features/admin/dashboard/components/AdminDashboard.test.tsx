@@ -213,6 +213,32 @@ describe('AdminDashboard', () => {
     expect(lastCall).toEqual({ countryCode: 'pk', projectCode: undefined, craftCode: undefined });
   });
 
+  it('opens real stage queues with the current dashboard filters and links next actions to candidates', async () => {
+    adminDashboardClient.getDashboard.mockResolvedValue(buildSummary());
+    await renderAs(ADMIN);
+    await screen.findByText('128');
+    fireEvent.change(screen.getByLabelText('Country'), { target: { value: 'pk' } });
+    fireEvent.click((await screen.findByText('Registration')).closest('summary')!);
+    expect(screen.getByRole('link', { name: /Registered/ })).toHaveAttribute('href', '/admin?status=registered&country=pk');
+    expect(screen.getByRole('link', { name: 'Continue verification' })).toHaveAttribute('href', '/admin/candidates/candidate-1');
+    const headings = screen.getAllByRole('heading', { level: 2 }).map((heading) => heading.textContent ?? '');
+    expect(headings.findIndex((text) => text.includes('Requires attention'))).toBeLessThan(headings.findIndex((text) => text.includes('Pipeline overview')));
+  });
+
+  it('renders the Admin Dashboard and its real data in Urdu', async () => {
+    localStorage.setItem('descon.language', 'ur');
+    try {
+      adminDashboardClient.getDashboard.mockResolvedValue(buildSummary());
+      await renderAs(ADMIN);
+      const heading = await screen.findByRole('heading', { name: 'ایڈمن ڈیش بورڈ', level: 1 });
+      await screen.findByText('Ahmed Khan');
+      expect(heading.closest('[dir]')).toHaveAttribute('dir', 'rtl');
+      expect(screen.getByText('REF-000123')).toBeInTheDocument();
+    } finally {
+      localStorage.removeItem('descon.language');
+    }
+  });
+
   it('links each section header to its full page', async () => {
     adminDashboardClient.getDashboard.mockResolvedValue(buildSummary());
 

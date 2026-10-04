@@ -195,6 +195,52 @@ describe("AdminCandidateListPage", () => {
       expect(screen.getByText("12")).toBeInTheDocument();
     });
 
+    it("filters from a stage shortcut and resets pagination", async () => {
+      adminCandidateClient.listCandidates.mockResolvedValue(listResult([candidate()], undefined, {}, [
+        { code: "registered", count: 12 }, { code: "medical_pending", count: 3 },
+      ]));
+      renderAt("/admin?page=2", await signInAs(HR));
+      const shortcut = await screen.findByRole("button", { name: /Medical pending.*3/ });
+      fireEvent.click(shortcut);
+      await waitFor(() => expect(adminCandidateClient.listCandidates).toHaveBeenLastCalledWith(
+        expect.objectContaining({ status: "medical_pending" }), undefined, expect.objectContaining({ number: 1 }),
+      ));
+      expect(shortcut).toHaveAttribute("aria-pressed", "true");
+      fireEvent.click(shortcut);
+      await waitFor(() => expect(adminCandidateClient.listCandidates).toHaveBeenLastCalledWith(
+        expect.objectContaining({ status: undefined }), undefined, expect.objectContaining({ number: 1 }),
+      ));
+    });
+
+    it("switches views by keyboard and opens a stage's candidates from the graph", async () => {
+      adminCandidateClient.listCandidates.mockResolvedValue(listResult([candidate()], undefined, {}, [
+        { code: "registered", count: 12 }, { code: "medical_pending", count: 3 },
+      ]));
+      renderAt("/admin?search=Ahmed", await signInAs(HR));
+      await screen.findByText("Ahmed Ali");
+      const listTab = screen.getByRole("tab", { name: "List view" });
+      const graphTab = screen.getByRole("tab", { name: "Graphical view" });
+      fireEvent.keyDown(listTab, { key: "ArrowRight" });
+      expect(graphTab).toHaveFocus();
+      expect(graphTab).toHaveAttribute("aria-selected", "true");
+      expect(screen.queryByRole("table")).not.toBeInTheDocument();
+      expect(screen.getByRole("textbox", { name: "Search" })).toHaveValue("Ahmed");
+      fireEvent.click(screen.getByRole("button", { name: /Medical pending.*3/ }));
+      await waitFor(() => expect(adminCandidateClient.listCandidates).toHaveBeenLastCalledWith(
+        expect.objectContaining({ search: "Ahmed", status: "medical_pending" }), undefined, expect.objectContaining({ number: 1 }),
+      ));
+      expect(listTab).toHaveAttribute("aria-selected", "true");
+      expect(screen.getByRole("table")).toBeInTheDocument();
+    });
+
+    it("shows an empty graphical view when no stage counts are available", async () => {
+      adminCandidateClient.listCandidates.mockResolvedValue(listResult([candidate()]));
+      renderAt("/admin", await signInAs(HR));
+      await screen.findByText("Ahmed Ali");
+      fireEvent.click(screen.getByRole("tab", { name: "Graphical view" }));
+      expect(screen.getByText("No stage counts available")).toBeInTheDocument();
+    });
+
     it("omits the pipeline breakdown card when the backend returns no summary", async () => {
       adminCandidateClient.listCandidates.mockResolvedValue(listResult([candidate()]));
       const client = await signInAs(HR);
@@ -385,11 +431,14 @@ describe("AdminCandidateListPage", () => {
   });
 
   it("renders in Urdu", async () => {
-    adminCandidateClient.listCandidates.mockResolvedValue(listResult([candidate()]));
+    adminCandidateClient.listCandidates.mockResolvedValue(listResult([candidate()], undefined, {}, [{ code: "medical_pending", count: 3 }]));
     localStorage.setItem("descon.language", "ur");
     const client = await signInAs(HR);
     renderAt("/admin", client);
 
     expect(await screen.findByRole("heading", { name: "امیدوار" })).toBeInTheDocument();
+    expect(await screen.findByRole("button", { name: /میڈیکل زیر التوا.*3/ })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("tab", { name: "گرافیکل نظارہ" }));
+    expect(screen.getByRole("tab", { name: "گرافیکل نظارہ" })).toHaveAttribute("aria-selected", "true");
   });
 });

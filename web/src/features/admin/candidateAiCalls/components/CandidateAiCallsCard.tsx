@@ -96,7 +96,7 @@ export function CandidateAiCallsCard({ candidateId }: CandidateAiCallsCardProps)
   return (
     <Card>
       <div className="mb-3 flex items-center justify-between">
-        <h2 className="text-sm font-semibold text-text-primary">{t('adminCandidateAiCallSectionTitle')}</h2>
+        <h2 className="text-sm font-semibold text-text-primary">{t('adminCandidateCallsTitle')}</h2>
         {canTrigger ? (
           <Select
             aria-label={t('adminCandidateAiCallTriggerLabel')}

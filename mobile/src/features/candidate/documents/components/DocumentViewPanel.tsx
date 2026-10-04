@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { Button, OfflineState, ValidationMessage, getFontFamily } from '../../../../design-system';
 import { colors, spacing } from '../../../../design-system/tokens';
@@ -13,6 +14,8 @@ export interface DocumentViewPanelProps {
   error: DocumentAccessError | null;
   onView: (fileId?: string) => void;
   onDownload: (fileId?: string) => void;
+  onReplace?: () => void;
+  replacementDisabled?: boolean;
   t: (key: TranslationKey) => string;
   language: Language;
 }
@@ -23,31 +26,24 @@ export interface DocumentViewPanelProps {
  * A multi-file document (e.g. CNIC front and back) lists every file, each
  * with its own actions.
  */
-export function DocumentViewPanel({ files, isRequesting, error, onView, onDownload, t, language }: DocumentViewPanelProps) {
-  const actions = (fileId?: string) => (
-    <View style={styles.row}>
-      <Button variant="outline" size="sm" onPress={() => onView(fileId)} disabled={isRequesting} language={language}>
-        {t('candidateDocumentsViewAction')}
-      </Button>
-      <Button variant="outline" size="sm" onPress={() => onDownload(fileId)} disabled={isRequesting} language={language}>
-        {t('candidateDocumentsDownloadAction')}
-      </Button>
-    </View>
-  );
+export function DocumentViewPanel({ files, isRequesting, error, onView, onDownload, onReplace, replacementDisabled = false, t, language }: DocumentViewPanelProps) {
+  const [fileAction, setFileAction] = useState<'view' | 'download' | null>(null);
+  const isMultiFile = files.length > 1;
+  const fileLabel = (file: CandidateDocumentFile) => `${file.sideCode ? `${t(SIDE_CODE_LABEL_KEYS[file.sideCode] as TranslationKey)} • ` : ''}${file.fileName}`;
 
   return (
     <View style={styles.container}>
-      {files.length > 1
-        ? files.map((file) => (
-            <View key={file.id} style={styles.fileRow}>
-              <Text style={[styles.fileName, { fontFamily: getFontFamily(language, 'medium') }]} numberOfLines={1}>
-                {file.sideCode ? `${t(SIDE_CODE_LABEL_KEYS[file.sideCode] as TranslationKey)} • ` : ''}
-                {file.fileName}
-              </Text>
-              {actions(file.id)}
-            </View>
-          ))
-        : actions(files[0]?.id)}
+      <View style={styles.row}>
+        <Button variant="outline" size="sm" style={styles.viewButton} labelStyle={styles.viewLabel} onPress={() => isMultiFile ? setFileAction('view') : onView(files[0]?.id)} disabled={isRequesting} language={language}>{t('candidateDocumentsViewAction')}</Button>
+        {onReplace ? <Button variant="outline" size="sm" style={styles.replaceButton} labelStyle={styles.replaceLabel} onPress={onReplace} disabled={replacementDisabled || isRequesting} language={language}>{t('candidateDocumentsReplaceAction')}</Button> : null}
+        <Button variant="outline" size="sm" style={styles.downloadButton} labelStyle={styles.downloadLabel} onPress={() => isMultiFile ? setFileAction('download') : onDownload(files[0]?.id)} disabled={isRequesting} language={language}>{t('candidateDocumentsDownloadAction')}</Button>
+      </View>
+      {isMultiFile ? files.map(file => (
+        <View key={file.id} style={[styles.fileRow, language === 'ur' && styles.fileRowRtl]}>
+          <Text style={[styles.fileName, { fontFamily: getFontFamily(language, 'medium') }]}>{fileLabel(file)}</Text>
+          {fileAction ? <Button variant="outline" size="sm" style={[fileAction === 'view' ? styles.viewButton : styles.downloadButton, styles.fileButton]} labelStyle={[fileAction === 'view' ? styles.viewLabel : styles.downloadLabel, styles.fileButtonLabel]} onPress={() => fileAction === 'view' ? onView(file.id) : onDownload(file.id)} disabled={isRequesting} language={language}>{t(fileAction === 'view' ? 'candidateDocumentsViewAction' : 'candidateDocumentsDownloadAction')}</Button> : null}
+        </View>
+      )) : null}
 
       {error ? <DocumentViewErrorNotice error={error} t={t} language={language} /> : null}
     </View>
@@ -93,7 +89,16 @@ const styles = StyleSheet.create({
     padding: spacing[4],
   },
   row: { flexDirection: 'row', gap: spacing[2], flexWrap: 'wrap' },
-  fileRow: { marginBottom: spacing[3] },
-  fileName: { fontSize: 14, color: colors.text.primary, marginBottom: spacing[1] },
+  viewButton: { backgroundColor: '#E7F1FF', borderColor: '#A8CCFF', borderRadius: 12 },
+  viewLabel: { color: '#0759B8' },
+  replaceButton: { backgroundColor: '#FFF3DF', borderColor: '#EFC789', borderRadius: 12 },
+  replaceLabel: { color: '#8F4B00' },
+  downloadButton: { backgroundColor: '#E6F8EE', borderColor: '#A1DCBD', borderRadius: 12 },
+  downloadLabel: { color: '#087443' },
+  fileRow: { marginTop: spacing[3], flexDirection: 'row', alignItems: 'center', gap: spacing[2] },
+  fileRowRtl: { flexDirection: 'row-reverse' },
+  fileButton: { height: 30, alignSelf: 'center', paddingHorizontal: spacing[2], borderRadius: 10, flexShrink: 0 },
+  fileButtonLabel: { fontSize: 12 },
+  fileName: { flex: 1, minWidth: 0, fontSize: 13, color: colors.text.primary },
   errorNotice: { marginTop: spacing[3] },
 });

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { Image, Linking, Pressable, StyleSheet, Text, View } from "react-native";
-import { Landmark, ChevronRight, ChevronLeft, CheckCircle } from "lucide-react-native";
+import { Landmark, ChevronRight, ChevronLeft } from "lucide-react-native";
 import {
   Button,
   ErrorState,
@@ -10,7 +10,7 @@ import {
   TextField,
   ValidationMessage,
 } from "../../../../design-system";
-import { colors, spacing } from "../../../../design-system/tokens";
+import { colors, elevation, spacing } from "../../../../design-system/tokens";
 import { getFontFamily } from "../../../../design-system/fonts";
 import { CANDIDATE_BANK_DETAILS_ERROR_KEYS } from "../../../../../../shared/candidateBankDetails/errorMessages";
 import type { CandidateBankDetailsError, CandidateBankDetailsErrorCode } from "../../../../../../shared/candidateBankDetails/types";
@@ -22,6 +22,9 @@ import { CANDIDATE_DOCUMENTS_ERROR_KEYS } from "../../../../../../shared/candida
 import type { Language, TranslationKey } from "../../../../../../shared/i18n/translations";
 import { useBankDetail } from "../hooks/useBankDetail";
 import { useBankDetailUpload } from "../hooks/useBankDetailUpload";
+
+import { GradientIconBox } from "../../home/GradientIconBox";
+import { physicalTextAlign, rowDirectionTowards } from "../../../../lib/layoutDirection";
 
 const PERMISSION_NOTICE_KEYS: Record<string, TranslationKey> = {
   "camera:denied": "candidateDocumentsCameraPermissionDeniedError",
@@ -92,7 +95,7 @@ export function BankDetailsPanel({ isDark, t, language, onSessionEnd }: BankDeta
   if (query.error) {
     const key = CANDIDATE_BANK_DETAILS_ERROR_KEYS[query.error.code] as TranslationKey;
     return (
-      <View style={[styles.row, { backgroundColor: isDark ? "#1E1E1E" : "#FFFFFF", borderColor: isDark ? "#333333" : "#E5E7EB" }]}>
+      <View style={[styles.row, { backgroundColor: isDark ? "#1E1E1E" : "#FFFFFF", borderColor: isDark ? "#333333" : "#E0ECF9" }]}>
         <ErrorState message={query.error.message ?? t(key)} retryLabel={t("retry")} onRetry={() => query.refetch()} language={language} />
       </View>
     );
@@ -109,28 +112,21 @@ export function BankDetailsPanel({ isDark, t, language, onSessionEnd }: BankDeta
   const Chevron = language === "ur" ? ChevronLeft : ChevronRight;
 
   return (
-    <View style={[styles.row, { backgroundColor: isDark ? "#1E1E1E" : "#FFFFFF", borderColor: isDark ? "#333333" : "#E5E7EB" }]}>
+    <View style={[styles.row, { backgroundColor: isDark ? "#1E1E1E" : "#FFFFFF", borderColor: isDark ? "#333333" : "#E0ECF9" }]}>
       <Pressable
         onPress={handleToggle}
         disabled={upload.mutation.isPending}
         accessibilityRole="button"
         accessibilityLabel={t(isComplete ? "candidateBankDetailsReplaceAction" : "candidateBankDetailsAddAction")}
       >
-        <View style={styles.rowContent}>
-          <View
-            style={[
-              styles.iconCircle,
-              { backgroundColor: isComplete ? (isDark ? "#1A2E1A" : "#E6F9F0") : isDark ? "#1E1E1E" : "#F6F6F6" },
-            ]}
-          >
-            {isComplete ? <CheckCircle size={20} color="#10B981" /> : <Landmark size={20} color="#6B7280" />}
-          </View>
+        <View style={[styles.rowContent, { flexDirection: rowDirectionTowards(language === "ur" ? "right" : "left") }]}>
+          <GradientIconBox tone={isComplete ? "green" : "purple"} icon={Landmark} size={40} />
           <View style={styles.rowText}>
-            <Text style={[styles.title, { color: isDark ? "#FFFFFF" : "#000000", fontFamily: getFontFamily(language, "medium") }]}>
+            <Text style={[styles.title, { color: isDark ? "#FFFFFF" : "#172B4D", fontFamily: getFontFamily(language, "medium"), textAlign: physicalTextAlign(language === "ur" ? "right" : "left"), lineHeight: language === "ur" ? 32 : 23 }]}>
               {t("candidateBankDetailsTitle")}
             </Text>
             <Text
-              style={[styles.subtitle, { color: isComplete ? "#10B981" : "#6B7280", fontFamily: getFontFamily(language, "regular") }]}
+              style={[styles.subtitle, { color: isComplete ? "#087C46" : "#6B7280", fontFamily: getFontFamily(language, "regular"), textAlign: physicalTextAlign(language === "ur" ? "right" : "left"), lineHeight: language === "ur" ? 30 : 20 }]}
             >
               {t(isComplete ? "candidateBankDetailsComplete" : "candidateBankDetailsIncomplete")}
             </Text>
@@ -218,7 +214,7 @@ function BankDetailsForm({ t, language, upload, onDone }: BankDetailsFormProps) 
           ) : null}
         </View>
       ) : null}
-      <Text style={[styles.fileText, { fontFamily: getFontFamily(language, "regular") }]}>
+      <Text style={[styles.fileText, { fontFamily: getFontFamily(language, "regular"), textAlign: physicalTextAlign(language === "ur" ? "right" : "left"), lineHeight: language === "ur" ? 30 : 20 }]}>
         {upload.proof
           ? `${t("candidateDocumentsSelectedFilePrefix")}: ${upload.proof.name} • ${describeFileType({ name: upload.proof.name, size: upload.proof.size, type: upload.proof.mimeType })}${
               typeof upload.proof.size === "number" ? ` • ${formatFileSize(upload.proof.size, language)}` : ""
@@ -276,9 +272,8 @@ function BankDetailErrorNotice({
 }
 
 const styles = StyleSheet.create({
-  row: { borderRadius: 12, padding: 16, marginBottom: 12, borderWidth: 1 },
+  row: { borderRadius: 20, padding: 16, marginBottom: 12, borderWidth: 1, ...elevation.sm },
   rowContent: { flexDirection: "row", alignItems: "center" },
-  iconCircle: { width: 40, height: 40, borderRadius: 20, justifyContent: "center", alignItems: "center" },
   rowText: { flex: 1, marginStart: 12 },
   title: { fontSize: 15, marginBottom: 2 },
   subtitle: { fontSize: 13 },

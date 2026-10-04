@@ -22,15 +22,15 @@ export function UpcomingActivitiesPanel({ rows, t, language }: { rows: UpcomingA
   }
 
   return (
-    <ul className="flex flex-col divide-y divide-border-default">
+    <ul className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
       {rows.map((row, index) => {
         const Icon = ACTIVITY_ICON[row.type];
         return (
-          <li key={`${row.candidateAssignmentPublicId}-${row.type}-${index}`} className="flex items-center gap-3 py-2.5 text-sm">
-            <Icon className="h-4 w-4 shrink-0 text-text-secondary" aria-hidden="true" />
-            <span className="flex-1 text-text-primary">{t(ACTIVITY_LABEL_KEYS[row.type])}</span>
-            <span className="text-text-secondary">{row.referenceNumber}</span>
-            <span className="shrink-0 font-medium text-text-primary">{formatDate(row.occursOn, language)}</span>
+          <li key={`${row.candidateAssignmentPublicId}-${row.type}-${index}`} className="relative flex min-w-0 items-start gap-3 rounded-xl border border-info/15 bg-info-subtle/40 p-4 text-sm">
+            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-info-subtle text-info-emphasis" aria-hidden="true"><Icon className="h-5 w-5" /></span>
+            <div className="min-w-0 flex-1"><span className="block font-semibold text-text-primary">{t(ACTIVITY_LABEL_KEYS[row.type])}</span>
+            <span className="mt-1 block break-all text-xs text-text-secondary" dir="ltr">{row.referenceNumber}</span>
+            <span className="mt-2 inline-block rounded-lg bg-surface-raised px-2 py-1 text-xs font-medium text-info-emphasis">{formatDate(row.occursOn, language)}</span></div>
           </li>
         );
       })}

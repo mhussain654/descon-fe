@@ -8,7 +8,7 @@ import { MANAGEMENT_DASHBOARD_ERROR_KEYS } from '../../../../../../shared/adminM
 import type { TrendGranularity } from '../../../../lib/admin-management-dashboard-client';
 import type { Language, TranslationKey } from '../../../../../../shared/i18n/translations';
 import { formatNumber } from '../../../../../../shared/i18n/locale';
-import { TrendChart } from '../../reports/components/ReportCharts';
+import { CategoryBarChart, TrendChart } from '../../reports/components/ReportCharts';
 import { stageLabel, type TFn } from '../../reports/components/ReportTables';
 import { useManagementDashboard } from '../hooks/useManagementDashboard';
 import { ManagementConversionPanel } from './ManagementConversionPanel';
@@ -22,7 +22,7 @@ const GRANULARITY_OPTIONS: { value: TrendGranularity; labelKey: TranslationKey }
 ];
 
 const KPI_TILE_CLASSNAME =
-  'min-w-0 overflow-hidden border-border border-t-4 bg-surface-raised shadow-sm transition duration-200 hover:-translate-y-0.5 hover:shadow-md';
+  'min-w-0 overflow-hidden border-border border-t-4 shadow-sm transition duration-200 hover:-translate-y-0.5 hover:shadow-md motion-reduce:transform-none motion-reduce:transition-none';
 
 export function ManagementDashboard() {
   const { t, language } = useLanguage();
@@ -36,14 +36,14 @@ export function ManagementDashboard() {
   }, [query.error, signOut]);
 
   return (
-    <div className="mx-auto max-w-[1400px] px-4 py-5 sm:px-6 sm:py-6">
-      <div className="relative mb-5 overflow-hidden rounded-2xl bg-brand shadow-md">
+    <div className="mx-auto max-w-[1400px] px-4 py-5 sm:px-6 sm:py-6" dir={language === 'ur' ? 'rtl' : 'ltr'}>
+      <div className="relative mb-5 overflow-hidden rounded-2xl bg-gradient-to-br from-brand to-blue-700 shadow-md">
         <div aria-hidden="true" className="absolute -right-14 -top-20 h-52 w-52 rounded-full border-[28px] border-white/10" />
         <div aria-hidden="true" className="absolute -bottom-16 right-40 h-36 w-36 rounded-full bg-white/5" />
-        <div className="relative flex flex-col gap-5 px-6 py-7 sm:flex-row sm:items-center sm:justify-between lg:px-8">
+        <div className="relative flex flex-col gap-4 px-6 py-5 sm:flex-row sm:items-center sm:justify-between lg:px-8">
           <div className="max-w-2xl">
             <p className="mb-2 text-xs font-semibold uppercase tracking-widest text-white/70">{t('managementDashboardHeroEyebrow')}</p>
-            <h1 className="text-2xl font-semibold tracking-tight text-white sm:text-3xl">{t('managementDashboardTitle')}</h1>
+            <h1 className="text-2xl font-semibold tracking-tight text-white sm:text-3xl"><span aria-hidden="true">👑 </span>{t('managementDashboardTitle')}</h1>
             <p className="mt-1 text-sm leading-6 text-white/80">{t('managementDashboardSubtitle')}</p>
           </div>
           <Link to="/admin/reports" className="inline-flex h-11 shrink-0 items-center justify-center gap-2 rounded-xl bg-white px-5 text-sm font-semibold text-brand shadow-sm transition hover:-translate-y-0.5 hover:bg-white/95 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-brand">
@@ -87,25 +87,28 @@ function DashboardContent({ query, granularity, onGranularityChange, t, language
     <div className="flex flex-col gap-5">
       <section aria-labelledby="management-key-metrics">
         <div className="mb-3">
-          <h2 id="management-key-metrics" className="text-base font-semibold text-text-primary">{t('managementDashboardKeyMetricsTitle')}</h2>
+          <h2 id="management-key-metrics" className="text-base font-semibold text-text-primary"><span aria-hidden="true">✨ </span>{t('managementDashboardKeyMetricsTitle')}</h2>
           <p className="text-xs text-text-secondary">{t('managementDashboardKeyMetricsSubtitle')}</p>
         </div>
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4 2xl:gap-5">
-          <StatTile value={percentage(documentsUploaded?.percentage)} label={t('managementDashboardDocumentCompletion')} className={`${KPI_TILE_CLASSNAME} border-t-brand text-brand`} icon={<FileCheck2 />} />
-          <StatTile value={percentage(verified?.percentage)} label={t('managementDashboardVerificationRate')} className={`${KPI_TILE_CLASSNAME} border-t-success text-success-emphasis`} icon={<BadgeCheck />} />
-          <StatTile value={mobilized?.count ?? 0} label={stageLabel('mobilized', t)} className={`${KPI_TILE_CLASSNAME} border-t-info text-info-emphasis`} icon={<Plane />} />
-          <StatTile value={exceptionCount} label={t('managementDashboardTotalExceptions')} className={`${KPI_TILE_CLASSNAME} border-t-danger text-danger-emphasis`} icon={<ShieldAlert />} />
+          <StatTile labelClassName="text-current" value={percentage(documentsUploaded?.percentage)} label={t('managementDashboardDocumentCompletion')} className={`${KPI_TILE_CLASSNAME} border-t-brand bg-brand-subtle text-brand`} icon={<FileCheck2 />} />
+          <StatTile labelClassName="text-current" value={percentage(verified?.percentage)} label={t('managementDashboardVerificationRate')} className={`${KPI_TILE_CLASSNAME} border-t-success bg-success-subtle text-success-emphasis`} icon={<BadgeCheck />} />
+          <StatTile labelClassName="text-current" value={mobilized?.count ?? 0} label={stageLabel('mobilized', t)} className={`${KPI_TILE_CLASSNAME} border-t-info bg-info-subtle text-info-emphasis`} icon={<Plane />} />
+          <StatTile labelClassName="text-current" value={exceptionCount} label={t('managementDashboardTotalExceptions')} className={`${KPI_TILE_CLASSNAME} border-t-danger bg-danger-subtle text-danger-emphasis`} icon={<ShieldAlert />} />
         </div>
       </section>
 
-      <div className="grid items-stretch gap-4 xl:grid-cols-[minmax(0,1.55fr)_minmax(340px,0.75fr)]">
+      <div className="grid items-start gap-4 xl:grid-cols-[minmax(0,1.55fr)_minmax(340px,0.75fr)]">
         <Card className="shadow-sm">
-          <h2 className="text-base font-semibold text-text-primary">{t('managementDashboardConversionTitle')}</h2>
+          <h2 className="text-base font-semibold text-text-primary"><span aria-hidden="true">🎯 </span>{t('managementDashboardConversionTitle')}</h2>
           <p className="mb-5 text-xs text-text-secondary">{t('managementDashboardConversionSubtitle')}</p>
           <ManagementConversionPanel rows={data.conversionFunnel} t={t} language={language} />
+          <div className="mt-5 overflow-auto rounded-xl bg-surface-sunken/40 p-3">
+            <div className="min-w-[360px]"><CategoryBarChart data={data.conversionFunnel.map((row) => ({ key: row.code, label: stageLabel(row.code, t), value: row.count }))} /></div>
+          </div>
         </Card>
         <Card className="border-danger/10 shadow-sm">
-          <h2 className="text-base font-semibold text-text-primary">{t('managementDashboardOutcomeTrackingTitle')}</h2>
+          <h2 className="text-base font-semibold text-text-primary"><span aria-hidden="true">⚠️ </span>{t('managementDashboardOutcomeTrackingTitle')}</h2>
           <p className="mb-4 text-xs text-text-secondary">{t('managementDashboardOutcomeTrackingSubtitle')}</p>
           <ManagementOutcomePanel summary={data.outcomeTracking} t={t} language={language} />
         </Card>
@@ -116,7 +119,7 @@ function DashboardContent({ query, granularity, onGranularityChange, t, language
         <Card className="shadow-sm">
           <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
             <div>
-              <h2 className="text-base font-semibold text-text-primary">{t('managementDashboardMobilizationTrendTitle')}</h2>
+              <h2 className="text-base font-semibold text-text-primary"><span aria-hidden="true">📈 </span>{t('managementDashboardMobilizationTrendTitle')}</h2>
               <p className="text-xs text-text-secondary">{t('managementDashboardMobilizationTrendSubtitle')}</p>
             </div>
             <Select label={t('reportsSelectGranularityLabel')} value={granularity} onChange={(event) => onGranularityChange(event.target.value as TrendGranularity)} options={GRANULARITY_OPTIONS.map((option) => ({ value: option.value, label: t(option.labelKey) }))} />

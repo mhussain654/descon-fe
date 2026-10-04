@@ -9,6 +9,7 @@ import Svg, { Defs, LinearGradient, Rect, Stop } from "react-native-svg";
 import { useAuth } from "../contexts/AuthContext";
 import { useLanguage } from "../contexts/LanguageContext";
 import { RequireGuest } from "../features/auth/RequireGuest";
+import { RegistrationGuidance } from "../features/onboarding/RegistrationGuidance";
 import { BrandHeader } from "../features/onboarding/BrandHeader";
 import { SecureFooter } from "../features/onboarding/SecureFooter";
 import { BackArrow, forwardArrowSlots } from "../features/onboarding/directionalArrows";
@@ -99,6 +100,7 @@ export default function LoginScreen() {
     [login, router, t]
   );
 
+  const [registrationGuidanceOpen, setRegistrationGuidanceOpen] = useState(false);
   const flow = useCnicOtpFlow({ client: candidateAuthClient, onAuthenticated });
   const {
     step,
@@ -143,6 +145,10 @@ export default function LoginScreen() {
   const retryOtpAction = lastOtpAction === "resend" ? resendOtpAndTrack : () => submitOtpAndTrack();
 
   useEffect(() => {
+    setRegistrationGuidanceOpen(otpError?.code === "CNIC_NOT_FOUND");
+  }, [otpError]);
+
+  useEffect(() => {
     if (sessionExpired) {
       toast.info(t("dsSessionExpiredTitle"), { description: t("dsSessionExpiredDescription") });
       acknowledgeSessionExpired();
@@ -182,7 +188,8 @@ export default function LoginScreen() {
   return (
     <RequireGuest>
       <KeyboardAvoidingAnimatedView style={styles.screen} behavior="padding">
-        <StatusBar style="light" />
+        <RegistrationGuidance open={registrationGuidanceOpen} onClose={() => setRegistrationGuidanceOpen(false)} title={t("authCnicNotFoundError")} description={t("authRegistrationGuidance")} closeLabel={t("authChangeCnic")} language={language} />
+      <StatusBar style="light" />
 
         {/* Small phones, landscape orientation and larger font scales can push
             this content taller than the viewport -- a ScrollView keeps the
@@ -287,7 +294,7 @@ export default function LoginScreen() {
                   />
                 ) : (
                   <>
-                    {!cnicError && otpError ? (
+                    {!cnicError && otpError && !registrationGuidanceOpen ? (
                       <ValidationMessage tone="error" language={language}>
                         {isCnicRateLimited
                           ? withCountdown(t("authRetryAvailableIn"), secondsUntilRateLimitCleared ?? 0)

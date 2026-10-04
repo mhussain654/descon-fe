@@ -17,9 +17,10 @@ beforeEach(() => {
   window.localStorage.removeItem('descon.admin.sidebar.collapsed');
 });
 
-async function renderShellAs(account: typeof FINANCE, initialEntries: string[] = ['/']) {
+async function renderShellAs(account: typeof FINANCE, initialEntries: string[] = ['/'], additionalPermissions: string[] = []) {
   const client = createMockStaffAuthClient({ delayMs: 0 });
-  await client.signIn({ email: account.email, password: MOCK_STAFF_PASSWORD });
+  const session = await client.signIn({ email: account.email, password: MOCK_STAFF_PASSWORD });
+  if (additionalPermissions.length) client.restoreSession = async () => ({ ...session, permissions: [...session.permissions, ...additionalPermissions] });
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return render(
     <MemoryRouter initialEntries={initialEntries}>
@@ -126,7 +127,7 @@ describe('StaffShell sidebar navigation', () => {
   it('shows the Dashboard nav link under the Dashboards section for a staff member with view_admin_dashboard', async () => {
     await renderShellAs(ADMIN);
 
-    expect(await screen.findByRole('link', { name: 'Dashboard' })).toHaveAttribute('href', '/admin/dashboard');
+    expect(await screen.findByRole('link', { name: 'Admin Dashboard' })).toHaveAttribute('href', '/admin/dashboard');
   });
 
   it('shows the Operations Dashboard nav link (under Dashboards) and the standalone Reports link for a staff member with view_mps_dashboard/view_reports', async () => {
@@ -150,10 +151,17 @@ describe('StaffShell sidebar navigation', () => {
     await renderShellAs(HR);
 
     expect(await screen.findByText('page content')).toBeInTheDocument();
-    expect(screen.queryByRole('link', { name: 'Dashboard' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'Admin Dashboard' })).not.toBeInTheDocument();
     expect(screen.queryByRole('link', { name: 'Operations Dashboard' })).not.toBeInTheDocument();
     expect(screen.queryByRole('link', { name: 'Management Dashboard' })).not.toBeInTheDocument();
     expect(screen.queryByRole('link', { name: 'Reports' })).not.toBeInTheDocument();
+  });
+
+  it('places Management Dashboard first and labels the admin dashboard explicitly', async () => {
+    await renderShellAs(ADMIN, ['/'], ['view_management_dashboard', 'view_mps_dashboard']);
+    await screen.findByRole('link', { name: 'Admin Dashboard' });
+    const links = screen.getAllByRole('link').filter((link) => ['/admin/management-dashboard', '/admin/dashboard', '/admin/mps-dashboard'].includes(link.getAttribute('href') ?? ''));
+    expect(links.map((link) => link.textContent)).toEqual(['Management Dashboard', 'Admin Dashboard', 'Operations Dashboard']);
   });
 
   it('renders every section fully expanded, with no click-to-expand toggle', async () => {
@@ -164,7 +172,7 @@ describe('StaffShell sidebar navigation', () => {
     // group-toggle button to click, unlike the previous horizontal-dropdown
     // design -- its links (here, Dashboard and Training, from two different
     // sections) are immediately present with no click needed.
-    expect(await screen.findByRole('link', { name: 'Dashboard' })).toBeInTheDocument();
+    expect(await screen.findByRole('link', { name: 'Admin Dashboard' })).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Training' })).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Dashboards' })).not.toBeInTheDocument();
   });
@@ -195,10 +203,10 @@ describe('StaffShell sidebar navigation', () => {
 });
 
 describe('StaffShell branding', () => {
-  it('shows "Descon Admin Portal" as the portal name', async () => {
+  it('shows "MPS Connect Admin Portal" as the portal name', async () => {
     await renderShellAs(ADMIN);
 
-    expect((await screen.findAllByText('Descon Admin Portal')).length).toBeGreaterThan(0);
+    expect((await screen.findAllByText('MPS Connect Admin Portal')).length).toBeGreaterThan(0);
   });
 });
 
@@ -210,7 +218,7 @@ describe('StaffShell desktop sidebar collapse', () => {
     fireEvent.click(collapseButton);
 
     expect(screen.getByRole('button', { name: 'Expand sidebar' })).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'Dashboard' })).toHaveAttribute('title', 'Dashboard');
+    expect(screen.getByRole('link', { name: 'Admin Dashboard' })).toHaveAttribute('title', 'Admin Dashboard');
     expect(container.querySelector('main')).toHaveClass('lg:ms-16');
     expect(window.localStorage.getItem('descon.admin.sidebar.collapsed')).toBe('true');
 

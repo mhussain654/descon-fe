@@ -1,5 +1,6 @@
 import { ActivityIndicator, Pressable, StyleSheet, type StyleProp, type ViewStyle } from 'react-native';
-import type { ReactNode } from 'react';
+import { useContext, type ReactNode } from 'react';
+import { ButtonHeightContext } from './Button';
 import { colors, minTouchTarget, radii } from './tokens';
 
 export type IconButtonVariant = 'primary' | 'outline' | 'ghost' | 'destructive';
@@ -27,10 +28,10 @@ const VARIANT_BACKGROUND: Record<IconButtonVariant, string> = {
 // Square footprint at or above the 44px minimum touch target (shared/design-tokens.ts `minTouchTarget`).
 const SIZES: Record<IconButtonSize, number> = { sm: minTouchTarget, md: minTouchTarget, lg: 56 };
 
-/** Icon-only control with a mandatory accessible name, sized to the minimum recommended touch target. */
+/** Icon-only control with a mandatory accessible name, defaults to the minimum recommended touch target, or the screen compact size. */
 export function IconButton({ icon, label, onPress, variant = 'ghost', size = 'md', loading, disabled, style }: IconButtonProps) {
   const isDisabled = disabled || loading;
-  const dimension = SIZES[size];
+  const dimension = useContext(ButtonHeightContext) ?? SIZES[size];
 
   return (
     <Pressable

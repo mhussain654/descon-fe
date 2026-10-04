@@ -66,6 +66,18 @@ const dashboardPayload = {
 };
 
 describe('createAdminMpsDashboardClient (real)', () => {
+  it('maps backend attention candidates and retains their backend age/severity', async () => {
+    stubFetch(async () => jsonResponse(successEnvelope({ ...dashboardPayload, attention_candidates: [{
+      candidate_full_name: 'Sample Candidate', candidate_public_id: 'candidate-2', reference_number: 'REF-2',
+      workflow_stage_code: 'medical_pending', days_waiting: 18, severity: 'critical',
+    }] })));
+    const { client } = buildClient();
+    expect((await client.getDashboard()).attentionCandidates).toEqual([{
+      candidateFullName: 'Sample Candidate', candidatePublicId: 'candidate-2', referenceNumber: 'REF-2',
+      workflowStageCode: 'medical_pending', daysWaiting: 18, severity: 'critical',
+    }]);
+  });
+
   it('fetches the real backend summary and maps it to camelCase', async () => {
     let seenUrl = '';
     stubFetch(async (url) => {

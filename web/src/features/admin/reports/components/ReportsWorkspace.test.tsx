@@ -47,7 +47,7 @@ describe('ReportsWorkspace', () => {
     vi.mocked(triggerBlobDownload).mockReset();
   });
 
-  it('loads the report-type catalogue and shows the default (status_summary) report as a table', async () => {
+  it('loads the catalogue and switches the default status report from chart to table', async () => {
     adminReportsClient.listReportTypes.mockResolvedValue([
       'status_summary',
       'mobilization',
@@ -64,6 +64,9 @@ describe('ReportsWorkspace', () => {
     await renderAs(MPS);
 
     expect(await screen.findByText('12')).toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: 'Chart' })).toHaveAttribute('aria-selected', 'true');
+    fireEvent.click(screen.getByRole('tab', { name: 'Table' }));
+    expect(screen.getByRole('tab', { name: 'Table' })).toHaveAttribute('aria-selected', 'true');
     expect(screen.getByRole('columnheader', { name: 'Stage' })).toBeInTheDocument();
   });
 
@@ -120,6 +123,39 @@ describe('ReportsWorkspace', () => {
 
     await waitFor(() => expect(adminReportsClient.exportReport).toHaveBeenCalledWith('status_summary', 'csv', undefined));
     await waitFor(() => expect(triggerBlobDownload).toHaveBeenCalledWith(expect.any(Blob), 'status_summary.csv'));
+  });
+
+  it('hides empty stages in both views without changing the export request', async () => {
+    adminReportsClient.listReportTypes.mockResolvedValue(['status_summary']);
+    adminReportsClient.getReportData.mockResolvedValue({ type: 'status_summary', rows: [{ code: 'registered', position: 1, count: 0 }, { code: 'mobilized', position: 15, count: 7 }] });
+    adminReportsClient.exportReport.mockResolvedValue({ blob: new Blob(['full report']), filename: 'status_summary.csv' });
+    await renderAs(MPS);
+    await screen.findByText('7');
+    expect(screen.queryByText('Registered')).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('tab', { name: 'Table' }));
+    expect(screen.queryByText('Registered')).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Show empty stages' }));
+    expect(screen.getByText('Registered')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Export CSV' }));
+    await waitFor(() => expect(adminReportsClient.exportReport).toHaveBeenCalledWith('status_summary', 'csv', undefined));
+    fireEvent.keyDown(screen.getByRole('tab', { name: 'Table' }), { key: 'Home' });
+    expect(screen.getByRole('tab', { name: 'Chart' })).toHaveFocus();
+    expect(screen.getByRole('tab', { name: 'Chart' })).toHaveAttribute('aria-selected', 'true');
+  });
+
+  it('renders localized controls and an all-empty report in Urdu', async () => {
+    localStorage.setItem('descon.language', 'ur');
+    try {
+      adminReportsClient.listReportTypes.mockResolvedValue(['status_summary']);
+      adminReportsClient.getReportData.mockResolvedValue({ type: 'status_summary', rows: [{ code: 'registered', position: 1, count: 0 }] });
+      await renderAs(MPS);
+      const title = await screen.findByRole('heading', { level: 1, name: 'رپورٹس اور تجزیات' });
+      expect(title.closest('[dir]')).toHaveAttribute('dir', 'rtl');
+      await waitFor(() => expect(adminReportsClient.getReportData).toHaveBeenCalled());
+      fireEvent.click(screen.getByRole('tab', { name: 'جدول' }));
+      fireEvent.click(screen.getByRole('checkbox', { name: 'خالی مراحل دکھائیں' }));
+      await screen.findByText('0');
+    } finally { localStorage.removeItem('descon.language'); }
   });
 
   it('shows the FORBIDDEN state for a staff member without view_reports', async () => {

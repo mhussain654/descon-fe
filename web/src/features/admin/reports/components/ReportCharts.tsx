@@ -7,6 +7,7 @@ import {
   CartesianGrid,
   Cell,
   Legend,
+  LabelList,
   Pie,
   PieChart,
   ResponsiveContainer,
@@ -88,6 +89,7 @@ export interface CategoryDatum {
   value: number;
   /** Defaults to 'brand' -- pass a distinct tone per item only where the categories are genuinely good/bad (payment status, document review outcome, ...), not for an ordered/neutral breakdown like a workflow-stage queue. */
   tone?: ChartTone;
+  color?: string;
 }
 
 // Grid lines/axis ticks are deliberately theme-static (not CSS-var-driven):
@@ -96,7 +98,7 @@ export interface CategoryDatum {
 // than inline CSS, which doesn't reliably resolve custom properties across
 // browsers -- not worth the risk for supplementary chart chrome.
 const GRID_STROKE = '#94A3B8';
-const AXIS_TICK_STYLE = { fontSize: 11, fill: '#64748B' };
+const AXIS_TICK_STYLE = { fontSize: 13, fill: '#64748B' };
 
 function hasAnyValue(data: { value: number }[]): boolean {
   return data.some((d) => d.value > 0);
@@ -112,7 +114,7 @@ export function CategoryDonutChart({ data }: { data: CategoryDatum[] }) {
         <PieChart>
           <Pie data={data} dataKey="value" nameKey="label" innerRadius="62%" outerRadius="100%" paddingAngle={2} strokeWidth={0}>
             {data.map((d) => (
-              <Cell key={d.key} fill={CHART_TONE_HEX[d.tone ?? 'brand']} />
+              <Cell key={d.key} fill={d.color ?? CHART_TONE_HEX[d.tone ?? 'brand']} />
             ))}
           </Pie>
           <Tooltip />
@@ -123,21 +125,22 @@ export function CategoryDonutChart({ data }: { data: CategoryDatum[] }) {
 }
 
 /** Ranked/ordered breakdown across many categories (a 15-stage workflow queue, per-country mobilization, a conversion funnel) -- a horizontal bar reads better than a pie once there are more than a handful of slices. */
-export function CategoryBarChart({ data }: { data: CategoryDatum[] }) {
+export function CategoryBarChart({ data, showValues = false }: { data: CategoryDatum[]; showValues?: boolean }) {
   if (!hasAnyValue(data)) return null;
   const height = Math.max(160, data.length * 34);
 
   return (
     <div style={{ height }} aria-hidden="true">
       <ResponsiveContainer width="100%" height="100%">
-        <BarChart data={data} layout="vertical" margin={{ left: 8, right: 16, top: 4, bottom: 4 }}>
+        <BarChart data={data} layout="vertical" margin={{ left: 8, right: showValues ? 40 : 16, top: 4, bottom: 4 }}>
           <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke={GRID_STROKE} strokeOpacity={0.25} />
           <XAxis type="number" allowDecimals={false} tick={AXIS_TICK_STYLE} axisLine={false} tickLine={false} />
           <YAxis type="category" dataKey="label" width={150} tick={AXIS_TICK_STYLE} axisLine={false} tickLine={false} />
           <Tooltip />
           <Bar dataKey="value" radius={[0, 4, 4, 0]} maxBarSize={18}>
+            {showValues ? <LabelList dataKey="value" position="right" fill="#64748B" /> : null}
             {data.map((d) => (
-              <Cell key={d.key} fill={CHART_TONE_HEX[d.tone ?? 'brand']} />
+              <Cell key={d.key} fill={d.color ?? CHART_TONE_HEX[d.tone ?? 'brand']} />
             ))}
           </Bar>
         </BarChart>
@@ -178,12 +181,12 @@ export function CraftSummaryChart({
   return (
     <div style={{ height }} aria-hidden="true">
       <ResponsiveContainer width="100%" height="100%">
-        <BarChart data={data} layout="vertical" margin={{ left: 8, right: 16, top: 4, bottom: 4 }}>
+        <BarChart data={data} layout="vertical" margin={{ left: 8, right: showValues ? 40 : 16, top: 4, bottom: 4 }}>
           <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke={GRID_STROKE} strokeOpacity={0.25} />
           <XAxis type="number" allowDecimals={false} tick={AXIS_TICK_STYLE} axisLine={false} tickLine={false} />
           <YAxis type="category" dataKey="label" width={150} tick={AXIS_TICK_STYLE} axisLine={false} tickLine={false} />
           <Tooltip />
-          <Legend wrapperStyle={{ fontSize: 12 }} />
+          <Legend wrapperStyle={{ fontSize: 14 }} />
           <Bar dataKey="mobilized" name={mobilizedLabel} stackId="craft" fill={CHART_TONE_HEX.success} maxBarSize={18} />
           <Bar dataKey="remaining" name={remainingLabel} stackId="craft" fill={CHART_TONE_HEX.neutral} radius={[0, 4, 4, 0]} maxBarSize={18} />
         </BarChart>

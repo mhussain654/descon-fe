@@ -6,7 +6,7 @@ import {
   StatTile,
   type DataTableColumn,
 } from '../../../../design-system';
-import { WORKFLOW_STAGE_LABEL_KEYS, type CanonicalWorkflowStageCode } from '../../../../../../shared/adminWorkflow/canonicalStages';
+import { CANDIDATE_LIST_STAGE_LABEL_KEYS } from '../../../../../../shared/adminCandidates/workflowStageLabels';
 import type {
   ConversionRow,
   CraftSummaryRow,
@@ -31,7 +31,7 @@ export type TFn = (key: TranslationKey) => string;
  */
 
 export function stageLabel(code: string, t: TFn): string {
-  const key = WORKFLOW_STAGE_LABEL_KEYS[code as CanonicalWorkflowStageCode] as TranslationKey | undefined;
+  const key = CANDIDATE_LIST_STAGE_LABEL_KEYS[code];
   return key ? t(key) : code;
 }
 
@@ -39,7 +39,7 @@ export function emptyState(t: TFn) {
   return <EmptyState title={t('dashboardEmptyTitle')} description={t('dashboardEmptyDescription')} />;
 }
 
-export function StatusSummaryTable({ rows, t }: { rows: StatusSummaryRow[]; t: TFn }) {
+export function StatusSummaryTable({ rows, t, showCharts = true }: { rows: StatusSummaryRow[]; t: TFn; showCharts?: boolean }) {
   const columns: DataTableColumn<StatusSummaryRow>[] = [
     { key: 'stage', header: t('reportColumnStage'), render: (row) => stageLabel(row.code, t) },
     { key: 'count', header: t('reportColumnCount'), render: (row) => row.count },
@@ -48,7 +48,7 @@ export function StatusSummaryTable({ rows, t }: { rows: StatusSummaryRow[]; t: T
   const hasChartData = chartData.some((d) => d.value > 0);
   return (
     <div className="flex flex-col gap-4">
-      {hasChartData ? (
+      {showCharts && hasChartData ? (
         <Card>
           <CategoryBarChart data={chartData} />
         </Card>
@@ -78,7 +78,7 @@ export function CraftSummaryTable({ rows, t, language }: { rows: CraftSummaryRow
   );
 }
 
-export function ConversionTable({ rows, t }: { rows: ConversionRow[]; t: TFn }) {
+export function ConversionTable({ rows, t, showCharts = true }: { rows: ConversionRow[]; t: TFn; showCharts?: boolean }) {
   const columns: DataTableColumn<ConversionRow>[] = [
     { key: 'stage', header: t('reportColumnStage'), render: (row) => stageLabel(row.code, t) },
     { key: 'count', header: t('reportColumnCount'), render: (row) => row.count },
@@ -88,7 +88,7 @@ export function ConversionTable({ rows, t }: { rows: ConversionRow[]; t: TFn }) 
   const hasChartData = chartData.some((d) => d.value > 0);
   return (
     <div className="flex flex-col gap-4">
-      {hasChartData ? (
+      {showCharts && hasChartData ? (
         <Card>
           <CategoryBarChart data={chartData} />
         </Card>
@@ -112,7 +112,7 @@ export function TrendTable({ rows, t }: { rows: TrendPoint[]; t: TFn }) {
   );
 }
 
-function MobilizationRowTable({ rows, t }: { rows: MobilizationRow[]; t: TFn }) {
+function MobilizationRowTable({ rows, t, showCharts = true }: { rows: MobilizationRow[]; t: TFn; showCharts?: boolean }) {
   const columns: DataTableColumn<MobilizationRow>[] = [
     { key: 'name', header: t('reportColumnName'), render: (row) => row.name },
     { key: 'count', header: t('reportColumnCount'), render: (row) => row.count },
@@ -121,7 +121,7 @@ function MobilizationRowTable({ rows, t }: { rows: MobilizationRow[]; t: TFn }) 
   return (
     <div className="flex flex-col gap-4">
       <div className="flex justify-center">
-        <CategoryDonutChart data={chartData} />
+        {showCharts ? <CategoryDonutChart data={chartData} /> : null}
       </div>
       <Card noPadding>
         <DataTable columns={columns} rows={rows} getRowId={(row) => row.code} emptyState={emptyState(t)} />
@@ -130,22 +130,22 @@ function MobilizationRowTable({ rows, t }: { rows: MobilizationRow[]; t: TFn }) 
   );
 }
 
-export function MobilizationTables({ summary, t }: { summary: MobilizationSummary; t: TFn }) {
+export function MobilizationTables({ summary, t, showCharts = true }: { summary: MobilizationSummary; t: TFn; showCharts?: boolean }) {
   return (
     <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
       <div>
         <h2 className="mb-2 text-sm font-semibold text-text-primary">{t('mpsDashboardMobilizationByCountryTitle')}</h2>
-        <MobilizationRowTable rows={summary.byCountry} t={t} />
+        <MobilizationRowTable rows={summary.byCountry} t={t} showCharts={showCharts} />
       </div>
       <div>
         <h2 className="mb-2 text-sm font-semibold text-text-primary">{t('mpsDashboardMobilizationByProjectTitle')}</h2>
-        <MobilizationRowTable rows={summary.byProject} t={t} />
+        <MobilizationRowTable rows={summary.byProject} t={t} showCharts={showCharts} />
       </div>
     </div>
   );
 }
 
-export function OutcomeTrackingTiles({ summary, t }: { summary: OutcomeTracking; t: TFn }) {
+export function OutcomeTrackingTiles({ summary, t, showCharts = true }: { summary: OutcomeTracking; t: TFn; showCharts?: boolean }) {
   const chartData = [
     { key: 'rejectedDocuments', label: t('reportOutcomeRejectedDocuments'), value: summary.rejectedDocuments, tone: 'danger' as const },
     { key: 'qvcReMedical', label: t('reportOutcomeQvcReMedical'), value: summary.qvcReMedical, tone: 'warning' as const },
@@ -156,7 +156,7 @@ export function OutcomeTrackingTiles({ summary, t }: { summary: OutcomeTracking;
   return (
     <Card>
       <div className="flex flex-col items-center gap-4 sm:flex-row">
-        <CategoryDonutChart data={chartData} />
+        {showCharts ? <CategoryDonutChart data={chartData} /> : null}
         <div className="flex flex-1 flex-wrap gap-2">
           <StatTile value={summary.rejectedDocuments} label={t('reportOutcomeRejectedDocuments')} className="bg-danger-subtle text-danger-emphasis" icon={<FileX />} />
           <StatTile value={summary.qvcReMedical} label={t('reportOutcomeQvcReMedical')} className="bg-warning-subtle text-warning-emphasis" icon={<RefreshCw />} />
