@@ -40,7 +40,7 @@ export default function StaffLoginPage() {
   }
 
   return (
-    <main className="min-h-screen bg-background">
+    <main className="admin-typography min-h-screen bg-background">
       <div className="mx-auto flex min-h-screen w-full max-w-md flex-col justify-center px-6 py-16">
         <div className="mb-10">
           <h1 className="mb-2 text-3xl font-semibold text-text-primary">{t("staffAuthSignInTitle")}</h1>

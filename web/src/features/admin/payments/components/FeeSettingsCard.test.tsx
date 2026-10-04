@@ -89,7 +89,7 @@ describe("FeeSettingsCard", () => {
     });
     await mount("candidate-1");
     fireEvent.click(await screen.findByRole("button", { name: "Change fee" }));
-    fireEvent.click(screen.getByLabelText("Use default fee"));
+    expect(screen.getByLabelText("Use default fee")).toBeChecked();
     fireEvent.change(screen.getByLabelText("Fee amount (PKR)"), {
       target: { value: "25000" },
     });

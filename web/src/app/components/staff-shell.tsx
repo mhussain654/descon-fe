@@ -297,7 +297,7 @@ function StaffShellContent({ children }: { children: ReactNode }) {
   const roleLabel = t(STAFF_ROLE_LABEL_KEYS[session.role]);
 
   return (
-    <div className={`min-h-screen bg-surface-background ${theme === 'dark' ? 'dark' : ''}`}>
+    <div className={`admin-typography min-h-screen bg-surface-background ${theme === 'dark' ? 'dark' : ''}`}>
       {/* Mobile-only top bar: the sidebar itself is hidden below `lg`, so this is
           the only way to reach it on small screens. Dark, matching the sidebar/
           drawer it opens, so the mobile and desktop nav chrome feel like the

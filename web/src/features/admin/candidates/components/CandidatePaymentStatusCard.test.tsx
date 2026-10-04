@@ -1,10 +1,13 @@
 import { render, screen } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { LanguageProvider } from "../../../../contexts/LanguageContext";
 import { adminWorkflowClient } from "../../../../lib/admin-workflow-client";
+import { adminFeesClient } from "../../../../lib/admin-fees-client";
 import { CandidatePaymentStatusCard } from "./CandidatePaymentStatusCard";
 
+vi.mock("../../../../contexts/StaffAuthContext", () => ({ useStaffAuth: () => ({ hasPermission: () => true, signOut: vi.fn() }) }));
+vi.mock("../../../../lib/admin-fees-client", () => ({ adminFeesClient: { getFee: vi.fn() } }));
 vi.mock("../../../../lib/admin-workflow-client", () => ({
   adminWorkflowClient: {
     getWorkflowState: vi.fn(),
@@ -55,7 +58,11 @@ function renderCard() {
 }
 
 describe("CandidatePaymentStatusCard", () => {
+  beforeEach(() => {
+    adminFeesClient.getFee.mockResolvedValue({ defaultAmount: '1500.00', effectiveAmount: '1500.00', overrideAmount: null, currencyCode: 'PKR', version: 0, assignmentId: 'assignment-1', locked: false, updatedAt: '2026-10-04T09:00:00Z' });
+  });
   afterEach(() => {
+    vi.mocked(adminFeesClient.getFee).mockReset();
     vi.mocked(adminWorkflowClient.getWorkflowState).mockReset();
   });
 
@@ -67,6 +74,7 @@ describe("CandidatePaymentStatusCard", () => {
 
     expect(await screen.findByText("Payment")).toBeInTheDocument();
     expect(screen.getByText("Paid")).toBeInTheDocument();
+    expect(await screen.findByText(/1,500/)).toBeInTheDocument();
   });
 
   it("shows Paid when fee_paid is completed (the candidate has advanced further)", async () => {

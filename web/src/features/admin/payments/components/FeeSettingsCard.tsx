@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Wallet } from "lucide-react";
 import { useLanguage } from "../../../../contexts/LanguageContext";
 import { useStaffAuth } from "../../../../contexts/StaffAuthContext";
@@ -24,27 +24,22 @@ import type {
 } from "../../../../../../shared/adminFees/types";
 import { paymentQueries } from "../../../../../../shared/queryKeys/paymentQueries";
 
+import { useAdminFee } from "../hooks/useAdminFee";
+import { adminFeeQueries } from "../../../../../../shared/queryKeys/adminFeeQueries";
+
 export function FeeSettingsCard({ candidateId }: { candidateId?: string }) {
   const { t, language } = useLanguage();
   const { hasPermission, signOut } = useStaffAuth();
   const canRead =
     hasPermission("view_payments") || hasPermission("manage_payments");
   const client = useQueryClient();
-  const query = useQuery<AdminFee, AdminFeeError>({
-    queryKey: ["adminFees", candidateId ?? "default", language],
-    queryFn: () => adminFeesClient.getFee(candidateId),
-    enabled: canRead,
-    retry: false,
-  });
+  const query = useAdminFee(candidateId);
   const mutation = useMutation<AdminFee, AdminFeeError, FeeUpdate>({
     mutationFn: (input) => adminFeesClient.updateFee(input, candidateId),
     retry: false,
     onSuccess: (data) => {
-      client.setQueryData(
-        ["adminFees", candidateId ?? "default", language],
-        data,
-      );
-      client.invalidateQueries({ queryKey: ["adminFees"] });
+      client.setQueryData(adminFeeQueries.detail(candidateId, language), data);
+      client.invalidateQueries({ queryKey: adminFeeQueries.all });
       client.invalidateQueries({ queryKey: paymentQueries.all });
     },
   });
@@ -134,11 +129,7 @@ function FeeEditor({
   function save(event: React.FormEvent) {
     event.preventDefault();
     setValidation(true);
-    if (
-      (!useDefault && !validFeeAmount(amount)) ||
-      !reason.trim() ||
-      reason.trim().length > 500
-    )
+    if (!validFeeAmount(amount) || !reason.trim() || reason.trim().length > 500)
       return;
     mutation.mutate(
       {
@@ -173,6 +164,12 @@ function FeeEditor({
             size="sm"
             onClick={() => {
               mutation.reset();
+              setAmount(fee.overrideAmount ?? fee.defaultAmount);
+              setUseDefault(
+                Boolean(candidateId) && fee.overrideAmount === null,
+              );
+              setReason("");
+              setValidation(false);
               setEditing(true);
             }}
           >
@@ -227,30 +224,31 @@ function FeeEditor({
               <input
                 type="checkbox"
                 checked={useDefault}
-                onChange={(event) => setUseDefault(event.target.checked)}
+                onChange={(event) => {
+                  setUseDefault(event.target.checked);
+                  if (event.target.checked) setAmount(fee.defaultAmount);
+                }}
                 disabled={mutation.isPending}
               />
               {t("adminFeeUseDefault")}
             </label>
           ) : null}
-          {!useDefault ? (
-            <Input
-              label={t("adminFeeAmount").replace(
-                "%{currency}",
-                fee.currencyCode,
-              )}
-              inputMode="decimal"
-              dir="ltr"
-              value={amount}
-              disabled={mutation.isPending}
-              onChange={(event) => setAmount(event.target.value)}
-              errorMessage={
-                validation && !validFeeAmount(amount)
-                  ? t("adminFeeInvalidAmount")
-                  : undefined
-              }
-            />
-          ) : null}
+          <Input
+            label={t("adminFeeAmount").replace("%{currency}", fee.currencyCode)}
+            inputMode="decimal"
+            dir="ltr"
+            value={amount}
+            disabled={mutation.isPending}
+            onChange={(event) => {
+              setAmount(event.target.value);
+              setUseDefault(false);
+            }}
+            errorMessage={
+              validation && !validFeeAmount(amount)
+                ? t("adminFeeInvalidAmount")
+                : undefined
+            }
+          />
           <Textarea
             label={t("adminFeeReason")}
             value={reason}
