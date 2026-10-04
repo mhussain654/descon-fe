@@ -45,6 +45,10 @@ interface LatestMobilizationResponse {
 }
 
 interface DashboardResponse {
+  attention_candidates?: {
+    candidate_full_name: string; candidate_public_id: string; reference_number: string;
+    workflow_stage_code: string; days_waiting: number; severity: 'critical' | 'delayed';
+  }[];
   workflow_stage_queue: StatusSummaryRow[];
   delayed_cases: { delayed: number; critical: number };
   craft_summary: CraftSummaryRow[];
@@ -71,6 +75,11 @@ function toLatestMobilization(row: LatestMobilizationResponse | null): LatestMob
 
 function toDashboard(data: DashboardResponse): MpsDashboardSummary {
   return {
+    attentionCandidates: data.attention_candidates?.map((row) => ({
+      candidateFullName: row.candidate_full_name, candidatePublicId: row.candidate_public_id,
+      referenceNumber: row.reference_number, workflowStageCode: row.workflow_stage_code,
+      daysWaiting: row.days_waiting, severity: row.severity,
+    })),
     workflowStageQueue: data.workflow_stage_queue,
     delayedCases: data.delayed_cases,
     craftSummary: data.craft_summary,

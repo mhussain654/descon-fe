@@ -9,6 +9,18 @@ export const SUPPORTED_LANGUAGES: Language[] = ['en', 'ur'];
 
 export const translations = {
   en: {
+    operationsOverview: 'Overview',
+    operationsPipeline: 'Pipeline',
+    operationsMobilization: 'Mobilization',
+    operationsTabsLabel: 'Operations views',
+    operationsPipelineEmpty: 'No candidates in this pipeline',
+    operationsDaysWaiting: 'Days waiting',
+    operationsPriority: 'Priority',
+    operationsAction: 'Action',
+    operationsOpenCandidate: 'Open candidate',
+    operationsAttentionScope: 'Oldest eight delayed cases, prioritized by time in the current stage. Critical cases are included in the delayed total.',
+    operationsAttentionUnavailable: 'Follow-up details are currently unavailable. Summary counts remain available.',
+
     adminCandidateListViewTabs: 'Candidate views',
     adminCandidateListViewList: 'List view',
     adminCandidateListViewGraph: 'Graphical view',
@@ -1696,6 +1708,18 @@ export const translations = {
     consentErrorMessage: 'We could not record your consent. Please try again.',
   },
   ur: {
+    operationsOverview: 'جائزہ',
+    operationsPipeline: 'پائپ لائن',
+    operationsMobilization: 'موبلائزیشن',
+    operationsTabsLabel: 'آپریشنز کے نظارے',
+    operationsPipelineEmpty: 'اس پائپ لائن میں کوئی امیدوار نہیں',
+    operationsDaysWaiting: 'انتظار کے دن',
+    operationsPriority: 'ترجیح',
+    operationsAction: 'عمل',
+    operationsOpenCandidate: 'امیدوار کھولیں',
+    operationsAttentionScope: 'موجودہ مرحلے میں زیادہ انتظار والے آٹھ پرانے کیسز۔ انتہائی تاخیر والے کیسز تاخیر کے کل اعداد میں شامل ہیں۔',
+    operationsAttentionUnavailable: 'فالو اپ تفصیلات فی الحال دستیاب نہیں۔ خلاصے کے اعداد دستیاب ہیں۔',
+
     adminCandidateListViewTabs: 'امیدواروں کے نظارے',
     adminCandidateListViewList: 'فہرست',
     adminCandidateListViewGraph: 'گرافیکل نظارہ',

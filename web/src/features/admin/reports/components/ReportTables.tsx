@@ -6,7 +6,7 @@ import {
   StatTile,
   type DataTableColumn,
 } from '../../../../design-system';
-import { WORKFLOW_STAGE_LABEL_KEYS, type CanonicalWorkflowStageCode } from '../../../../../../shared/adminWorkflow/canonicalStages';
+import { CANDIDATE_LIST_STAGE_LABEL_KEYS } from '../../../../../../shared/adminCandidates/workflowStageLabels';
 import type {
   ConversionRow,
   CraftSummaryRow,
@@ -31,7 +31,7 @@ export type TFn = (key: TranslationKey) => string;
  */
 
 export function stageLabel(code: string, t: TFn): string {
-  const key = WORKFLOW_STAGE_LABEL_KEYS[code as CanonicalWorkflowStageCode] as TranslationKey | undefined;
+  const key = CANDIDATE_LIST_STAGE_LABEL_KEYS[code];
   return key ? t(key) : code;
 }
 

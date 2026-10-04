@@ -33,7 +33,18 @@ export interface LatestMobilization {
   mobilizedAt: string;
 }
 
+export interface AttentionCandidate {
+  candidateFullName: string;
+  candidatePublicId: string;
+  referenceNumber: string;
+  workflowStageCode: string;
+  daysWaiting: number;
+  severity: 'critical' | 'delayed';
+}
+
 export interface MpsDashboardSummary {
+  /** Undefined during rollout with a backend that has not added the work queue. */
+  attentionCandidates?: AttentionCandidate[];
   workflowStageQueue: StatusSummaryRow[];
   delayedCases: DelayedCases;
   craftSummary: CraftSummaryRow[];

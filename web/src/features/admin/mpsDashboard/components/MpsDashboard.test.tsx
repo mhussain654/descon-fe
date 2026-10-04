@@ -23,6 +23,7 @@ const HR = MOCK_STAFF_ACCOUNTS.find((account) => account.role === 'hr')!;
 
 function summary(overrides: Partial<MpsDashboardSummary> = {}): MpsDashboardSummary {
   return {
+    attentionCandidates: [{ candidateFullName: 'Test Candidate', candidatePublicId: 'attention-1', referenceNumber: 'REF-001', workflowStageCode: 'medical_pending', daysWaiting: 18, severity: 'critical' }],
     workflowStageQueue: [
       { code: 'registered', position: 1, count: 12 },
       { code: 'documents_shared_with_qatar_bu', position: 8, count: 5 },
@@ -85,18 +86,18 @@ describe('MpsDashboard', () => {
     vi.mocked(adminCandidateClient.getCrafts).mockReset();
   });
 
-  it('renders the key metrics, requires attention, workflow stage queue, craft summary, mobilization and trend sections', async () => {
+  it('shows action-focused Overview and puts detailed charts in their own tabs', async () => {
     adminMpsDashboardClient.getDashboard.mockResolvedValue(summary());
-
     await renderAs(MPS);
-
     expect(await screen.findByText('QVC & visa stage')).toBeInTheDocument();
-    expect(screen.getAllByText('2').length).toBeGreaterThan(0);
-    expect(screen.getAllByText('Electrician').length).toBeGreaterThan(0);
-    expect(screen.getAllByText('Qatar').length).toBeGreaterThan(0);
-    expect(screen.getAllByText('Project One').length).toBeGreaterThan(0);
+    expect(screen.getByRole('link', { name: 'Test Candidate' })).toHaveAttribute('href', '/admin/candidates/attention-1');
+    expect(screen.queryByText('Mobilization trend')).not.toBeInTheDocument();
+    expect(screen.queryByText('Craft/Trade wise summary')).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('tab', { name: /Mobilization/ }));
     expect(screen.getByText('Mobilization trend')).toBeInTheDocument();
+    expect(screen.getByText('Craft/Trade wise summary')).toBeInTheDocument();
     expect(screen.getByRole('link', { name: /View operational reports/ })).toHaveAttribute('href', '/admin/reports');
+
   });
 
   it('shows its own full per-stage workflow breakdown, not the 5-bucket rollup AdminDashboard uses', async () => {
@@ -118,6 +119,8 @@ describe('MpsDashboard', () => {
     adminMpsDashboardClient.getDashboard.mockResolvedValue(summary({ mobilizationTrend: [] }));
 
     await renderAs(MPS);
+    await screen.findByText('QVC & visa stage');
+    fireEvent.click(screen.getByRole('tab', { name: /Mobilization/ }));
 
     expect(await screen.findByText('No mobilization activity for this period')).toBeInTheDocument();
   });
@@ -134,10 +137,9 @@ describe('MpsDashboard', () => {
     expect(screen.getByText('15% mobilization rate')).toBeInTheDocument();
 
     const headings = [...container.querySelectorAll('h2')].map((heading) => heading.textContent);
-    expect(headings.indexOf('Key metrics')).toBeLessThan(headings.indexOf('Workflow stage queue'));
-    expect(headings.indexOf('Workflow stage queue')).toBeLessThan(headings.indexOf('Craft/Trade wise summary'));
-    expect(headings.indexOf('Craft/Trade wise summary')).toBeLessThan(headings.indexOf('Mobilization mix'));
-    expect(headings.indexOf('Mobilization mix')).toBeLessThan(headings.indexOf('Mobilization trend'));
+    expect(headings.findIndex((heading) => heading.includes('Key metrics'))).toBeLessThan(headings.findIndex((heading) => heading.includes('Workflow stage queue')));
+    expect(headings.findIndex((heading) => heading.includes('Requires attention'))).toBeLessThan(headings.findIndex((heading) => heading.includes('Workflow stage queue')));
+    expect(headings.findIndex((heading) => heading.includes('Workflow stage queue'))).toBeLessThan(headings.findIndex((heading) => heading.includes('Latest mobilization')));
   });
 
   it('shows a real, computed operational insight (critical count + pipeline concentration)', async () => {
@@ -165,6 +167,7 @@ describe('MpsDashboard', () => {
     await renderAs(MPS);
     await screen.findByText('QVC & visa stage');
 
+    fireEvent.click(screen.getByRole('tab', { name: /Pipeline/ }));
     expect(screen.getByText('75%')).toBeInTheDocument();
     expect(screen.getByText('60%')).toBeInTheDocument();
     expect(screen.getByText(/Mobilization rate/)).toBeInTheDocument();
@@ -175,6 +178,7 @@ describe('MpsDashboard', () => {
 
     await renderAs(MPS);
     await screen.findByText('QVC & visa stage');
+    fireEvent.click(screen.getByRole('tab', { name: /Mobilization/ }));
 
     expect(screen.getByText('Mobilization by country')).toBeInTheDocument();
     expect(screen.getByText('Mobilization by project')).toBeInTheDocument();
@@ -207,6 +211,7 @@ describe('MpsDashboard', () => {
 
     await renderAs(MPS);
     await screen.findByText('QVC & visa stage');
+    fireEvent.click(screen.getByRole('tab', { name: /Mobilization/ }));
 
     fireEvent.change(screen.getByLabelText('Granularity'), { target: { value: 'weekly' } });
 
@@ -241,6 +246,7 @@ describe('MpsDashboard', () => {
 
     await renderAs(MPS);
     await screen.findByText('QVC & visa stage');
+    fireEvent.click(screen.getByRole('tab', { name: /Mobilization/ }));
 
     expect(screen.getByText('Largest crafts by headcount')).toBeInTheDocument();
     expect(screen.getByText('Rate')).toBeInTheDocument();
@@ -259,6 +265,7 @@ describe('MpsDashboard', () => {
 
     await renderAs(MPS);
     await screen.findByText('QVC & visa stage');
+    fireEvent.click(screen.getByRole('tab', { name: /Mobilization/ }));
 
     expect(screen.getByText('Craft 8')).toBeInTheDocument();
     expect(screen.queryByText('Craft 9')).not.toBeInTheDocument();
@@ -269,9 +276,35 @@ describe('MpsDashboard', () => {
 
     await renderAs(MPS);
     await screen.findByText('QVC & visa stage');
+    fireEvent.click(screen.getByRole('tab', { name: /Mobilization/ }));
 
     expect(screen.getByText('Craft/Trade wise summary')).toBeInTheDocument();
     expect(screen.getByText('Nothing to show yet')).toBeInTheDocument();
+  });
+
+  it('switches tabs by keyboard and preserves filters in pipeline links', async () => {
+    adminMpsDashboardClient.getDashboard.mockResolvedValue(summary());
+    await renderAs(MPS);
+    await screen.findByText('QVC & visa stage');
+    fireEvent.change(screen.getByLabelText('Country'), { target: { value: 'pk' } });
+    const overview = screen.getByRole('tab', { name: /Overview/ });
+    fireEvent.keyDown(overview, { key: 'ArrowRight' });
+    const pipeline = screen.getByRole('tab', { name: /Pipeline/ });
+    expect(pipeline).toHaveFocus();
+    expect(pipeline).toHaveAttribute('aria-selected', 'true');
+    expect(screen.getByRole('link', { name: /Registered.*12/ })).toHaveAttribute('href', '/admin?country=pk&status=registered');
+  });
+
+  it('renders localized tabs and expanded country stages in Urdu', async () => {
+    localStorage.setItem('descon.language', 'ur');
+    adminMpsDashboardClient.getDashboard.mockResolvedValue(summary());
+    try {
+      await renderAs(MPS);
+      expect(await screen.findByText('میڈیکل زیر التوا')).toBeInTheDocument();
+      const overview = screen.getByRole('tab', { name: /جائزہ/ });
+      fireEvent.keyDown(overview, { key: 'ArrowLeft' });
+      expect(screen.getByRole('tab', { name: /پائپ لائن/ })).toHaveAttribute('aria-selected', 'true');
+    } finally { localStorage.removeItem('descon.language'); }
   });
 
   it('shows the FORBIDDEN state for a staff member without view_mps_dashboard', async () => {

@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useState } from 'react';
-import { AlertTriangle, ArrowRight, Clock, Plane, ShieldCheck } from 'lucide-react';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { AlertTriangle, ArrowRight, Clock, Plane, ShieldCheck, LayoutDashboard, BarChart3 } from 'lucide-react';
 import { Link, useSearchParams } from 'react-router';
 import { useLanguage } from '../../../../contexts/LanguageContext';
 import { useStaffAuth } from '../../../../contexts/StaffAuthContext';
@@ -9,13 +9,14 @@ import type { MpsDashboardFilters, TrendGranularity } from '../../../../lib/admi
 import { formatNumber } from '../../../../../../shared/i18n/locale';
 import type { Language, TranslationKey } from '../../../../../../shared/i18n/translations';
 import { stageLabel, type TFn } from '../../reports/components/ReportTables';
-import { CategoryBarChart, TrendChart } from '../../reports/components/ReportCharts';
+import { TrendChart } from '../../reports/components/ReportCharts';
 import { DashboardFilterBar } from '../../reports/components/DashboardFilterBar';
 import { readDashboardFiltersFromSearchParams, writeDashboardFiltersToSearchParams } from '../../reports/dashboardFiltersUrlState';
 import { groupStagesByPipelineBucket } from '../../reports/workflowPipelineBuckets';
 import { useMpsDashboard } from '../hooks/useMpsDashboard';
 import { MpsOperationalInsightBanner } from './MpsOperationalInsightBanner';
-import { MpsRequiresAttentionPanel } from './MpsRequiresAttentionPanel';
+import { OperationsAttentionTable } from './OperationsAttentionTable';
+import { OperationsPipeline } from './OperationsPipeline';
 import { MobilizationMix } from './MobilizationMix';
 import { LatestMobilizationCard } from './LatestMobilizationCard';
 import { CraftPerformancePanel } from './CraftPerformancePanel';
@@ -27,26 +28,20 @@ const GRANULARITY_OPTIONS: { value: TrendGranularity; labelKey: TranslationKey }
 ];
 
 const KPI_TILE_CLASSNAME =
-  'min-w-0 overflow-hidden border-border border-t-4 bg-surface-raised shadow-sm transition duration-200 hover:-translate-y-0.5 hover:shadow-md';
+  'min-w-0 overflow-hidden border-border border-t-4 shadow-sm transition duration-200 hover:-translate-y-0.5 hover:shadow-md';
 
-/**
- * The MPS dashboard (MPS-802): pipeline/status queues, delayed/critical
- * case counts, craft-wise and mobilization summaries, and the mobilization
- * trend. No RequireStaffAuth permission prop -- gating happens via the
- * query's own FORBIDDEN state, same as PaymentTransactionList.tsx.
- * Structured the same way as AdminDashboard.tsx (hero banner, filter bar,
- * insight banner, KPI tile row, requires-attention panel, elevated cards) --
- * see that component's own comments for the reasoning behind each piece,
- * this one doesn't repeat it. Deliberately does NOT reuse
- * WorkflowPipelineOverview's 5-bucket rollup here (that stays exclusive to
- * AdminDashboard.tsx) -- both dashboards' workflow_stage_queue data is
- * identical when unfiltered, and sharing the exact same chart component on
- * both pages previously read as a literal duplicate bug report. This
- * dashboard gets its own full 15-stage breakdown instead.
- */
+const SECTIONS = [
+  ['overview', 'operationsOverview', LayoutDashboard, '✨'],
+  ['pipeline', 'operationsPipeline', BarChart3, '📊'],
+  ['mobilization', 'operationsMobilization', Plane, '✈️'],
+] as const;
+type Section = (typeof SECTIONS)[number][0];
+
 export function MpsDashboard() {
   const { t, language } = useLanguage();
   const { signOut } = useStaffAuth();
+  const [section, setSection] = useState<Section>('overview');
+  const tabs = useRef<(HTMLButtonElement | null)[]>([]);
   const [granularity, setGranularity] = useState<TrendGranularity>('monthly');
   const [searchParams, setSearchParams] = useSearchParams();
   const filters = readDashboardFiltersFromSearchParams(searchParams);
@@ -69,13 +64,13 @@ export function MpsDashboard() {
 
   return (
     <div className="mx-auto max-w-[1400px] px-4 py-5 sm:px-6 sm:py-6">
-      <div className="relative mb-5 overflow-hidden rounded-2xl bg-brand shadow-md">
+      <div className="relative mb-5 overflow-hidden rounded-2xl bg-gradient-to-br from-brand to-blue-700 shadow-md">
         <div aria-hidden="true" className="absolute -right-14 -top-20 h-52 w-52 rounded-full border-[28px] border-white/10" />
         <div aria-hidden="true" className="absolute -bottom-16 right-40 h-36 w-36 rounded-full bg-white/5" />
-        <div className="relative flex flex-col gap-5 px-6 py-7 sm:flex-row sm:items-center sm:justify-between lg:px-8">
+        <div className="relative flex flex-col gap-4 px-6 py-5 sm:flex-row sm:items-center sm:justify-between lg:px-8">
           <div className="max-w-2xl">
             <p className="mb-2 text-xs font-semibold uppercase tracking-widest text-white/70">{t('mpsDashboardHeroEyebrow')}</p>
-            <h1 className="text-2xl font-semibold tracking-tight text-white sm:text-3xl">{t('mpsDashboardTitle')}</h1>
+            <h1 className="text-2xl font-semibold tracking-tight text-white sm:text-3xl"><span aria-hidden="true">🚀 </span>{t('mpsDashboardTitle')}</h1>
             <p className="mt-1 text-sm leading-6 text-white/80">{t('mpsDashboardSubtitle')}</p>
           </div>
           <Link
@@ -90,18 +85,37 @@ export function MpsDashboard() {
 
       <DashboardFilterBar filters={filters} onChange={updateFilters} t={t} />
 
-      <DashboardContent query={query} granularity={granularity} onGranularityChange={setGranularity} t={t} language={language} />
+      <div role="tablist" aria-label={t('operationsTabsLabel')} dir={language === 'ur' ? 'rtl' : 'ltr'} className="mb-5 grid gap-2 rounded-2xl border border-border bg-surface p-2 sm:grid-cols-3">
+        {SECTIONS.map(([id, label, Icon, emoji], index) => <button key={id} ref={(element) => { tabs.current[index] = element; }} type="button" role="tab" id={`operations-tab-${id}`} aria-controls={`operations-panel-${id}`} aria-selected={section === id} tabIndex={section === id ? 0 : -1}
+          onClick={() => setSection(id)} onKeyDown={(event) => {
+            let target: number | undefined;
+            if (event.key === 'Home') target = 0;
+            if (event.key === 'End') target = 2;
+            if (event.key === 'ArrowRight') target = (index + (language === 'ur' ? -1 : 1) + 3) % 3;
+            if (event.key === 'ArrowLeft') target = (index + (language === 'ur' ? 1 : -1) + 3) % 3;
+            if (target !== undefined) { event.preventDefault(); setSection(SECTIONS[target][0]); tabs.current[target]?.focus(); }
+          }} className={`flex items-center justify-center gap-2 rounded-xl px-4 py-3 text-sm font-semibold transition focus-visible:ring-2 focus-visible:ring-ring ${section === id ? 'bg-brand text-white shadow-md' : 'text-text-secondary hover:bg-brand-subtle hover:text-brand'}`}>
+          <Icon className="h-5 w-5" aria-hidden="true" /><span>{t(label)}</span><span aria-hidden="true">{emoji}</span>
+        </button>)}
+      </div>
+      <section role="tabpanel" id={`operations-panel-${section}`} aria-labelledby={`operations-tab-${section}`} tabIndex={0} dir={language === 'ur' ? 'rtl' : 'ltr'}>
+      <DashboardContent section={section} filters={filters} query={query} granularity={granularity} onGranularityChange={setGranularity} t={t} language={language} />
+      </section>
     </div>
   );
 }
 
 function DashboardContent({
+  section,
+  filters,
   query,
   granularity,
   onGranularityChange,
   t,
   language,
 }: {
+  section: Section;
+  filters: MpsDashboardFilters;
   query: ReturnType<typeof useMpsDashboard>;
   granularity: TrendGranularity;
   onGranularityChange: (value: TrendGranularity) => void;
@@ -140,10 +154,10 @@ function DashboardContent({
   const mobilizationRateDisplay = formatNumber(mobilizationRate, language, { maximumFractionDigits: 1 });
   const documentsUploadedConversion = data.conversionFunnel.find((row) => row.code === 'documents_uploaded');
   const verifiedConversion = data.conversionFunnel.find((row) => row.code === 'verified');
-  const workflowChartData = data.workflowStageQueue.map((row) => ({ key: row.code, label: stageLabel(row.code, t), value: row.count }));
 
   return (
     <div className="flex flex-col gap-5">
+      {section === 'overview' ? <>
       <MpsOperationalInsightBanner data={data} t={t} language={language} />
 
       <section aria-labelledby="mps-dashboard-key-metrics">
@@ -155,30 +169,34 @@ function DashboardContent({
         </div>
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4 2xl:gap-5">
           <StatTile
-            value={data.delayedCases.delayed}
-            label={t('mpsDashboardDelayed')}
-            className={`${KPI_TILE_CLASSNAME} border-t-warning text-warning-emphasis`}
-            icon={<Clock />}
-          />
-          <StatTile
+            labelClassName="text-current"
             value={data.delayedCases.critical}
             label={t('mpsDashboardCritical')}
-            className={`${KPI_TILE_CLASSNAME} border-t-danger text-danger-emphasis`}
+            className={`${KPI_TILE_CLASSNAME} border-t-danger bg-danger-subtle text-danger-emphasis`}
             icon={<AlertTriangle />}
           />
           <StatTile
+            labelClassName="text-current"
+            value={data.delayedCases.delayed}
+            label={t('mpsDashboardDelayed')}
+            className={`${KPI_TILE_CLASSNAME} border-t-warning bg-warning-subtle text-warning-emphasis`}
+            icon={<Clock />}
+          />
+          <StatTile
+            labelClassName="text-current"
             value={qvcVisaStageCount}
             label={t('mpsDashboardQvcVisaStage')}
-            className={`${KPI_TILE_CLASSNAME} border-t-brand text-brand`}
+            className={`${KPI_TILE_CLASSNAME} border-t-brand bg-brand-subtle text-brand`}
             icon={<ShieldCheck />}
           />
           <StatTile
+            labelClassName="text-current"
             value={mobilizedCount}
             label={stageLabel('mobilized', t)}
-            className={`${KPI_TILE_CLASSNAME} border-t-success text-success-emphasis`}
+            className={`${KPI_TILE_CLASSNAME} border-t-success bg-success-subtle text-success-emphasis`}
             icon={<Plane />}
             trend={
-              <p className="text-[11px] text-text-secondary">
+              <p className="text-[11px] text-current">
                 {mobilizationRateDisplay}% {t('mpsDashboardMobilizationRateLabel').toLowerCase()}
               </p>
             }
@@ -186,20 +204,13 @@ function DashboardContent({
         </div>
       </section>
 
-      <div className="grid items-start gap-4 xl:grid-cols-[minmax(0,1.7fr)_minmax(320px,0.65fr)]">
+      <OperationsAttentionTable rows={data.attentionCandidates} delayedCases={data.delayedCases} t={t} />
+      <OperationsPipeline rows={data.workflowStageQueue} filters={filters} t={t} />
+      <LatestMobilizationCard latestMobilization={data.latestMobilization} t={t} language={language} />
+      </> : null}
+      {section === 'pipeline' ? <>
+        <OperationsPipeline rows={data.workflowStageQueue} filters={filters} graphical t={t} />
         <Card className="shadow-sm">
-          <h2 className="text-base font-semibold text-text-primary">{t('dashboardWorkflowStageQueueTitle')}</h2>
-          <p className="mb-4 text-xs text-text-secondary">{t('dashboardWorkflowStageQueueSubtitle')}</p>
-          <CategoryBarChart data={workflowChartData} />
-          {/* The chart above is aria-hidden/decorative; this grid is the accessible source of truth for every stage count, same convention as every other chart+data pairing in ReportCharts.tsx. */}
-          <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-3">
-            {workflowChartData.map((row) => (
-              <div key={row.key} className="rounded-lg bg-surface-sunken px-3 py-2">
-                <p className="text-lg font-semibold text-text-primary">{row.value}</p>
-                <p className="text-xs text-text-secondary">{row.label}</p>
-              </div>
-            ))}
-          </div>
           {documentsUploadedConversion || verifiedConversion ? (
             <div className="mt-5 flex flex-wrap gap-x-6 gap-y-2 rounded-xl bg-surface-sunken px-4 py-3 text-sm">
               {documentsUploadedConversion ? (
@@ -224,14 +235,8 @@ function DashboardContent({
             </div>
           ) : null}
         </Card>
-
-        <Card className="border-danger/10 shadow-sm">
-          <h2 className="text-base font-semibold text-text-primary">{t('adminDashboardRequiresAttentionTitle')}</h2>
-          <p className="mb-3 text-xs text-text-secondary">{t('mpsDashboardRequiresAttentionSubtitle')}</p>
-          <MpsRequiresAttentionPanel delayedCases={data.delayedCases} t={t} />
-        </Card>
-      </div>
-
+      </> : null}
+      {section === 'mobilization' ? <>
       <Card className="shadow-sm">
         <h2 className="text-base font-semibold text-text-primary">{t('mpsDashboardCraftSummaryTitle')}</h2>
         <p className="mb-4 text-xs text-text-secondary">{t('mpsDashboardCraftSummarySubtitle')}</p>
@@ -264,6 +269,7 @@ function DashboardContent({
 
         <LatestMobilizationCard latestMobilization={data.latestMobilization} t={t} language={language} />
       </div>
+      </> : null}
     </div>
   );
 }
