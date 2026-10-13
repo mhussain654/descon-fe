@@ -1,0 +1,33 @@
+{
+  "schemaVersion": "2.2",
+  "description": "Deploy a descon-fe commit and its prebuilt, checksum-verified web artifact to this instance (runs deploy/bin/descon-deploy-web as the deploy user).",
+  "parameters": {
+    "commitSha": {
+      "type": "String",
+      "description": "Full 40-character lowercase commit SHA already on origin/main.",
+      "allowedPattern": "^[0-9a-f]{40}$"
+    },
+    "artifactKey": {
+      "type": "String",
+      "description": "Object key of the artifact in the deploy-artifacts bucket.",
+      "allowedPattern": "^web/[0-9a-f]{40}\\.tar\\.gz$"
+    },
+    "artifactSha256": {
+      "type": "String",
+      "description": "SHA-256 of the artifact, computed by the build job.",
+      "allowedPattern": "^[0-9a-f]{64}$"
+    }
+  },
+  "mainSteps": [
+    {
+      "action": "aws:runShellScript",
+      "name": "deployWeb",
+      "inputs": {
+        "timeoutSeconds": "1200",
+        "runCommand": [
+          "runuser -u deploy -- /usr/local/sbin/descon-deploy-web {{ commitSha }} {{ artifactKey }} {{ artifactSha256 }}"
+        ]
+      }
+    }
+  ]
+}

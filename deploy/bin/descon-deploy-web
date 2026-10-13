@@ -1,0 +1,60 @@
+#!/usr/bin/env bash
+# Continuous-delivery entry point for the admin web app, run ON the instance as
+# the deploy user -- started by AWS SSM Run Command from GitHub Actions:
+#
+#   runuser -u deploy -- /usr/local/sbin/descon-deploy-web <commit sha> <artifact key> <artifact sha256>
+#
+# Install it root-owned and not writable by deploy. It:
+#   1. refuses a commit that is not already on origin/main;
+#   2. downloads the artifact that the pipeline built and tested, through the
+#      instance role (no AWS keys), and verifies its SHA-256 against the value
+#      the workflow passed out-of-band -- a swapped object is detected;
+#   3. runs the same `cap production deploy` an administrator runs, with
+#      Capistrano's local backend, so the shared lock, health check and
+#      rollback behave identically. A failure leaves the previous release live.
+set -euo pipefail
+
+readonly REPO_URL='git@github-mps-frontend:mhussain654/descon-fe.git'
+readonly TOOLING_DIR="${HOME}/deploy-tooling/descon-fe"
+readonly ARTIFACT_BUCKET="${DESCON_ARTIFACT_BUCKET:-descon-mps-deploy-artifacts}"
+
+die() {
+  echo "descon-deploy-web: $*" >&2
+  exit 1
+}
+
+[[ $# -eq 3 ]] || die 'usage: descon-deploy-web <40-char commit sha> <artifact key> <artifact sha256>'
+sha="$1"
+key="$2"
+expected_sha256="$3"
+[[ "$sha" =~ ^[0-9a-f]{40}$ ]] || die 'the commit must be a full 40-character lowercase SHA'
+[[ "$key" =~ ^web/[0-9a-f]{40}\.tar\.gz$ ]] || die 'the artifact key must look like web/<sha>.tar.gz'
+[[ "$expected_sha256" =~ ^[0-9a-f]{64}$ ]] || die 'the artifact checksum must be 64 hex characters'
+
+export RBENV_ROOT="${HOME}/.rbenv"
+export PATH="${RBENV_ROOT}/shims:${RBENV_ROOT}/bin:/usr/local/bin:/usr/bin:/bin"
+
+mkdir -p "$(dirname "$TOOLING_DIR")"
+if [[ ! -d "$TOOLING_DIR/.git" ]]; then
+  git clone --quiet "$REPO_URL" "$TOOLING_DIR"
+fi
+
+cd "$TOOLING_DIR"
+git fetch --quiet --prune origin
+git cat-file -e "${sha}^{commit}" 2> /dev/null || die "commit $sha is not in the repository"
+git merge-base --is-ancestor "$sha" origin/main || die "commit $sha is not on origin/main; refusing to deploy it"
+git checkout --quiet --detach --force "$sha"
+
+work="$(mktemp -d)"
+trap 'rm -rf "$work"' EXIT
+aws s3 cp --only-show-errors "s3://${ARTIFACT_BUCKET}/${key}" "$work/artifact.tar.gz"
+actual_sha256="$(openssl dgst -sha256 -r "$work/artifact.tar.gz" | cut -d' ' -f1)"
+[[ "$actual_sha256" == "$expected_sha256" ]] || die "artifact checksum mismatch (expected $expected_sha256, got $actual_sha256)"
+
+cd deploy
+bundle config set --local path "${HOME}/.bundle-descon-fe-deploy"
+bundle install --quiet
+
+echo "descon-deploy-web: deploying ${sha}"
+DEPLOY_LOCAL=1 REVISION="$sha" ARTIFACT="$work/artifact.tar.gz" ARTIFACT_SHA256="$actual_sha256" \
+  bundle exec cap production deploy

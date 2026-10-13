@@ -4,6 +4,9 @@ on:
   push:
     branches: [main]
   pull_request:
+  # Reused by deploy-web-production.yml so the commit that is deployed is the
+  # commit these checks ran on, in the same workflow run.
+  workflow_call:
 
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.ref }}
@@ -36,6 +39,11 @@ jobs:
 
       - name: Build
         run: npm run build
+        env:
+          VITE_API_BASE_URL: https://ci.example.invalid/api/v1
+
+      - name: Verify the static SPA build
+        run: node scripts/verify-static-build.mjs --api-base https://ci.example.invalid/api/v1 build/client
 
   mobile:
     name: Mobile (typecheck, test)
@@ -72,3 +80,22 @@ jobs:
 
       - name: Check for whitespace errors against the PR base
         run: git diff --check "${{ github.event.pull_request.base.sha }}" "${{ github.sha }}"
+
+  deployment-tooling:
+    name: Deployment tooling (shellcheck, Capistrano rehearsal)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '3.4'
+          bundler-cache: true
+          working-directory: deploy
+
+      - name: ShellCheck
+        run: shellcheck deploy/bin/* deploy/rehearsal/run
+
+      - name: Capistrano rehearsal (release, bad checksum, bad artifact, lock, rollback)
+        working-directory: deploy
+        run: rehearsal/run

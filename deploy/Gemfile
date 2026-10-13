@@ -1,0 +1,9 @@
+# frozen_string_literal: true
+
+# Deployment tooling only (Capistrano). Not part of the web build; run from
+# this directory: `cd deploy && bundle install && bundle exec cap production deploy`.
+source 'https://rubygems.org'
+
+gem 'bcrypt_pbkdf', '>= 1.0', '< 2.0'
+gem 'capistrano', '~> 3.20'
+gem 'ed25519', '>= 1.2', '< 2.0'

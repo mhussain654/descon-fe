@@ -1,0 +1,45 @@
+#!/usr/bin/env bash
+# Builds, tests and packages the admin web app for one commit.
+#
+#   PUBLIC_ORIGIN=https://52.221.51.231 deploy/bin/build-artifact
+#
+# Runs, from web/: npm ci, typecheck, the full test suite, the production
+# build with VITE_API_BASE_URL set to "$PUBLIC_ORIGIN/api/v1", and
+# scripts/verify-static-build.mjs. Refuses a working tree that differs from
+# HEAD, so the artifact always corresponds to a commit. If
+# ARTIFACT_RESULT_FILE is set, writes path=, sha256= and revision= lines to it.
+set -euo pipefail
+
+repo_root="$(cd "$(dirname "$0")/../.." && pwd)"
+origin="${PUBLIC_ORIGIN:?PUBLIC_ORIGIN is required, e.g. https://52.221.51.231}"
+api_base="${origin%/}/api/v1"
+
+die() {
+  echo "build-artifact: $*" >&2
+  exit 1
+}
+
+if [[ -n "$(git -C "$repo_root" status --porcelain)" && "${ALLOW_DIRTY:-}" != "1" ]]; then
+  die "the working tree has uncommitted or untracked changes; commit them (or set ALLOW_DIRTY=1 for a throwaway build)"
+fi
+revision="$(git -C "$repo_root" rev-parse HEAD)"
+
+cd "$repo_root/web"
+npm ci
+npm run typecheck
+npm test
+VITE_API_BASE_URL="$api_base" npm run build
+node scripts/verify-static-build.mjs --api-base "$api_base" build/client
+
+out_dir="$repo_root/deploy/tmp"
+mkdir -p "$out_dir"
+artifact="$out_dir/descon-web-${revision}.tar.gz"
+tar -czf "$artifact" -C build/client .
+sha256="$(openssl dgst -sha256 -r "$artifact" | cut -d' ' -f1)"
+
+echo "artifact: $artifact"
+echo "sha256:   $sha256"
+echo "revision: $revision"
+if [[ -n "${ARTIFACT_RESULT_FILE:-}" ]]; then
+  printf 'path=%s\nsha256=%s\nrevision=%s\n' "$artifact" "$sha256" "$revision" > "$ARTIFACT_RESULT_FILE"
+fi
