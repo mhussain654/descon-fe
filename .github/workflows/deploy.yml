@@ -1,4 +1,4 @@
-name: Deploy admin web
+name: Build and Deploy
 
 # Builds the admin web app once from a chosen commit of this repository and
 # delivers that exact artifact to the EC2 instance through AWS Systems Manager
