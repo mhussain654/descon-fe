@@ -30,7 +30,7 @@ export function BrandHeader({ language, primary, secondary, tileAtRowStart }: Br
       <View style={styles.tile}>
         <Image source={DESCON_LOGO} style={styles.logo} contentFit="contain" />
       </View>
-      <Text style={[styles.name, language === 'ur' ? styles.nameUrdu : null]}>
+      <Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.85} style={[styles.name, language === 'ur' ? styles.nameUrdu : null]}>
         <Text style={{ fontFamily: getFontFamily(language, 'bold') }}>{primary}</Text>
         <Text style={{ fontFamily: getFontFamily(language, 'regular') }}>{` ${secondary}`}</Text>
       </Text>
@@ -39,9 +39,10 @@ export function BrandHeader({ language, primary, secondary, tileAtRowStart }: Br
 }
 
 const styles = StyleSheet.create({
-  row: { alignItems: 'flex-start', gap: spacing[1] },
-  rowReversed: { alignItems: 'flex-end' },
+  row: { flexDirection: 'row', alignItems: 'center', gap: spacing[3] },
+  rowReversed: { flexDirection: 'row-reverse' },
   tile: {
+    flexShrink: 0,
     width: 40,
     height: 40,
     borderRadius: radii.md,
@@ -51,6 +52,6 @@ const styles = StyleSheet.create({
     ...elevation.md,
   },
   logo: { width: 31, height: 30 },
-  name: { fontSize: 14, lineHeight: 22, color: colors.text.inverse, letterSpacing: 0.5 },
-  nameUrdu: { fontSize: 13, lineHeight: 28, letterSpacing: 0 },
+  name: { flexShrink: 1, fontSize: 16, lineHeight: 24, color: colors.text.inverse, letterSpacing: 0 },
+  nameUrdu: { fontSize: 14, lineHeight: 36, letterSpacing: 0, writingDirection: 'rtl', textAlign: 'right' },
 });

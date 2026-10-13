@@ -23,12 +23,14 @@ import { CategoryDonutChart } from '../../reports/components/ReportCharts';
 import { useCandidateImportBatch } from '../hooks/useCandidateImportBatch';
 import { useErrorExportDownload } from '../hooks/useErrorExportDownload';
 import { useRetryCandidateImport } from '../hooks/useRetryCandidateImport';
+import { ImportProgress } from './ImportProgress';
 import { ImportRowResultsTable } from './ImportRowResultsTable';
 
 const COUNT_TILE_CLASSNAME =
   'min-w-0 overflow-hidden border-border border-t-4 bg-surface-raised shadow-sm transition duration-200 hover:-translate-y-0.5 hover:shadow-md';
 
 const STATUS_LABEL_KEYS: Record<CandidateImportStatus, TranslationKey> = {
+  awaiting_confirmation: 'adminCandidateImportStatusAwaitingConfirmation',
   queued: 'adminCandidateImportStatusQueued',
   processing: 'adminCandidateImportStatusProcessing',
   completed: 'adminCandidateImportStatusCompleted',
@@ -38,6 +40,7 @@ const STATUS_LABEL_KEYS: Record<CandidateImportStatus, TranslationKey> = {
 };
 
 const STATUS_TONES: Record<CandidateImportStatus, 'info' | 'success' | 'warning' | 'danger' | 'neutral'> = {
+  awaiting_confirmation: 'neutral',
   queued: 'info',
   processing: 'info',
   completed: 'success',
@@ -149,6 +152,9 @@ export function CandidateImportDetail({ importId }: CandidateImportDetailProps) 
         {batch.status === 'processing' ? (
           <div className="rounded-xl bg-[#FFF7E6] px-4 py-3 text-sm text-gray-700">{t('adminCandidateImportProcessingMessage')}</div>
         ) : null}
+        <div className="mt-3">
+          <ImportProgress batch={batch} t={t} />
+        </div>
         {batch.status === 'invalidated' ? (
           <ValidationMessage tone="error">{t('adminCandidateImportInvalidatedMessage')}</ValidationMessage>
         ) : null}
@@ -183,7 +189,7 @@ export function CandidateImportDetail({ importId }: CandidateImportDetailProps) 
               <CategoryDonutChart
                 data={[
                   { key: 'imported', label: t('adminCandidateImportSuccessfulRowsLabel'), value: batch.importedRows, tone: 'success' },
-                  { key: 'rejected', label: t('adminCandidateImportRejectedRowsLabel'), value: batch.rejectedRows, tone: 'warning' },
+                  { key: 'rejected', label: t('adminCandidateImportRejectedResultLabel'), value: batch.rejectedRows, tone: 'warning' },
                   { key: 'skipped', label: t('adminCandidateImportSkippedRowsLabel'), value: batch.skippedRows, tone: 'neutral' },
                 ]}
               />
@@ -201,7 +207,7 @@ export function CandidateImportDetail({ importId }: CandidateImportDetailProps) 
               />
               <StatTile
                 value={batch.rejectedRows}
-                label={t('adminCandidateImportRejectedRowsLabel')}
+                label={t('adminCandidateImportRejectedResultLabel')}
                 className={`${COUNT_TILE_CLASSNAME} border-t-warning text-warning-emphasis`}
                 icon={<XCircle />}
               />

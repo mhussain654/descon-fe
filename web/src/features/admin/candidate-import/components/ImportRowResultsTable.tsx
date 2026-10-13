@@ -28,10 +28,10 @@ export interface ImportRowResultsTableProps {
  * additionally carries a `status` (accepted/committed/rejected/skipped),
  * which nothing at preflight time has yet. Every `message` already arrived
  * localized from the backend -- rendered directly, never re-mapped from
- * `errorCode`. Never renders a full CNIC or mobile number -- a row result
- * only ever carries `rowNumber`/`status`/`errorField`/`errorCode`/
- * `message`, none of which can (AGENTS.md/ticket: "Do not display complete
- * CNICs or mobile numbers in import results").
+ * `errorCode`. `errorValue` is only the offending cell of that one column,
+ * never the row. Never renders a full CNIC or mobile number -- the backend
+ * masks those in `errorValue` before it leaves the server (AGENTS.md/ticket:
+ * "Do not display complete CNICs or mobile numbers in import results").
  */
 export function ImportRowResultsTable({ rowResults, t }: ImportRowResultsTableProps) {
   if (rowResults.length === 0) return null;
@@ -48,6 +48,7 @@ export function ImportRowResultsTable({ rowResults, t }: ImportRowResultsTablePr
             render: (row) => <Badge tone={ROW_STATUS_TONES[row.status]}>{t(ROW_STATUS_KEYS[row.status])}</Badge>,
           },
           { key: 'field', header: t('adminCandidateImportRowFieldLabel'), render: (row) => row.errorField ?? '' },
+          { key: 'value', header: t('adminCandidateImportRowValueLabel'), render: (row) => row.errorValue ?? '' },
           { key: 'message', header: t('adminCandidateImportRowMessageLabel'), render: (row) => row.message ?? '' },
         ]}
         rows={rowResults}

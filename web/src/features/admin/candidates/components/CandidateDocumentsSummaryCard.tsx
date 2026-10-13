@@ -41,9 +41,6 @@ export function CandidateDocumentsSummaryCard({ candidateId }: CandidateDocument
     <Card>
       <div className="mb-3 flex items-center justify-between">
         <h2 className="text-sm font-semibold text-text-primary">{t('adminCandidateDocumentsSectionTitle')}</h2>
-        <Link to={`/admin/document-reviews?candidateId=${encodeURIComponent(candidateId)}`} className="text-sm font-medium text-brand hover:underline">
-          {t('adminCandidateDocumentsViewAll')}
-        </Link>
       </div>
 
       {query.isError ? (

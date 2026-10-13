@@ -22,7 +22,15 @@
 // directly since only web feature code ever imports it.
 
 /** Matches CandidateImportBatch::STATUSES exactly. `queued`/`processing` are non-terminal (poll -- see pollingBackoff.ts's `isTerminalImportStatus`); the other four are terminal (stop polling). */
-export type CandidateImportStatus = 'queued' | 'processing' | 'completed' | 'partial' | 'failed' | 'invalidated';
+/** `awaiting_confirmation` is a preflight preview nobody has confirmed yet -- only ever seen on a batch's detail, never in import history (which lists confirmed imports only). */
+export type CandidateImportStatus =
+  | 'awaiting_confirmation'
+  | 'queued'
+  | 'processing'
+  | 'completed'
+  | 'partial'
+  | 'failed'
+  | 'invalidated';
 
 /** Matches CandidateImportRowResult's own status enum. `accepted` means preflight scheduled it but it hasn't been processed yet (only seen while the batch itself is queued/processing); `committed` means it was actually persisted as a candidate. */
 export type CandidateImportRowStatus = 'accepted' | 'rejected' | 'skipped' | 'committed';
@@ -33,6 +41,8 @@ export interface CandidateImportRowResult {
   /** Present only for rejected/skipped rows. */
   errorField?: string;
   errorCode?: string;
+  /** The rejected cell from `errorField`'s column only -- never the rest of the row; the backend masks CNIC/mobile/passport numbers. Absent for row-level errors, blank cells, and rows recorded before the backend stored it. */
+  errorValue?: string;
   /** Already-localized server message, present whenever `errorCode` is -- render directly, never re-map `errorCode` to a client-side string. */
   message?: string;
 }
@@ -42,6 +52,8 @@ export interface CandidateImportRowError {
   row: number;
   field: string;
   code: string;
+  /** The rejected cell from this error's column only -- never the rest of the row. The backend already masks CNIC/mobile/passport numbers; null for row-level errors and blank cells. */
+  value: string | null;
   message: string;
 }
 
@@ -105,6 +117,8 @@ export interface CandidateImportBatchSummary {
 /** The batch detail -- the sole source of truth for final counts and row results (ticket: "Render final counts and row results from the detail API only"). */
 export interface CandidateImportBatchDetail extends CandidateImportBatchSummary {
   rowResults: CandidateImportRowResult[];
+  /** Accepted rows the import job hasn't processed yet -- progress is `acceptedRows - pendingRows` of `acceptedRows`. Null only if the backend didn't send it. */
+  pendingRows: number | null;
 }
 
 /**
