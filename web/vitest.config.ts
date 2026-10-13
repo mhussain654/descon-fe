@@ -11,6 +11,7 @@ export default defineConfig({
     setupFiles: './test/setupTests.ts',
     include: [
       'src/**/*.{test,spec}.{js,ts,jsx,tsx}',
+      'scripts/**/*.test.mjs',
       '../shared/**/*.{test,spec}.{js,ts,jsx,tsx}',
     ],
   },

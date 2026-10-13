@@ -10,7 +10,7 @@ import { loadFontsFromTailwindSource } from './plugins/loadFontsFromTailwindSour
 import { restart } from './plugins/restart';
 import { restartEnvFileChange } from './plugins/restartEnvFileChange';
 
-export default defineConfig(({ isSsrBuild }) => ({
+export default defineConfig(({ isSsrBuild, command }) => ({
   envPrefix: 'VITE_',
   // The SSR/server bundle runs in Node (see `engines.node` in package.json)
   // and its entry (__create/index.ts) uses legitimate top-level await. Vite's
@@ -28,10 +28,17 @@ export default defineConfig(({ isSsrBuild }) => ({
   logLevel: 'info',
   plugins: [
     restartEnvFileChange(),
-    reactRouterHonoServer({
-      serverEntryPoint: './__create/index.ts',
-      runtime: 'node',
-    }),
+    // Development server only. Production is the static SPA build
+    // (react-router.config.ts `ssr: false`) served by Nginx, so `vite build`
+    // must not bundle the Hono server or the prototype mock API routes.
+    ...(command === 'serve'
+      ? [
+          reactRouterHonoServer({
+            serverEntryPoint: './__create/index.ts',
+            runtime: 'node',
+          }),
+        ]
+      : []),
     babel({
       include: ['src/**/*.{js,jsx,ts,tsx}'], // or RegExp: /src\/.*\.[tj]sx?$/
       exclude: /node_modules/, // skip everything else
