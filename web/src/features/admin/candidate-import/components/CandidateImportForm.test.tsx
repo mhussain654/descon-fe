@@ -95,6 +95,30 @@ function preflightPayload(overrides: Record<string, unknown> = {}) {
   };
 }
 
+function batchDetailPayload(overrides: Record<string, unknown> = {}) {
+  return {
+    id: 'import-1',
+    status: 'queued' as const,
+    sourceFilename: 'candidates.csv',
+    templateVersion: 'v1',
+    totalRows: 2,
+    acceptedRows: 2,
+    rejectedRows: 0,
+    skippedRows: 0,
+    committedRows: 0,
+    importedRows: 0,
+    errorCode: null,
+    expiresAt: null,
+    processedAt: null,
+    failedAt: null,
+    enqueuedAt: '2026-08-26T09:30:05Z',
+    createdAt: '2026-08-26T09:30:00Z',
+    rowResults: [],
+    pendingRows: 2,
+    ...overrides,
+  };
+}
+
 function commitAcceptedPayload(overrides: Record<string, unknown> = {}) {
   return {
     importId: 'import-1',
@@ -121,6 +145,7 @@ describe('CandidateImportForm', () => {
     vi.mocked(candidateImportClient.downloadTemplate).mockReset();
     vi.mocked(candidateImportClient.preflightImport).mockReset();
     vi.mocked(candidateImportClient.commitImport).mockReset();
+    vi.mocked(candidateImportClient.getImportBatch).mockReset();
     sessionStorage.clear();
   });
 
@@ -216,14 +241,36 @@ describe('CandidateImportForm', () => {
         preflightPayload({
           acceptedRows: 1,
           rejectedRows: 1,
-          errors: [{ row: 2, field: 'cnic', code: 'invalid_cnic', message: 'Enter a valid CNIC in the format 00000-0000000-0.' }],
+          errors: [
+            { row: 2, field: 'cnic', code: 'invalid_cnic', value: '42**********-1', message: 'Enter a valid CNIC in the format 00000-0000000-0.' },
+          ],
         })
       );
       await submitPreflight();
 
       expect(screen.getByText('Enter a valid CNIC in the format 00000-0000000-0.')).toBeInTheDocument();
+      expect(screen.getByText('42**********-1')).toBeInTheDocument();
       expect(screen.queryByText(/^\d{5}-\d{7}-\d$/)).not.toBeInTheDocument();
       expect(screen.getByText(/This preview expires at/)).toBeInTheDocument();
+    });
+
+    it("shows only the offending cell's value, '(blank)' for an empty cell, and nothing for row-level errors", async () => {
+      candidateImportClient.preflightImport.mockResolvedValue(
+        preflightPayload({
+          acceptedRows: 0,
+          rejectedRows: 3,
+          errors: [
+            { row: 2, field: 'craft_code', code: 'unknown_craft_code', value: 'Crane Opereator', message: 'Select a valid craft.' },
+            { row: 3, field: 'reference_number', code: 'missing_value', value: null, message: 'This value is required.' },
+            { row: 4, field: 'row', code: 'blank_row', value: null, message: 'This row is blank.' },
+          ],
+        })
+      );
+      await submitPreflight();
+
+      expect(screen.getByRole('columnheader', { name: 'Value in file' })).toBeInTheDocument();
+      expect(screen.getByText('Crane Opereator')).toBeInTheDocument();
+      expect(screen.getAllByText('(blank)')).toHaveLength(1);
     });
 
     it('hides the confirm action when every row was rejected, since there is nothing to commit', async () => {
@@ -315,8 +362,9 @@ describe('CandidateImportForm', () => {
   });
 
   describe('confirm and commit', () => {
-    it('confirms the preview and, once the 202 is accepted, shows submission confirmation with a link to the detail page -- never a final result inline', async () => {
+    it('confirms the preview and, once the 202 is accepted, shows a prominent confirmation, live progress, and a link to the detail page', async () => {
       candidateImportClient.preflightImport.mockResolvedValue(preflightPayload());
+      candidateImportClient.getImportBatch.mockResolvedValue(batchDetailPayload({ status: 'processing', pendingRows: 1 }));
       let resolveCommit: (value: ReturnType<typeof commitAcceptedPayload>) => void;
       candidateImportClient.commitImport.mockReturnValue(
         new Promise((resolve) => {
@@ -329,10 +377,27 @@ describe('CandidateImportForm', () => {
       expect(await screen.findByRole('button', { name: 'Confirm import' })).toBeDisabled();
 
       resolveCommit!(commitAcceptedPayload());
-      expect(await screen.findByText('Import submitted')).toBeInTheDocument();
-      expect(screen.getByText(/isn't the final result/)).toBeInTheDocument();
+      expect(await screen.findByText('Import confirmed')).toBeInTheDocument();
+      expect(await screen.findByText('1 of 2 rows processed')).toBeInTheDocument();
+      expect(candidateImportClient.getImportBatch).toHaveBeenCalledWith('import-1');
       const detailsLink = screen.getByRole('link', { name: 'View details' });
       expect(detailsLink).toHaveAttribute('href', '/admin/candidates/import/import-1');
+    });
+
+    it('shows the final counts on the same screen once the import finishes', async () => {
+      candidateImportClient.preflightImport.mockResolvedValue(preflightPayload());
+      candidateImportClient.commitImport.mockResolvedValue(commitAcceptedPayload());
+      candidateImportClient.getImportBatch.mockResolvedValue(
+        batchDetailPayload({ status: 'partial', importedRows: 1, rejectedRows: 1, pendingRows: 0, processedAt: '2026-08-26T09:31:00Z' })
+      );
+      await submitPreflight();
+      fireEvent.click(screen.getByRole('button', { name: 'Confirm import' }));
+
+      expect(await screen.findByText('Import finished')).toBeInTheDocument();
+      expect(screen.queryByRole('progressbar')).not.toBeInTheDocument();
+      expect(screen.getByText('Imported')).toBeInTheDocument();
+      expect(screen.getByText('Rejected')).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Import another file' })).toBeInTheDocument();
     });
 
     it('prevents repeated confirm clicks while a commit is already in flight', async () => {
@@ -397,12 +462,13 @@ describe('CandidateImportForm', () => {
     it('allows starting a new import after a submission was confirmed, clearing the previous confirmation', async () => {
       candidateImportClient.preflightImport.mockResolvedValue(preflightPayload());
       candidateImportClient.commitImport.mockResolvedValue(commitAcceptedPayload());
+      candidateImportClient.getImportBatch.mockResolvedValue(batchDetailPayload());
       await submitPreflight();
       fireEvent.click(screen.getByRole('button', { name: 'Confirm import' }));
-      await screen.findByText('Import submitted');
+      await screen.findByText('Import confirmed');
 
-      fireEvent.click(screen.getByRole('button', { name: 'Choose a different file' }));
-      expect(screen.queryByText('Import submitted')).not.toBeInTheDocument();
+      fireEvent.click(screen.getByRole('button', { name: 'Import another file' }));
+      expect(screen.queryByText('Import confirmed')).not.toBeInTheDocument();
       expect(screen.getByText('No file chosen')).toBeInTheDocument();
     });
   });

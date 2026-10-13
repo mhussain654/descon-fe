@@ -6,3 +6,7 @@
 node_modules/
 .DS_Store
 *.log
+
+# Deployment tooling output (docs/deployment/static-spa.md)
+deploy/tmp/
+deploy/.bundle/

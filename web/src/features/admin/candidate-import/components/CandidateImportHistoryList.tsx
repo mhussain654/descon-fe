@@ -34,6 +34,7 @@ import { AlertTriangle, ArrowLeft, Ban, CheckCircle2, Clock, FileClock, RefreshC
 const STATUSES: CandidateImportStatus[] = ['queued', 'processing', 'completed', 'partial', 'failed', 'invalidated'];
 
 const STATUS_LABEL_KEYS: Record<CandidateImportStatus, TranslationKey> = {
+  awaiting_confirmation: 'adminCandidateImportStatusAwaitingConfirmation',
   queued: 'adminCandidateImportStatusQueued',
   processing: 'adminCandidateImportStatusProcessing',
   completed: 'adminCandidateImportStatusCompleted',
@@ -43,6 +44,7 @@ const STATUS_LABEL_KEYS: Record<CandidateImportStatus, TranslationKey> = {
 };
 
 const STATUS_TONES: Record<CandidateImportStatus, ChartTone> = {
+  awaiting_confirmation: 'neutral',
   queued: 'info',
   processing: 'info',
   completed: 'success',
@@ -52,6 +54,7 @@ const STATUS_TONES: Record<CandidateImportStatus, ChartTone> = {
 };
 
 const STATUS_ICON: Record<CandidateImportStatus, typeof Clock> = {
+  awaiting_confirmation: FileClock,
   queued: Clock,
   processing: RefreshCw,
   completed: CheckCircle2,
@@ -121,6 +124,19 @@ export function CandidateImportHistoryList() {
       key: 'submitted',
       header: t('adminCandidateImportHistoryColumnSubmitted'),
       render: (row) => formatDate(row.createdAt, language, { dateStyle: 'medium', timeStyle: 'short' }),
+    },
+    {
+      key: 'actions',
+      header: t('adminCandidateImportHistoryColumnActions'),
+      render: (row) => (
+        <Link
+          to={`/admin/candidates/import/${row.id}`}
+          aria-label={`${t('adminCandidateImportViewDetails')}: ${row.sourceFilename}`}
+          className="inline-flex h-9 items-center whitespace-nowrap rounded-xl border border-border bg-surface-raised px-3 text-sm font-medium text-brand hover:bg-brand-subtle"
+        >
+          {t('adminCandidateImportViewDetails')}
+        </Link>
+      ),
     },
   ];
 
@@ -196,7 +212,7 @@ function HistorySummary({ summary, t }: { summary?: CandidateImportStatusSummary
           />
           <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center">
             <span className="text-2xl font-bold tracking-tight text-text-primary">{summary.reduce((sum, row) => sum + row.count, 0)}</span>
-            <span className="text-[11px] font-medium text-text-tertiary">{t('adminCandidateImportTotalRowsLabel')}</span>
+            <span className="text-[11px] font-medium text-text-tertiary">{t('adminCandidateImportTotalImportsLabel')}</span>
           </div>
         </div>
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">

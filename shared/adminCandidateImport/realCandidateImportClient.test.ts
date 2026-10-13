@@ -192,7 +192,7 @@ describe('createCandidateImportClient (real)', () => {
               accepted_rows: 0,
               rejected_rows: 2,
               errors: [
-                { row: 2, field: 'cnic', code: 'invalid_cnic', message: 'Enter a valid CNIC.' },
+                { row: 2, field: 'cnic', code: 'invalid_cnic', value: '42**********-1', message: 'Enter a valid CNIC.' },
                 { row: 3, field: 'reference_number', code: 'duplicate_reference_number', message: 'Already exists.' },
               ],
             })
@@ -205,8 +205,8 @@ describe('createCandidateImportClient (real)', () => {
 
       expect(result.acceptedRows).toBe(0);
       expect(result.errors).toEqual([
-        { row: 2, field: 'cnic', code: 'invalid_cnic', message: 'Enter a valid CNIC.' },
-        { row: 3, field: 'reference_number', code: 'duplicate_reference_number', message: 'Already exists.' },
+        { row: 2, field: 'cnic', code: 'invalid_cnic', value: '42**********-1', message: 'Enter a valid CNIC.' },
+        { row: 3, field: 'reference_number', code: 'duplicate_reference_number', value: null, message: 'Already exists.' },
       ]);
     });
 
@@ -422,6 +422,7 @@ describe('createCandidateImportClient (real)', () => {
                 { row_number: 2, status: 'committed' },
                 { row_number: 3, status: 'rejected', error_field: 'cnic', error_code: 'invalid_cnic', message: 'Enter a valid CNIC.' },
               ],
+              pending_rows: 0,
             })
           )
         );
@@ -455,6 +456,7 @@ describe('createCandidateImportClient (real)', () => {
           { rowNumber: 2, status: 'committed', errorField: undefined, errorCode: undefined, message: undefined },
           { rowNumber: 3, status: 'rejected', errorField: 'cnic', errorCode: 'invalid_cnic', message: 'Enter a valid CNIC.' },
         ],
+        pendingRows: 0,
       });
     });
 

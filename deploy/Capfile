@@ -1,0 +1,11 @@
+# frozen_string_literal: true
+
+# The web app is deployed as a tested, prebuilt artifact (see
+# lib/capistrano/tasks/artifact.rake), never built on the server, so the SCM
+# plugin is a no-op marker rather than Git.
+require 'capistrano/setup'
+require 'capistrano/deploy'
+require_relative 'lib/capistrano/scm/artifact'
+install_plugin Capistrano::SCM::Artifact
+
+Dir.glob('lib/capistrano/tasks/*.rake').each { |task_file| import task_file }

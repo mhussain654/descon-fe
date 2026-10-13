@@ -39,6 +39,7 @@ interface CandidateImportRowErrorResponse {
   row: number;
   field: string;
   code: string;
+  value?: string | null;
   message: string;
 }
 
@@ -69,6 +70,7 @@ interface CandidateImportRowResultResponse {
   status: string;
   error_field?: string;
   error_code?: string;
+  error_value?: string;
   message?: string;
 }
 
@@ -90,6 +92,7 @@ interface CandidateImportBatchResponse {
   enqueued_at: string | null;
   created_at: string;
   row_results?: CandidateImportRowResultResponse[];
+  pending_rows?: number;
 }
 
 export interface RealCandidateImportClientOptions {
@@ -100,7 +103,7 @@ export interface RealCandidateImportClientOptions {
 }
 
 const DEFAULT_TEMPLATE_FILENAME = 'candidate-import-template-v1.csv';
-const KNOWN_STATUSES = new Set<string>(['queued', 'processing', 'completed', 'partial', 'failed', 'invalidated']);
+const KNOWN_STATUSES = new Set<string>(['awaiting_confirmation', 'queued', 'processing', 'completed', 'partial', 'failed', 'invalidated']);
 const KNOWN_ROW_STATUSES = new Set<string>(['accepted', 'rejected', 'skipped', 'committed']);
 
 function toStatus(raw: string): CandidateImportStatus {
@@ -113,7 +116,7 @@ function toStatus(raw: string): CandidateImportStatus {
 }
 
 function toRowError(row: CandidateImportRowErrorResponse): CandidateImportRowError {
-  return { row: row.row, field: row.field, code: row.code, message: row.message };
+  return { row: row.row, field: row.field, code: row.code, value: row.value ?? null, message: row.message };
 }
 
 function toRowResult(row: CandidateImportRowResultResponse): CandidateImportRowResult {
@@ -122,6 +125,7 @@ function toRowResult(row: CandidateImportRowResultResponse): CandidateImportRowR
     status: (KNOWN_ROW_STATUSES.has(row.status) ? row.status : 'accepted') as CandidateImportRowResult['status'],
     errorField: row.error_field,
     errorCode: row.error_code,
+    errorValue: row.error_value,
     message: row.message,
   };
 }
@@ -177,6 +181,7 @@ function toBatchDetail(data: CandidateImportBatchResponse): CandidateImportBatch
   return {
     ...toBatchSummary(data),
     rowResults: (data.row_results ?? []).map(toRowResult),
+    pendingRows: typeof data.pending_rows === 'number' ? data.pending_rows : null,
   };
 }
 

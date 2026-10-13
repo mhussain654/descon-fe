@@ -157,6 +157,10 @@ describe('CandidateImportHistoryList', () => {
 
       const link = await screen.findByRole('link', { name: 'candidates.csv' });
       expect(link).toHaveAttribute('href', '/admin/candidates/import/import-1');
+      expect(screen.getByRole('link', { name: 'View details: candidates.csv' })).toHaveAttribute(
+        'href',
+        '/admin/candidates/import/import-1'
+      );
     });
 
     it('shows an offline state with retry', async () => {

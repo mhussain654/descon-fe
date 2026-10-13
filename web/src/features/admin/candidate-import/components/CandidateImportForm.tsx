@@ -11,6 +11,7 @@ import { useCsvTemplateDownload } from '../hooks/useCsvTemplateDownload';
 import { REQUIRED_HEADERS } from '../schemas/csvFile';
 import { CsvFileField } from './CsvFileField';
 import { CandidateImportPreviewPanel } from './CandidateImportPreviewPanel';
+import { ImportSubmittedPanel } from './ImportSubmittedPanel';
 import { Download, FileSpreadsheet, History, UploadCloud } from 'lucide-react';
 
 const FILE_VALIDATION_ERROR_KEYS: Record<string, TranslationKey> = {
@@ -50,11 +51,8 @@ export function CandidateImportForm() {
 
       <Card className="mb-5 border-t-4 border-t-info">
         <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-xl bg-info-subtle text-info-emphasis"><FileSpreadsheet className="h-5 w-5" /></div>
-        <h2 className="mb-2 text-base font-semibold text-text-primary">{t('adminCandidateImportInstructionsTitle')}</h2>
-        <p className="mb-4 text-sm text-text-secondary">{t('adminCandidateImportInstructionsDescription')}</p>
         <h3 className="mb-1 text-sm font-semibold text-text-primary">{t('adminCandidateImportRequiredHeadersTitle')}</h3>
         <p className="mb-1 break-words font-mono text-xs text-text-secondary">{REQUIRED_HEADERS.join(', ')}</p>
-        <p className="mb-4 text-xs text-text-tertiary">{t('adminCandidateImportOptionalHeadersDescription')}</p>
         <Button
           type="button"
           variant="outline"
@@ -130,21 +128,7 @@ export function CandidateImportForm() {
       ) : null}
 
       {wizard.step === 'submitted' && wizard.commitMutation.data ? (
-        <Card role="status">
-          <h2 className="mb-2 text-lg font-semibold text-text-primary">{t('adminCandidateImportSubmittedTitle')}</h2>
-          <p className="mb-4 text-sm text-text-secondary">{t('adminCandidateImportSubmittedDescription')}</p>
-          <div className="flex flex-wrap gap-3">
-            <Link
-              to={`/admin/candidates/import/${wizard.commitMutation.data.importId}`}
-              className="inline-flex h-10 items-center rounded-xl bg-brand px-4 text-sm font-medium text-white hover:bg-brand/90"
-            >
-              {t('adminCandidateImportViewDetails')}
-            </Link>
-            <Button type="button" variant="outline" onClick={wizard.startOver}>
-              {t('adminCandidateImportSelectAnotherFile')}
-            </Button>
-          </div>
-        </Card>
+        <ImportSubmittedPanel importId={wizard.commitMutation.data.importId} t={t} onStartOver={wizard.startOver} />
       ) : null}
     </div>
   );

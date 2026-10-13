@@ -1,0 +1,135 @@
+#!/usr/bin/env bash
+# Rehearses the real deploy/config/deploy.rb against a temporary directory with
+# tiny fake artifacts, and asserts what matters on the server: a normal
+# release; a second release; an artifact whose checksum does not match (the
+# live site must be untouched); an artifact that fails the health check (the
+# previously serving release must be restored and the failed one removed);
+# lock contention; a manual rollback; recovery afterwards.
+#
+#   deploy/rehearsal/run          # from anywhere; needs the deploy gems (bundle install in deploy/)
+set -uo pipefail
+
+deploy_dir="$(cd "$(dirname "$0")/.." && pwd)"
+cd "$deploy_dir" || exit 1
+
+root="$(mktemp -d)"
+trap 'rm -rf "$root"' EXIT
+export REHEARSAL_ROOT="$root"
+app="$root/var-www/descon-mps-web"
+mkdir -p "$root/artifacts" "$root/locks"
+failures=0
+
+check() {
+  local description="$1"
+  shift
+  if "$@"; then
+    echo "  PASS  $description"
+  else
+    echo "  FAIL  $description"
+    failures=$((failures + 1))
+  fi
+}
+
+make_artifact() { # name, index.html content -> sets ARTIFACT, ARTIFACT_SHA256
+  local dir="$root/artifacts/$1"
+  mkdir -p "$dir/src/assets"
+  printf '%s' "$2" > "$dir/src/index.html"
+  echo "console.log('$1')" > "$dir/src/assets/app.js"
+  tar -czf "$dir/artifact.tar.gz" -C "$dir/src" .
+  export ARTIFACT="$dir/artifact.tar.gz"
+  ARTIFACT_SHA256="$(openssl dgst -sha256 -r "$ARTIFACT" | cut -d' ' -f1)"
+  export ARTIFACT_SHA256
+}
+
+shell='<!doctype html><script>window.__reactRouterContext = {}</script>'
+deploy_exit=0
+cap() {
+  deploy_exit=0
+  bundle exec cap rehearsal "$@" > "$root/last.log" 2>&1 || deploy_exit=$?
+}
+current_release() { basename "$(readlink "$app/current")"; }
+release_count() { find "$app/releases" -mindepth 1 -maxdepth 1 -type d | wc -l | tr -d ' '; }
+lock_held() { [[ -d "$root/locks/descon-mps.lock" ]]; }
+lock_free() { ! lock_held; }
+log_has() { grep -q -- "$1" "$root/last.log"; }
+served_matches() { grep -q "$1" "$app/current/assets/app.js"; }
+export REVISION=aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+
+echo "1. first deploy"
+make_artifact one "$shell"
+cap deploy
+check "exits 0" test "$deploy_exit" -eq 0
+check "the artifact is what is served" served_matches one
+check "the revision is recorded" grep -q "$REVISION" "$app/current/REVISION"
+check "the lock is released" lock_free
+first="$(current_release)"
+
+echo "2. second deploy keeps the previous release on disk"
+sleep 1
+make_artifact two "$shell"
+cap deploy
+check "exits 0" test "$deploy_exit" -eq 0
+check "the new artifact is served" served_matches two
+check "two releases are kept" test "$(release_count)" -eq 2
+second="$(current_release)"
+check "current moved to a new release" test "$second" != "$first"
+
+echo "3. an artifact whose checksum does not match"
+sleep 1
+make_artifact three "$shell"
+ARTIFACT_SHA256=0000000000000000000000000000000000000000000000000000000000000000
+export ARTIFACT_SHA256
+cap deploy
+check "exits non-zero" test "$deploy_exit" -ne 0
+check "reports the checksum mismatch" log_has "checksum mismatch"
+check "the live site is unchanged" test "$(current_release)" = "$second"
+check "no new release directory was left behind" test "$(release_count)" -eq 2
+check "the lock is released" lock_free
+
+echo "4. an artifact that fails the health check"
+sleep 1
+make_artifact four '<html>not the SPA shell</html>'
+cap deploy
+check "exits non-zero" test "$deploy_exit" -ne 0
+check "the previously serving release is restored" test "$(current_release)" = "$second"
+check "the outcome says restored and healthy" log_has "was restored and is healthy"
+check "the failed release directory is removed" test "$(release_count)" -eq 2
+check "the lock is released" lock_free
+
+echo "5. lock held by another deployment"
+mkdir -p "$root/locks/descon-mps.lock"
+echo "descon-be by someone at 2026-01-01T00:00:00Z" > "$root/locks/descon-mps.lock/owner"
+make_artifact five "$shell"
+before="$(release_count)"
+cap deploy
+check "exits non-zero" test "$deploy_exit" -ne 0
+check "names the holder" log_has "Another deployment holds"
+check "creates no release" test "$(release_count)" -eq "$before"
+check "does not release a lock it did not take" lock_held
+rm -rf "$root/locks/descon-mps.lock"
+
+echo "6. manual rollback"
+sleep 1
+make_artifact six "$shell"
+cap deploy
+third="$(current_release)"
+cap deploy:rollback
+check "exits 0" test "$deploy_exit" -eq 0
+check "current is back on the previous release" test "$(current_release)" = "$second"
+check "the lock is released" lock_free
+
+echo "7. a normal deploy still works afterwards"
+sleep 1
+make_artifact seven "$shell"
+cap deploy
+check "exits 0" test "$deploy_exit" -eq 0
+check "current is a new release" test "$(current_release)" != "$third"
+
+echo
+if [[ "$failures" -eq 0 ]]; then
+  echo "Rehearsal passed."
+else
+  echo "Rehearsal FAILED: $failures check(s). Last Capistrano output:"
+  tail -40 "$root/last.log"
+  exit 1
+fi

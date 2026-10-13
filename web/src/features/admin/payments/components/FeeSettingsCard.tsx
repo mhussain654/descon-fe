@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { Wallet } from "lucide-react";
+import { Pencil, Wallet } from "lucide-react";
 import { useLanguage } from "../../../../contexts/LanguageContext";
 import { useStaffAuth } from "../../../../contexts/StaffAuthContext";
 import {
@@ -141,18 +141,21 @@ function FeeEditor({
     );
   }
   return (
-    <Card>
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div className="flex items-center gap-3">
-          <span className="rounded-xl bg-brand/10 p-3 text-brand">
+    <Card noPadding={!candidateId} className={!candidateId ? "border-brand/20 bg-brand-subtle p-4 sm:p-5" : undefined}>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex min-w-0 items-center gap-3">
+          <span className="shrink-0 rounded-xl bg-brand/10 p-3 text-brand">
             <Wallet aria-hidden="true" className="h-5 w-5" />
           </span>
           <div>
+            <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
             <h2 className="text-lg font-semibold text-text-primary">
               {t(
                 candidateId ? "adminFeeCandidateTitle" : "adminFeeDefaultTitle",
               )}
             </h2>
+            {!candidateId ? <p className="text-xl font-bold text-brand" dir="ltr">{formatMoney(fee.effectiveAmount)}</p> : null}
+            </div>
             <p className="mt-1 text-sm text-text-secondary">
               {t(candidateId ? "adminFeeCandidateHelp" : "adminFeeDefaultHelp")}
             </p>
@@ -160,7 +163,8 @@ function FeeEditor({
         </div>
         {editable && !editing ? (
           <Button
-            variant="outline"
+            variant={candidateId ? "outline" : "primary"}
+            leadingIcon={!candidateId ? <Pencil aria-hidden="true" className="h-4 w-4" /> : undefined}
             size="sm"
             onClick={() => {
               mutation.reset();
@@ -177,7 +181,7 @@ function FeeEditor({
           </Button>
         ) : null}
       </div>
-      <div className="mt-5 flex flex-wrap items-center gap-3">
+      {candidateId ? <div className="mt-5 flex flex-wrap items-center gap-3">
         <p className="text-3xl font-semibold text-text-primary" dir="ltr">
           {formatMoney(fee.effectiveAmount)}
         </p>
@@ -190,7 +194,7 @@ function FeeEditor({
             )}
           </Badge>
         ) : null}
-      </div>
+      </div> : null}
       {candidateId && fee.overrideAmount !== null ? (
         <p className="mt-2 text-sm text-text-secondary">
           {t("adminFeeDefaultValue").replace(

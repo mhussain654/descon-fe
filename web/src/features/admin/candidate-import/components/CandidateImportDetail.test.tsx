@@ -71,6 +71,7 @@ function batchPayload(overrides: Record<string, unknown> = {}) {
     enqueuedAt: '2026-08-26T09:30:05Z',
     createdAt: '2026-08-26T09:30:00Z',
     rowResults: [],
+    pendingRows: 0,
     ...overrides,
   };
 }
@@ -146,6 +147,25 @@ describe('CandidateImportDetail', () => {
     expect(screen.queryByText(/Imported:/)).not.toBeInTheDocument();
   });
 
+  it('shows live row progress while processing', async () => {
+    candidateImportClient.getImportBatch.mockResolvedValue(
+      batchPayload({ status: 'processing', processedAt: null, acceptedRows: 15, pendingRows: 9, importedRows: 0 })
+    );
+    await renderDetail();
+
+    expect(await screen.findByText('6 of 15 rows processed')).toBeInTheDocument();
+    expect(screen.getByRole('progressbar', { name: 'Import progress' })).toHaveAttribute('aria-valuenow', '40');
+  });
+
+  it('says the import is waiting to start while queued with nothing processed yet', async () => {
+    candidateImportClient.getImportBatch.mockResolvedValue(
+      batchPayload({ status: 'queued', processedAt: null, acceptedRows: 15, pendingRows: 15, importedRows: 0 })
+    );
+    await renderDetail();
+
+    expect(await screen.findByText('Waiting for the import to start…')).toBeInTheDocument();
+  });
+
   it('shows the invalidated (expired) message with no retry action', async () => {
     candidateImportClient.getImportBatch.mockResolvedValue(batchPayload({ status: 'invalidated', processedAt: null }));
     await renderDetail();
@@ -162,10 +182,10 @@ describe('CandidateImportDetail', () => {
     await renderDetail();
 
     expect(await screen.findByText('Partial success')).toBeInTheDocument();
-    // The detail page reuses adminCandidateImportRejectedRowsLabel ("Will be
-    // skipped"), the same key the preflight preview uses for its own
-    // rejected-count tile.
-    expect(screen.getByText('Will be skipped')).toBeInTheDocument();
+    // After the import, rejected rows are reported as "Rejected" -- not the
+    // preview's forward-looking "Will be skipped".
+    expect(screen.getAllByText('Rejected').length).toBeGreaterThan(0);
+    expect(screen.queryByText('Will be skipped')).not.toBeInTheDocument();
     expect(screen.getByText('Skipped')).toBeInTheDocument();
     expect(screen.getAllByText('1').length).toBeGreaterThan(0);
     expect(screen.getByRole('button', { name: 'Download error report' })).toBeInTheDocument();
@@ -235,7 +255,8 @@ describe('CandidateImportDetail', () => {
         rejectedRows: 1,
         rowResults: [
           { rowNumber: 2, status: 'committed' },
-          { rowNumber: 3, status: 'rejected', errorField: 'cnic', errorCode: 'invalid_cnic', message: 'Invalid CNIC.' },
+          { rowNumber: 3, status: 'rejected', errorField: 'cnic', errorCode: 'invalid_cnic', errorValue: '42**********-1', message: 'Invalid CNIC.' },
+          { rowNumber: 4, status: 'rejected', errorField: 'craft_code', errorCode: 'unknown_craft_code', errorValue: 'Crane Opereator', message: 'Select a valid craft.' },
         ],
       })
     );
@@ -243,6 +264,9 @@ describe('CandidateImportDetail', () => {
 
     expect(await screen.findByText('Row results')).toBeInTheDocument();
     expect(screen.getByText('Invalid CNIC.')).toBeInTheDocument();
+    expect(screen.getByRole('columnheader', { name: 'Value in file' })).toBeInTheDocument();
+    expect(screen.getByText('Crane Opereator')).toBeInTheDocument();
+    expect(screen.getByText('42**********-1')).toBeInTheDocument();
     expect(screen.queryByText(/^\d{5}-\d{7}-\d$/)).not.toBeInTheDocument();
   });
 

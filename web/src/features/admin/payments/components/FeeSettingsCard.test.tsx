@@ -59,7 +59,7 @@ describe("FeeSettingsCard", () => {
     });
     await mount();
     fireEvent.click(
-      await screen.findByRole("button", { name: "Set default fee" }),
+      await screen.findByRole("button", { name: "Edit fee" }),
     );
     fireEvent.change(screen.getByLabelText("Fee amount (PKR)"), {
       target: { value: "26800" },
@@ -158,7 +158,7 @@ describe("FeeSettingsCard", () => {
     });
     await mount();
     fireEvent.click(
-      await screen.findByRole("button", { name: "Set default fee" }),
+      await screen.findByRole("button", { name: "Edit fee" }),
     );
     fireEvent.change(screen.getByLabelText("Fee amount (PKR)"), {
       target: { value: "29000" },
