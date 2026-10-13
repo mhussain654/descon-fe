@@ -4,8 +4,10 @@ Two independent applications for the Manpower Onboarding portal, set up
 separately, plus a small `shared/` directory of platform-independent code
 they both import.
 
-- `web/` — React Router v7 + Vite (SSR via Hono). Browser app covering both
-  the candidate onboarding flow and the internal admin dashboard.
+- `web/` — React Router v7 + Vite, built as a static single-page app
+  (`ssr: false`; the Hono server runs only under `npm run dev`). Browser app
+  covering both the candidate onboarding flow and the internal admin
+  dashboard.
 - `mobile/` — Expo / React Native. Candidate-facing native app.
 - `shared/` — portable TypeScript with no platform dependencies: the API
   client's request/error-normalization logic (`api-client.ts`) and the
@@ -17,14 +19,12 @@ The candidate-facing flow (login/OTP, dashboard, documents, status, profile)
 and most staff/admin screens (staff login, staff user management, candidate
 CSV import, document-review queue and detail) are wired to the real Rails
 API via a centralized client in each app (`src/lib/api-client.ts`, thin
-wrappers around `shared/api-client.ts`). Two admin screens are still
-prototype/mock-only, calling an in-memory mock API
-(`web/src/app/api/*`/`mock-db.js`) instead of the real backend: the admin
-dashboard candidate list (`web/src/app/admin/page.jsx`) and the candidate
-detail/document-verification screen
-(`web/src/app/admin/candidates/[id]/page.jsx`) — see the MPS-F001 UX
-inventory (`docs/mps-f001-ux-inventory.md`) for the exact gap and its
-recommended follow-up ticket.
+wrappers around `shared/api-client.ts`). The two screens that used to call the
+in-memory prototype mock API — the admin candidate list
+(`web/src/app/admin/page.jsx`) and the candidate detail/document-verification
+screen (`web/src/app/admin/candidates/[id]/page.jsx`) — are now wired to the
+real backend as well; `web/src/app/api/*` (the prototype's mock routes) is
+referenced by no screen and runs only under `npm run dev`.
 
 ## Prerequisites
 
@@ -46,7 +46,7 @@ Other scripts:
 
 ```bash
 npm run typecheck
-npm run build        # production build (build/client, build/server)
+npm run build        # static SPA -> build/client (no server bundle)
 npm test             # vitest
 ```
 
@@ -81,7 +81,16 @@ shared convention across both:
 | mobile | `EXPO_PUBLIC_API_BASE_URL`   | Base URL for the Rails API                 |
 
 Neither app should ever contain a hardcoded production API URL — always go
-through these variables.
+through these variables. For web the value is **baked into the build** (Vite
+inlines `VITE_*` at build time), so changing the public address means a new
+build and deploy.
+
+## Deployment
+
+The admin web app is deployed to the AWS EC2 instance as a tested static
+artifact with Capistrano — see
+[`docs/deployment/static-spa.md`](docs/deployment/static-spa.md) (build,
+deploy, rollback, continuous delivery, and what is and is not verified).
 
 ## Candidate session and refresh
 
@@ -118,9 +127,7 @@ new SMS OTP that often. Web and mobile both renew the session through
   approved — don't restructure them without a product decision. There is no
   `/payment` route (removed in MPS-F302 — it was a fully mocked page with no
   working action); the candidate dashboard shows a visibly-disabled "Coming
-  soon" tile instead. `admin/page.jsx` links to `/admin/candidates/new`,
-  which does not exist (resolves to the catch-all not-found route) — see the
-  UX inventory for the recommended follow-up.
+  soon" tile instead.
 - The admin portal's navigation shell (`web/src/app/components/staff-shell.tsx`)
   was redesigned from a horizontal top bar with dropdown menus to a persistent
   left sidebar (collapsing to a slide-in drawer below the `lg` breakpoint) as
@@ -128,13 +135,10 @@ new SMS OTP that often. Web and mobile both renew the session through
   top-nav grouping decision; see the admin-portal redesign plan for the full
   scope (sidebar shell, dashboard charts, list/detail page restyling) and
   status of each phase.
-- Two admin screens (`web/src/app/admin/page.jsx` and
-  `web/src/app/admin/candidates/[id]/page.jsx`) still call an in-memory mock
-  API (`web/src/app/api/*`, backed by `web/src/app/api/utils/mock-db.js`)
-  instead of the real Rails backend — everything else (candidate auth/
-  dashboard/documents/status/profile, staff login, staff user management,
-  candidate CSV import, document-review queue/detail) is wired to real,
-  documented `descon-be` endpoints.
+- Every screen is wired to real, documented `descon-be` endpoints. The
+  prototype's in-memory mock API (`web/src/app/api/*`, `mock-db.js`) is
+  development-only and unreferenced; the production build is a static SPA, so
+  it is not part of what is deployed (see `docs/deployment/static-spa.md`).
 - `web/src/lib/api-client.ts` and `mobile/src/lib/api-client.ts` both wrap
   `shared/api-client.ts` (the actual request/error-normalization logic,
   including the Rails `ErrorEnvelope` contract) with their own base-URL
