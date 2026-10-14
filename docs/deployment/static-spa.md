@@ -1,13 +1,13 @@
 # Admin web app: static SPA deployment
 
 The admin portal (`web/`) is built as a static single-page app and served by
-Nginx from `/var/www/descon-mps-web/current` on the same EC2 instance as the
+Nginx from `/home/deploy/descon-mps-web/current` on the same EC2 instance as the
 Rails API. There is no Node or Hono process in production, no Amplify and no
 Docker. Mobile (`mobile/`) is built and distributed separately and is not
 affected.
 
 Backend and host setup (Nginx, TLS, systemd, the shared deploy lock) live in
-`descon-be`: `docs/deployment/aws-ec2-runbook.md`.
+`descon-be`: `docs/deployment/aws-ec2-runbook.md`. Its Nginx access instructions grant `www-data` read access to the web release under `/home/deploy` without exposing API secrets.
 
 ## 1. Why a static build is safe here
 
