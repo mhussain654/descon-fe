@@ -16,7 +16,7 @@ export default function HomePage() {
         <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-5 py-4 sm:px-8">
           <Link to="/" aria-label={t("connectHomeLink")} className="flex items-center gap-3 rounded focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#007e79]">
             <img src="/descon-logo.png" alt="Descon" className="h-11 max-w-36 object-contain" />
-            <span className="border-s border-[#cad4d2] ps-3 text-sm font-semibold uppercase tracking-widest text-[#126b68] sm:text-base">Connect</span>
+            <span className="border-s border-[#cad4d2] ps-3 text-sm font-semibold uppercase tracking-widest text-[#126b68] sm:text-base">MPS</span>
           </Link>
           <nav aria-label={t("connectNavLabel")} className="flex items-center gap-3 sm:gap-6">
             <a href="#about" className="hidden text-sm font-semibold hover:text-[#007e79] sm:inline">{t("connectAboutLink")}</a>
@@ -62,7 +62,7 @@ export default function HomePage() {
       </main>
       <footer className="bg-[#102b3a] text-slate-200">
         <div className="mx-auto grid max-w-7xl gap-8 px-5 py-12 sm:px-8 md:grid-cols-2">
-          <div><p className="text-xl font-semibold text-white">Descon Connect</p><p className="mt-3 max-w-md leading-7">{t("connectFooterDescription")}</p></div>
+          <div><p className="text-xl font-semibold text-white">Descon Manpower Service</p><p className="mt-3 max-w-md leading-7">{t("connectFooterDescription")}</p></div>
           <div className="md:justify-self-end">
             <p className="font-semibold text-white">{t("connectFooterContact")}</p>
             <address className="mt-3 not-italic leading-7"><p>{t("connectFooterAddress")}</p><a href="tel:+9242111337266" className="hover:underline">+92 42 111 337 266</a></address>
