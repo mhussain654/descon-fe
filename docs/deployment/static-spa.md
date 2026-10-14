@@ -59,7 +59,7 @@ node scripts/verify-static-build.mjs --api-base https://<host>/api/v1 build/clie
 
 `VITE_API_BASE_URL` is baked into the JavaScript **at build time**. Changing
 the public address means a new build and deploy; there is no runtime config.
-The value must be the public API URL (`https://52.221.51.231/api/v1` today);
+The value must be the public API URL (`https://descon-mps.com/api/v1`);
 it is never hard-coded in source, and the verifier fails a build that carries a
 different value or a development default.
 
@@ -74,7 +74,7 @@ builds only).
 ```bash
 cd deploy
 bundle install
-PUBLIC_ORIGIN=https://52.221.51.231 bundle exec cap production deploy
+PUBLIC_ORIGIN=https://descon-mps.com bundle exec cap production deploy
 ```
 
 What happens:
@@ -117,11 +117,11 @@ contains four inline `<script>` blocks whose bytes change every build, so an
 enforcing `script-src` needs per-build hashes (follow-up). HSTS is deliberately
 absent while the site uses a 6-day IP-address certificate.
 
-## 6. Adding a domain
+## 6. Public domain
 
-Set `PUBLIC_ORIGIN=https://<domain>` and deploy again. Nothing else in this
-repository mentions the address; the backend side (certificate, CORS, return
-URLs) is in the backend runbook.
+Set `PUBLIC_ORIGIN=https://descon-mps.com` for local deploys and the GitHub
+Actions repository variable to the same value before a CD build. The backend
+runbook covers the certificate, CORS and return URLs. Rebuild the web app.
 
 ## 7. Continuous delivery: deploy a branch or a PR (optional)
 

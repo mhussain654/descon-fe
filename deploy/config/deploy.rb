@@ -17,9 +17,9 @@ set :log_level, :info
 
 # The one place a public address is configured. The API base URL baked into the
 # build is "#{public_origin}/api/v1" (one origin serves the app and the API).
-# When a domain replaces the Elastic IP, set PUBLIC_ORIGIN=https://<domain> and
-# redeploy: nothing else in this repository mentions the address.
-set :public_origin, ENV.fetch('PUBLIC_ORIGIN', 'https://52.221.51.231')
+# Override PUBLIC_ORIGIN if the public address changes. This value is baked
+# into the web build; the SSH deploy host still uses the Elastic IP.
+set :public_origin, ENV.fetch('PUBLIC_ORIGIN', 'https://descon-mps.com')
 
 # Host-wide lock shared with the backend repository's deploys.
 set :deploy_lock_dir, '/home/deploy/.deploy-locks/descon-mps.lock'
