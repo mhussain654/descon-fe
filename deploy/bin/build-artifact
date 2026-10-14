@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Builds, tests and packages the admin web app for one commit.
 #
-#   PUBLIC_ORIGIN=https://52.221.51.231 deploy/bin/build-artifact
+#   PUBLIC_ORIGIN=https://descon-mps.com deploy/bin/build-artifact
 #
 # Runs, from web/: npm ci, typecheck, the full test suite, the production
 # build with VITE_API_BASE_URL set to "$PUBLIC_ORIGIN/api/v1", and
@@ -11,7 +11,7 @@
 set -euo pipefail
 
 repo_root="$(cd "$(dirname "$0")/../.." && pwd)"
-origin="${PUBLIC_ORIGIN:?PUBLIC_ORIGIN is required, e.g. https://52.221.51.231}"
+origin="${PUBLIC_ORIGIN:?PUBLIC_ORIGIN is required, e.g. https://descon-mps.com}"
 api_base="${origin%/}/api/v1"
 
 die() {
