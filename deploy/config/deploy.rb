@@ -10,7 +10,7 @@
 lock '~> 3.20'
 
 set :application, 'descon-mps-web'
-set :deploy_to, '/var/www/descon-mps-web'
+set :deploy_to, '/home/deploy/descon-mps-web'
 set :keep_releases, 5
 set :pty, false
 set :log_level, :info
