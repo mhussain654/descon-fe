@@ -1,5 +1,12 @@
 # Admin web app: static SPA deployment
 
+> **Preview shares the live test site.** Both GitHub environments deploy the
+> web build to `/home/deploy/descon-mps-web/current` on the same EC2 instance.
+> A branch or PR preview replaces the site served at the public address and
+> calls the same Rails API backed by shared RDS and S3. A later `main` deploy
+> replaces its build. Use a separate preview site and backend before treating
+> preview as isolated staging.
+
 The admin portal (`web/`) is built as a static single-page app and served by
 Nginx from `/home/deploy/descon-mps-web/current` on the same EC2 instance as the
 Rails API. There is no Node or Hono process in production, no Amplify and no
