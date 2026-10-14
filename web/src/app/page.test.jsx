@@ -4,7 +4,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import { LanguageProvider } from "../contexts/LanguageContext";
 import HomePage from "./page";
 
-describe("Descon Connect home", () => {
+describe("Descon Manpower Service home", () => {
   afterEach(() => {
     window.localStorage.clear();
     document.documentElement.removeAttribute("dir");
@@ -20,7 +20,9 @@ describe("Descon Connect home", () => {
       </MemoryRouter>
     );
 
-    expect(screen.getByRole("heading", { level: 1, name: /your journey with descon/i })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { level: 1, name: /supporting the people behind every project/i })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Descon Manpower Service home" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "The Descon Connect mobile app" })).toBeInTheDocument();
     expect(screen.getAllByRole("link", { name: "Staff login" })).toHaveLength(2);
     expect(screen.getAllByRole("link", { name: "Staff login" })[0]).toHaveAttribute("href", "/admin/login");
     expect(screen.getByText("Mobile app coming soon")).toBeInTheDocument();
