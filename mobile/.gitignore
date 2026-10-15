@@ -42,3 +42,5 @@ app-example
 .metro-virtual/*
 
 caches/*
+# Play Store upload service-account key (never commit)
+google-service-account.json
