@@ -1,14 +1,16 @@
-# Descon Frontend
+# Descon Manpower Service frontend
 
 Two independent applications for the Manpower Onboarding portal, set up
 separately, plus a small `shared/` directory of platform-independent code
 they both import.
 
-- `web/` — React Router v7 + Vite, built as a static single-page app
-  (`ssr: false`; the Hono server runs only under `npm run dev`). Browser app
-  covering both the candidate onboarding flow and the internal admin
-  dashboard.
-- `mobile/` — Expo / React Native. Candidate-facing native app.
+- `web/` — Descon Manpower Service (Descon MPS) public home and staff portal.
+  React Router v7 + Vite builds a static single-page app (`ssr: false`; the
+  Hono server runs only under `npm run dev`). Candidate web screens remain
+  temporarily for synthetic-data testing; see
+  [`docs/descon-mps-home-review.md`](docs/descon-mps-home-review.md) for their
+  planned removal.
+- `mobile/` — Descon Connect, the candidate-facing Expo / React Native app.
 - `shared/` — portable TypeScript with no platform dependencies: the API
   client's request/error-normalization logic (`api-client.ts`) and the
   English/Urdu translation catalog and locale helpers (`i18n/`). Each app
@@ -87,10 +89,77 @@ build and deploy.
 
 ## Deployment
 
-The admin web app is deployed to the AWS EC2 instance as a tested static
-artifact with Capistrano — see
-[`docs/deployment/static-spa.md`](docs/deployment/static-spa.md) (build,
-deploy, rollback, continuous delivery, and what is and is not verified).
+The web app is built as a static SPA and served by Nginx on the shared EC2
+instance. Mobile is distributed separately. The API and web use the same
+public origin, `https://descon-mps.com`; a web build bakes in
+`https://descon-mps.com/api/v1`.
+
+### Deploy from your machine
+
+Use a committed checkout, Ruby and Bundler (for Capistrano), Node.js 20+,
+and an SSH key authorized for `deploy@52.221.51.231`. Your IP must be allowed
+by the EC2 SSH security group, and you must trust the instance host key.
+Configure that key in `~/.ssh/config` or your SSH agent. The server's GitHub
+repository keys and AWS credentials are not needed on your machine.
+
+```bash
+git switch main
+git pull --ff-only origin main
+cd deploy
+bundle install
+PUBLIC_ORIGIN=https://descon-mps.com bundle exec cap production deploy
+```
+
+The Capistrano task runs `npm ci`, typecheck, tests, builds the static
+artifact, and verifies it before publishing. To deploy a different *committed*
+branch locally, check it out first, then run the same command from `deploy/`.
+The build is made from your checked-out commit, so confirm `git rev-parse HEAD`
+and use a clean working tree. To restore the preceding web release:
+
+```bash
+cd deploy
+bundle exec cap production deploy:rollback
+```
+
+### Deploy from GitHub Actions
+
+Open this repository's **Actions → EC2 Deploy → Run workflow**. Select the
+workflow's branch (`main` for a production deployment), then choose `source`:
+
+| Source | Additional input | GitHub environment | Result |
+| --- | --- | --- | --- |
+| `main` | None | `production` | Latest `main` commit |
+| `branch` | Existing branch name | `preview` | Tip of that branch |
+| `pull_request` | Open PR number from this repository | `preview` | Head commit of that PR; fork PRs are refused |
+
+A push or merge to `main` also starts EC2 Deploy automatically. It runs checks,
+builds the exact commit, and waits for the `production` environment reviewer
+before delivery. A branch push or PR opening does **not** deploy automatically;
+start those with **Run workflow** and obtain `preview` approval. Check the
+**Build** and **Deploy** jobs and the SSM result; a green tests job alone is
+not evidence that a release was installed. Production deployment needs
+repository variables `EC2_INSTANCE_ID`, `PUBLIC_ORIGIN`, `ARTIFACT_BUCKET`,
+and the `production` environment's `AWS_DEPLOY_ROLE_ARN` (the `preview`
+environment needs its own role ARN). Never put AWS access keys in GitHub.
+
+**Preview changes the same public site** and talks to the same Rails/RDS/S3.
+After a preview, run a `main` deployment to restore the main web build. The
+frontend and backend can be released independently, but share a server-side
+deploy lock.
+
+### Pause or resume GitHub deployments
+
+To stop **both** automatic and manual GitHub deployments, open **Actions →
+EC2 Deploy → ⋯ → Disable workflow**. Use **Enable workflow** on that page to
+resume. Cancel any already running deployment separately; disabling does not
+undo an installed release. Local Capistrano remains available. To retain
+manual deployments but stop automatic `main` deployments, make a reviewed PR
+that removes the `push` trigger from `.github/workflows/deploy.yml`, leaving
+`workflow_dispatch`; restore the trigger in another PR to re-enable it. Keep
+the GitHub environment approval rules intact.
+
+For first-time AWS setup, artifact verification, health checks and rollback
+details, see [`docs/deployment/static-spa.md`](docs/deployment/static-spa.md).
 
 ## Candidate session and refresh
 
@@ -118,16 +187,13 @@ new SMS OTP that often. Web and mobile both renew the session through
 
 ## Project structure notes
 
-- Candidate and admin routes (web: `/`, `/login`, `/dashboard`,
-  `/documents`, `/profile`, `/status`, `/admin`, `/admin/login`,
-  `/admin/forbidden`, `/admin/users`, `/admin/candidates/:id`,
-  `/admin/candidates/import`, `/admin/document-reviews`,
-  `/admin/document-reviews/:id`; mobile: welcome → language select →
-  login/OTP → dashboard/documents/status/profile tabs) are preserved as
-  approved — don't restructure them without a product decision. There is no
-  `/payment` route (removed in MPS-F302 — it was a fully mocked page with no
-  working action); the candidate dashboard shows a visibly-disabled "Coming
-  soon" tile instead.
+- The web root (`/`) is the public Descon MPS home, with staff routes under
+  `/admin`. Candidate routes including `/candidate-preview`, `/login`,
+  `/dashboard`, `/documents`, `/profile`, `/status`, `/consent`, and the
+  `/payment` paths remain temporarily reachable for testing. Their planned
+  removal is documented in `docs/descon-mps-home-review.md`. The existence of
+  a payment page does not establish a verified live payment flow. The Descon
+  Connect mobile app keeps its candidate onboarding flow independently.
 - The admin portal's navigation shell (`web/src/app/components/staff-shell.tsx`)
   was redesigned from a horizontal top bar with dropdown menus to a persistent
   left sidebar (collapsing to a slide-in drawer below the `lg` breakpoint) as

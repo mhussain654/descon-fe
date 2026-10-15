@@ -22,8 +22,8 @@ name: EC2 Deploy
 # travels through SSM, not through the bucket, so a swapped object is detected
 # on the instance. See docs/deployment/static-spa.md ("Continuous delivery").
 #
-# Inert until the repository variable EC2_INSTANCE_ID and the environments'
-# AWS_DEPLOY_ROLE_ARN variables exist.
+# Missing deployment configuration must fail the run instead of skipping jobs.
+# Set EC2_INSTANCE_ID, PUBLIC_ORIGIN, ARTIFACT_BUCKET, and the environment's AWS_DEPLOY_ROLE_ARN.
 
 on:
   push:
@@ -143,7 +143,7 @@ jobs:
   build:
     name: Build the artifact for that commit
     needs: [resolve, ci]
-    if: ${{ vars.EC2_INSTANCE_ID != '' && vars.PUBLIC_ORIGIN != '' }}
+    # A deploy run must build and deploy; missing configuration fails in a step.
     runs-on: ubuntu-latest
     timeout-minutes: 20
     outputs:
@@ -205,6 +205,20 @@ jobs:
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: web-${{ needs.resolve.outputs.sha }}
+
+      - name: Check deployment configuration
+        env:
+          DEPLOY_ROLE_ARN: ${{ vars.AWS_DEPLOY_ROLE_ARN }}
+          INSTANCE_ID: ${{ vars.EC2_INSTANCE_ID }}
+          ARTIFACT_BUCKET: ${{ vars.ARTIFACT_BUCKET }}
+        run: |
+          set -euo pipefail
+          for name in DEPLOY_ROLE_ARN INSTANCE_ID ARTIFACT_BUCKET; do
+            if [[ -z "${!name}" ]]; then
+              echo "::error::Missing ${name} deployment configuration. Check the selected GitHub environment and repository variables."
+              exit 1
+            fi
+          done
 
       # TEMPORARY: prints the claims (never the token) AWS is asked to trust, to
       # diagnose an AssumeRoleWithWebIdentity refusal. Remove once resolved.

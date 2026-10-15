@@ -191,7 +191,7 @@ One-time setup (**not done, not exercised**):
    reviewer, variable `AWS_DEPLOY_ROLE_ARN` = production role) and `preview`
    (all branches, required reviewer, `AWS_DEPLOY_ROLE_ARN` = preview role).
    Repository variables: `EC2_INSTANCE_ID`, `PUBLIC_ORIGIN`, `ARTIFACT_BUCKET`.
-   Until they exist the jobs are skipped, not failed.
+   Missing configuration fails the workflow. A green EC2 Deploy run requires successful build and SSM deployment jobs.
 
 `deploy/test/commit_policy_test.sh` (8 checks) runs the script's own policy
 function against a throwaway origin.
