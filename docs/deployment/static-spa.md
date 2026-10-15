@@ -179,7 +179,13 @@ One-time setup (**not done, not exercised**):
    `descon-fe-deploy-production` (trust
    `deploy/aws/github-oidc-trust-policy-production.json`, permissions
    `…/github-deploy-role-production-permissions.json`) and
-   `descon-fe-deploy-preview` (the `-preview` pair).
+   `descon-fe-deploy-preview` (the `-preview` pair). The templates pin the
+   **ID-based** subject GitHub issues for this repository
+   (`repo:<owner>@<owner-id>/<repo>@<repo-id>:environment:<name>`), not the
+   older `repo:<owner>/<repo>:…` form; a trust policy written in the older form
+   is refused with `Not authorized to perform sts:AssumeRoleWithWebIdentity`.
+   If the repository is ever recreated or transferred the IDs change, so print
+   the real claim (`sub`) from a run before editing a trust policy.
 4. Two SSM documents from `deploy/aws/ssm-document-DesconDeployWeb.json` and
    `…WebPreview.json`
    (`aws ssm create-document --name <name> --document-type Command
