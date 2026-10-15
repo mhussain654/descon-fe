@@ -5,7 +5,8 @@ import { StatusBar } from "expo-status-bar";
 import { useRouter } from "expo-router";
 import { Image } from "expo-image";
 import { Clock, IdCard } from "lucide-react-native";
-import Svg, { Defs, LinearGradient, Rect, Stop } from "react-native-svg";
+import { Defs, LinearGradient, Rect, Stop } from "react-native-svg";
+import { MeasuredSvg } from "../design-system/MeasuredSvg";
 import { useAuth } from "../contexts/AuthContext";
 import { useLanguage } from "../contexts/LanguageContext";
 import { RequireGuest } from "../features/auth/RequireGuest";
@@ -48,7 +49,7 @@ const HERO_SHADE_COLOR = "#00379A";
 function HeroShade({ copySide }) {
   const fromLeft = copySide === "left";
   return (
-    <Svg style={StyleSheet.absoluteFill} width="100%" height="100%" pointerEvents="none">
+    <MeasuredSvg>
       <Defs>
         <LinearGradient id="heroShadeAcross" x1={fromLeft ? "0" : "1"} y1="0" x2={fromLeft ? "1" : "0"} y2="0">
           <Stop offset="0" stopColor={HERO_SHADE_COLOR} stopOpacity="0.93" />
@@ -63,7 +64,7 @@ function HeroShade({ copySide }) {
       </Defs>
       <Rect x="0" y="0" width="100%" height="100%" fill="url(#heroShadeAcross)" />
       <Rect x="0" y="0" width="100%" height="100%" fill="url(#heroShadeDown)" />
-    </Svg>
+    </MeasuredSvg>
   );
 }
 
