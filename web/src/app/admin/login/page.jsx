@@ -40,59 +40,56 @@ export default function StaffLoginPage() {
   }
 
   return (
-    <main className="admin-typography relative isolate flex min-h-screen flex-col overflow-hidden bg-gradient-to-br from-brand-emphasis via-brand to-info">
+    <main className="admin-typography relative isolate flex min-h-screen flex-col items-center justify-center overflow-hidden bg-gradient-to-br from-brand-emphasis via-brand to-info px-6 py-10">
       <div aria-hidden="true" className="pointer-events-none absolute -start-24 -top-24 -z-10 h-80 w-80 rounded-full bg-white/10" />
       <div aria-hidden="true" className="pointer-events-none absolute -bottom-32 -end-20 -z-10 h-96 w-96 rounded-full bg-white/10" />
 
-      <header className="w-full px-6 py-6 sm:px-10 sm:py-8">
-        <div className="inline-flex items-center rounded-2xl bg-white px-6 py-3 shadow-lg sm:px-8 sm:py-4">
-          <img src="/descon-logo.png" alt="Descon" className="h-20 w-auto object-contain sm:h-28" />
+      <div className="flex w-full max-w-md justify-center rounded-3xl bg-white py-5 shadow-2xl sm:py-6">
+        <img src="/descon-logo.png" alt="Descon" className="h-28 w-auto object-contain sm:h-36" />
+      </div>
+      <p className="mt-5 text-center text-sm font-semibold uppercase tracking-widest text-white/85">{t("connectEyebrow")}</p>
+
+      <div className="mt-8 w-full max-w-md rounded-3xl border border-border bg-surface-raised p-8 shadow-2xl sm:p-10">
+        <div className="mb-8 text-center">
+          <h1 className="mb-2 text-3xl font-semibold text-text-primary">{t("staffAuthSignInTitle")}</h1>
+          <p className="text-base leading-7 text-text-secondary">{t("staffAuthSignInMessage")}</p>
         </div>
-      </header>
 
-      <div className="mx-auto flex w-full max-w-md flex-1 flex-col justify-center px-6 pb-16 pt-4">
-        <div className="rounded-2xl border border-border bg-surface-raised p-8 shadow-xl">
-          <div className="mb-8">
-            <h1 className="mb-2 text-3xl font-semibold text-text-primary">{t("staffAuthSignInTitle")}</h1>
-            <p className="text-base leading-7 text-text-secondary">{t("staffAuthSignInMessage")}</p>
-          </div>
+        <form
+          className="space-y-5"
+          onSubmit={(event) => {
+            event.preventDefault();
+            submit();
+          }}
+        >
+          <Input
+            type="email"
+            autoComplete="username"
+            label={t("email")}
+            placeholder={t("staffAuthEnterEmail")}
+            value={email}
+            onChange={(event) => setEmail(event.target.value)}
+            errorMessage={fieldErrors.email ? t("staffAuthEmailRequiredError") : undefined}
+            disabled={isSubmitting}
+            autoFocus
+          />
+          <Input
+            type="password"
+            autoComplete="current-password"
+            label={t("password")}
+            placeholder={t("staffAuthEnterPassword")}
+            value={password}
+            onChange={(event) => setPassword(event.target.value)}
+            errorMessage={fieldErrors.password ? t("staffAuthPasswordRequiredError") : undefined}
+            disabled={isSubmitting}
+          />
 
-          <form
-            className="space-y-5"
-            onSubmit={(event) => {
-              event.preventDefault();
-              submit();
-            }}
-          >
-            <Input
-              type="email"
-              autoComplete="username"
-              label={t("email")}
-              placeholder={t("staffAuthEnterEmail")}
-              value={email}
-              onChange={(event) => setEmail(event.target.value)}
-              errorMessage={fieldErrors.email ? t("staffAuthEmailRequiredError") : undefined}
-              disabled={isSubmitting}
-              autoFocus
-            />
-            <Input
-              type="password"
-              autoComplete="current-password"
-              label={t("password")}
-              placeholder={t("staffAuthEnterPassword")}
-              value={password}
-              onChange={(event) => setPassword(event.target.value)}
-              errorMessage={fieldErrors.password ? t("staffAuthPasswordRequiredError") : undefined}
-              disabled={isSubmitting}
-            />
+          {error ? <ValidationMessage tone="error">{t(STAFF_AUTH_ERROR_KEYS[error.code])}</ValidationMessage> : null}
 
-            {error ? <ValidationMessage tone="error">{t(STAFF_AUTH_ERROR_KEYS[error.code])}</ValidationMessage> : null}
-
-            <Button type="submit" variant="primary" size="lg" fullWidth loading={isSubmitting}>
-              {t("staffAuthSignIn")}
-            </Button>
-          </form>
-        </div>
+          <Button type="submit" variant="primary" size="lg" fullWidth loading={isSubmitting}>
+            {t("staffAuthSignIn")}
+          </Button>
+        </form>
       </div>
     </main>
   );
