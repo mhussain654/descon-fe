@@ -206,6 +206,23 @@ jobs:
         with:
           name: web-${{ needs.resolve.outputs.sha }}
 
+      # TEMPORARY: prints the claims (never the token) AWS is asked to trust, to
+      # diagnose an AssumeRoleWithWebIdentity refusal. Remove once resolved.
+      - name: Show the OIDC claims AWS will evaluate
+        run: |
+          python3 - <<'PY'
+          import base64, json, os, urllib.request
+          request = urllib.request.Request(
+              os.environ["ACTIONS_ID_TOKEN_REQUEST_URL"] + "&audience=sts.amazonaws.com",
+              headers={"Authorization": "bearer " + os.environ["ACTIONS_ID_TOKEN_REQUEST_TOKEN"]},
+          )
+          token = json.load(urllib.request.urlopen(request))["value"]
+          payload = token.split(".")[1]
+          claims = json.loads(base64.urlsafe_b64decode(payload + "=" * (-len(payload) % 4)))
+          for key in ("iss", "aud", "sub", "repository", "repository_owner", "environment", "ref", "job_workflow_ref"):
+              print(f"{key}: {claims.get(key)!r}")
+          PY
+
       - name: Assume this environment's deploy role (OIDC)
         uses: aws-actions/configure-aws-credentials@e1253824e5c10ff9df46874f81ed3ec929e19cfd # v6.3.0
         with:
