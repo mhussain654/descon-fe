@@ -415,7 +415,7 @@ const styles = StyleSheet.create({
   scroll: { flex: 1 },
   scrollContent: { flexGrow: 1 },
   content: { paddingHorizontal: 14, paddingTop: 14, gap: 12 },
-  sectionTitle: { marginBottom: spacing[2], paddingHorizontal: 2, fontSize: 16, fontWeight: "800", color: colors.text.primary },
+  sectionTitle: { marginBottom: spacing[2], paddingHorizontal: 2, fontSize: 16, color: colors.text.primary },
   sectionTitleUrdu: { lineHeight: 34 },
   tileGrid: { gap: spacing[2] },
   tileRow: { gap: spacing[2] },

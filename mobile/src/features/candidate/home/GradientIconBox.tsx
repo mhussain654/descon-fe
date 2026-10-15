@@ -24,7 +24,10 @@ export function GradientIconBox({ tone, icon: Icon, size = 44 }: GradientIconBox
   const [from, to] = TONE_GRADIENTS[tone];
   const gradientId = `iconBox-${tone}`;
   return (
-    <View style={[styles.box, { width: size, height: size, borderRadius: size * 0.3 }]} accessible={false}>
+    <View
+      style={[styles.box, { width: size, height: size, borderRadius: size * 0.3, backgroundColor: from }]}
+      accessible={false}
+    >
       <Svg style={StyleSheet.absoluteFill} width="100%" height="100%">
         <Defs>
           <LinearGradient id={gradientId} x1="0" y1="0" x2="1" y2="1">

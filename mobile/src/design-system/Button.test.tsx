@@ -1,3 +1,4 @@
+import { StyleSheet } from 'react-native';
 import { fireEvent, render, screen } from '@testing-library/react-native';
 import { Button, type ButtonVariant } from './Button';
 
@@ -18,6 +19,31 @@ describe('Button', () => {
       <Button onPress={() => {}}>جاری رکھیں اور اپنی معلومات کی تصدیق کریں تاکہ درخواست کا عمل مکمل ہو سکے</Button>
     );
     expect(screen.getByText(/جاری رکھیں/)).toBeOnTheScreen();
+  });
+
+  it('lets an Urdu button grow past its fixed height so Nastaliq descenders are not clipped', () => {
+    render(
+      <Button size="sm" language="ur" onPress={() => {}}>
+        تصویر لیں
+      </Button>
+    );
+    const style = StyleSheet.flatten(screen.getByRole('button', { name: 'تصویر لیں' }).props.style);
+    expect(style.minHeight).toBeGreaterThanOrEqual(40);
+    expect(style.height).toBeUndefined();
+    const label = StyleSheet.flatten(screen.getByText('تصویر لیں').props.style);
+    expect(label.lineHeight).toBe(28);
+  });
+
+  it('keeps the fixed height and default line height for English', () => {
+    render(
+      <Button size="sm" onPress={() => {}}>
+        Take photo
+      </Button>
+    );
+    const style = StyleSheet.flatten(screen.getByRole('button', { name: 'Take photo' }).props.style);
+    expect(style.height).toBeGreaterThanOrEqual(40);
+    expect(style.minHeight).toBeUndefined();
+    expect(StyleSheet.flatten(screen.getByText('Take photo').props.style).lineHeight).toBeUndefined();
   });
 
   it('fires onPress when pressed', () => {

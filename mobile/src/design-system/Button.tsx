@@ -59,6 +59,8 @@ export function Button({
   const isDisabled = disabled || loading;
   const sizeStyle = SIZES[size];
   const variantStyle = VARIANT_STYLES[variant];
+  const isUrdu = language === 'ur';
+  const buttonHeight = screenButtonHeight ?? Math.max(sizeStyle.height, minTouchTarget);
 
   return (
     <Pressable
@@ -69,7 +71,9 @@ export function Button({
       style={({ pressed }) => [
         styles.base,
         {
-          height: screenButtonHeight ?? Math.max(sizeStyle.height, minTouchTarget),
+          // Nastaliq glyphs stack far taller than Latin text, so a fixed height cuts the bottom
+          // of Urdu labels off. Urdu buttons keep the same height as a minimum and grow to fit.
+          ...(isUrdu ? { minHeight: buttonHeight, paddingVertical: spacing[1] } : { height: buttonHeight }),
           paddingHorizontal: sizeStyle.paddingHorizontal,
           backgroundColor: variantStyle.background,
           borderColor: variantStyle.border,
@@ -89,6 +93,9 @@ export function Button({
         style={[
           styles.text,
           { color: variantStyle.text, fontSize: sizeStyle.fontSize, fontFamily: getFontFamily(language, 'semibold') },
+          // Nastaliq needs roughly twice the font size as line height so stacked marks and
+          // descenders are not clipped (same rule the screen-level Urdu styles already follow).
+          isUrdu ? { lineHeight: Math.round(sizeStyle.fontSize * 2) } : null,
           labelStyle,
         ]}
       >

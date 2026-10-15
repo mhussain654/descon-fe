@@ -269,7 +269,6 @@ const styles = StyleSheet.create({
   heroTitle: {
     fontSize: 30,
     lineHeight: 36,
-    fontWeight: fontWeights.bold,
     color: colors.text.inverse,
     letterSpacing: -0.5,
     textShadowColor: "rgba(0, 32, 96, 0.35)",
@@ -316,7 +315,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing[6],
     paddingTop: spacing[6],
   },
-  sheetTitle: { fontSize: 22, lineHeight: 28, fontWeight: fontWeights.bold, color: colors.text.primary },
+  sheetTitle: { fontSize: 22, lineHeight: 28, color: colors.text.primary },
   // Nastaliq's tall line box already carries its own top air, so the Urdu
   // heading pulls up to keep the sheet as compact as the English one.
   sheetTitleUrdu: { fontSize: 20, lineHeight: 40, marginTop: -spacing[2] },
@@ -336,7 +335,7 @@ const styles = StyleSheet.create({
   },
   languageCardActive: { backgroundColor: colors.brand.subtle, borderColor: colors.brand.default },
   languageCardInactive: { backgroundColor: colors.surface.raised, borderColor: colors.border.default, ...elevation.sm },
-  languageLabel: { fontSize: 20, fontWeight: fontWeights.bold, color: colors.text.primary, textAlign: "center" },
+  languageLabel: { fontSize: 20, color: colors.text.primary, textAlign: "center" },
   languageHint: { marginTop: spacing[1], fontSize: 14, color: colors.text.secondary, textAlign: "center" },
   languageCheck: {
     position: "absolute",

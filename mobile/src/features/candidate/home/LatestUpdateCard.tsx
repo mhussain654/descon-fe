@@ -61,9 +61,9 @@ export function LatestUpdateCard({ language, heading, seeAllLabel, onSeeAll, upd
 
 const styles = StyleSheet.create({
   headingRow: { alignItems: 'center', justifyContent: 'space-between', marginBottom: spacing[2], paddingHorizontal: 2 },
-  heading: { fontSize: 16, fontWeight: '800', color: colors.text.primary },
+  heading: { fontSize: 16, color: colors.text.primary },
   headingUrdu: { lineHeight: 34 },
-  seeAll: { fontSize: 13, fontWeight: '800', color: '#0871DB' },
+  seeAll: { fontSize: 13, color: '#0871DB' },
   card: { alignItems: 'center', gap: spacing[3], padding: 12 },
   divider: { width: 1, alignSelf: 'stretch', marginVertical: 4, backgroundColor: '#E5EAF2' },
   check: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center', backgroundColor: '#DBF8E5' },

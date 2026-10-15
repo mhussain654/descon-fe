@@ -482,7 +482,6 @@ const styles = StyleSheet.create({
     marginTop: spacing[3],
     fontSize: 30,
     lineHeight: 35,
-    fontWeight: fontWeights.bold,
     color: colors.text.inverse,
     letterSpacing: -0.5,
   },
@@ -503,7 +502,7 @@ const styles = StyleSheet.create({
   sheetHeading: { alignItems: "flex-start", justifyContent: "space-between", gap: spacing[3], marginBottom: spacing[5] },
   sheetHeadingText: { flex: 1 },
   alignEndUrdu: { alignItems: "stretch" },
-  sheetTitle: { fontSize: 24, lineHeight: 30, fontWeight: fontWeights.bold, color: colors.text.primary },
+  sheetTitle: { fontSize: 24, lineHeight: 30, color: colors.text.primary },
   // Nastaliq's tall line box carries its own top air.
   sheetTitleUrdu: { fontSize: 21, lineHeight: 42, marginTop: -spacing[2] },
   sheetSubtitle: { marginTop: spacing[1], fontSize: 13, lineHeight: 19, color: colors.text.secondary },
@@ -514,7 +513,7 @@ const styles = StyleSheet.create({
     borderRadius: radii.full,
     backgroundColor: colors.brand.subtle,
   },
-  pillText: { fontSize: 13, fontWeight: fontWeights.bold, color: colors.brand.default },
+  pillText: { fontSize: 13, color: colors.brand.default },
   pillCountdown: { fontVariant: ["tabular-nums"], fontFamily: getFontFamily("en", "bold") },
 
   fieldStack: { gap: spacing[4] },

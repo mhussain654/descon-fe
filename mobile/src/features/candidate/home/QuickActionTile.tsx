@@ -42,7 +42,14 @@ export function QuickActionTile({ language, tone, icon, title, subtitle, onPress
       accessibilityState={{ disabled: !!disabled }}
       style={({ pressed }) => [
         styles.tile,
-        { borderColor: surface.border, flexDirection: rowDirectionTowards(isUrdu ? 'right' : 'left') },
+        {
+          // Opaque base: Android draws an elevated view's shadow through any part of it that is
+          // transparent, which showed as gray bands beside/below the gradient. The gradient below
+          // is painted over this colour, so the look is unchanged.
+          backgroundColor: surface.from,
+          borderColor: surface.border,
+          flexDirection: rowDirectionTowards(isUrdu ? 'right' : 'left'),
+        },
         disabled ? styles.disabled : pressed ? styles.pressed : null,
       ]}
     >

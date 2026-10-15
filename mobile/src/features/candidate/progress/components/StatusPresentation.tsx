@@ -11,8 +11,13 @@ import { isStartSide, physicalTextAlign, rowDirectionTowards } from '../../../..
 import { GradientIconBox } from '../../home/GradientIconBox';
 
 type LocaleProps = { language: Language; t: (key: TranslationKey) => string };
-export function statusCopyStyle(language: Language) {
-  return { fontFamily: getFontFamily(language), textAlign: physicalTextAlign(language === 'ur' ? 'right' : 'left'), writingDirection: language === 'ur' ? 'rtl' as const : 'ltr' as const, ...(language === 'ur' ? { lineHeight: 30 } : {}) };
+/**
+ * Shared text treatment for the status screens. Urdu (Nastaliq) needs a line height of about
+ * twice the font size or its stacked marks and descenders are clipped, so large text must pass
+ * its own `fontSize` (the default 15 keeps the 30pt line the body copy already uses).
+ */
+export function statusCopyStyle(language: Language, fontSize = 15) {
+  return { fontFamily: getFontFamily(language), textAlign: physicalTextAlign(language === 'ur' ? 'right' : 'left'), writingDirection: language === 'ur' ? 'rtl' as const : 'ltr' as const, ...(language === 'ur' ? { lineHeight: Math.round(fontSize * 2) } : {}) };
 }
 
 const BUSINESS_UNIT_KEYS: Record<string, TranslationKey> = { qatar: 'buQatar', saudi_arabia: 'buSaudiArabia', uae: 'buUae', oman: 'buOman', kuwait: 'buKuwait', azerbaijan: 'buAzerbaijan', south_africa: 'buSouthAfrica' };
@@ -28,7 +33,7 @@ export function StatusHeader({ language, t, topInset, countryCode }: LocaleProps
       </Svg>
       <View style={[statusStyles.heroRow, { flexDirection: rowDirectionTowards(rtl ? 'right' : 'left') }]}>
         <View style={statusStyles.flex}>
-          <Text accessibilityRole="header" style={[statusStyles.title, statusCopyStyle(language), { fontFamily: getFontFamily(language, 'bold') }]}>{t('status')}</Text>
+          <Text accessibilityRole="header" style={[statusStyles.title, statusCopyStyle(language, 25), { fontFamily: getFontFamily(language, 'bold') }]}>{t('status')}</Text>
           <Text style={[statusStyles.subtitle, statusCopyStyle(language)]}>{t('mobilizationProgress')}</Text>
         </View>
         <View style={statusStyles.heroIcon} accessible={false}><Plane size={29} color="#0873DF" /></View>
@@ -46,7 +51,7 @@ export function StatusProgressSummary({ workflow, updatedLabel, language, t }: L
         <GradientIconBox icon={Route} tone="purple" size={36} />
         <View style={statusStyles.flex}>
           <Text style={[statusStyles.summaryLabel, statusCopyStyle(language)]}>{t('workflowStagesCompletedPrefix')}</Text>
-          <Text style={[statusStyles.summaryCount, statusCopyStyle(language), { fontFamily: getFontFamily(language, 'bold') }]}>{formatNumber(workflow.completedCount, language)} / {formatNumber(workflow.totalCount, language)}</Text>
+          <Text style={[statusStyles.summaryCount, statusCopyStyle(language, 21), { fontFamily: getFontFamily(language, 'bold') }]}>{formatNumber(workflow.completedCount, language)} / {formatNumber(workflow.totalCount, language)}</Text>
         </View>
         <Text style={[statusStyles.percent, { fontFamily: getFontFamily(language, 'bold') }]}>{formatNumber(percentage, language)}%</Text>
       </View>

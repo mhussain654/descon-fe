@@ -149,7 +149,7 @@ export default function StatusScreen() {
         {/* Timeline */}
         {!progressQuery.isPending && !progressQuery.error && timeline.length > 0 ? (
           <View>
-            <Text accessibilityRole="header" style={[statusStyles.sectionTitle, statusCopyStyle(language), { fontFamily: getFontFamily(language, "bold") }]}>{t("candidateStatusJourneyTitle")}</Text>
+            <Text accessibilityRole="header" style={[statusStyles.sectionTitle, statusCopyStyle(language, 16), { fontFamily: getFontFamily(language, "bold") }]}>{t("candidateStatusJourneyTitle")}</Text>
             {timeline.map((stage, index) => {
               const isLast = index === timeline.length - 1;
               const startedLabel = formatStageDate(stage.startedAt, language);
@@ -252,7 +252,7 @@ export default function StatusScreen() {
         {/* Recent updates */}
         {!progressQuery.isPending && !progressQuery.error && timeline.length > 0 ? (
           <View style={statusStyles.history}>
-            <Text accessibilityRole="header" style={[statusStyles.sectionTitle, statusCopyStyle(language), { fontFamily: getFontFamily(language, "bold") }]}>{t("workflowHistoryTitle")}</Text>
+            <Text accessibilityRole="header" style={[statusStyles.sectionTitle, statusCopyStyle(language, 16), { fontFamily: getFontFamily(language, "bold") }]}>{t("workflowHistoryTitle")}</Text>
             {historyQuery.isPending ? (
               <Text style={[statusStyles.historyName, statusCopyStyle(language)]}>{t("loading")}</Text>
             ) : historyQuery.error ? (

@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 import { StyleSheet, Text, TextInput, View } from 'react-native';
 import { HelperText } from './HelperText';
-import { colors, fontWeights, radii, spacing } from './tokens';
+import { colors, radii, spacing } from './tokens';
+import { getFontFamily } from './fonts';
 import { ValidationMessage } from './ValidationMessage';
 
 const DEFAULT_LENGTH = 6;
@@ -123,6 +124,8 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface.background,
   },
   boxActive: { borderWidth: 2, backgroundColor: colors.surface.raised },
-  char: { fontSize: 20, fontWeight: fontWeights.bold, color: colors.text.primary },
+  // The bold look comes from the bold font file itself; a numeric fontWeight >= 700 on top of a
+  // custom family makes Android fall back to the system font (see fontWeightGuard.test.ts).
+  char: { fontSize: 20, color: colors.text.primary, fontFamily: getFontFamily('en', 'bold') },
   hiddenInput: { position: 'absolute', top: 0, bottom: 0, left: 0, right: 0, opacity: 0 },
 });

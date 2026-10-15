@@ -114,7 +114,7 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   avatarImage: { width: '100%', height: '100%' },
-  initial: { fontSize: 34, fontWeight: '700', color: colors.text.inverse, fontFamily: getFontFamily('en', 'semibold') },
+  initial: { fontSize: 34, color: colors.text.inverse, fontFamily: getFontFamily('en', 'semibold') },
   savingOverlay: { ...StyleSheet.absoluteFillObject, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(0,0,0,0.35)' },
   status: { fontSize: 13, color: colors.text.secondary },
   photoAction: { minHeight: 34, paddingHorizontal: spacing[3], borderRadius: 10, backgroundColor: '#E7F1FF', borderWidth: 1, borderColor: '#A8CCFF', justifyContent: 'center' },
