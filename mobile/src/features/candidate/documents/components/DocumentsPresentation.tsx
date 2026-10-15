@@ -1,6 +1,7 @@
 import { StyleSheet, Text, View } from 'react-native';
 import { BadgeCheck, BriefcaseBusiness, Camera, CheckCircle, Clock, FileText, IdCard, Landmark, Upload } from 'lucide-react-native';
-import Svg, { Circle, Defs, LinearGradient, Rect, Stop } from 'react-native-svg';
+import { Circle, Defs, LinearGradient, Rect, Stop } from 'react-native-svg';
+import { MeasuredSvg } from '../../../../design-system/MeasuredSvg';
 import type { CandidateDocumentChecklistItem } from '../../../../../../shared/candidateDocuments/types';
 import type { Language, TranslationKey } from '../../../../../../shared/i18n/translations';
 import { getFontFamily } from '../../../../design-system';
@@ -18,11 +19,11 @@ export function DocumentsHeader({ language, t, topInset }: LocaleProps & { topIn
   const rtl = language === 'ur';
   return (
     <View style={[documentsStyles.hero, { paddingTop: topInset + spacing[3] }]}>
-      <Svg style={StyleSheet.absoluteFill} width="100%" height="100%" accessible={false} pointerEvents="none">
+      <MeasuredSvg>
         <Defs><LinearGradient id="documentsHero" x1="0" y1="0" x2="1" y2="1"><Stop offset="0" stopColor="#16A5EE" /><Stop offset="0.5" stopColor="#0873DF" /><Stop offset="1" stopColor="#0649B9" /></LinearGradient></Defs>
         <Rect width="100%" height="100%" fill="url(#documentsHero)" />
         <Circle cx="95%" cy="85%" r="84" stroke="#FFFFFF" strokeOpacity={0.1} strokeWidth={24} fill="none" />
-      </Svg>
+      </MeasuredSvg>
       <View style={[documentsStyles.heroCopy, { flexDirection: rowDirectionTowards(rtl ? 'right' : 'left') }]}>
         <View style={documentsStyles.flexCopy}>
           <Text accessibilityRole="header" style={[documentsStyles.heroTitle, copyStyle(language), { fontFamily: getFontFamily(language, 'bold') }, rtl && documentsStyles.heroTitleUrdu]}>{t('documents')}</Text>

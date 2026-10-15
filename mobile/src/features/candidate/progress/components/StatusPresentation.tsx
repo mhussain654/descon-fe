@@ -1,7 +1,8 @@
 import type { ReactNode } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { Check, Clock, Plane, Route } from 'lucide-react-native';
-import Svg, { Circle, Defs, LinearGradient, Rect, Stop } from 'react-native-svg';
+import { Circle, Defs, LinearGradient, Rect, Stop } from 'react-native-svg';
+import { MeasuredSvg } from '../../../../design-system/MeasuredSvg';
 import type { ApplicationProgressWorkflow, WorkflowTimelineStage } from '../../../../../../shared/applicationProgress/types';
 import type { Language, TranslationKey } from '../../../../../../shared/i18n/translations';
 import { formatNumber } from '../../../../../../shared/i18n/locale';
@@ -26,11 +27,11 @@ export function StatusHeader({ language, t, topInset, countryCode }: LocaleProps
   const rtl = language === 'ur';
   return (
     <View style={[statusStyles.hero, { paddingTop: topInset + spacing[3] }]}>
-      <Svg style={StyleSheet.absoluteFill} width="100%" height="100%" accessible={false} pointerEvents="none">
+      <MeasuredSvg>
         <Defs><LinearGradient id="statusHero" x1="0" y1="0" x2="1" y2="1"><Stop offset="0" stopColor="#16A5EE" /><Stop offset="0.5" stopColor="#0873DF" /><Stop offset="1" stopColor="#0649B9" /></LinearGradient></Defs>
         <Rect width="100%" height="100%" fill="url(#statusHero)" />
         <Circle cx="96%" cy="90%" r="78" stroke="#FFFFFF" strokeOpacity={0.12} strokeWidth={22} fill="none" />
-      </Svg>
+      </MeasuredSvg>
       <View style={[statusStyles.heroRow, { flexDirection: rowDirectionTowards(rtl ? 'right' : 'left') }]}>
         <View style={statusStyles.flex}>
           <Text accessibilityRole="header" style={[statusStyles.title, statusCopyStyle(language, 25), { fontFamily: getFontFamily(language, 'bold') }]}>{t('status')}</Text>

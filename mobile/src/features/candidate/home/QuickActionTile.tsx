@@ -1,7 +1,8 @@
 import type { ComponentType } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { ChevronLeft, ChevronRight } from 'lucide-react-native';
-import Svg, { Defs, LinearGradient, Rect, Stop } from 'react-native-svg';
+import { Defs, LinearGradient, Rect, Stop } from 'react-native-svg';
+import { MeasuredSvg } from '../../../design-system/MeasuredSvg';
 import { getFontFamily } from '../../../design-system';
 import { colors } from '../../../design-system/tokens';
 import { rowDirectionTowards } from '../../../lib/layoutDirection';
@@ -43,9 +44,7 @@ export function QuickActionTile({ language, tone, icon, title, subtitle, onPress
       style={({ pressed }) => [
         styles.tile,
         {
-          // Opaque base: Android draws an elevated view's shadow through any part of it that is
-          // transparent, which showed as gray bands beside/below the gradient. The gradient below
-          // is painted over this colour, so the look is unchanged.
+          // Keep the native surface opaque while the measured SVG paints its gradient.
           backgroundColor: surface.from,
           borderColor: surface.border,
           flexDirection: rowDirectionTowards(isUrdu ? 'right' : 'left'),
@@ -53,7 +52,7 @@ export function QuickActionTile({ language, tone, icon, title, subtitle, onPress
         disabled ? styles.disabled : pressed ? styles.pressed : null,
       ]}
     >
-      <Svg style={StyleSheet.absoluteFill} width="100%" height="100%" pointerEvents="none">
+      <MeasuredSvg>
         <Defs>
           <LinearGradient id={gradientId} x1="0" y1="0" x2="1" y2="1">
             <Stop offset="0" stopColor={surface.from} />
@@ -61,7 +60,7 @@ export function QuickActionTile({ language, tone, icon, title, subtitle, onPress
           </LinearGradient>
         </Defs>
         <Rect x="0" y="0" width="100%" height="100%" fill={`url(#${gradientId})`} />
-      </Svg>
+      </MeasuredSvg>
       <GradientIconBox tone={tone} icon={icon} size={38} />
       <View style={styles.copy}>
         <Text style={[styles.title, isUrdu && styles.titleUrdu, { fontFamily: getFontFamily(language, 'semibold') }]}>{title}</Text>

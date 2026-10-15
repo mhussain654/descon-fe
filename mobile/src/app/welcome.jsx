@@ -12,22 +12,18 @@ import { RequireGuest } from "../features/auth/RequireGuest";
 import { BrandHeader } from "../features/onboarding/BrandHeader";
 import { SecureFooter } from "../features/onboarding/SecureFooter";
 import { forwardArrowSlots } from "../features/onboarding/directionalArrows";
-import { isStartSide, physicalTextAlign } from "../lib/layoutDirection";
+import { isStartSide, physicalTextAlign, rowDirectionTowards } from "../lib/layoutDirection";
 
 // The hero artwork (skyline, globe, plane, briefcase, helmet) carries no
 // brand mark or translatable text -- the headline and subtitle are rendered on
 // top of it so they localize like every other string. Urdu gets a mirrored
 // copy (scene on the left) so its copy can sit at the reading-start right edge, the way an RTL layout should.
-// Top-edge colors are sampled from each image's first row, so the band painted
-// behind the status bar continues the hero gradient without a visible seam.
 const HERO_ART = {
   en: {
     source: require("../../assets/images/welcome-hero.webp"),
-    topEdge: ["#0058E9", "#0E8FFA"],
   },
   ur: {
     source: require("../../assets/images/welcome-hero-rtl.webp"),
-    topEdge: ["#0E8FFA", "#0058E9"],
   },
 };
 const HERO_ASPECT_RATIO = 675 / 694;
@@ -91,38 +87,27 @@ function WelcomeHero({ width, topInset, language, t }) {
   };
 
   return (
-    <View style={{ backgroundColor: art.topEdge[0] }}>
-      <Svg width={width} height={topInset}>
-        <Defs>
-          <LinearGradient id="heroTopEdge" x1="0" y1="0" x2="1" y2="0">
-            <Stop offset="0" stopColor={art.topEdge[0]} />
-            <Stop offset="1" stopColor={art.topEdge[1]} />
-          </LinearGradient>
-        </Defs>
-        <Rect x="0" y="0" width={width} height={topInset} fill="url(#heroTopEdge)" />
-      </Svg>
-
-      <View style={{ width, height: heroHeight }}>
-        <Image
+    <View style={{ width, height: heroHeight + topInset, backgroundColor: "#0873DF" }}>
+      <Image
           source={art.source}
           style={StyleSheet.absoluteFill}
           contentFit="cover"
           accessibilityIgnoresInvertColors
           accessible={false}
-        />
-        <View style={[styles.brandSlot, anchorStyle]}>
+      />
+      <View style={[styles.brandSlot, anchorStyle, { top: topInset + spacing[4] }]}>
           <BrandHeader
             language={language}
             primary={t("brandNamePrimary")}
             secondary={t("brandNameSecondary")}
             tileAtRowStart={copyAtStart}
           />
-        </View>
-        <View
+      </View>
+      <View
           style={[
             styles.heroCopy,
             anchorStyle,
-            { top: heroHeight * (isUrdu ? 0.19 : 0.2), width: width * (isUrdu ? 0.64 : 0.58) },
+            { top: topInset + heroHeight * (isUrdu ? 0.19 : 0.2), width: width * (isUrdu ? 0.64 : 0.58) },
           ]}
         >
           <Text
@@ -170,7 +155,6 @@ function WelcomeHero({ width, topInset, language, t }) {
               {t("welcomeHeroSubtitle")}
             </Text>
           </View>
-        </View>
       </View>
     </View>
   );
@@ -216,7 +200,7 @@ export default function WelcomeScreen() {
               {t("welcomeChooseLanguageHint")}
             </Text>
 
-            <View style={styles.languageRow}>
+            <View style={[styles.languageRow, { flexDirection: rowDirectionTowards("left") }]}>
               <LanguageOptionCard
                 active={language === "en"}
                 labelLanguage="en"
@@ -262,7 +246,7 @@ const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.surface.raised },
   scrollContent: { flexGrow: 1 },
 
-  brandSlot: { position: "absolute", top: spacing[4] },
+  brandSlot: { position: "absolute" },
   heroCopy: { position: "absolute" },
   anchorStart: { start: spacing[6], alignItems: "flex-start" },
   anchorEnd: { end: spacing[6], alignItems: "flex-end" },
