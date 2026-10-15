@@ -1,6 +1,7 @@
 import { StyleSheet, Text, View } from 'react-native';
 import { Image } from 'expo-image';
-import Svg, { Circle, Defs, LinearGradient, Rect, Stop } from 'react-native-svg';
+import { Circle, Defs, LinearGradient, Rect, Stop } from 'react-native-svg';
+import { MeasuredSvg } from '../../../design-system/MeasuredSvg';
 import { getFontFamily } from '../../../design-system';
 import { colors, spacing } from '../../../design-system/tokens';
 import { physicalTextAlign, rowDirectionTowards } from '../../../lib/layoutDirection';
@@ -50,7 +51,7 @@ export function HomeHeader({
   const textAlignment = { textAlign: physicalTextAlign(isUrdu ? 'right' : 'left') };
   return (
     <View style={[styles.header, { paddingTop: topInset + 14 }]}>
-      <Svg style={StyleSheet.absoluteFill} width="100%" height="100%" pointerEvents="none">
+      <MeasuredSvg>
         <Defs>
           <LinearGradient id="homeHeader" x1="0" y1="0" x2="1" y2="1">
             <Stop offset="0" stopColor="#1599F4" />
@@ -61,7 +62,7 @@ export function HomeHeader({
         <Rect x="0" y="0" width="100%" height="100%" fill="url(#homeHeader)" />
         <Circle cx="92%" cy="0%" r="90" fill="#FFFFFF" fillOpacity={0.09} />
         <Circle cx="62%" cy="112%" r="62" fill="#FFFFFF" fillOpacity={0.09} />
-      </Svg>
+      </MeasuredSvg>
 
       <View style={[styles.row, { flexDirection: rowDirectionTowards(isUrdu ? 'right' : 'left') }]}>
         <View style={styles.identity}>
