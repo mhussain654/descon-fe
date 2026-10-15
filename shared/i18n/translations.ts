@@ -535,8 +535,8 @@ export const translations = {
     adminWorkflowNextActionNoActionNeeded: 'No action needed',
 
     // Staff authentication (MPS-F202)
-    staffAuthSignInTitle: 'Staff sign-in',
-    staffAuthSignInMessage: 'Sign in to MPS Connect with your staff account.',
+    staffAuthSignInTitle: 'Staff admin sign-in',
+    staffAuthSignInMessage: 'Sign in to MPS Connect admin portal.',
     staffAuthEnterEmail: 'Enter your email',
     staffAuthEnterPassword: 'Enter your password',
     staffAuthEmailRequiredError: 'Email is required.',
@@ -2275,8 +2275,8 @@ export const translations = {
     adminWorkflowNextActionNoActionNeeded: 'کسی کارروائی کی ضرورت نہیں',
 
     // Staff authentication (MPS-F202)
-    staffAuthSignInTitle: 'اسٹاف سائن ان',
-    staffAuthSignInMessage: 'اپنے اسٹاف اکاؤنٹ سے ایم پی ایس کنیکٹ میں سائن ان کریں۔',
+    staffAuthSignInTitle: 'اسٹاف ایڈمن سائن ان',
+    staffAuthSignInMessage: 'ایم پی ایس کنیکٹ ایڈمن پورٹل میں سائن ان کریں۔',
     staffAuthEnterEmail: 'اپنا ای میل درج کریں',
     staffAuthEnterPassword: 'اپنا پاس ورڈ درج کریں',
     staffAuthEmailRequiredError: 'ای میل درکار ہے۔',

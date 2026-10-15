@@ -111,6 +111,18 @@ describe("StaffLoginPage", () => {
     expect(screen.queryByLabelText(/cnic/i)).not.toBeInTheDocument();
   });
 
+  it("identifies itself as the staff admin sign-in with the Descon header and no extra links", async () => {
+    renderLoginPage();
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    expect(screen.getByRole("heading", { level: 1, name: "Staff admin sign-in" })).toBeInTheDocument();
+    expect(screen.getByText("Sign in to MPS Connect admin portal.")).toBeInTheDocument();
+    expect(screen.getByRole("img", { name: "Descon" })).toBeInTheDocument();
+    expect(screen.queryByRole("link")).not.toBeInTheDocument();
+  });
+
   it("requires both fields before submitting", async () => {
     renderLoginPage();
     fireEvent.click(screen.getByRole("button", { name: "Sign in" }));
