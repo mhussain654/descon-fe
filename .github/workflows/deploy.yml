@@ -206,6 +206,20 @@ jobs:
         with:
           name: web-${{ needs.resolve.outputs.sha }}
 
+      - name: Check deployment configuration
+        env:
+          DEPLOY_ROLE_ARN: ${{ vars.AWS_DEPLOY_ROLE_ARN }}
+          INSTANCE_ID: ${{ vars.EC2_INSTANCE_ID }}
+          ARTIFACT_BUCKET: ${{ vars.ARTIFACT_BUCKET }}
+        run: |
+          set -euo pipefail
+          for name in DEPLOY_ROLE_ARN INSTANCE_ID ARTIFACT_BUCKET; do
+            if [[ -z "${!name}" ]]; then
+              echo "::error::Missing ${name} deployment configuration. Check the selected GitHub environment and repository variables."
+              exit 1
+            fi
+          done
+
       - name: Assume this environment's deploy role (OIDC)
         uses: aws-actions/configure-aws-credentials@e1253824e5c10ff9df46874f81ed3ec929e19cfd # v6.3.0
         with:
