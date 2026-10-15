@@ -187,6 +187,7 @@ export default function PaymentScreen() {
           closeLabel={t("dsClose")}
           loadingLabel={t("loading")}
           blockedMessage={t("paymentCheckoutNavigationBlocked")}
+          language={language}
         />
       </View>
     </ButtonHeightContext.Provider>

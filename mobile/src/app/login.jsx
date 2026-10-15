@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useState } from "react";
-import { Pressable, ScrollView, StyleSheet, Text, View, useWindowDimensions } from "react-native";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { Keyboard, Platform, Pressable, ScrollView, StyleSheet, Text, View, useWindowDimensions } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
 import { useRouter } from "expo-router";
@@ -74,6 +74,24 @@ function rowTowards(side) {
 
 export default function LoginScreen() {
   const insets = useSafeAreaInsets();
+
+  // The hero photo is tall, so the CNIC/OTP field and its button sit below the
+  // fold. KeyboardAvoidingAnimatedView shrinks the viewport when the keyboard
+  // opens; this then scrolls the sheet into that smaller viewport so the field
+  // being typed in is never left behind the keyboard.
+  const scrollRef = useRef(null);
+  useEffect(() => {
+    const showEvent = Platform.OS === "ios" ? "keyboardWillShow" : "keyboardDidShow";
+    let scrollTimer;
+    const subscription = Keyboard.addListener(showEvent, () => {
+      clearTimeout(scrollTimer);
+      scrollTimer = setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 320);
+    });
+    return () => {
+      clearTimeout(scrollTimer);
+      subscription.remove();
+    };
+  }, []);
   const router = useRouter();
   const { width } = useWindowDimensions();
   const { t, language, toggleLanguage } = useLanguage();
@@ -194,7 +212,7 @@ export default function LoginScreen() {
         {/* Small phones, landscape orientation and larger font scales can push
             this content taller than the viewport -- a ScrollView keeps the
             field and its action reachable instead of clipping them off-screen. */}
-        <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled" bounces={false}>
+        <ScrollView ref={scrollRef} contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled" bounces={false}>
           <View style={[styles.hero, { paddingTop: insets.top + spacing[3], minHeight: insets.top + width * 0.98 }]}>
             <Image
               source={HERO_PHOTO[isUrdu ? "ur" : "en"]}

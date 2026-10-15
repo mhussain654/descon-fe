@@ -46,12 +46,17 @@ const KeyboardAvoidingAnimatedView = (props, ref) => {
       bottomRef.current = 0;
     };
 
-    Keyboard.addListener('keyboardWillShow', onKeyboardShow);
-    Keyboard.addListener('keyboardWillHide', onKeyboardHide);
+    // `keyboardWill*` events exist on iOS only; Android fires `keyboardDid*`.
+    // Listening to the iOS names alone left Android with no avoidance at all.
+    const showEvent = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
+    const hideEvent = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
+    const showSubscription = Keyboard.addListener(showEvent, onKeyboardShow);
+    const hideSubscription = Keyboard.addListener(hideEvent, onKeyboardHide);
 
+    // Remove only this component's own subscriptions, not every listener app-wide.
     return () => {
-      Keyboard.removeAllListeners('keyboardWillShow');
-      Keyboard.removeAllListeners('keyboardWillHide');
+      showSubscription.remove();
+      hideSubscription.remove();
     };
   }, [keyboardVerticalOffset, enabled, bottomHeight]);
 

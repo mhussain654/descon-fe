@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react';
 import { Modal, StyleSheet, Text, View } from 'react-native';
 import { WebView, type WebViewNavigation } from 'react-native-webview';
 import { X } from 'lucide-react-native';
-import { Button, IconButton, Spinner } from '../../../../design-system';
+import { Button, IconButton, Spinner, getFontFamily } from '../../../../design-system';
 import { colors, spacing, typeScale } from '../../../../design-system/tokens';
 import { isHostedCheckoutReturnUrl } from '../../../../../../shared/payments/hostedCheckoutReturn';
 
@@ -14,6 +14,8 @@ export interface HostedCheckoutWebViewProps {
   loadingLabel: string;
   /** Shown in place of the WebView once a navigation attempt is blocked. */
   blockedMessage: string;
+  /** Active language, so the blocked message renders in the app's Urdu/English font family. */
+  language?: string;
 }
 
 /** Origin a WebView is allowed to navigate to/within. `null` origin (e.g. `javascript:`, `data:`) never matches. */
@@ -68,7 +70,7 @@ function isAllowedOrigin(origin: string | null, checkoutOrigin: string | null, a
  * including a phishing page rendered inside what looks like our own
  * payment flow.
  */
-export function HostedCheckoutWebView({ url, onClose, closeLabel, loadingLabel, blockedMessage }: HostedCheckoutWebViewProps) {
+export function HostedCheckoutWebView({ url, onClose, closeLabel, loadingLabel, blockedMessage, language = 'en' }: HostedCheckoutWebViewProps) {
   const apiBaseUrl = process.env.EXPO_PUBLIC_API_BASE_URL ?? '';
   const apiOrigin = useMemo(() => originOf(apiBaseUrl), [apiBaseUrl]);
   const checkoutOrigin = useMemo(() => (url ? originOf(url) : null), [url]);
@@ -115,7 +117,7 @@ export function HostedCheckoutWebView({ url, onClose, closeLabel, loadingLabel, 
       </View>
       {url && isBlocked ? (
         <View style={styles.blocked}>
-          <Text style={styles.blockedText}>{blockedMessage}</Text>
+          <Text style={[styles.blockedText, { fontFamily: getFontFamily(language, 'regular') }]}>{blockedMessage}</Text>
           <Button onPress={onClose} variant="outline">
             {closeLabel}
           </Button>
