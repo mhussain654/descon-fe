@@ -4,7 +4,8 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
 import { useRouter } from "expo-router";
 import { BarChart3, FileText, GraduationCap, Headphones } from "lucide-react-native";
-import Svg, { Defs, LinearGradient, Rect, Stop } from "react-native-svg";
+import { Defs, LinearGradient, Rect, Stop } from "react-native-svg";
+import { MeasuredSvg } from "../../../design-system/MeasuredSvg";
 import { useAuth } from "../../../contexts/AuthContext";
 import { useLanguage } from "../../../contexts/LanguageContext";
 import { useRefetchOnFocus } from "../../../hooks/useRefetchOnFocus";
@@ -287,7 +288,7 @@ export default function DashboardScreen() {
     <View style={styles.screen}>
       <StatusBar style="light" />
       {/* Soft multi-tone wash behind the cards, as in the approved design. */}
-      <Svg style={StyleSheet.absoluteFill} width="100%" height="100%" pointerEvents="none">
+      <MeasuredSvg>
         <Defs>
           <LinearGradient id="homeBackdrop" x1="0" y1="0" x2="1" y2="1">
             <Stop offset="0" stopColor="#EEF8FF" />
@@ -296,7 +297,7 @@ export default function DashboardScreen() {
           </LinearGradient>
         </Defs>
         <Rect x="0" y="0" width="100%" height="100%" fill="url(#homeBackdrop)" />
-      </Svg>
+      </MeasuredSvg>
 
       <ScrollView
         style={styles.scroll}
