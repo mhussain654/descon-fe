@@ -22,8 +22,8 @@ name: EC2 Deploy
 # travels through SSM, not through the bucket, so a swapped object is detected
 # on the instance. See docs/deployment/static-spa.md ("Continuous delivery").
 #
-# Inert until the repository variable EC2_INSTANCE_ID and the environments'
-# AWS_DEPLOY_ROLE_ARN variables exist.
+# Missing deployment configuration must fail the run instead of skipping jobs.
+# Set EC2_INSTANCE_ID, PUBLIC_ORIGIN, ARTIFACT_BUCKET, and the environment's AWS_DEPLOY_ROLE_ARN.
 
 on:
   push:
@@ -143,7 +143,7 @@ jobs:
   build:
     name: Build the artifact for that commit
     needs: [resolve, ci]
-    if: ${{ vars.EC2_INSTANCE_ID != '' && vars.PUBLIC_ORIGIN != '' }}
+    # A deploy run must build and deploy; missing configuration fails in a step.
     runs-on: ubuntu-latest
     timeout-minutes: 20
     outputs:
