@@ -83,9 +83,9 @@ export function ProfilePhotoEditor({ language, t, fullName, photoUri }: ProfileP
           }}
           accessibilityRole="button"
           hitSlop={8}
-          style={styles.photoAction}
+          style={[styles.photoAction, language === 'ur' && styles.photoActionUrdu]}
         >
-          <Text style={[styles.link, font('semibold')]}>{photoUri ? t('profilePhotoChange') : t('profilePhotoAdd')}</Text>
+          <Text style={[styles.link, language === 'ur' && styles.linkUrdu, font('semibold')]}>{photoUri ? t('profilePhotoChange') : t('profilePhotoAdd')}</Text>
         </Pressable>
       )}
 
@@ -118,6 +118,8 @@ const styles = StyleSheet.create({
   savingOverlay: { ...StyleSheet.absoluteFillObject, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(0,0,0,0.35)' },
   status: { fontSize: 13, color: colors.text.secondary },
   photoAction: { minHeight: 34, paddingHorizontal: spacing[3], borderRadius: 10, backgroundColor: '#E7F1FF', borderWidth: 1, borderColor: '#A8CCFF', justifyContent: 'center' },
+  photoActionUrdu: { minHeight: 48, paddingVertical: spacing[1], alignItems: 'center' },
   link: { fontSize: 12, color: '#0759B8' },
+  linkUrdu: { lineHeight: 30, textAlign: 'center', includeFontPadding: true },
   options: { alignSelf: 'stretch', gap: spacing[2] },
 });
