@@ -1,13 +1,12 @@
 import { useCallback, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router";
-import { FileText, CreditCard, Clock, GraduationCap } from "lucide-react";
+import { FileText, CreditCard, Clock } from "lucide-react";
 import UserShell from "../components/user-shell";
 import { useAuth } from "../../contexts/AuthContext";
 import { useLanguage } from "../../contexts/LanguageContext";
 import { useCandidateProfile } from "../../features/candidate/profile/hooks/useCandidateProfile";
 import { useCandidateDocuments } from "../../features/candidate/documents/hooks/useCandidateDocuments";
 import { useApplicationProgress } from "../../features/candidate/progress/hooks/useApplicationProgress";
-import { useTrainingSetting } from "../../features/candidate/training/hooks/useTrainingSetting";
 import { resolveNextAction, NEXT_ACTION_KEYS } from "../../../../shared/applicationProgress/nextAction";
 import { currentDashboardStage } from "../../../../shared/applicationProgress/currentDashboardStage";
 import { LoadingState, ErrorState, OfflineState, SessionExpiredState, ForbiddenState } from "../../design-system";
@@ -49,13 +48,6 @@ export default function DashboardPage() {
   // already used elsewhere in the candidate app, this page just composes
   // their already-cached data.
   const progressQuery = useApplicationProgress();
-  // Deliberately not part of `isLoading`/`primaryError` below -- the
-  // Training quick action opens an external link directly (no intermediate
-  // page), so a slow or failed fetch of that one link should never block
-  // the rest of the dashboard from rendering. The tile itself just stays
-  // disabled until the URL is available.
-  const trainingQuery = useTrainingSetting();
-
   const returnToSignIn = () => {
     logout("expired");
     navigate("/login", { replace: true });
@@ -234,22 +226,7 @@ export default function DashboardPage() {
         <section>
           <h2 className="mb-4 text-lg font-semibold text-black">{t("quickActions")}</h2>
           <div className="flex flex-wrap gap-4">
-            {[
-              ...BASE_QUICK_ACTIONS,
-              // Opens the admin-managed training link directly -- no
-              // intermediate page, since there's nothing else to show
-              // beyond the link itself. Disabled until the link has
-              // actually loaded (never opens a stale/empty URL).
-              {
-                titleKey: "viewTraining",
-                icon: GraduationCap,
-                color: "#8B5CF6",
-                bgColor: "#F3E8FF",
-                href: trainingQuery.data?.url,
-                external: true,
-                disabled: !trainingQuery.data?.url,
-              },
-            ].map((action) => {
+            {BASE_QUICK_ACTIONS.map((action) => {
               const Icon = action.icon;
               const content = (
                 <>

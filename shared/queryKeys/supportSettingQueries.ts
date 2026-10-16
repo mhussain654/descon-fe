@@ -1,5 +1,5 @@
 // Query key factory for the candidate-facing support number -- shared, not
-// per-candidate content, so (like trainingSettingQueries.ts) it carries only
+// per-candidate content, so (like other singleton setting query keys) it carries only
 // `locale`. The QueryClient is cleared entirely on logout.
 import type { Language } from '../i18n/translations';
 
