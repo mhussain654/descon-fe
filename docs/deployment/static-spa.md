@@ -140,15 +140,14 @@ For every run `.github/workflows/deploy.yml`:
 
 1. **resolves** the selection to one commit SHA and prints it in the run
    summary (a fork PR, a closed PR or an unknown branch fails here);
-2. runs this repository's **CI on exactly that commit** (the reusable
-   `ci.yml` with `ref` set) — typecheck, the full test suite, the static
-   build check;
-3. builds the artifact once from that commit for `PUBLIC_ORIGIN` and verifies
-   it;
-4. assumes the environment's AWS role through GitHub OIDC, uploads the artifact
+2. builds the artifact once from that commit for `PUBLIC_ORIGIN` and verifies
+   it. **No tests, lint or type checks run here**: CI already ran them on the
+   pull request and on the push, and `main` should require CI as a status check
+   so only tested code is deployed;
+3. assumes the environment's AWS role through GitHub OIDC, uploads the artifact
    to a private bucket, and starts that environment's SSM document, passing the
    artifact's SHA-256 **through SSM** so a swapped object is detected;
-5. on the instance `descon-deploy-web` re-verifies the checksum and runs the
+4. on the instance `descon-deploy-web` re-verifies the checksum and runs the
    same Capistrano deploy an administrator runs, with the local backend, so the
    shared lock, health check and rollback are identical. A failure leaves the
    previous release live.

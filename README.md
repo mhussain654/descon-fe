@@ -139,9 +139,10 @@ workflow's branch (`main` for a production deployment), then choose `source`:
 | `branch` | Existing branch name | `preview` | Tip of that branch |
 | `pull_request` | Open PR number from this repository | `preview` | Head commit of that PR; fork PRs are refused |
 
-A push or merge to `main` also starts EC2 Deploy automatically. It runs checks,
-builds the exact commit, and waits for the `production` environment reviewer
-before delivery. A branch push or PR opening does **not** deploy automatically;
+A push or merge to `main` also starts EC2 Deploy automatically. It builds the
+exact commit and waits for the `production` environment reviewer before
+delivery. It does not re-run tests or lint: CI does that on every pull request
+and push, so make CI a required check on `main`. A branch push or PR opening does **not** deploy automatically;
 start those with **Run workflow** and obtain `preview` approval. Check the
 **Build** and **Deploy** jobs and the SSM result; a green tests job alone is
 not evidence that a release was installed. Production deployment needs

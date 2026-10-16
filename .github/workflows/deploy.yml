@@ -22,6 +22,11 @@ name: EC2 Deploy
 # travels through SSM, not through the bucket, so a swapped object is detected
 # on the instance. See docs/deployment/static-spa.md ("Continuous delivery").
 #
+# This workflow does NOT run tests, linting or type checks: the CI workflow does
+# that on every pull request and push, so a deploy only builds and ships. Keep
+# `main` protected with CI as a required status check so only tested code can be
+# deployed from it.
+#
 # Missing deployment configuration must fail the run instead of skipping jobs.
 # Set EC2_INSTANCE_ID, PUBLIC_ORIGIN, ARTIFACT_BUCKET, and the environment's AWS_DEPLOY_ROLE_ARN.
 
@@ -133,17 +138,9 @@ jobs:
             echo "- **Environment:** ${environment}"
           } >> "$GITHUB_STEP_SUMMARY"
 
-  ci:
-    name: Checks on that commit
-    needs: resolve
-    uses: ./.github/workflows/ci.yml
-    with:
-      ref: ${{ needs.resolve.outputs.sha }}
-
   build:
     name: Build the artifact for that commit
-    needs: [resolve, ci]
-    # A deploy run must build and deploy; missing configuration fails in a step.
+    needs: resolve
     runs-on: ubuntu-latest
     timeout-minutes: 20
     outputs:
@@ -220,23 +217,6 @@ jobs:
             fi
           done
 
-      # TEMPORARY: prints the claims (never the token) AWS is asked to trust, to
-      # diagnose an AssumeRoleWithWebIdentity refusal. Remove once resolved.
-      - name: Show the OIDC claims AWS will evaluate
-        run: |
-          python3 - <<'PY'
-          import base64, json, os, urllib.request
-          request = urllib.request.Request(
-              os.environ["ACTIONS_ID_TOKEN_REQUEST_URL"] + "&audience=sts.amazonaws.com",
-              headers={"Authorization": "bearer " + os.environ["ACTIONS_ID_TOKEN_REQUEST_TOKEN"]},
-          )
-          token = json.load(urllib.request.urlopen(request))["value"]
-          payload = token.split(".")[1]
-          claims = json.loads(base64.urlsafe_b64decode(payload + "=" * (-len(payload) % 4)))
-          for key in ("iss", "aud", "sub", "repository", "repository_owner", "environment", "ref", "job_workflow_ref"):
-              print(f"{key}: {claims.get(key)!r}")
-          PY
-
       - name: Assume this environment's deploy role (OIDC)
         uses: aws-actions/configure-aws-credentials@e1253824e5c10ff9df46874f81ed3ec929e19cfd # v6.3.0
         with:
@@ -276,8 +256,8 @@ jobs:
           echo "SSM document ${document}, command ${command_id}"
 
           status=Pending
-          for _ in $(seq 1 120); do
-            sleep 10
+          for _ in $(seq 1 240); do
+            sleep 5
             status="$(aws ssm get-command-invocation --command-id "$command_id" --instance-id "$INSTANCE_ID" \
               --query Status --output text 2> /dev/null || echo Pending)"
             case "$status" in
