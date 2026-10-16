@@ -1,6 +1,7 @@
 import { Check } from 'lucide-react-native';
 import type { ReactNode } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
+import { Text } from './Text';
 import { colors, fontWeights, spacing } from './tokens';
 import { getFontFamily } from './fonts';
 

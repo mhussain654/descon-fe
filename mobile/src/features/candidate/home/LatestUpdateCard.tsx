@@ -1,4 +1,5 @@
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
+import { Text } from '../../../design-system/Text';
 import { Check } from 'lucide-react-native';
 import { getFontFamily } from '../../../design-system';
 import { colors, spacing } from '../../../design-system/tokens';

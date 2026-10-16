@@ -1,4 +1,5 @@
-import { StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
+import { Text } from '../../design-system/Text';
 import { ShieldCheck } from 'lucide-react-native';
 import { getFontFamily } from '../../design-system';
 import { colors, spacing } from '../../design-system/tokens';

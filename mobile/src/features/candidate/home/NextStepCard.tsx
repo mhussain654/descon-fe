@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
+import { Text } from '../../../design-system/Text';
 import { CreditCard, FileText, Hourglass } from 'lucide-react-native';
 import { Button, getFontFamily } from '../../../design-system';
 import { colors, spacing } from '../../../design-system/tokens';

@@ -1,6 +1,7 @@
 import type { ComponentType } from 'react';
 import { Image } from 'expo-image';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
+import { Text } from '../../../../design-system/Text';
 import { CheckCircle, ChevronLeft, ChevronRight, FileText, Flag, Globe, IdCard, LogOut, MapPin } from 'lucide-react-native';
 import { Circle, Defs, LinearGradient, Rect, Stop } from 'react-native-svg';
 import { MeasuredSvg } from '../../../../design-system/MeasuredSvg';

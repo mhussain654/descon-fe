@@ -1,5 +1,6 @@
 import { Check } from 'lucide-react-native';
-import { Pressable, StyleSheet, Text } from 'react-native';
+import { Pressable, StyleSheet } from 'react-native';
+import { Text } from './Text';
 import { colors, fontWeights, radii, spacing } from './tokens';
 import { getFontFamily } from './fonts';
 

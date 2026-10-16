@@ -438,7 +438,7 @@ describe("AdminCandidateListPage", () => {
 
     expect(await screen.findByRole("heading", { name: "امیدوار" })).toBeInTheDocument();
     expect(await screen.findByRole("button", { name: /میڈیکل زیر التوا.*3/ })).toBeInTheDocument();
-    fireEvent.click(screen.getByRole("tab", { name: "گرافیکل نظارہ" }));
-    expect(screen.getByRole("tab", { name: "گرافیکل نظارہ" })).toHaveAttribute("aria-selected", "true");
+    fireEvent.click(screen.getByRole("tab", { name: "گراف" }));
+    expect(screen.getByRole("tab", { name: "گراف" })).toHaveAttribute("aria-selected", "true");
   });
 });

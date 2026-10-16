@@ -1,4 +1,5 @@
-import { Image, Linking, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Image, Linking, Pressable, StyleSheet, View } from 'react-native';
+import { Text } from '../../../../design-system/Text';
 import { X } from 'lucide-react-native';
 import {
   Button,

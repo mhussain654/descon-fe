@@ -1,4 +1,5 @@
-import { StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
+import { Text } from './Text';
 import { colors, fontWeights, spacing } from './tokens';
 import { getFontFamily } from './fonts';
 import { isStartSide } from '../lib/layoutDirection';

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
-import { Image, Linking, Pressable, StyleSheet, Text, View } from "react-native";
+import { Image, Linking, Pressable, StyleSheet, View } from "react-native";
+import { Text } from "../../../../design-system/Text";
 import { Landmark, ChevronRight, ChevronLeft } from "lucide-react-native";
 import {
   Button,

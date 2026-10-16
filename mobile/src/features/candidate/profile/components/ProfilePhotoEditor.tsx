@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, StyleSheet, View } from 'react-native';
+import { Text } from '../../../../design-system/Text';
 import { Image } from 'expo-image';
 import { Camera, ImageIcon, Trash2 } from 'lucide-react-native';
 import { Button, ValidationMessage, getFontFamily } from '../../../../design-system';

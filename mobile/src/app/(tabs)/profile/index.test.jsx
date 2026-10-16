@@ -115,6 +115,17 @@ function renderProfileScreen() {
   );
 }
 
+// Climbs to the n-th enclosing host View, ignoring wrapper components (e.g. the shared Text), so the
+// test does not depend on how many component layers sit between a label and its row.
+function hostViewAncestor(node, levels) {
+  let current = node;
+  for (let found = 0; found < levels; ) {
+    current = current.parent;
+    if (current.type === "View") found += 1;
+  }
+  return current;
+}
+
 describe("ProfileScreen", () => {
   beforeEach(() => {
     applicationProgressClient.getProgress.mockResolvedValue(progressPayload());
@@ -171,7 +182,7 @@ describe("ProfileScreen", () => {
     applicationProgressClient.getProgress.mockResolvedValue(progressPayload({ documents: { ...progressPayload().documents, submissionState: "verified" } }));
     renderProfileScreen();
 
-    const section = (await screen.findByText("Document verification")).parent.parent;
+    const section = hostViewAncestor(await screen.findByText("Document verification"), 2);
     expect(within(section).getByText("Verified")).toBeOnTheScreen();
   });
 
@@ -190,7 +201,7 @@ describe("ProfileScreen", () => {
     );
     renderProfileScreen();
 
-    const section = (await screen.findByText("Document verification")).parent.parent;
+    const section = hostViewAncestor(await screen.findByText("Document verification"), 2);
     expect(within(section).getByText("Partially verified")).toBeOnTheScreen();
   });
 

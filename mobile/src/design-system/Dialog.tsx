@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
-import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Modal, Pressable, StyleSheet, View } from 'react-native';
+import { Text } from './Text';
 import { Button, type ButtonVariant } from './Button';
 import { colors, fontWeights, radii, spacing, zIndex } from './tokens';
 import { getFontFamily } from './fonts';

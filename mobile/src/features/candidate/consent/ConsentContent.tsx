@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { Text } from '../../../design-system/Text';
 import { BadgeCheck, BriefcaseBusiness, Check, FileText, Globe, LogOut, Plane, ShieldCheck, UserRound } from 'lucide-react-native';
 import { Circle, Defs, LinearGradient, Rect, Stop } from 'react-native-svg';
 import type { TranslationKey } from '../../../../../shared/i18n/translations';

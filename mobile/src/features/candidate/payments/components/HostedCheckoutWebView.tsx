@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
-import { Modal, StyleSheet, Text, View } from 'react-native';
+import { Modal, StyleSheet, View } from 'react-native';
+import { Text } from '../../../../design-system/Text';
 import { WebView, type WebViewNavigation } from 'react-native-webview';
 import { X } from 'lucide-react-native';
 import { Button, IconButton, Spinner, getFontFamily } from '../../../../design-system';

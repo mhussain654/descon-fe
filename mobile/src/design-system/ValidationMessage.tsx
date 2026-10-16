@@ -1,5 +1,6 @@
 import { AlertCircle, CheckCircle2 } from 'lucide-react-native';
-import { StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
+import { Text } from './Text';
 import { colors, spacing } from './tokens';
 import { getFontFamily } from './fonts';
 

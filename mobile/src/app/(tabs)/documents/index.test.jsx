@@ -1048,7 +1048,7 @@ describe("DocumentsScreen", () => {
     await AsyncStorage.setItem("descon.language", "ur");
     renderDocumentsScreen();
 
-    expect(await screen.findByText("زیر التواء • لازمی")).toBeOnTheScreen();
+    expect(await screen.findByText("زیر التوا • لازمی")).toBeOnTheScreen();
   });
 
   it("renders the capture buttons, guidance and a permission-blocked notice in Urdu", async () => {

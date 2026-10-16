@@ -1,5 +1,6 @@
 import type { ComponentType } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
+import { Text } from '../../../design-system/Text';
 import { ChevronLeft, ChevronRight } from 'lucide-react-native';
 import { Defs, LinearGradient, Rect, Stop } from 'react-native-svg';
 import { MeasuredSvg } from '../../../design-system/MeasuredSvg';

@@ -1,4 +1,5 @@
-import { Modal, StyleSheet, Text, View } from 'react-native';
+import { Modal, StyleSheet, View } from 'react-native';
+import { Text } from '../../design-system/Text';
 import { Info } from 'lucide-react-native';
 import type { Language } from '../../../../shared/i18n/translations';
 import { Button, getFontFamily } from '../../design-system';

@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
+import { Text } from '../../../../design-system/Text';
 import { Button, OfflineState, ValidationMessage, getFontFamily } from '../../../../design-system';
 import { colors, spacing } from '../../../../design-system/tokens';
 import { DOCUMENT_ACCESS_ERROR_KEYS } from '../../../../../../shared/candidateDocuments/documentAccessErrorMessages';

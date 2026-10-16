@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
+import { Text } from '../../../../design-system/Text';
 import { ArrowLeft, ArrowRight, Ban, CheckCircle, Clock, CreditCard, Info, Wallet, XCircle } from 'lucide-react-native';
 import Svg, { Circle, Defs, LinearGradient, Rect, Stop } from 'react-native-svg';
 import type { Payment } from '../../../../../../shared/payments/types';

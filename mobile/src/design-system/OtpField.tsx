@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
-import { StyleSheet, Text, TextInput, View } from 'react-native';
+import { StyleSheet, TextInput, View } from 'react-native';
+import { Text } from './Text';
 import { HelperText } from './HelperText';
 import { colors, radii, spacing } from './tokens';
 import { getFontFamily } from './fonts';

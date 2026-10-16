@@ -1,4 +1,5 @@
-import { StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
+import { Text } from '../../design-system/Text';
 import { Image } from 'expo-image';
 import { getFontFamily } from '../../design-system';
 import { colors, elevation, radii, spacing } from '../../design-system/tokens';

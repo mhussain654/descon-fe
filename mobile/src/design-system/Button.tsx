@@ -1,4 +1,5 @@
-import { ActivityIndicator, Pressable, StyleSheet, Text, type StyleProp, type TextStyle, type ViewStyle } from 'react-native';
+import { ActivityIndicator, Pressable, StyleSheet, type StyleProp, type TextStyle, type ViewStyle } from 'react-native';
+import { Text } from './Text';
 import { createContext, useContext, type ReactNode } from 'react';
 import { colors, fontWeights, minTouchTarget, radii, spacing } from './tokens';
 import { getFontFamily } from './fonts';

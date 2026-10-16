@@ -41,7 +41,7 @@ describe("PaymentPendingPage", () => {
       </LanguageProvider>
     );
 
-    expect(screen.getByText("ادائیگی کی تصدیق زیر التواء ہے")).toBeInTheDocument();
+    expect(screen.getByText("ادائیگی کی تصدیق زیر التوا ہے")).toBeInTheDocument();
     localStorage.removeItem("descon.language");
   });
 });
