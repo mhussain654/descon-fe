@@ -1,103 +1,45 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { afterEach, describe, expect, it, vi } from "vitest";
-import { createMockStaffAuthClient, MOCK_STAFF_ACCOUNTS, MOCK_STAFF_PASSWORD } from "../../../../../../shared/auth/staffAuthClient";
-import { LanguageProvider } from "../../../../contexts/LanguageContext";
-import { StaffAuthProvider } from "../../../../contexts/StaffAuthContext";
-import { adminTrainingSettingClient } from "../../../../lib/admin-training-setting-client";
-import { TrainingSettingPage } from "./TrainingSettingPage";
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { LanguageProvider } from '../../../../contexts/LanguageContext';
+import { trainingVideosClient } from '../../../../lib/training-videos-client';
+import { TrainingSettingPage } from './TrainingSettingPage';
 
-vi.mock("../../../../lib/admin-training-setting-client", () => ({
-  adminTrainingSettingClient: { getTrainingSetting: vi.fn(), updateTrainingSetting: vi.fn() },
-}));
+vi.mock('../../../../lib/training-videos-client', () => ({ trainingVideosClient: {
+  list: vi.fn(), create: vi.fn(), update: vi.fn(), remove: vi.fn(),
+} }));
 
-const ADMIN = MOCK_STAFF_ACCOUNTS.find((account) => account.role === "admin")!;
-const HR = MOCK_STAFF_ACCOUNTS.find((account) => account.role === "hr" && !account.locked && !account.suspended)!;
-
-async function signInAs(account: { email: string }) {
-  const client = createMockStaffAuthClient({ delayMs: 0 });
-  await client.signIn({ email: account.email, password: MOCK_STAFF_PASSWORD });
-  return client;
+function renderPage() {
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  return render(<QueryClientProvider client={client}><LanguageProvider><TrainingSettingPage /></LanguageProvider></QueryClientProvider>);
 }
 
-function renderPage(client: Awaited<ReturnType<typeof signInAs>>) {
-  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-  return render(
-    <QueryClientProvider client={queryClient}>
-      <LanguageProvider>
-        <StaffAuthProvider client={client}>
-          <TrainingSettingPage />
-        </StaffAuthProvider>
-      </LanguageProvider>
-    </QueryClientProvider>
-  );
-}
+const video = { id: 4, title_en: 'Airport preparation', title_ur: 'ہوائی اڈے کی تیاری', description_en: null, description_ur: null,
+  position: 0, published: false, content_type: 'video/mp4', byte_size: 170_000_000, playback_url: 'https://example.test/signed' };
 
-function setting(overrides: Record<string, unknown> = {}) {
-  return {
-    url: "https://www.youtube.com/@DesconManpower",
-    updatedBy: undefined,
-    updatedAt: "2026-09-12T09:00:00Z",
-    ...overrides,
-  };
-}
-
-describe("TrainingSettingPage", () => {
-  afterEach(() => {
-    vi.mocked(adminTrainingSettingClient.getTrainingSetting).mockReset();
-    vi.mocked(adminTrainingSettingClient.updateTrainingSetting).mockReset();
-    sessionStorage.clear();
+describe('Training videos admin page', () => {
+  beforeEach(() => {
+    vi.mocked(trainingVideosClient.list).mockReset().mockResolvedValue([video]);
+    vi.mocked(trainingVideosClient.create).mockReset();
+    vi.mocked(trainingVideosClient.update).mockReset().mockResolvedValue({ ...video, published: true });
+    vi.mocked(trainingVideosClient.remove).mockReset();
   });
 
-  it("renders the current training link", async () => {
-    adminTrainingSettingClient.getTrainingSetting.mockResolvedValue(setting());
-    const client = await signInAs(ADMIN);
-
-    renderPage(client);
-
-    expect(await screen.findByText("Training")).toBeInTheDocument();
-    expect(await screen.findByLabelText("Training link")).toHaveValue("https://www.youtube.com/@DesconManpower");
+  it('lists a private draft and publishes it through the authenticated API client', async () => {
+    renderPage();
+    expect(await screen.findByText('Airport preparation')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Publish' }));
+    await waitFor(() => expect(trainingVideosClient.update).toHaveBeenCalledWith(4, { published: true }));
   });
 
-  it("shows the forbidden state for a staff member without manage_training_settings", async () => {
-    adminTrainingSettingClient.getTrainingSetting.mockRejectedValue({ code: "FORBIDDEN" });
-    const client = await signInAs(HR);
-
-    renderPage(client);
-
-    expect(await screen.findByText("Access restricted")).toBeInTheDocument();
-  });
-
-  it("saves an edited link", async () => {
-    adminTrainingSettingClient.getTrainingSetting.mockResolvedValue(setting());
-    adminTrainingSettingClient.updateTrainingSetting.mockResolvedValue(setting({ url: "https://example.test/updated" }));
-    const client = await signInAs(ADMIN);
-
-    renderPage(client);
-    await screen.findByLabelText("Training link");
-
-    fireEvent.change(screen.getByLabelText("Training link"), { target: { value: "https://example.test/updated" } });
-    fireEvent.click(screen.getByRole("button", { name: "Save" }));
-
-    await waitFor(() =>
-      expect(adminTrainingSettingClient.updateTrainingSetting).toHaveBeenCalledWith({ url: "https://example.test/updated" })
-    );
-  });
-
-  it("shows the server validation message on a validation failure", async () => {
-    adminTrainingSettingClient.getTrainingSetting.mockResolvedValue(setting());
-    adminTrainingSettingClient.updateTrainingSetting.mockRejectedValue({
-      code: "VALIDATION_FAILED",
-      message: "Url is not a valid http(s) URL.",
-    });
-    const client = await signInAs(ADMIN);
-
-    renderPage(client);
-    await screen.findByLabelText("Training link");
-
-    fireEvent.change(screen.getByLabelText("Training link"), { target: { value: "not a url" } });
-    fireEvent.click(screen.getByRole("button", { name: "Save" }));
-
-    expect(await screen.findByText("Url is not a valid http(s) URL.")).toBeInTheDocument();
+  it('requires a local MP4 under 250 MiB before requesting an upload', async () => {
+    renderPage();
+    await screen.findByText('Airport preparation');
+    fireEvent.change(screen.getByLabelText('English title'), { target: { value: 'Airport' } });
+    fireEvent.change(screen.getByLabelText('Urdu title'), { target: { value: 'ہوائی اڈہ' } });
+    fireEvent.change(screen.getByLabelText('MP4 video'), { target: { files: [new File(['bad'], 'bad.mov', { type: 'video/quicktime' })] } });
+    fireEvent.submit(screen.getByRole('button', { name: 'Upload video' }).closest('form')!);
+    expect(await screen.findByRole('alert')).toHaveTextContent('Choose an MP4');
+    expect(trainingVideosClient.create).not.toHaveBeenCalled();
   });
 });
