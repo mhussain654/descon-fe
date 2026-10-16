@@ -2970,7 +2970,7 @@ export const translations = {
     applicationProgressNextActionTitle: 'اگلا مرحلہ',
     applicationProgressNextActionRejectedReplaceable: 'اپنی مسترد شدہ دستاویز کو تبدیل کریں',
     applicationProgressNextActionNoDocuments: 'اپنی مطلوبہ دستاویزات اپ لوڈ کریں',
-    applicationProgressNextActionMissing: 'اپنی غائب دستاویز اپ لوڈ کریں',
+    applicationProgressNextActionMissing: 'اپنی بقیہ دستاویز اپ لوڈ کریں',
     applicationProgressNextActionExpiredPcc: 'اپنا میعاد ختم ہونے والا کریکٹر سرٹیفکیٹ تبدیل کریں',
     applicationProgressNextActionReadyToSubmit: 'آپ کی دستاویزات جمع کرانے کے لیے تیار ہیں',
     applicationProgressNextActionAwaitingReview: 'آپ کی دستاویزات جائزے کے منتظر ہیں',
