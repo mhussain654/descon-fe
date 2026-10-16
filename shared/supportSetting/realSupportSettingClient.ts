@@ -1,4 +1,4 @@
-// Real SupportSettingClient implementation (mirrors realTrainingSettingClient.ts),
+// Real SupportSettingClient implementation (mirrors the candidate settings client),
 // calling the backend documented
 // in descon-be's openapi.yaml:
 //   GET /api/v1/candidate/support_setting
