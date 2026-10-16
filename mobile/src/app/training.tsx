@@ -4,16 +4,12 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { ArrowLeft, ArrowRight, Play, X } from 'lucide-react-native';
-import WebView from 'react-native-webview';
 import { RequireAuth } from '../features/auth/RequireAuth';
 import { useLanguage } from '../contexts/LanguageContext';
 import { useTrainingVideos } from '../features/candidate/training/hooks/useTrainingVideos';
 import { getFontFamily } from '../design-system';
+import { TrainingVideoPlayer } from '../features/candidate/training/components/TrainingVideoPlayer';
 import type { TrainingVideo } from '../lib/training-videos-client';
-
-function escapeHtmlAttribute(value: string) {
-  return value.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-}
 
 export default function TrainingRoute() {
   return <RequireAuth><TrainingScreen /></RequireAuth>;
@@ -49,14 +45,7 @@ function TrainingScreen() {
     </View>
     {selected ? <View style={styles.playerContainer}>
       <Text style={[styles.title, { fontFamily: font }]}>{isUrdu ? selected.title_ur : selected.title_en}</Text>
-      <WebView
-        originWhitelist={['https://*']}
-        source={{ html: `<html><head><meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1"></head><body style="margin:0;background:#000"><video src="${escapeHtmlAttribute(selected.playback_url)}" controls playsinline style="width:100%;height:100%;object-fit:contain"></video></body></html>` }}
-        allowsInlineMediaPlayback
-        mediaPlaybackRequiresUserAction
-        javaScriptEnabled={false}
-        style={styles.player}
-      />
+      <TrainingVideoPlayer key={selected.id} url={selected.playback_url} language={language} errorMessage={t('trainingPlayError')} />
       <Pressable style={styles.close} onPress={() => setSelected(null)} accessibilityRole="button"><X size={18} color={'#0871DF'} /><Text style={{ fontFamily: font }}>{t('trainingAllVideos')}</Text></Pressable>
     </View> : <ScrollView contentContainerStyle={[styles.list, { paddingBottom: insets.bottom + 24 }]} refreshControl={<RefreshControl refreshing={query.isRefetching} onRefresh={() => query.refetch()} />}>
       {query.isPending && <Text style={[styles.message, { fontFamily: font }]}>{t('loading')}</Text>}
@@ -84,6 +73,6 @@ const styles = StyleSheet.create({
   cardText: { flex: 1 }, title: { fontSize: 17, color: '#1A3150', fontWeight: '600' },
   description: { color: '#69778C', fontSize: 13, marginTop: 4 },
   message: { color: '#435674', fontSize: 15, padding: 20 },
-  playerContainer: { flex: 1, padding: 16, gap: 16 }, player: { height: 260, backgroundColor: '#000', flex: 0 },
+  playerContainer: { flex: 1, padding: 16, gap: 16 },
   close: { minHeight: 48, flexDirection: 'row', alignItems: 'center', gap: 8 },
 });

@@ -8,7 +8,10 @@ jest.mock('../features/auth/RequireAuth', () => ({ RequireAuth: ({ children }: {
 jest.mock('../features/candidate/training/hooks/useTrainingVideos', () => ({ useTrainingVideos: jest.fn() }));
 jest.mock('../contexts/LanguageContext', () => ({ useLanguage: jest.fn() }));
 jest.mock('expo-router', () => ({ useRouter: () => ({ back: jest.fn() }) }));
-jest.mock('react-native-webview', () => 'WebView');
+jest.mock('expo-video', () => ({
+  VideoView: 'VideoView',
+  useVideoPlayer: () => ({ loop: false, addListener: () => ({ remove: () => undefined }) }),
+}));
 
 const video = { id: 1, title_en: 'At the airport', title_ur: 'ہوائی اڈے پر', description_en: 'Boarding steps',
   description_ur: 'سفر کے مراحل', position: 0, published: true, content_type: 'video/mp4', byte_size: 170_000_000,
