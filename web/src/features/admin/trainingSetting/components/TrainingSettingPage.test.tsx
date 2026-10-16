@@ -42,4 +42,54 @@ describe('Training videos admin page', () => {
     expect(await screen.findByRole('alert')).toHaveTextContent('Choose an MP4');
     expect(trainingVideosClient.create).not.toHaveBeenCalled();
   });
+  it('plays a video on the page with a freshly signed link', async () => {
+    vi.mocked(trainingVideosClient.list)
+      .mockReset()
+      .mockResolvedValueOnce([video])
+      .mockResolvedValue([{ ...video, playback_url: 'https://example.test/fresh-link' }]);
+    const { container } = renderPage();
+    await screen.findByText('Airport preparation');
+    expect(container.querySelector('video')).toBeNull();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Play' }));
+
+    await waitFor(() => expect(container.querySelector('video')).not.toBeNull());
+    expect(container.querySelector('video')).toHaveAttribute('src', 'https://example.test/fresh-link');
+    expect(screen.queryByRole('link', { name: /preview/i })).toBeNull();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Close player' }));
+    expect(container.querySelector('video')).toBeNull();
+  });
+
+  it('tells the admin when the browser cannot play the video', async () => {
+    const { container } = renderPage();
+    await screen.findByText('Airport preparation');
+    fireEvent.click(screen.getByRole('button', { name: 'Play' }));
+    await waitFor(() => expect(container.querySelector('video')).not.toBeNull());
+
+    fireEvent.error(container.querySelector('video')!);
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('could not be played');
+  });
+
+  it('searches and sorts the video list', async () => {
+    const second = { ...video, id: 5, title_en: 'Accommodation rules', title_ur: 'رہائش', position: 1 };
+    vi.mocked(trainingVideosClient.list).mockResolvedValue([video, second]);
+    renderPage();
+    await screen.findByText('Airport preparation');
+    const titles = () => screen.getAllByRole('heading', { level: 2 }).map(node => node.textContent).filter(text => /Airport|Accommodation/.test(text ?? ''));
+    expect(titles()).toEqual(['Airport preparation', 'Accommodation rules']);
+
+    fireEvent.change(screen.getByLabelText('Sort by'), { target: { value: 'title' } });
+    expect(titles()).toEqual(['Accommodation rules', 'Airport preparation']);
+
+    fireEvent.change(screen.getByLabelText('Sort by'), { target: { value: 'newest' } });
+    expect(titles()).toEqual(['Accommodation rules', 'Airport preparation']);
+
+    fireEvent.change(screen.getByLabelText('Search videos'), { target: { value: 'airport' } });
+    expect(titles()).toEqual(['Airport preparation']);
+
+    fireEvent.change(screen.getByLabelText('Search videos'), { target: { value: 'zzz' } });
+    expect(screen.getByText('No videos match your search.')).toBeInTheDocument();
+  });
 });
