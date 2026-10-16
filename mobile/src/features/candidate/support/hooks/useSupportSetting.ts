@@ -5,7 +5,7 @@ import { supportSettingClient } from '../../../../lib/support-setting-client';
 import type { SupportSetting, SupportSettingError } from '../../../../lib/support-setting-client';
 import { supportSettingQueries } from '../../../../../../shared/queryKeys/supportSettingQueries';
 
-/** Fetches the one shared support number -- mirrors useTrainingSetting exactly. Explicit generics type the error as SupportSettingError rather than TanStack Query's default `Error`, since the screen reads `.code` off it. */
+/** Fetches the one shared support number -- follows the candidate settings query pattern. Explicit generics type the error as SupportSettingError rather than TanStack Query's default `Error`, since the screen reads `.code` off it. */
 export function useSupportSetting() {
   const { session, status } = useAuth();
   const { language } = useLanguage();
