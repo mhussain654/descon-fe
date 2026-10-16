@@ -177,7 +177,10 @@ describe('LoginScreen', () => {
     renderLoginScreen();
 
     const input = await screen.findByLabelText('شناختی کارڈ نمبر');
-    expect(input.props.placeholder).toBe('اپنا شناختی کارڈ نمبر درج کریں');
+    expect(input.props.placeholder).toBe('00000-0000000-0');
+    expect(screen.getByText('اپنا شناختی کارڈ نمبر درج کریں')).toBeOnTheScreen();
+    const back = screen.getByRole('button', { name: 'واپس' });
+    expect(back.props.style).toEqual(expect.arrayContaining([expect.objectContaining({ position: 'absolute', zIndex: 10 })]));
 
     fireEvent.press(screen.getByRole('button', { name: 'او ٹی پی بھیجیں' }));
     const message = await screen.findByText('جاری رکھنے کے لیے اپنا شناختی کارڈ نمبر درج کریں۔');

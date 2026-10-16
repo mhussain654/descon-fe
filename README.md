@@ -72,6 +72,13 @@ npm run typecheck
 npm test              # jest
 ```
 
+In the mobile dashboard, **Help & Support** calls the phone number from the
+staff portal's **Help & support** settings (`/admin/support-settings`). The
+**Training** settings (`/admin/training-settings`) control the separate
+training link and do not set the support phone. After saving a support number,
+return to the dashboard or pull to refresh to fetch the latest value. A blank
+support number leaves the action unavailable.
+
 ## Environment variables
 
 Each app's `.env.example` is the source of truth for what it reads. The one

@@ -72,7 +72,10 @@ export function CnicField({
           maxLength={15}
           editable={editable}
           autoFocus={autoFocus}
-          placeholder={placeholder}
+          // An Urdu Nastaliq sentence is clipped by Android's single-line
+          // numeric TextInput. Keep the example numeric and show the translated
+          // instruction below the field where it has room to render.
+          placeholder={language === 'ur' ? '00000-0000000-0' : placeholder}
           placeholderTextColor={colors.text.tertiary}
           accessibilityLabel={label}
           // RN has no per-element `dir`; textAlign/writingDirection force LTR
@@ -83,7 +86,7 @@ export function CnicField({
           // without it; digits themselves look the same in either family.
           style={[
             styles.input,
-            { textAlign: 'left', writingDirection: 'ltr', fontFamily: getFontFamily(language, 'regular') },
+            { textAlign: 'left', writingDirection: 'ltr', fontFamily: getFontFamily('en', 'regular') },
           ]}
         />
       </View>
@@ -91,8 +94,8 @@ export function CnicField({
         <ValidationMessage tone="error" language={language}>
           {errorMessage}
         </ValidationMessage>
-      ) : helperText ? (
-        <HelperText language={language}>{helperText}</HelperText>
+      ) : helperText || (language === 'ur' && placeholder) ? (
+        <HelperText language={language}>{helperText || placeholder!}</HelperText>
       ) : null}
     </View>
   );
@@ -103,7 +106,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing[2],
-    height: 52,
+    minHeight: 56,
     borderWidth: 1.5,
     borderRadius: radii.xl,
     paddingHorizontal: spacing[3],
@@ -112,7 +115,8 @@ const styles = StyleSheet.create({
   fieldFocused: { backgroundColor: colors.surface.raised },
   input: {
     flex: 1,
-    height: '100%',
+    height: 52,
+    paddingVertical: 0,
     fontSize: 16,
     fontVariant: ['tabular-nums'],
     color: colors.text.primary,

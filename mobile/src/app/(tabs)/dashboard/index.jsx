@@ -92,6 +92,7 @@ export default function DashboardScreen() {
   useRefetchOnFocus(checklistQuery.refetch, checklistQuery.isFetching);
   useRefetchOnFocus(progressQuery.refetch, progressQuery.isFetching);
   useRefetchOnFocus(historyQuery.refetch, historyQuery.isFetching);
+  useRefetchOnFocus(supportQuery.refetch, supportQuery.isFetching);
 
   const returnToSignIn = async () => {
     await logout("expired");
@@ -115,12 +116,13 @@ export default function DashboardScreen() {
         checklistQuery.refetch(),
         progressQuery.refetch(),
         historyQuery.refetch(),
+        supportQuery.refetch(),
       ]);
     } finally {
       isRefreshingRef.current = false;
       setIsRefreshing(false);
     }
-  }, [profileQuery.refetch, checklistQuery.refetch, progressQuery.refetch, historyQuery.refetch]);
+  }, [profileQuery.refetch, checklistQuery.refetch, progressQuery.refetch, historyQuery.refetch, supportQuery.refetch]);
 
   // Dashboard composes 3 independent queries (profile, checklist, progress)
   // -- a SESSION_EXPIRED/INACTIVE_ACCOUNT from *any* of them must win over a
