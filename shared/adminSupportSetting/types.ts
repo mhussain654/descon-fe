@@ -1,4 +1,4 @@
-// Admin support-number setting types (mirrors shared/adminTrainingSetting/types.ts), wired to the real backend documented
+// Admin support-number setting types (shares the admin settings conventions), wired to the real backend documented
 // in descon-be's openapi.yaml:
 //   GET   /api/v1/admin/support_setting
 //   PATCH /api/v1/admin/support_setting
