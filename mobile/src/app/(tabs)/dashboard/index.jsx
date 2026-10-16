@@ -12,7 +12,6 @@ import { useRefetchOnFocus } from "../../../hooks/useRefetchOnFocus";
 import { useCandidateProfile } from "../../../features/candidate/profile/hooks/useCandidateProfile";
 import { useCandidateDocuments } from "../../../features/candidate/documents/hooks/useCandidateDocuments";
 import { useApplicationProgress } from "../../../features/candidate/progress/hooks/useApplicationProgress";
-import { useTrainingSetting } from "../../../features/candidate/training/hooks/useTrainingSetting";
 import { useSupportSetting } from "../../../features/candidate/support/hooks/useSupportSetting";
 import { useCandidateWorkflowHistory } from "../../../features/candidate/workflow/hooks/useCandidateWorkflowHistory";
 import { HomeHeader } from "../../../features/candidate/home/HomeHeader";
@@ -85,12 +84,6 @@ export default function DashboardScreen() {
   const profileQuery = useCandidateProfile();
   const checklistQuery = useCandidateDocuments();
   const progressQuery = useApplicationProgress();
-  // Deliberately not part of `isLoading`/`primaryError` below -- the
-  // Training quick action opens an external link directly (no intermediate
-  // screen), so a slow or failed fetch of that one link should never block
-  // the rest of the dashboard from rendering. The tile itself just stays
-  // disabled until the URL is available.
-  const trainingQuery = useTrainingSetting();
   // Like Training, neither blocks the screen: a missing support number just
   // disables its tile, and the latest-update card has its own empty state.
   const supportQuery = useSupportSetting();
@@ -99,6 +92,7 @@ export default function DashboardScreen() {
   useRefetchOnFocus(checklistQuery.refetch, checklistQuery.isFetching);
   useRefetchOnFocus(progressQuery.refetch, progressQuery.isFetching);
   useRefetchOnFocus(historyQuery.refetch, historyQuery.isFetching);
+  useRefetchOnFocus(supportQuery.refetch, supportQuery.isFetching);
 
   const returnToSignIn = async () => {
     await logout("expired");
@@ -122,12 +116,13 @@ export default function DashboardScreen() {
         checklistQuery.refetch(),
         progressQuery.refetch(),
         historyQuery.refetch(),
+        supportQuery.refetch(),
       ]);
     } finally {
       isRefreshingRef.current = false;
       setIsRefreshing(false);
     }
-  }, [profileQuery.refetch, checklistQuery.refetch, progressQuery.refetch, historyQuery.refetch]);
+  }, [profileQuery.refetch, checklistQuery.refetch, progressQuery.refetch, historyQuery.refetch, supportQuery.refetch]);
 
   // Dashboard composes 3 independent queries (profile, checklist, progress)
   // -- a SESSION_EXPIRED/INACTIVE_ACCOUNT from *any* of them must win over a
@@ -281,7 +276,6 @@ export default function DashboardScreen() {
     ? resolveDocumentAccessUrl(profile.photoUrl, process.env.EXPO_PUBLIC_API_BASE_URL ?? "") || null
     : null;
   const supportPhone = supportQuery.data?.phoneNumber ?? null;
-  const trainingUrl = trainingQuery.data?.url ?? null;
   const tileRowDirection = rowDirectionTowards(isUrdu ? "right" : "left");
 
   return (
@@ -378,8 +372,7 @@ export default function DashboardScreen() {
                   icon={GraduationCap}
                   title={t("homeQuickTrainingTitle")}
                   subtitle={t("homeQuickTrainingSubtitle")}
-                  onPress={() => trainingUrl && Linking.openURL(trainingUrl)}
-                  disabled={!trainingUrl}
+                  onPress={() => router.push("/training")}
                 />
                 <QuickActionTile
                   language={language}

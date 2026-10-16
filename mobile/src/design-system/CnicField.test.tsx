@@ -30,4 +30,12 @@ describe('CnicField', () => {
     render(<CnicField label="شناختی کارڈ نمبر" value="" onValueChange={() => {}} />);
     expect(screen.getByText('شناختی کارڈ نمبر')).toBeOnTheScreen();
   });
+
+  it('shows a numeric example and keeps Urdu instructions outside the numeric input', () => {
+    render(<CnicField label="شناختی کارڈ نمبر" placeholder="اپنا شناختی کارڈ نمبر درج کریں" language="ur" value="12345" onValueChange={() => {}} />);
+    const input = screen.getByLabelText('شناختی کارڈ نمبر');
+    expect(input.props.placeholder).toBe('00000-0000000-0');
+    expect(input.props.style).toEqual(expect.arrayContaining([expect.objectContaining({ fontFamily: 'Inter_400Regular', writingDirection: 'ltr' })]));
+    expect(screen.getByText('اپنا شناختی کارڈ نمبر درج کریں')).toBeOnTheScreen();
+  });
 });

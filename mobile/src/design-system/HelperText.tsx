@@ -10,9 +10,10 @@ export interface HelperTextProps {
 
 /** Neutral guidance text under a field. */
 export function HelperText({ children, language = 'en' }: HelperTextProps) {
-  return <Text style={[styles.text, { fontFamily: getFontFamily(language, 'regular') }]}>{children}</Text>;
+  return <Text style={[styles.text, language === 'ur' && styles.urduText, { fontFamily: getFontFamily(language, 'regular') }]}>{children}</Text>;
 }
 
 const styles = StyleSheet.create({
   text: { marginTop: spacing[1.5], fontSize: 14, color: colors.text.secondary },
+  urduText: { lineHeight: 30, textAlign: 'right', writingDirection: 'rtl' },
 });

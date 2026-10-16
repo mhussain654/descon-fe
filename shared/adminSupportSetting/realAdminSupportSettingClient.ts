@@ -1,5 +1,5 @@
 // Real AdminSupportSettingClient implementation (mirrors
-// realAdminTrainingSettingClient.ts), calling the backend
+// the staff API client), calling the backend
 // documented in descon-be's openapi.yaml:
 //   GET   /api/v1/admin/support_setting
 //   PATCH /api/v1/admin/support_setting

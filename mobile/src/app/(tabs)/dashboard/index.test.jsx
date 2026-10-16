@@ -7,7 +7,6 @@ import { LanguageProvider } from "../../../contexts/LanguageContext";
 import { candidateProfileClient } from "../../../lib/candidate-profile-client";
 import { candidateDocumentsClient } from "../../../lib/candidate-documents-client";
 import { applicationProgressClient } from "../../../lib/application-progress-client";
-import { trainingSettingClient } from "../../../lib/training-setting-client";
 import { supportSettingClient } from "../../../lib/support-setting-client";
 import { candidateWorkflowClient } from "../../../lib/candidate-workflow-client";
 import { createQueryClientTestLifecycle } from "../../../testSupport/queryClientTestLifecycle";
@@ -64,9 +63,6 @@ jest.mock("../../../lib/candidate-documents-client", () => ({
 }));
 jest.mock("../../../lib/application-progress-client", () => ({
   applicationProgressClient: { getProgress: jest.fn(), submitDocuments: jest.fn() },
-}));
-jest.mock("../../../lib/training-setting-client", () => ({
-  trainingSettingClient: { getTrainingSetting: jest.fn() },
 }));
 jest.mock("../../../lib/support-setting-client", () => ({
   supportSettingClient: { getSupportSetting: jest.fn() },
@@ -176,14 +172,12 @@ function checklistItem(overrides = {}) {
 
 const { createTestQueryClient, trackRender, cleanup } = createQueryClientTestLifecycle();
 
-// Every test renders the screen, and useTrainingSetting unconditionally
 // queries the training-link setting as soon as it mounts -- default it to a
 // resolved link here so the pre-existing tests below (none of which are
 // about the Training quick action) don't each need their own mock, mirroring
 // candidateFlightDetailClient.getFlightDetail's identical established
 // convention in this same describe block's sibling screens.
 beforeEach(() => {
-  trainingSettingClient.getTrainingSetting.mockResolvedValue({ url: "https://www.youtube.com/@DesconManpower" });
   supportSettingClient.getSupportSetting.mockResolvedValue({ phoneNumber: "+923001234567" });
   candidateWorkflowClient.getWorkflowHistory.mockResolvedValue({ items: [], updatedAt: null });
 });
@@ -193,7 +187,6 @@ afterEach(async () => {
   jest.mocked(candidateProfileClient.getProfile).mockReset();
   jest.mocked(candidateDocumentsClient.getChecklist).mockReset();
   jest.mocked(applicationProgressClient.getProgress).mockReset();
-  jest.mocked(trainingSettingClient.getTrainingSetting).mockReset();
   jest.mocked(supportSettingClient.getSupportSetting).mockReset();
   jest.mocked(candidateWorkflowClient.getWorkflowHistory).mockReset();
   mockReplace.mockReset();
@@ -456,48 +449,14 @@ describe("DashboardScreen", () => {
     });
   });
 
-  describe("Training quick action", () => {
-    it("opens the admin-managed training link directly via the OS, once loaded -- no intermediate screen", async () => {
-      candidateProfileClient.getProfile.mockResolvedValue(profilePayload());
-      candidateDocumentsClient.getChecklist.mockResolvedValue([]);
-      applicationProgressClient.getProgress.mockResolvedValue(progress());
-      trainingSettingClient.getTrainingSetting.mockResolvedValue({ url: "https://www.youtube.com/@DesconManpower" });
-      const openURL = jest.spyOn(Linking, "openURL").mockResolvedValue();
-      renderDashboardScreen();
-
-      await screen.findByText("Ahmed Ali");
-      const trainingTile = await screen.findByRole("button", { name: /^Training,/ });
-      expect(trainingTile.props.accessibilityState).toMatchObject({ disabled: false });
-
-      fireEvent.press(trainingTile);
-      expect(openURL).toHaveBeenCalledWith("https://www.youtube.com/@DesconManpower");
-      openURL.mockRestore();
-    });
-
-    it("stays disabled (never opens a stale/empty link) while the training link is still loading", async () => {
-      candidateProfileClient.getProfile.mockResolvedValue(profilePayload());
-      candidateDocumentsClient.getChecklist.mockResolvedValue([]);
-      applicationProgressClient.getProgress.mockResolvedValue(progress());
-      trainingSettingClient.getTrainingSetting.mockReturnValue(new Promise(() => {}));
-      renderDashboardScreen();
-
-      await screen.findByText("Ahmed Ali");
-      expect(screen.getByRole("button", { name: /^Training,/ }).props.accessibilityState).toMatchObject({ disabled: true });
-    });
-
-    it("stays disabled if the training link fails to load, rather than opening a broken link", async () => {
-      candidateProfileClient.getProfile.mockResolvedValue(profilePayload());
-      candidateDocumentsClient.getChecklist.mockResolvedValue([]);
-      applicationProgressClient.getProgress.mockResolvedValue(progress());
-      trainingSettingClient.getTrainingSetting.mockRejectedValue({ code: "SERVER_ERROR" });
-      renderDashboardScreen();
-
-      await screen.findByText("Ahmed Ali");
-      expect(await screen.findByRole("button", { name: /^Training,/ })).toHaveProperty(
-        "props.accessibilityState.disabled",
-        true
-      );
-    });
+  it("opens the training video library", async () => {
+    candidateProfileClient.getProfile.mockResolvedValue(profilePayload());
+    candidateDocumentsClient.getChecklist.mockResolvedValue([]);
+    applicationProgressClient.getProgress.mockResolvedValue(progress());
+    renderDashboardScreen();
+    const tile = await screen.findByRole("button", { name: /^Training,/ });
+    fireEvent.press(tile);
+    expect(mockPush).toHaveBeenCalledWith('/training');
   });
 
   it("shows a dedicated session-expired state (not a silent redirect) and returns to sign-in only once confirmed", async () => {
