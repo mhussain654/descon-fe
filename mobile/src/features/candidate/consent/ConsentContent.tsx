@@ -1,9 +1,10 @@
 import { useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { BadgeCheck, BriefcaseBusiness, Check, FileText, Globe, LogOut, Plane, ShieldCheck, UserRound } from 'lucide-react-native';
-import Svg, { Circle, Defs, LinearGradient, Rect, Stop } from 'react-native-svg';
+import { Circle, Defs, LinearGradient, Rect, Stop } from 'react-native-svg';
 import type { TranslationKey } from '../../../../../shared/i18n/translations';
 import { Button, getFontFamily, ValidationMessage } from '../../../design-system';
+import { MeasuredSvg } from '../../../design-system/MeasuredSvg';
 import { colors, elevation, spacing } from '../../../design-system/tokens';
 import { physicalTextAlign, rowDirectionTowards, isStartSide } from '../../../lib/layoutDirection';
 import { BrandHeader } from '../../onboarding/BrandHeader';
@@ -39,11 +40,11 @@ export function ConsentContent({ language, t, topInset, bottomInset, isPending, 
   return (
     <ScrollView contentContainerStyle={[styles.content, { paddingBottom: bottomInset + spacing[5] }]}>
       <View style={[styles.hero, { paddingTop: topInset + spacing[3] }]}>
-        <Svg style={StyleSheet.absoluteFill} width="100%" height="100%" pointerEvents="none" accessible={false}>
+        <MeasuredSvg>
           <Defs><LinearGradient id="consentHero" x1="0" y1="0" x2="1" y2="1"><Stop offset="0" stopColor="#16A5EE" /><Stop offset="0.48" stopColor="#0873DF" /><Stop offset="1" stopColor="#0649B9" /></LinearGradient></Defs>
           <Rect width="100%" height="100%" fill="url(#consentHero)" />
           <Circle cx="100%" cy="45%" r="115" fill="none" stroke="#FFFFFF" strokeOpacity={0.08} strokeWidth={30} />
-        </Svg>
+        </MeasuredSvg>
         <View style={[styles.topRow, rowStyle]}>
           <BrandHeader language={language} primary={t('brandNamePrimary')} secondary={t('brandNameSecondary')} tileAtRowStart={isStartSide(isUrdu ? 'right' : 'left')} />
           <Pressable accessibilityRole="button" accessibilityLabel={t('consentSwitchLanguage')} disabled={isPending} onPress={onToggleLanguage} style={styles.language}>

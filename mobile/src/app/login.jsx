@@ -208,13 +208,28 @@ export default function LoginScreen() {
     <RequireGuest>
       <KeyboardAvoidingAnimatedView style={styles.screen} behavior="padding">
         <RegistrationGuidance open={registrationGuidanceOpen} onClose={() => setRegistrationGuidanceOpen(false)} title={t("authCnicNotFoundError")} description={t("authRegistrationGuidance")} closeLabel={t("authChangeCnic")} language={language} />
-      <StatusBar style="light" />
+        <StatusBar style="light" />
+
+        {/* Keep navigation visible while the keyboard scrolls the CNIC field
+            into view; the hero itself can move beneath Android's status bar. */}
+        <Pressable
+          onPress={() => (step === "otp" ? backToCnic() : router.back())}
+          accessibilityRole="button"
+          accessibilityLabel={t("back")}
+          style={[styles.backPill, styles.fixedBack, rowTowards(copySide),
+            isUrdu ? { right: spacing[6] } : { left: spacing[6] },
+            { top: insets.top + spacing[3] }]}
+          hitSlop={8}
+        >
+          <BackArrow language={language} color={colors.text.inverse} />
+          <Text style={[styles.backText, isUrdu ? styles.backTextUrdu : null, font("semibold")]}>{t("back")}</Text>
+        </Pressable>
 
         {/* Small phones, landscape orientation and larger font scales can push
             this content taller than the viewport -- a ScrollView keeps the
             field and its action reachable instead of clipping them off-screen. */}
         <ScrollView ref={scrollRef} contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled" bounces={false}>
-          <View style={[styles.hero, { paddingTop: insets.top + spacing[3], minHeight: insets.top + width * 0.98 }]}>
+          <View style={[styles.hero, { paddingTop: insets.top + spacing[3] + 48, minHeight: insets.top + width * 0.98 }]}>
             <Image
               source={HERO_PHOTO[isUrdu ? "ur" : "en"]}
               style={StyleSheet.absoluteFill}
@@ -224,17 +239,6 @@ export default function LoginScreen() {
             <HeroShade copySide={copySide} />
 
             <View style={[styles.heroCopy, anchorStyle, { maxWidth: width * 0.66 }]}>
-              <Pressable
-                onPress={() => (step === "otp" ? backToCnic() : router.back())}
-                accessibilityRole="button"
-                accessibilityLabel={t("back")}
-                style={[styles.backPill, rowTowards(copySide)]}
-                hitSlop={8}
-              >
-                <BackArrow language={language} color={colors.text.inverse} />
-                <Text style={[styles.backText, font("semibold")]}>{t("back")}</Text>
-              </Pressable>
-
               <BrandHeader
                 language={language}
                 primary={t("brandNamePrimary")}
@@ -476,9 +480,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing[3],
     paddingVertical: spacing[1.5],
     borderRadius: radii.full,
-    backgroundColor: "rgba(0, 25, 80, 0.35)",
+    backgroundColor: "#0649B9",
   },
+  fixedBack: { position: "absolute", zIndex: 10, minHeight: 40, ...elevation.sm },
   backText: { fontSize: 14, color: colors.text.inverse },
+  backTextUrdu: { lineHeight: 30, paddingVertical: spacing[1] },
   heroTitle: {
     marginTop: spacing[3],
     fontSize: 30,

@@ -17,7 +17,7 @@ export function Label({ children, requirementText, language = 'en' }: LabelProps
     // Urdu labels start at the right edge -- resolved against the live layout,
     // which only mirrors on native after the language reload (never on web).
     <View style={[styles.row, isStartSide(language === 'ur' ? 'right' : 'left') ? null : styles.rowReversed]}>
-      <Text style={[styles.label, { fontFamily: getFontFamily(language, 'medium') }]}>{children}</Text>
+      <Text style={[styles.label, language === 'ur' && styles.urduLabel, { fontFamily: getFontFamily(language, 'medium') }]}>{children}</Text>
       {requirementText ? (
         <Text style={[styles.requirement, { fontFamily: getFontFamily(language, 'regular') }]}> ({requirementText})</Text>
       ) : null}
@@ -29,5 +29,6 @@ const styles = StyleSheet.create({
   row: { flexDirection: 'row', flexWrap: 'wrap', marginBottom: spacing[1.5] },
   rowReversed: { flexDirection: 'row-reverse' },
   label: { fontSize: 14, fontWeight: fontWeights.medium, color: colors.text.primary },
+  urduLabel: { lineHeight: 30, paddingHorizontal: spacing[1] },
   requirement: { fontSize: 14, color: colors.text.tertiary },
 });

@@ -34,6 +34,16 @@ function renderEditor(photoUri: string | null = null) {
   );
 }
 
+function renderUrduEditor() {
+  return trackRender(
+    render(
+      <QueryClientProvider client={createTestQueryClient()}>
+        <ProfilePhotoEditor language="ur" t={(key) => translations.ur[key]} fullName="Ahmed Ali" photoUri={null} />
+      </QueryClientProvider>
+    )
+  );
+}
+
 function pickedAsset(overrides: Partial<ImagePicker.ImagePickerAsset> = {}): ImagePicker.ImagePickerAsset {
   return { uri: 'file:///photo.jpg', width: 400, height: 400, mimeType: 'image/jpeg', fileSize: 200_000, fileName: 'photo.jpg', ...overrides } as ImagePicker.ImagePickerAsset;
 }
@@ -44,6 +54,12 @@ afterEach(async () => {
 });
 
 describe('ProfilePhotoEditor', () => {
+  it('gives the Urdu photo action enough height for Nastaliq text', () => {
+    renderUrduEditor();
+    const action = screen.getByRole('button', { name: 'تصویر شامل کریں' });
+    expect(action.props.style).toEqual(expect.arrayContaining([expect.objectContaining({ minHeight: 48 })]));
+    expect(screen.getByText('تصویر شامل کریں').props.style).toEqual(expect.arrayContaining([expect.objectContaining({ lineHeight: 30 })]));
+  });
   it('shows the initial and an "Add photo" action when there is no photo', () => {
     renderEditor();
 
