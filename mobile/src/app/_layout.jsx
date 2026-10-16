@@ -67,6 +67,7 @@ export default function RootLayout() {
               <Stack.Screen name="consent" />
               <Stack.Screen name="(tabs)" />
               <Stack.Screen name="payment" />
+              <Stack.Screen name="training" />
               {/* Developer-facing component reference, not a candidate screen --
                   excluded from production builds (redirects to the initial
                   route if somehow navigated to), matching the equivalent web
