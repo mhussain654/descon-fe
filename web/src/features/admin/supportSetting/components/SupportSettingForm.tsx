@@ -7,7 +7,7 @@ import { useSupportSetting } from '../hooks/useSupportSetting';
 import { useUpdateSupportSetting } from '../hooks/useUpdateSupportSetting';
 import { Phone, Save } from 'lucide-react';
 
-/** The support-number singleton settings form (mirrors TrainingSettingForm). Always directly editable -- mirrors AiCallOperationalSettingsForm.tsx's identical "no separate view mode" rationale. */
+/** The support-number singleton settings form (follows the same singleton settings pattern). Always directly editable -- mirrors AiCallOperationalSettingsForm.tsx's identical "no separate view mode" rationale. */
 export function SupportSettingForm() {
   const { t, language } = useLanguage();
   const { signOut } = useStaffAuth();
