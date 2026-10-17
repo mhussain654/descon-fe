@@ -15,9 +15,9 @@ import { useApplicationProgress } from "../../../features/candidate/progress/hoo
 import { useSubmitDocuments } from "../../../features/candidate/progress/hooks/useSubmitDocuments";
 import { DocumentUploadPanel } from "../../../features/candidate/documents/components/DocumentUploadPanel";
 import { DocumentViewPanel } from "../../../features/candidate/documents/components/DocumentViewPanel";
+import { SubmitForReviewBar } from "../../../features/candidate/documents/components/SubmitForReviewBar";
 import { BankDetailsPanel } from "../../../features/candidate/documents/components/BankDetailsPanel";
 import {
-  Button,
   ConfirmDialog,
   EmptyState,
   LoadingState,
@@ -170,14 +170,6 @@ export default function DocumentsScreen() {
       <>
         <DocumentsSummary stats={stats} language={language} t={t} />
 
-        {documents?.canSubmit ? (
-          <View style={{ marginBottom: 20 }}>
-            <Button onPress={submit.openConfirm} disabled={submit.mutation.isPending} language={language}>
-              {t("applicationProgressSubmitAction")}
-            </Button>
-          </View>
-        ) : null}
-
         <Text accessibilityRole="header" style={[documentsStyles.sectionHeading, { fontFamily: getFontFamily(language, "bold"), textAlign: physicalTextAlign(language === "ur" ? "right" : "left") }, language === "ur" && documentsStyles.urduBody]}>{t("candidateDocumentsChecklistTitle")}</Text>
         <View>
           {checklist.map((item) => (
@@ -227,6 +219,15 @@ export default function DocumentsScreen() {
       >
         {renderBody()}
       </ScrollView>
+
+      {documents?.canSubmit ? (
+        <SubmitForReviewBar
+          onSubmit={submit.openConfirm}
+          disabled={submit.mutation.isPending}
+          language={language}
+          t={t}
+        />
+      ) : null}
 
       <ConfirmDialog
         open={submit.confirmOpen}

@@ -1,7 +1,7 @@
 import { QueryClientProvider } from "@tanstack/react-query";
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react-native";
 import { SafeAreaProvider } from "react-native-safe-area-context";
-import { Image, Linking, Text } from "react-native";
+import { Image, Keyboard, Linking, Text } from "react-native";
 import * as DocumentPicker from "expo-document-picker";
 import * as ImagePicker from "expo-image-picker";
 import { AuthProvider, useAuth } from "../../../contexts/AuthContext";
@@ -544,6 +544,30 @@ describe("DocumentsScreen", () => {
     renderDocumentsScreen();
 
     expect(await screen.findByRole("button", { name: "Submit for review" })).toBeOnTheScreen();
+  });
+
+  it("pins the submit bar outside the scrolling list, with a ready message, and hides it while the keyboard is open", async () => {
+    candidateDocumentsClient.getChecklist.mockResolvedValue([item({ status: "uploaded", document: uploadedDocument() })]);
+    applicationProgressClient.getProgress.mockResolvedValue(progress({ documents: documentsSummary({ canSubmit: true }) }));
+    const keyboardListeners = {};
+    jest.spyOn(Keyboard, "addListener").mockImplementation((event, listener) => {
+      keyboardListeners[event] = listener;
+      return { remove: jest.fn() };
+    });
+    renderDocumentsScreen();
+
+    expect(await screen.findByText("All documents are uploaded. Submit them for review.")).toBeOnTheScreen();
+    expect(screen.getAllByRole("button", { name: "Submit for review" })).toHaveLength(1);
+
+    act(() => {
+      keyboardListeners.keyboardDidShow();
+    });
+    expect(screen.queryByRole("button", { name: "Submit for review" })).toBeNull();
+
+    act(() => {
+      keyboardListeners.keyboardDidHide();
+    });
+    expect(screen.getByRole("button", { name: "Submit for review" })).toBeOnTheScreen();
   });
 
   it("does not show a submit-for-review button when the backend reports canSubmit as false", async () => {
