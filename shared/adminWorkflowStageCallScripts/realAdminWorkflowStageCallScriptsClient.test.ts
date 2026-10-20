@@ -29,8 +29,7 @@ function errorEnvelope(errors: Array<{ code: string; message: string; field?: st
 function scriptPayload(overrides: Record<string, unknown> = {}) {
   return {
     workflow_stage_code: 'verified',
-    announcement_en: 'Hello, this is Descon Manpower calling.',
-    announcement_ur: null,
+    voice_id: '102',
     active: false,
     updated_by: null,
     updated_at: '2026-09-11T09:00:00Z',
@@ -71,7 +70,6 @@ describe('createAdminWorkflowStageCallScriptsClient (real)', () => {
         return jsonResponse(
           successEnvelope([
             scriptPayload({
-              announcement_ur: 'السلام علیکم، یہ ڈیسکون مین پاور کی کال ہے۔',
               updated_by: { id: 'staff-1', role: 'admin' },
               active: true,
             }),
@@ -90,8 +88,7 @@ describe('createAdminWorkflowStageCallScriptsClient (real)', () => {
       expect(result).toEqual([
         {
           workflowStageCode: 'verified',
-          announcementEn: 'Hello, this is Descon Manpower calling.',
-          announcementUr: 'السلام علیکم، یہ ڈیسکون مین پاور کی کال ہے۔',
+          voiceId: '102',
           active: true,
           updatedBy: { id: 'staff-1', role: 'admin' },
           updatedAt: '2026-09-11T09:00:00Z',
@@ -108,13 +105,13 @@ describe('createAdminWorkflowStageCallScriptsClient (real)', () => {
       expect(result[0].updatedBy).toBeUndefined();
     });
 
-    it('maps a blank announcement_ur to undefined, not null', async () => {
-      stubFetch(async () => jsonResponse(successEnvelope([scriptPayload({ announcement_ur: null })])));
+    it('maps a missing voice_id to undefined, not null', async () => {
+      stubFetch(async () => jsonResponse(successEnvelope([scriptPayload({ voice_id: null })])));
       const { client } = buildClient();
 
       const result = await client.listWorkflowStageCallScripts();
 
-      expect(result[0].announcementUr).toBeUndefined();
+      expect(result[0].voiceId).toBeUndefined();
     });
 
     it('maps an empty list to an empty array', async () => {
@@ -137,14 +134,13 @@ describe('createAdminWorkflowStageCallScriptsClient (real)', () => {
         capturedBody = init?.body as string;
         capturedHeaders = init?.headers as Record<string, string>;
         return jsonResponse(
-          successEnvelope(scriptPayload({ announcement_en: 'Approved wording.', announcement_ur: 'منظور شدہ۔', active: true }))
+          successEnvelope(scriptPayload({ voice_id: '205', active: true }))
         );
       });
       const { client } = buildClient();
 
       const result = await client.updateWorkflowStageCallScript('verified', {
-        announcementEn: 'Approved wording.',
-        announcementUr: 'منظور شدہ۔',
+        voiceId: '205',
         active: true,
       });
 
@@ -152,10 +148,27 @@ describe('createAdminWorkflowStageCallScriptsClient (real)', () => {
       expect(capturedMethod).toBe('PATCH');
       expect(capturedHeaders?.['Idempotency-Key']).toBeUndefined();
       expect(JSON.parse(capturedBody!)).toEqual({
-        workflow_stage_call_script: { announcement_en: 'Approved wording.', announcement_ur: 'منظور شدہ۔', active: true },
+        workflow_stage_call_script: { voice_id: '205', active: true },
       });
-      expect(result.announcementEn).toBe('Approved wording.');
+      expect(result.voiceId).toBe('205');
       expect(result.active).toBe(true);
+    });
+
+    it('sends a blank voice id as null (clears the voice) and trims surrounding spaces', async () => {
+      const bodies: unknown[] = [];
+      stubFetch(async (_url, init) => {
+        bodies.push(JSON.parse(String((init as RequestInit).body)));
+        return jsonResponse(successEnvelope(scriptPayload({ voice_id: null })));
+      });
+      const { client } = buildClient();
+
+      await client.updateWorkflowStageCallScript('verified', { voiceId: '   ', active: false });
+      await client.updateWorkflowStageCallScript('verified', { voiceId: ' 102 ', active: true });
+
+      expect(bodies).toEqual([
+        { workflow_stage_call_script: { voice_id: null, active: false } },
+        { workflow_stage_call_script: { voice_id: '102', active: true } },
+      ]);
     });
 
     it('URL-encodes the workflow_stage_code', async () => {
@@ -166,16 +179,16 @@ describe('createAdminWorkflowStageCallScriptsClient (real)', () => {
       });
       const { client } = buildClient();
 
-      await client.updateWorkflowStageCallScript('verified', { announcementEn: 'x', announcementUr: '', active: true });
+      await client.updateWorkflowStageCallScript('verified', { voiceId: 'x', active: true });
 
       expect(seenUrl).toBe('http://example.test/api/v1/admin/workflow_stage_call_scripts/verified');
     });
 
     async function rejectionForServerCode(code: string, status: number) {
-      stubFetch(async () => jsonResponse(errorEnvelope([{ code, message: 'server message', field: 'workflow_stage_call_script.announcement_en' }]), { status }));
+      stubFetch(async () => jsonResponse(errorEnvelope([{ code, message: 'server message', field: 'workflow_stage_call_script.voice_id' }]), { status }));
       const { client } = buildClient();
       try {
-        await client.updateWorkflowStageCallScript('verified', { announcementEn: '', announcementUr: '', active: true });
+        await client.updateWorkflowStageCallScript('verified', { voiceId: '', active: true });
         throw new Error('expected rejection');
       } catch (error) {
         return error;
@@ -196,7 +209,7 @@ describe('createAdminWorkflowStageCallScriptsClient (real)', () => {
       const { client } = buildClient();
 
       await expect(
-        client.updateWorkflowStageCallScript('verified', { announcementEn: 'x', announcementUr: '', active: true })
+        client.updateWorkflowStageCallScript('verified', { voiceId: 'x', active: true })
       ).rejects.toMatchObject({ code: 'FORBIDDEN' });
     });
 
@@ -205,7 +218,7 @@ describe('createAdminWorkflowStageCallScriptsClient (real)', () => {
       const { client } = buildClient();
 
       await expect(
-        client.updateWorkflowStageCallScript('verified', { announcementEn: 'x', announcementUr: '', active: true })
+        client.updateWorkflowStageCallScript('verified', { voiceId: 'x', active: true })
       ).rejects.toMatchObject({ code: 'SERVER_ERROR' });
     });
 
@@ -227,7 +240,7 @@ describe('createAdminWorkflowStageCallScriptsClient (real)', () => {
       const client = createAdminWorkflowStageCallScriptsClient({ apiClient, staffAuthClient, getLocale: () => 'en' });
 
       await expect(
-        client.updateWorkflowStageCallScript('verified', { announcementEn: 'x', announcementUr: '', active: true })
+        client.updateWorkflowStageCallScript('verified', { voiceId: 'x', active: true })
       ).rejects.toMatchObject({ code: 'SESSION_EXPIRED' });
     });
   });

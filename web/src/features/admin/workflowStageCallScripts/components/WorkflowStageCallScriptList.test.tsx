@@ -36,8 +36,7 @@ function renderList(client: Awaited<ReturnType<typeof signInAs>>) {
 function script(overrides: Record<string, unknown> = {}) {
   return {
     workflowStageCode: "verified" as const,
-    announcementEn: "Hello, this is Descon Manpower calling.",
-    announcementUr: undefined,
+    voiceId: undefined,
     active: false,
     updatedBy: undefined,
     updatedAt: "2026-09-11T09:00:00Z",
@@ -52,28 +51,42 @@ describe("WorkflowStageCallScriptList", () => {
     sessionStorage.clear();
   });
 
-  it("lists scripts for an authorized staff member, showing both languages", async () => {
+  it("shows stages that are calling first, then stages with a voice but switched off, then the rest", async () => {
     adminWorkflowStageCallScriptsClient.listWorkflowStageCallScripts.mockResolvedValue([
-      script({ announcementUr: "السلام علیکم، یہ ڈیسکون مین پاور کی کال ہے۔" }),
+      script({ workflowStageCode: "registered" }),
+      script({ workflowStageCode: "documents_pending", voiceId: "538" }),
+      script({ workflowStageCode: "medical_completed", voiceId: "537", active: true }),
+      script({ workflowStageCode: "verified", voiceId: "102", active: true }),
     ]);
     const client = await signInAs(HR);
 
     renderList(client);
 
-    expect(await screen.findByText("Verified")).toBeInTheDocument();
-    expect(screen.getByText("Hello, this is Descon Manpower calling.")).toBeInTheDocument();
-    expect(screen.getByText("السلام علیکم، یہ ڈیسکون مین پاور کی کال ہے۔")).toBeInTheDocument();
-    expect(screen.getByText("Inactive")).toBeInTheDocument();
+    await screen.findByText("Verified");
+    const headings = screen.getAllByRole("heading", { level: 3 }).map((heading) => heading.textContent);
+    expect(headings).toEqual(["Verified", "Medical completed", "Documents Pending", "Registered"]);
   });
 
-  it("shows a placeholder when Urdu wording hasn't been added yet", async () => {
+  it("lists each stage's voice for an authorized staff member", async () => {
+    adminWorkflowStageCallScriptsClient.listWorkflowStageCallScripts.mockResolvedValue([script({ voiceId: "102" })]);
+    const client = await signInAs(HR);
+
+    renderList(client);
+
+    expect(await screen.findByText("Verified")).toBeInTheDocument();
+    expect(screen.getByText("102")).toBeInTheDocument();
+    expect(screen.getByText("Inactive")).toBeInTheDocument();
+    expect(screen.getByText("Stages with a voice")).toBeInTheDocument();
+  });
+
+  it("says no call is placed when a stage has no voice yet", async () => {
     adminWorkflowStageCallScriptsClient.listWorkflowStageCallScripts.mockResolvedValue([script()]);
     const client = await signInAs(HR);
 
     renderList(client);
 
     expect(await screen.findByText("Verified")).toBeInTheDocument();
-    expect(screen.getByText("Urdu wording not added yet -- English is used for every candidate.")).toBeInTheDocument();
+    expect(screen.getByText("No voice set -- no call is placed for this stage.")).toBeInTheDocument();
   });
 
   it("shows the forbidden state for a staff member without manage_ai_call_scripts", async () => {
@@ -85,19 +98,19 @@ describe("WorkflowStageCallScriptList", () => {
     expect(await screen.findByText("Access restricted")).toBeInTheDocument();
   });
 
-  it("shows the empty state when there are no scripts", async () => {
+  it("shows the empty state when there are no automatic calls", async () => {
     adminWorkflowStageCallScriptsClient.listWorkflowStageCallScripts.mockResolvedValue([]);
     const client = await signInAs(HR);
 
     renderList(client);
 
-    expect(await screen.findByText("No call scripts yet")).toBeInTheDocument();
+    expect(await screen.findByText("No automatic calls yet")).toBeInTheDocument();
   });
 
-  it("requires confirmation before activating a script, and saves only after confirming", async () => {
+  it("requires confirmation before activating a call, and saves only after confirming", async () => {
     adminWorkflowStageCallScriptsClient.listWorkflowStageCallScripts.mockResolvedValue([script()]);
     adminWorkflowStageCallScriptsClient.updateWorkflowStageCallScript.mockResolvedValue(
-      script({ announcementEn: "Approved wording.", announcementUr: "منظور شدہ۔", active: true })
+      script({ voiceId: "102", active: true })
     );
     const client = await signInAs(HR);
 
@@ -106,8 +119,7 @@ describe("WorkflowStageCallScriptList", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Edit" }));
 
-    fireEvent.change(screen.getByLabelText("Opening announcement (English)"), { target: { value: "Approved wording." } });
-    fireEvent.change(screen.getByLabelText("Opening announcement (Urdu)"), { target: { value: "منظور شدہ۔" } });
+    fireEvent.change(screen.getByLabelText("Voice ID"), { target: { value: "102" } });
     fireEvent.change(screen.getByLabelText("Status"), { target: { value: "active" } });
 
     fireEvent.click(screen.getByRole("button", { name: "Save" }));
@@ -115,7 +127,7 @@ describe("WorkflowStageCallScriptList", () => {
     expect(await screen.findByText("Activate this automated call?")).toBeInTheDocument();
     expect(
       screen.getByText(
-        "From now on, every candidate who enters this workflow stage will automatically receive a billed AI voice call using this script."
+        "From now on, every candidate who enters this workflow stage will automatically receive a billed voice call playing this voice."
       )
     ).toBeInTheDocument();
     expect(adminWorkflowStageCallScriptsClient.updateWorkflowStageCallScript).not.toHaveBeenCalled();
@@ -124,12 +136,11 @@ describe("WorkflowStageCallScriptList", () => {
 
     await waitFor(() =>
       expect(adminWorkflowStageCallScriptsClient.updateWorkflowStageCallScript).toHaveBeenCalledWith("verified", {
-        announcementEn: "Approved wording.",
-        announcementUr: "منظور شدہ۔",
+        voiceId: "102",
         active: true,
       })
     );
-    await waitFor(() => expect(screen.queryByLabelText("Opening announcement (English)")).not.toBeInTheDocument());
+    await waitFor(() => expect(screen.queryByLabelText("Voice ID")).not.toBeInTheDocument());
   });
 
   it("cancelling the activation confirmation does not save", async () => {
@@ -151,12 +162,12 @@ describe("WorkflowStageCallScriptList", () => {
 
     await waitFor(() => expect(screen.queryByText("Activate this automated call?")).not.toBeInTheDocument());
     expect(adminWorkflowStageCallScriptsClient.updateWorkflowStageCallScript).not.toHaveBeenCalled();
-    expect(screen.getByLabelText("Opening announcement (English)")).toBeInTheDocument();
+    expect(screen.getByLabelText("Voice ID")).toBeInTheDocument();
   });
 
-  it("saves immediately, without confirmation, when only deactivating a script", async () => {
-    adminWorkflowStageCallScriptsClient.listWorkflowStageCallScripts.mockResolvedValue([script({ active: true })]);
-    adminWorkflowStageCallScriptsClient.updateWorkflowStageCallScript.mockResolvedValue(script({ active: false }));
+  it("saves immediately, without confirmation, when only deactivating a call", async () => {
+    adminWorkflowStageCallScriptsClient.listWorkflowStageCallScripts.mockResolvedValue([script({ voiceId: "102", active: true })]);
+    adminWorkflowStageCallScriptsClient.updateWorkflowStageCallScript.mockResolvedValue(script({ voiceId: "102", active: false }));
     const client = await signInAs(HR);
 
     renderList(client);
@@ -170,10 +181,10 @@ describe("WorkflowStageCallScriptList", () => {
     expect(screen.queryByText("Activate this automated call?")).not.toBeInTheDocument();
   });
 
-  it("requires confirmation before saving a wording change to an already-active script", async () => {
-    adminWorkflowStageCallScriptsClient.listWorkflowStageCallScripts.mockResolvedValue([script({ active: true })]);
+  it("requires confirmation before changing the voice of an already-active call", async () => {
+    adminWorkflowStageCallScriptsClient.listWorkflowStageCallScripts.mockResolvedValue([script({ voiceId: "102", active: true })]);
     adminWorkflowStageCallScriptsClient.updateWorkflowStageCallScript.mockResolvedValue(
-      script({ active: true, announcementEn: "New wording." })
+      script({ active: true, voiceId: "205" })
     );
     const client = await signInAs(HR);
 
@@ -181,33 +192,33 @@ describe("WorkflowStageCallScriptList", () => {
     await screen.findByText("Verified");
 
     fireEvent.click(screen.getByRole("button", { name: "Edit" }));
-    fireEvent.change(screen.getByLabelText("Opening announcement (English)"), { target: { value: "New wording." } });
+    fireEvent.change(screen.getByLabelText("Voice ID"), { target: { value: "205" } });
     fireEvent.click(screen.getByRole("button", { name: "Save" }));
 
-    expect(await screen.findByText("Save changes to this active script?")).toBeInTheDocument();
+    expect(await screen.findByText("Change the voice of this active call?")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Confirm and save" }));
 
     await waitFor(() =>
-      expect(adminWorkflowStageCallScriptsClient.updateWorkflowStageCallScript).toHaveBeenCalledWith(
-        "verified",
-        expect.objectContaining({ announcementEn: "New wording.", active: true })
-      )
+      expect(adminWorkflowStageCallScriptsClient.updateWorkflowStageCallScript).toHaveBeenCalledWith("verified", {
+        voiceId: "205",
+        active: true,
+      })
     );
   });
 
   it("cancelling the edit discards changes without saving", async () => {
-    adminWorkflowStageCallScriptsClient.listWorkflowStageCallScripts.mockResolvedValue([script()]);
+    adminWorkflowStageCallScriptsClient.listWorkflowStageCallScripts.mockResolvedValue([script({ voiceId: "102" })]);
     const client = await signInAs(HR);
 
     renderList(client);
     await screen.findByText("Verified");
 
     fireEvent.click(screen.getByRole("button", { name: "Edit" }));
-    fireEvent.change(screen.getByLabelText("Opening announcement (English)"), { target: { value: "Changed but not saved." } });
+    fireEvent.change(screen.getByLabelText("Voice ID"), { target: { value: "999" } });
     fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
 
-    expect(screen.queryByLabelText("Opening announcement (English)")).not.toBeInTheDocument();
-    expect(screen.getByText("Hello, this is Descon Manpower calling.")).toBeInTheDocument();
+    expect(screen.queryByLabelText("Voice ID")).not.toBeInTheDocument();
+    expect(screen.getByText("102")).toBeInTheDocument();
     expect(adminWorkflowStageCallScriptsClient.updateWorkflowStageCallScript).not.toHaveBeenCalled();
   });
 
@@ -215,7 +226,7 @@ describe("WorkflowStageCallScriptList", () => {
     adminWorkflowStageCallScriptsClient.listWorkflowStageCallScripts.mockResolvedValue([script()]);
     adminWorkflowStageCallScriptsClient.updateWorkflowStageCallScript.mockRejectedValue({
       code: "VALIDATION_FAILED",
-      message: "Announcement en can't be blank.",
+      message: "Voice is invalid.",
     });
     const client = await signInAs(HR);
 
@@ -223,10 +234,10 @@ describe("WorkflowStageCallScriptList", () => {
     await screen.findByText("Verified");
 
     fireEvent.click(screen.getByRole("button", { name: "Edit" }));
-    fireEvent.change(screen.getByLabelText("Opening announcement (English)"), { target: { value: "" } });
+    fireEvent.change(screen.getByLabelText("Voice ID"), { target: { value: "bad id!" } });
     fireEvent.click(screen.getByRole("button", { name: "Save" }));
 
-    expect(await screen.findByText("Announcement en can't be blank.")).toBeInTheDocument();
-    expect(screen.getByLabelText("Opening announcement (English)")).toBeInTheDocument();
+    expect(await screen.findByText("Voice is invalid.")).toBeInTheDocument();
+    expect(screen.getByLabelText("Voice ID")).toBeInTheDocument();
   });
 });
