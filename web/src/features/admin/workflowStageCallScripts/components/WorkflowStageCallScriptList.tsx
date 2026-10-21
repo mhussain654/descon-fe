@@ -1,8 +1,9 @@
 import { useEffect } from 'react';
-import { Bot, Languages, Radio, ShieldCheck } from 'lucide-react';
+import { Bot, Mic, Radio, ShieldCheck } from 'lucide-react';
 import { useLanguage } from '../../../../contexts/LanguageContext';
 import { useStaffAuth } from '../../../../contexts/StaffAuthContext';
 import { Card, EmptyState, ErrorState, ForbiddenState, LoadingState, OfflineState } from '../../../../design-system';
+import { sortByWorkflowStageOrder } from '../../../../../../shared/adminCandidates/workflowStageLabels';
 import { useWorkflowStageCallScriptList } from '../hooks/useWorkflowStageCallScriptList';
 import { WorkflowStageCallScriptRow } from './WorkflowStageCallScriptRow';
 
@@ -66,7 +67,7 @@ function Content({ query }: { query: ReturnType<typeof useWorkflowStageCallScrip
     return <ErrorState message={error?.message || t('somethingWentWrong')} retryLabel={t('retry')} onRetry={() => query.refetch()} />;
   }
 
-  const scripts = query.data ?? [];
+  const scripts = sortActiveFirst(sortByWorkflowStageOrder(query.data ?? [], (script) => script.workflowStageCode));
 
   if (scripts.length === 0) {
     return <EmptyState title={t('adminWorkflowStageCallScriptEmptyTitle')} description={t('adminWorkflowStageCallScriptEmptyDescription')} />;
@@ -77,7 +78,7 @@ function Content({ query }: { query: ReturnType<typeof useWorkflowStageCallScrip
       <div className="mb-5 grid grid-cols-1 gap-3 sm:grid-cols-3">
         <SummaryCard icon={Radio} label={t('adminWorkflowStageCallScriptMetricTotal')} value={scripts.length} className="border-t-brand bg-brand-subtle/45 text-brand" />
         <SummaryCard icon={ShieldCheck} label={t('adminWorkflowStageCallScriptMetricActive')} value={scripts.filter((script) => script.active).length} className="border-t-success bg-success-subtle/55 text-success-emphasis" />
-        <SummaryCard icon={Languages} label={t('adminWorkflowStageCallScriptMetricBilingual')} value={scripts.filter((script) => Boolean(script.announcementUr)).length} className="border-t-info bg-info-subtle/55 text-info-emphasis" />
+        <SummaryCard icon={Mic} label={t('adminWorkflowStageCallScriptMetricWithVoice')} value={scripts.filter((script) => Boolean(script.voiceId)).length} className="border-t-info bg-info-subtle/55 text-info-emphasis" />
       </div>
       <div className="mb-3">
         <h2 className="font-semibold text-text-primary">{t('adminWorkflowStageCallScriptLibraryTitle')}</h2>
@@ -88,6 +89,12 @@ function Content({ query }: { query: ReturnType<typeof useWorkflowStageCallScrip
       </div>
     </>
   );
+}
+
+/** Stages that are calling now come first, then stages with a voice set but switched off, then stages with no voice yet. Array#sort is stable, so each group keeps the workflow-stage order it came in with. */
+function sortActiveFirst<T extends { active: boolean; voiceId?: string | null }>(scripts: T[]): T[] {
+  const rank = (script: T) => (script.active ? 0 : script.voiceId ? 1 : 2);
+  return [...scripts].sort((a, b) => rank(a) - rank(b));
 }
 
 function SummaryCard({ icon: Icon, label, value, className }: { icon: typeof Radio; label: string; value: number; className: string }) {

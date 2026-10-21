@@ -131,12 +131,13 @@ bundle exec cap production deploy:rollback
 ### Deploy from GitHub Actions
 
 Open this repository's **Actions → EC2 Deploy → Run workflow**. Select the
-workflow's branch (`main` for a production deployment), then choose `source`:
+workflow's branch (`main` for a production deployment; for a `branch` deployment, the
+branch you want to deploy, which must contain this workflow file), then choose `source`:
 
 | Source | Additional input | GitHub environment | Result |
 | --- | --- | --- | --- |
 | `main` | None | `production` | Latest `main` commit |
-| `branch` | Existing branch name | `preview` | Tip of that branch |
+| `branch` | None: the branch picked in **Use workflow from** (not `main`) | `preview` | Tip of that branch |
 | `pull_request` | Open PR number from this repository | `preview` | Head commit of that PR; fork PRs are refused |
 
 A push or merge to `main` also starts EC2 Deploy automatically. It builds the

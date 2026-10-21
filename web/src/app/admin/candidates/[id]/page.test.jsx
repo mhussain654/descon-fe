@@ -9,6 +9,7 @@ import { adminCandidateClient } from "../../../../lib/admin-candidates-client";
 import { adminWorkflowClient } from "../../../../lib/admin-workflow-client";
 import { adminDocumentReviewsClient } from "../../../../lib/admin-document-reviews-client";
 import { adminCandidateAiCallsClient } from "../../../../lib/admin-candidate-ai-calls-client";
+import { adminBulkCallsClient } from "../../../../lib/admin-bulk-calls-client";
 import CandidateDetailsPage from "./page";
 
 // Document verification's own role-gating (previously tested against this
@@ -49,11 +50,16 @@ vi.mock("../../../../lib/admin-candidate-ai-calls-client", () => ({
   adminCandidateAiCallsClient: { listCandidateAiCalls: vi.fn(), triggerCandidateAiCall: vi.fn() },
 }));
 
-const HR = MOCK_STAFF_ACCOUNTS.find((account) => account.role === "hr");
+vi.mock("../../../../lib/admin-bulk-calls-client", () => ({
+  adminBulkCallsClient: { listVoices: vi.fn() },
+}));
 
-async function renderPage() {
+const HR = MOCK_STAFF_ACCOUNTS.find((account) => account.role === "hr");
+const FINANCE = MOCK_STAFF_ACCOUNTS.find((account) => account.role === "finance");
+
+async function renderPage(account = HR) {
   const client = createMockStaffAuthClient({ delayMs: 0 });
-  await client.signIn({ email: HR.email, password: MOCK_STAFF_PASSWORD });
+  await client.signIn({ email: account.email, password: MOCK_STAFF_PASSWORD });
 
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   render(
@@ -120,9 +126,11 @@ describe("CandidateDetailsPage", () => {
       summary: undefined,
     });
     adminCandidateAiCallsClient.listCandidateAiCalls.mockResolvedValue([]);
+    adminBulkCallsClient.listVoices.mockResolvedValue([]);
   });
 
   afterEach(() => {
+    vi.mocked(adminBulkCallsClient.listVoices).mockReset();
     vi.mocked(adminCandidateClient.getCandidate).mockReset();
     vi.mocked(adminWorkflowClient.getWorkflowState).mockReset();
     vi.mocked(adminWorkflowClient.getAllowedTransitions).mockReset();
@@ -143,18 +151,28 @@ describe("CandidateDetailsPage", () => {
     expect(screen.getByRole("tab", { name: "Documents" })).toBeInTheDocument();
     expect(screen.getByText("No document submissions yet.")).toBeInTheDocument();
     expect(screen.queryByText("Personal Information")).not.toBeInTheDocument();
-    expect(screen.queryByText("No admin-triggered calls yet.")).not.toBeInTheDocument();
+    expect(screen.queryByText("No calls yet.")).not.toBeInTheDocument();
     const overview = screen.getByRole("tab", { name: "Overview" });
     fireEvent.keyDown(overview, { key: "ArrowRight" });
     expect(screen.getByRole("tab", { name: "Profile" })).toHaveFocus();
     expect(screen.getByRole("tab", { name: "Profile" })).toHaveAttribute("aria-selected", "true");
     expect(await screen.findByText("Personal Information")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("tab", { name: "Records" }));
-    expect(await screen.findByText("Calls")).toBeInTheDocument();
-    expect(screen.getByText("No admin-triggered calls yet.")).toBeInTheDocument();
+    expect(screen.queryByText("Call history")).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("tab", { name: "AI calls" }));
+    expect(await screen.findByText("Call history")).toBeInTheDocument();
+    expect(screen.getByText("No calls yet.")).toBeInTheDocument();
     expect(adminDocumentReviewsClient.getQueue).toHaveBeenCalledWith(
       { candidatePublicId: "candidate-1", status: ["pending_review", "partially_reviewed", "changes_required", "verified"] },
       { number: 1, size: 5 }
     );
+  });
+
+  it("does not show the AI calls tab to staff who cannot place calls", async () => {
+    await renderPage(FINANCE);
+
+    expect(await screen.findByText("Jane Applicant")).toBeInTheDocument();
+    expect(screen.getByRole("tab", { name: "Records" })).toBeInTheDocument();
+    expect(screen.queryByRole("tab", { name: "AI calls" })).not.toBeInTheDocument();
   });
 });

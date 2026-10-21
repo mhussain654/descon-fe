@@ -30,7 +30,10 @@ function callPayload(overrides: Record<string, unknown> = {}) {
   return {
     id: '2a6f9c4e-9a3e-4f0e-9a0a-5a6f9c4e9a3e',
     direction: 'outbound',
-    call_reason: 'missing_documents',
+    call_reason: 'voice_call',
+    trigger: 'manual',
+    workflow_stage_code: null,
+    voice: { voice_id: '538', name_en: 'Upload documents', name_ur: null },
     language_code: 'en',
     status: 'queued',
     triggered_by: { id: '2be3e0b4-9237-4e8d-9bd7-04fe0e9ce8aa', role: 'admin' },
@@ -91,7 +94,10 @@ describe('createAdminCandidateAiCallsClient (real)', () => {
         {
           id: '2a6f9c4e-9a3e-4f0e-9a0a-5a6f9c4e9a3e',
           direction: 'outbound',
-          callReason: 'missing_documents',
+          callReason: 'voice_call',
+          trigger: 'manual',
+          workflowStageCode: undefined,
+          voice: { voiceId: '538', nameEn: 'Upload documents', nameUr: undefined },
           languageCode: 'en',
           status: 'queued',
           triggeredBy: { id: '2be3e0b4-9237-4e8d-9bd7-04fe0e9ce8aa', role: 'admin' },
@@ -141,20 +147,20 @@ describe('createAdminCandidateAiCallsClient (real)', () => {
       });
       const { client } = buildClient();
 
-      const result = await client.triggerCandidateAiCall('candidate-1', 'flight_information', 'idem-key-1');
+      const result = await client.triggerCandidateAiCall('candidate-1', 'voice-uuid-1', 'idem-key-1');
 
       expect(capturedUrl).toBe('http://example.test/api/v1/admin/candidates/candidate-1/ai_calls');
       expect(capturedHeaders?.['Idempotency-Key']).toBe('idem-key-1');
-      expect(JSON.parse(capturedBody!)).toEqual({ candidate_ai_call: { call_reason: 'flight_information' } });
+      expect(JSON.parse(capturedBody!)).toEqual({ candidate_ai_call: { robocall_voice_id: 'voice-uuid-1' } });
       expect(result.status).toBe('requested');
-      expect(result.callReason).toBe('missing_documents');
+      expect(result.callReason).toBe('voice_call');
     });
 
     async function rejectionForServerCode(code: string, status: number) {
-      stubFetch(async () => jsonResponse(errorEnvelope([{ code, message: 'server message', field: 'candidate_ai_call.call_reason' }]), { status }));
+      stubFetch(async () => jsonResponse(errorEnvelope([{ code, message: 'server message', field: 'candidate_ai_call.robocall_voice_id' }]), { status }));
       const { client } = buildClient();
       try {
-        await client.triggerCandidateAiCall('candidate-1', 'missing_documents', 'idem-key-1');
+        await client.triggerCandidateAiCall('candidate-1', 'voice-uuid-1', 'idem-key-1');
         throw new Error('expected rejection');
       } catch (error) {
         return error;
@@ -175,7 +181,7 @@ describe('createAdminCandidateAiCallsClient (real)', () => {
       stubFetch(async () => jsonResponse(errorEnvelope([{ code: 'forbidden', message: 'Not permitted.' }]), { status: 403 }));
       const { client } = buildClient();
 
-      await expect(client.triggerCandidateAiCall('candidate-1', 'missing_documents', 'idem-key-1')).rejects.toMatchObject({
+      await expect(client.triggerCandidateAiCall('candidate-1', 'voice-uuid-1', 'idem-key-1')).rejects.toMatchObject({
         code: 'FORBIDDEN',
       });
     });
@@ -184,7 +190,7 @@ describe('createAdminCandidateAiCallsClient (real)', () => {
       stubFetch(async () => jsonResponse(errorEnvelope([{ code: 'not_found', message: 'Candidate not found.' }]), { status: 404 }));
       const { client } = buildClient();
 
-      await expect(client.triggerCandidateAiCall('candidate-1', 'missing_documents', 'idem-key-1')).rejects.toMatchObject({
+      await expect(client.triggerCandidateAiCall('candidate-1', 'voice-uuid-1', 'idem-key-1')).rejects.toMatchObject({
         code: 'NOT_FOUND',
       });
     });
@@ -198,7 +204,7 @@ describe('createAdminCandidateAiCallsClient (real)', () => {
       );
       const { client } = buildClient();
 
-      await expect(client.triggerCandidateAiCall('candidate-1', 'missing_documents', 'idem-key-1')).rejects.toMatchObject({
+      await expect(client.triggerCandidateAiCall('candidate-1', 'voice-uuid-1', 'idem-key-1')).rejects.toMatchObject({
         code: 'RATE_LIMITED',
       });
     });
@@ -207,7 +213,7 @@ describe('createAdminCandidateAiCallsClient (real)', () => {
       stubFetch(async () => jsonResponse(errorEnvelope([{ code: 'bad_gateway', message: 'Provider failed.' }]), { status: 502 }));
       const { client } = buildClient();
 
-      await expect(client.triggerCandidateAiCall('candidate-1', 'missing_documents', 'idem-key-1')).rejects.toMatchObject({
+      await expect(client.triggerCandidateAiCall('candidate-1', 'voice-uuid-1', 'idem-key-1')).rejects.toMatchObject({
         code: 'PROVIDER_ERROR',
       });
     });
@@ -216,7 +222,7 @@ describe('createAdminCandidateAiCallsClient (real)', () => {
       stubFetch(async () => jsonResponse(errorEnvelope([{ code: 'service_unavailable', message: 'Calling disabled.' }]), { status: 503 }));
       const { client } = buildClient();
 
-      await expect(client.triggerCandidateAiCall('candidate-1', 'missing_documents', 'idem-key-1')).rejects.toMatchObject({
+      await expect(client.triggerCandidateAiCall('candidate-1', 'voice-uuid-1', 'idem-key-1')).rejects.toMatchObject({
         code: 'CALLING_UNAVAILABLE',
       });
     });
@@ -225,7 +231,7 @@ describe('createAdminCandidateAiCallsClient (real)', () => {
       stubFetch(async () => jsonResponse(errorEnvelope([{ code: 'internal_server_error', message: 'Boom.' }]), { status: 500 }));
       const { client } = buildClient();
 
-      await expect(client.triggerCandidateAiCall('candidate-1', 'missing_documents', 'idem-key-1')).rejects.toMatchObject({
+      await expect(client.triggerCandidateAiCall('candidate-1', 'voice-uuid-1', 'idem-key-1')).rejects.toMatchObject({
         code: 'SERVER_ERROR',
       });
     });
@@ -247,7 +253,7 @@ describe('createAdminCandidateAiCallsClient (real)', () => {
       };
       const client = createAdminCandidateAiCallsClient({ apiClient, staffAuthClient, getLocale: () => 'en' });
 
-      await expect(client.triggerCandidateAiCall('candidate-1', 'missing_documents', 'idem-key-1')).rejects.toMatchObject({
+      await expect(client.triggerCandidateAiCall('candidate-1', 'voice-uuid-1', 'idem-key-1')).rejects.toMatchObject({
         code: 'SESSION_EXPIRED',
       });
     });

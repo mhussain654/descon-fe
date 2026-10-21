@@ -11,7 +11,6 @@
 // dedupe (see the backend controller's own #update action).
 import type { ApiClient, ApiError } from '../api-client';
 import type { StaffAuthClient, StaffAuthError } from '../auth/staffTypes';
-import type { CanonicalWorkflowStageCode } from '../adminWorkflow/canonicalStages';
 import type {
   AdminWorkflowStageCallScriptsClient,
   WorkflowStageCallScript,
@@ -28,8 +27,7 @@ interface WorkflowStageCallScriptActorResponse {
 
 interface WorkflowStageCallScriptResponse {
   workflow_stage_code: string;
-  announcement_en: string;
-  announcement_ur: string | null;
+  voice_id: string | null;
   active: boolean;
   updated_by: WorkflowStageCallScriptActorResponse | null;
   updated_at: string;
@@ -48,9 +46,8 @@ function toActorRef(actor: WorkflowStageCallScriptActorResponse | null): Workflo
 
 function toWorkflowStageCallScript(data: WorkflowStageCallScriptResponse): WorkflowStageCallScript {
   return {
-    workflowStageCode: data.workflow_stage_code as CanonicalWorkflowStageCode,
-    announcementEn: data.announcement_en,
-    announcementUr: data.announcement_ur ?? undefined,
+    workflowStageCode: data.workflow_stage_code,
+    voiceId: data.voice_id ?? undefined,
     active: data.active,
     updatedBy: toActorRef(data.updated_by),
     updatedAt: data.updated_at,
@@ -114,7 +111,7 @@ export function createAdminWorkflowStageCallScriptsClient(
     },
 
     async updateWorkflowStageCallScript(
-      workflowStageCode: CanonicalWorkflowStageCode,
+      workflowStageCode: string,
       input: WorkflowStageCallScriptUpdateInput
     ): Promise<WorkflowStageCallScript> {
       try {
@@ -123,8 +120,7 @@ export function createAdminWorkflowStageCallScriptsClient(
             `/admin/workflow_stage_call_scripts/${encodeURIComponent(workflowStageCode)}`,
             {
               workflow_stage_call_script: {
-                announcement_en: input.announcementEn,
-                announcement_ur: input.announcementUr,
+                voice_id: input.voiceId.trim() || null,
                 active: input.active,
               },
             },

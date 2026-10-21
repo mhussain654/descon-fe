@@ -10,34 +10,30 @@
 // unseeded stage code 404s (the backend never creates one on the fly).
 //
 // Web-only (AGENTS.md: "administrative workflows remain web-focused").
-import type { CanonicalWorkflowStageCode } from '../adminWorkflow/canonicalStages';
-
 export interface WorkflowStageCallScriptActorRef {
   id: string;
   role: string;
 }
 
 /**
- * `announcementEn`/`announcementUr` -- the actual call always speaks in the
- * *candidate's own* preferred language, selecting between these two at call
- * time (falling back to `announcementEn` if the Urdu wording isn't ready
- * yet), so a stage needs both, not a single language_code tag. Mirrors
- * AiCalls::Prompts::ScenarioPrompt's existing bilingual opening_line
- * pattern for the 4 admin-triggered scenarios.
+ * `voiceId` is the RoboCall voice played when a candidate enters the stage:
+ * a fixed pre-recorded voice, the only thing sent for the call. A stage with
+ * no voice places no call. (The backend still returns the announcement
+ * wording the retired ElevenLabs provider used; nothing here reads it.)
  */
 export interface WorkflowStageCallScript {
-  workflowStageCode: CanonicalWorkflowStageCode;
-  announcementEn: string;
-  /** May be blank if the Urdu wording isn't ready yet. */
-  announcementUr?: string;
+  /** One of the backend's workflow stage codes (see shared/adminCandidates/workflowStageLabels.ts). */
+  workflowStageCode: string;
+  /** Absent until an admin sets one -- no call is placed for the stage meanwhile. */
+  voiceId?: string;
   active: boolean;
   updatedBy?: WorkflowStageCallScriptActorRef;
   updatedAt: string;
 }
 
 export interface WorkflowStageCallScriptUpdateInput {
-  announcementEn: string;
-  announcementUr: string;
+  /** Blank clears the voice. */
+  voiceId: string;
   active: boolean;
 }
 
@@ -62,7 +58,7 @@ export interface WorkflowStageCallScriptError {
 export interface AdminWorkflowStageCallScriptsClient {
   listWorkflowStageCallScripts(): Promise<WorkflowStageCallScript[]>;
   updateWorkflowStageCallScript(
-    workflowStageCode: CanonicalWorkflowStageCode,
+    workflowStageCode: string,
     input: WorkflowStageCallScriptUpdateInput
   ): Promise<WorkflowStageCallScript>;
 }

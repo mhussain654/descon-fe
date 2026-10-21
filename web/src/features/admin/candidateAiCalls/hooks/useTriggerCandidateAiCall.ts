@@ -3,7 +3,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useLanguage } from '../../../../contexts/LanguageContext';
 import { toast } from '../../../../design-system';
 import { adminCandidateAiCallsClient } from '../../../../lib/admin-candidate-ai-calls-client';
-import type { AdminAiCallReason, AdminCandidateAiCall, AdminCandidateAiCallError } from '../../../../lib/admin-candidate-ai-calls-client';
+import type { AdminCandidateAiCall, AdminCandidateAiCallError } from '../../../../lib/admin-candidate-ai-calls-client';
 import {
   clearCallIdempotencyKey,
   EMPTY_CALL_IDEMPOTENCY_KEY_STATE,
@@ -20,7 +20,7 @@ import type { TranslationKey } from '../../../../../../shared/i18n/translations'
  * (the candidate no longer exists, or calling is disabled account-wide) --
  * these close the confirm dialog and refresh the call history instead of
  * leaving it open, with a toast standing in for the now-dismissed dialog's
- * own error slot. `VALIDATION_FAILED` (unknown call_reason, no current
+ * own error slot. `VALIDATION_FAILED` (unknown call type, no current
  * assignment, inactive candidate, outside calling hours) is deliberately
  * NOT terminal: the dialog stays open with the server's own message
  * (rendered via ConfirmDialog's children), since a human reading exactly
@@ -34,24 +34,24 @@ const TERMINAL_ERROR_CODES = new Set<AdminCandidateAiCallError['code']>(['NOT_FO
 
 interface TriggerVariables {
   candidateId: string;
-  callReason: AdminAiCallReason;
+  voiceId: string;
   idempotencyKey: string;
 }
 
-/** Triggers an admin-initiated outbound AI call for one candidate, through a confirm-dialog-shaped flow -- placing a real, billed phone call is consequential, so it is never a single click. */
+/** Places a call to one candidate with a chosen call type (a RobocallVoice id), through a confirm-dialog-shaped flow -- placing a real, billed phone call is consequential, so it is never a single click. */
 export function useTriggerCandidateAiCall(candidateId: string | undefined) {
   const { t, language } = useLanguage();
   const queryClient = useQueryClient();
-  const [pendingReason, setPendingReason] = useState<AdminAiCallReason | null>(null);
+  const [pendingVoiceId, setPendingVoiceId] = useState<string | null>(null);
   const [idempotencyState, setIdempotencyState] = useState<CallIdempotencyKeyState>(EMPTY_CALL_IDEMPOTENCY_KEY_STATE);
 
   const mutation = useMutation<AdminCandidateAiCall, AdminCandidateAiCallError, TriggerVariables>({
     mutationFn: (variables) =>
-      adminCandidateAiCallsClient.triggerCandidateAiCall(variables.candidateId, variables.callReason, variables.idempotencyKey),
+      adminCandidateAiCallsClient.triggerCandidateAiCall(variables.candidateId, variables.voiceId, variables.idempotencyKey),
     onSuccess: () => {
       if (candidateId) queryClient.invalidateQueries({ queryKey: adminCandidateAiCallQueries.list(candidateId, language) });
       toast.success(t('adminCandidateAiCallTriggerSuccessToast'));
-      setPendingReason(null);
+      setPendingVoiceId(null);
       setIdempotencyState(clearCallIdempotencyKey());
     },
     onError: (error) => {
@@ -69,7 +69,7 @@ export function useTriggerCandidateAiCall(candidateId: string | undefined) {
       }
       if (TERMINAL_ERROR_CODES.has(error.code)) {
         setIdempotencyState(clearCallIdempotencyKey());
-        setPendingReason(null);
+        setPendingVoiceId(null);
         toast.error(error.message || t(CANDIDATE_AI_CALL_ERROR_KEYS[error.code] as TranslationKey));
         if (candidateId) queryClient.invalidateQueries({ queryKey: adminCandidateAiCallQueries.list(candidateId, language) });
         return;
@@ -83,18 +83,18 @@ export function useTriggerCandidateAiCall(candidateId: string | undefined) {
   });
 
   const openConfirm = useCallback(
-    (callReason: AdminAiCallReason) => {
+    (voiceId: string) => {
       if (mutation.isPending) return;
       mutation.reset();
       setIdempotencyState(EMPTY_CALL_IDEMPOTENCY_KEY_STATE);
-      setPendingReason(callReason);
+      setPendingVoiceId(voiceId);
     },
     [mutation]
   );
 
   const closeConfirm = useCallback(() => {
     if (mutation.isPending) return;
-    setPendingReason(null);
+    setPendingVoiceId(null);
     setIdempotencyState(clearCallIdempotencyKey());
   }, [mutation]);
 
@@ -102,13 +102,13 @@ export function useTriggerCandidateAiCall(candidateId: string | undefined) {
     // Guards double-click/concurrent submission (disabling the confirm
     // button while pending covers the UI, this covers a caller bypassing
     // it) -- mirrors useSubmitWorkflowTransition.ts's identical guard.
-    if (!candidateId || !pendingReason || mutation.isPending) return;
+    if (!candidateId || !pendingVoiceId || mutation.isPending) return;
 
-    const selection = { candidateId, callReason: pendingReason };
+    const selection = { candidateId, voiceId: pendingVoiceId };
     const resolved = resolveCallIdempotencyKey(idempotencyState, selection, randomCallIdempotencyKey);
     setIdempotencyState(resolved);
-    mutation.mutate({ candidateId, callReason: pendingReason, idempotencyKey: resolved.key as string });
-  }, [candidateId, pendingReason, mutation, idempotencyState]);
+    mutation.mutate({ candidateId, voiceId: pendingVoiceId, idempotencyKey: resolved.key as string });
+  }, [candidateId, pendingVoiceId, mutation, idempotencyState]);
 
-  return { pendingReason, openConfirm, closeConfirm, confirm, mutation };
+  return { pendingVoiceId, openConfirm, closeConfirm, confirm, mutation };
 }

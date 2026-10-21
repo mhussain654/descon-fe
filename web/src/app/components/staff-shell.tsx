@@ -18,6 +18,7 @@ import {
   Moon,
   PanelLeftClose,
   PanelLeftOpen,
+  PhoneCall,
   ScrollText,
   SlidersHorizontal,
   Sun,
@@ -199,30 +200,36 @@ function StaffShellContent({ children }: { children: ReactNode }) {
       visible: hasPermission('view_reports'),
       icon: BarChart3,
     },
-    // {
-    //   type: 'group',
-    //   key: 'communications',
-    //   children: [
-    //     {
-    //       href: '/admin/communications',
-    //       labelKey: 'staffNavCommunications',
-    //       visible: hasPermission('view_communications') || hasPermission('manage_communications'),
-    //       icon: MessageSquare,
-    //     },
-    //     {
-    //       href: '/admin/ai-call-scripts',
-    //       labelKey: 'staffNavAiCallScripts',
-    //       visible: hasPermission('manage_ai_call_scripts'),
-    //       icon: ScrollText,
-    //     },
-    //     {
-    //       href: '/admin/ai-call-settings',
-    //       labelKey: 'staffNavAiCallSettings',
-    //       visible: hasPermission('manage_ai_call_settings'),
-    //       icon: SlidersHorizontal,
-    //     },
-    //   ],
-    // },
+    {
+      type: 'group',
+      key: 'communications',
+      children: [
+        {
+          href: '/admin/communications',
+          labelKey: 'staffNavCommunications',
+          visible: hasPermission('view_communications') || hasPermission('manage_communications'),
+          icon: MessageSquare,
+        },
+        {
+          href: '/admin/bulk-calls',
+          labelKey: 'staffNavBulkCalls',
+          visible: hasPermission('trigger_ai_calls'),
+          icon: PhoneCall,
+        },
+        {
+          href: '/admin/ai-call-scripts',
+          labelKey: 'staffNavAiCallScripts',
+          visible: hasPermission('manage_ai_call_scripts'),
+          icon: ScrollText,
+        },
+        {
+          href: '/admin/ai-call-settings',
+          labelKey: 'staffNavAiCallSettings',
+          visible: hasPermission('manage_ai_call_settings'),
+          icon: SlidersHorizontal,
+        },
+      ],
+    },
     {
       type: 'group',
       key: 'administration',
@@ -297,7 +304,7 @@ function StaffShellContent({ children }: { children: ReactNode }) {
   const roleLabel = t(STAFF_ROLE_LABEL_KEYS[session.role]);
 
   return (
-    <div className={`admin-typography min-h-screen bg-surface-background ${theme === 'dark' ? 'dark' : ''}`}>
+    <div className={`min-h-screen bg-surface-background ${theme === 'dark' ? 'dark' : ''}`}>
       {/* Mobile-only top bar: the sidebar itself is hidden below `lg`, so this is
           the only way to reach it on small screens. Dark, matching the sidebar/
           drawer it opens, so the mobile and desktop nav chrome feel like the

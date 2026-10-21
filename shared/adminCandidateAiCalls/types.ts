@@ -1,22 +1,24 @@
-// Admin-triggered candidate AI voice call types (MPS-F706), wired to the
-// real backend documented in descon-be's openapi.yaml:
+// Candidate voice call types (MPS-F706), wired to the real backend documented
+// in descon-be's openapi.yaml:
 //   GET  /api/v1/admin/candidates/{candidate_id}/ai_calls
 //   POST /api/v1/admin/candidates/{candidate_id}/ai_calls
 //
 // Index+create only -- a call's outcome is written only by the post-call
 // webhook/reconciliation job, never through this API (see the backend
-// controller's own doc comment). This history is admin-triggered outbound
-// calls only; inbound helpline calls and workflow-stage-triggered calls
-// appear only in the cross-channel Communications log.
+// controller's own doc comment). The history is every outbound call the
+// candidate had: placed by hand, automatic (workflow stage) and bulk.
 //
 // Web-only (AGENTS.md: "administrative workflows remain web-focused").
 
-/** Matches AiCalls::Prompts::ScenarioPromptRegistry::PROMPTS_BY_CALL_REASON.keys exactly -- the 4 admin-triggered scenarios. */
-export type AdminAiCallReason =
-  | 'missing_documents'
-  | 'protection_appearance_reminder'
-  | 'urgent_compliance_action'
-  | 'flight_information';
+/** What started a call: an admin placing it by hand, the candidate entering a workflow stage, or a bulk batch. */
+export type AdminAiCallTrigger = 'manual' | 'automatic' | 'bulk';
+
+/** The recorded voice that was played. The names are only known while the call type still exists. */
+export interface AdminAiCallVoice {
+  voiceId: string;
+  nameEn?: string;
+  nameUr?: string;
+}
 
 export type AdminAiCallDirection = 'inbound' | 'outbound';
 
@@ -55,7 +57,11 @@ export interface AdminAiCallActorRef {
 export interface AdminCandidateAiCall {
   id: string;
   direction: AdminAiCallDirection;
-  callReason: AdminAiCallReason;
+  callReason: string;
+  trigger: AdminAiCallTrigger;
+  /** Set for an automatic call: the stage the candidate entered. */
+  workflowStageCode?: string;
+  voice?: AdminAiCallVoice;
   languageCode: string;
   status: AdminAiCallStatus;
   triggeredBy?: AdminAiCallActorRef;
@@ -95,5 +101,5 @@ export interface AdminCandidateAiCallError {
 
 export interface AdminCandidateAiCallsClient {
   listCandidateAiCalls(candidateId: string): Promise<AdminCandidateAiCall[]>;
-  triggerCandidateAiCall(candidateId: string, callReason: AdminAiCallReason, idempotencyKey: string): Promise<AdminCandidateAiCall>;
+  triggerCandidateAiCall(candidateId: string, robocallVoiceId: string, idempotencyKey: string): Promise<AdminCandidateAiCall>;
 }

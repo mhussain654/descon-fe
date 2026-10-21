@@ -7,11 +7,10 @@ import type {
   WorkflowStageCallScriptError,
   WorkflowStageCallScriptUpdateInput,
 } from '../../../../lib/admin-workflow-stage-call-scripts-client';
-import type { CanonicalWorkflowStageCode } from '../../../../../../shared/adminWorkflow/canonicalStages';
 import { adminWorkflowStageCallScriptQueries } from '../../../../../../shared/queryKeys/adminWorkflowStageCallScriptQueries';
 
 interface UpdateVariables {
-  workflowStageCode: CanonicalWorkflowStageCode;
+  workflowStageCode: string;
   input: WorkflowStageCallScriptUpdateInput;
 }
 

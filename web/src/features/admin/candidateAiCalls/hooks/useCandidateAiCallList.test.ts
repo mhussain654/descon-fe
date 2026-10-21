@@ -6,7 +6,8 @@ function call(status: AdminCandidateAiCall['status']): AdminCandidateAiCall {
   return {
     id: `call-${status}`,
     direction: 'outbound',
-    callReason: 'missing_documents',
+    callReason: 'voice_call',
+    trigger: 'manual',
     languageCode: 'en',
     status,
     verificationStatus: 'not_applicable',
