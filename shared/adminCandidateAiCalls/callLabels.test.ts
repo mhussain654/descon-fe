@@ -1,34 +1,21 @@
 import {
-  adminAiCallConfirmDescription,
   adminAiCallOutcomeLabel,
   adminAiCallOutcomeReasonLabel,
   adminAiCallOutcomeTone,
-  adminAiCallReasonLabel,
   adminAiCallStatusLabel,
   adminAiCallStatusTone,
+  adminAiCallTriggerLabel,
   adminAiCallVerificationStatusLabel,
 } from './callLabels';
 import type { AdminAiCallOutcomeReason } from './types';
 
 const t = (key: string) => `t:${key}`;
 
-describe('adminAiCallReasonLabel', () => {
-  it('translates every call_reason', () => {
-    expect(adminAiCallReasonLabel('missing_documents', t)).toBe('t:adminCandidateAiCallReasonMissingDocuments');
-    expect(adminAiCallReasonLabel('protection_appearance_reminder', t)).toBe('t:adminCandidateAiCallReasonProtectionAppearanceReminder');
-    expect(adminAiCallReasonLabel('urgent_compliance_action', t)).toBe('t:adminCandidateAiCallReasonUrgentComplianceAction');
-    expect(adminAiCallReasonLabel('flight_information', t)).toBe('t:adminCandidateAiCallReasonFlightInformation');
-  });
-});
-
-describe('adminAiCallConfirmDescription', () => {
-  it('gives each call_reason its own dedicated confirm description', () => {
-    const descriptions = new Set(
-      (['missing_documents', 'protection_appearance_reminder', 'urgent_compliance_action', 'flight_information'] as const).map((reason) =>
-        adminAiCallConfirmDescription(reason, t)
-      )
-    );
-    expect(descriptions.size).toBe(4);
+describe('adminAiCallTriggerLabel', () => {
+  it('translates every way a call can be started to its own key', () => {
+    expect(adminAiCallTriggerLabel('manual', t)).toBe('t:adminCandidateAiCallTriggerManual');
+    expect(adminAiCallTriggerLabel('automatic', t)).toBe('t:adminCandidateAiCallTriggerAutomatic');
+    expect(adminAiCallTriggerLabel('bulk', t)).toBe('t:adminCandidateAiCallTriggerBulk');
   });
 });
 

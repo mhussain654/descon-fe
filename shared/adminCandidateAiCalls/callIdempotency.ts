@@ -3,15 +3,14 @@
 // design: the backend's default request fingerprint
 // (Idempotency::RequestFingerprint, since TriggerOutboundCallService's
 // controller action passes no explicit `fingerprint:` override) hashes the
-// request body -- so reusing a key across a changed call_reason would
+// request body -- so reusing a key across a changed call type would
 // otherwise surface as a confusing idempotency_conflict instead of just
 // starting a fresh attempt.
 
-import type { AdminAiCallReason } from './types';
-
 export interface CallSelection {
   candidateId: string;
-  callReason: AdminAiCallReason;
+  /** The chosen call type (RobocallVoice public id). */
+  voiceId: string;
 }
 
 export interface CallIdempotencyKeyState {
@@ -22,10 +21,10 @@ export interface CallIdempotencyKeyState {
 export const EMPTY_CALL_IDEMPOTENCY_KEY_STATE: CallIdempotencyKeyState = { key: null, selection: null };
 
 function sameSelection(a: CallSelection, b: CallSelection): boolean {
-  return a.candidateId === b.candidateId && a.callReason === b.callReason;
+  return a.candidateId === b.candidateId && a.voiceId === b.voiceId;
 }
 
-/** Reuses the current key only when candidate and call_reason both exactly match -- otherwise mints a fresh one, for either a genuinely new intended call or a manual retry of the same one. */
+/** Reuses the current key only when candidate and call type both exactly match -- otherwise mints a fresh one, for either a genuinely new intended call or a manual retry of the same one. */
 export function resolveCallIdempotencyKey(
   current: CallIdempotencyKeyState,
   next: CallSelection,
@@ -37,7 +36,7 @@ export function resolveCallIdempotencyKey(
   return { key: generateKey(), selection: next };
 }
 
-/** Clears the key after a confirmed successful trigger, or a deliberate cancellation -- a later attempt (even for the same candidate/reason) must mint a fresh key rather than replaying a consumed response. */
+/** Clears the key after a confirmed successful trigger, or a deliberate cancellation -- a later attempt (even for the same candidate/call type) must mint a fresh key rather than replaying a consumed response. */
 export function clearCallIdempotencyKey(): CallIdempotencyKeyState {
   return EMPTY_CALL_IDEMPOTENCY_KEY_STATE;
 }

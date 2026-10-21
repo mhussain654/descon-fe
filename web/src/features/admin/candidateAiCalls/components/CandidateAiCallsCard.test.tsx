@@ -1,15 +1,25 @@
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createMockStaffAuthClient, MOCK_STAFF_ACCOUNTS, MOCK_STAFF_PASSWORD } from "../../../../../../shared/auth/staffAuthClient";
 import { LanguageProvider } from "../../../../contexts/LanguageContext";
 import { StaffAuthProvider } from "../../../../contexts/StaffAuthContext";
 import { adminCandidateAiCallsClient } from "../../../../lib/admin-candidate-ai-calls-client";
+import { adminBulkCallsClient } from "../../../../lib/admin-bulk-calls-client";
 import { CandidateAiCallsCard } from "./CandidateAiCallsCard";
 
 vi.mock("../../../../lib/admin-candidate-ai-calls-client", () => ({
   adminCandidateAiCallsClient: { listCandidateAiCalls: vi.fn(), triggerCandidateAiCall: vi.fn() },
 }));
+vi.mock("../../../../lib/admin-bulk-calls-client", () => ({
+  adminBulkCallsClient: { listVoices: vi.fn() },
+}));
+
+const VOICES = [
+  { id: "voice-1", nameEn: "Upload documents", nameUr: "دستاویزات اپ لوڈ کریں", voiceId: "538", active: true, updatedAt: "2026-10-20T09:00:00Z" },
+  { id: "voice-2", nameEn: "Medical report received", voiceId: "537", active: true, updatedAt: "2026-10-20T09:00:00Z" },
+  { id: "voice-3", nameEn: "Old call", voiceId: "100", active: false, updatedAt: "2026-10-20T09:00:00Z" },
+];
 
 const HR = MOCK_STAFF_ACCOUNTS.find((account) => account.role === "hr" && !account.locked && !account.suspended)!;
 const FINANCE = MOCK_STAFF_ACCOUNTS.find((account) => account.role === "finance")!;
@@ -37,7 +47,9 @@ function call(overrides: Record<string, unknown> = {}) {
   return {
     id: "call-1",
     direction: "outbound" as const,
-    callReason: "missing_documents" as const,
+    callReason: "voice_call",
+    trigger: "manual" as const,
+    voice: { voiceId: "538", nameEn: "Upload documents", nameUr: undefined },
     languageCode: "en",
     status: "completed" as const,
     triggeredBy: { id: "staff-1", role: "hr" },
@@ -54,7 +66,12 @@ function call(overrides: Record<string, unknown> = {}) {
 }
 
 describe("CandidateAiCallsCard", () => {
+  beforeEach(() => {
+    adminBulkCallsClient.listVoices.mockResolvedValue(VOICES);
+  });
+
   afterEach(() => {
+    vi.mocked(adminBulkCallsClient.listVoices).mockReset();
     vi.mocked(adminCandidateAiCallsClient.listCandidateAiCalls).mockReset();
     vi.mocked(adminCandidateAiCallsClient.triggerCandidateAiCall).mockReset();
     sessionStorage.clear();
@@ -66,9 +83,10 @@ describe("CandidateAiCallsCard", () => {
 
     renderCard(client);
 
-    expect(await screen.findByText("Calls")).toBeInTheDocument();
+    expect(await screen.findByText("Call history")).toBeInTheDocument();
     const list = within(screen.getByRole("list"));
-    expect(list.getByText("Missing documents")).toBeInTheDocument();
+    expect(list.getByText("Upload documents")).toBeInTheDocument();
+    expect(list.getByText("Called by staff")).toBeInTheDocument();
     expect(list.getByText("Completed")).toBeInTheDocument();
     expect(list.getByText("Answered")).toBeInTheDocument();
   });
@@ -79,7 +97,7 @@ describe("CandidateAiCallsCard", () => {
 
     renderCard(client);
 
-    expect(await screen.findByText("No admin-triggered calls yet.")).toBeInTheDocument();
+    expect(await screen.findByText("No calls yet.")).toBeInTheDocument();
   });
 
   it("renders nothing for a staff member without trigger_ai_calls", async () => {
@@ -98,7 +116,7 @@ describe("CandidateAiCallsCard", () => {
 
     renderCard(client);
 
-    await screen.findByText("No admin-triggered calls yet.");
+    await screen.findByText("No calls yet.");
     expect(screen.queryByLabelText("Call candidate")).not.toBeInTheDocument();
   });
 
@@ -108,19 +126,19 @@ describe("CandidateAiCallsCard", () => {
     const client = await signInAs(HR);
 
     renderCard(client);
-    await screen.findByText("No admin-triggered calls yet.");
+    await screen.findByText("No calls yet.");
 
-    fireEvent.change(screen.getByLabelText("Call candidate"), { target: { value: "flight_information" } });
+    fireEvent.change(screen.getByLabelText("Call candidate"), { target: { value: "voice-2" } });
 
     expect(await screen.findByText("Place this call?")).toBeInTheDocument();
-    expect(screen.getByText("An AI voice call with flight information will be placed to this candidate now.")).toBeInTheDocument();
+    expect(screen.getByText('The recorded message "Medical report received" will be played to this candidate now.')).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "Call now" }));
 
     await waitFor(() =>
       expect(adminCandidateAiCallsClient.triggerCandidateAiCall).toHaveBeenCalledWith(
         "candidate-1",
-        "flight_information",
+        "voice-2",
         expect.any(String)
       )
     );
@@ -132,9 +150,9 @@ describe("CandidateAiCallsCard", () => {
     const client = await signInAs(HR);
 
     renderCard(client);
-    await screen.findByText("No admin-triggered calls yet.");
+    await screen.findByText("No calls yet.");
 
-    fireEvent.change(screen.getByLabelText("Call candidate"), { target: { value: "missing_documents" } });
+    fireEvent.change(screen.getByLabelText("Call candidate"), { target: { value: "voice-1" } });
     await screen.findByText("Place this call?");
 
     fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
@@ -152,9 +170,9 @@ describe("CandidateAiCallsCard", () => {
     const client = await signInAs(HR);
 
     renderCard(client);
-    await screen.findByText("No admin-triggered calls yet.");
+    await screen.findByText("No calls yet.");
 
-    fireEvent.change(screen.getByLabelText("Call candidate"), { target: { value: "missing_documents" } });
+    fireEvent.change(screen.getByLabelText("Call candidate"), { target: { value: "voice-1" } });
     await screen.findByText("Place this call?");
     fireEvent.click(screen.getByRole("button", { name: "Call now" }));
 
@@ -168,9 +186,9 @@ describe("CandidateAiCallsCard", () => {
     const signOutSpy = vi.spyOn(client, "signOut");
 
     renderCard(client);
-    await screen.findByText("No admin-triggered calls yet.");
+    await screen.findByText("No calls yet.");
 
-    fireEvent.change(screen.getByLabelText("Call candidate"), { target: { value: "missing_documents" } });
+    fireEvent.change(screen.getByLabelText("Call candidate"), { target: { value: "voice-1" } });
     await screen.findByText("Place this call?");
     fireEvent.click(screen.getByRole("button", { name: "Call now" }));
 
@@ -195,9 +213,9 @@ describe("CandidateAiCallsCard", () => {
     const client = await signInAs(HR);
 
     renderCard(client);
-    await screen.findByText("No admin-triggered calls yet.");
+    await screen.findByText("No calls yet.");
 
-    fireEvent.change(screen.getByLabelText("Call candidate"), { target: { value: "missing_documents" } });
+    fireEvent.change(screen.getByLabelText("Call candidate"), { target: { value: "voice-1" } });
     await screen.findByText("Place this call?");
     fireEvent.click(screen.getByRole("button", { name: "Call now" }));
 
@@ -220,7 +238,7 @@ describe("CandidateAiCallsCard", () => {
     expect(screen.getByText("Resolved on the call")).toBeInTheDocument();
     expect(screen.getByText(/Answered:/)).toBeInTheDocument();
     expect(screen.getByText(/Completed:/)).toBeInTheDocument();
-    expect(screen.getByText(/Triggered by:.*hr \(staff-1\)/)).toBeInTheDocument();
+    expect(screen.getByText(/Triggered by: hr/)).toBeInTheDocument();
   });
 
   it("makes a callback-required outcome visually prominent, including its reason", async () => {
@@ -232,5 +250,47 @@ describe("CandidateAiCallsCard", () => {
     renderCard(client);
 
     expect(await screen.findByText(/Callback required.*Candidate requested a callback/)).toBeInTheDocument();
+  });
+
+  it("lists only the active call types in the call dropdown", async () => {
+    adminCandidateAiCallsClient.listCandidateAiCalls.mockResolvedValue([]);
+    const client = await signInAs(HR);
+
+    renderCard(client);
+    await screen.findByText("No calls yet.");
+
+    const select = await screen.findByLabelText("Call candidate");
+    await waitFor(() => expect(within(select).getByRole("option", { name: "Upload documents" })).toBeInTheDocument());
+    expect(within(select).getByRole("option", { name: "Medical report received" })).toBeInTheDocument();
+    expect(within(select).queryByRole("option", { name: "Old call" })).not.toBeInTheDocument();
+  });
+
+  it("tells the admin when no call type is active, instead of showing an empty dropdown", async () => {
+    adminBulkCallsClient.listVoices.mockResolvedValue([VOICES[2]]);
+    adminCandidateAiCallsClient.listCandidateAiCalls.mockResolvedValue([]);
+    const client = await signInAs(HR);
+
+    renderCard(client);
+
+    expect(await screen.findByText("No call type is active. Add or switch one on in Bulk calls.")).toBeInTheDocument();
+    expect(screen.queryByLabelText("Call candidate")).not.toBeInTheDocument();
+  });
+
+  it("shows automatic and bulk calls in the history with what started them and the stage", async () => {
+    adminCandidateAiCallsClient.listCandidateAiCalls.mockResolvedValue([
+      call({ id: "call-auto", trigger: "automatic", workflowStageCode: "documents_pending", voice: { voiceId: "538", nameEn: "Upload documents" } }),
+      call({ id: "call-bulk", trigger: "bulk", voice: { voiceId: "537", nameEn: "Medical report received" } }),
+      call({ id: "call-gone", trigger: "manual", voice: { voiceId: "999" } }),
+    ]);
+    const client = await signInAs(HR);
+
+    renderCard(client);
+
+    const list = within(await screen.findByRole("list"));
+    expect(list.getByText("Automatic (stage)")).toBeInTheDocument();
+    expect(list.getByText(/Stage: Documents Pending/)).toBeInTheDocument();
+    expect(list.getByText("Bulk call")).toBeInTheDocument();
+    expect(list.getByText("Medical report received")).toBeInTheDocument();
+    expect(list.getByText("Recorded call")).toBeInTheDocument();
   });
 });

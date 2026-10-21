@@ -5,8 +5,8 @@ import {
   type CallIdempotencyKeyState,
 } from './callIdempotency';
 
-function selection(overrides: Partial<{ candidateId: string; callReason: 'missing_documents' | 'flight_information' }> = {}) {
-  return { candidateId: 'candidate-1', callReason: 'missing_documents' as const, ...overrides };
+function selection(overrides: Partial<{ candidateId: string; voiceId: string }> = {}) {
+  return { candidateId: 'candidate-1', voiceId: 'voice-1', ...overrides };
 }
 
 describe('resolveCallIdempotencyKey', () => {
@@ -22,9 +22,9 @@ describe('resolveCallIdempotencyKey', () => {
     expect(retry.key).toBe('key-1');
   });
 
-  it('mints a new key when the call_reason changes', () => {
+  it('mints a new key when the call type changes', () => {
     const first = resolveCallIdempotencyKey(EMPTY_CALL_IDEMPOTENCY_KEY_STATE, selection(), () => 'key-1');
-    const next = resolveCallIdempotencyKey(first, selection({ callReason: 'flight_information' }), () => 'key-2');
+    const next = resolveCallIdempotencyKey(first, selection({ voiceId: 'voice-2' }), () => 'key-2');
     expect(next.key).toBe('key-2');
   });
 

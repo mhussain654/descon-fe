@@ -25,6 +25,7 @@ const SECTIONS = [
   ["documents", "adminCandidateDocumentsTab"],
   ["payments", "adminCandidatePaymentsTab"],
   ["records", "adminCandidateRecordsTab"],
+  ["aiCalls", "adminCandidateAiCallsTab"],
   ["activity", "adminCandidateActivityTab"],
 ] as const;
 type Section = (typeof SECTIONS)[number][0];
@@ -73,6 +74,10 @@ export function CandidateWorkspace({ candidateId }: { candidateId: string }) {
   const assignment = candidate.assignment;
   const canReadFees =
     hasPermission("view_payments") || hasPermission("manage_payments");
+  // Only staff who can place calls get the AI calls tab.
+  const sections = SECTIONS.filter(
+    ([id]) => id !== "aiCalls" || hasPermission("trigger_ai_calls"),
+  );
   return (
     <div
       className="mx-auto max-w-6xl px-4 py-5 sm:px-6 sm:py-6"
@@ -126,7 +131,7 @@ export function CandidateWorkspace({ candidateId }: { candidateId: string }) {
         aria-label={t("adminCandidateTabsLabel")}
         className="my-5 flex flex-wrap gap-2 rounded-xl border border-border bg-surface p-2"
       >
-        {SECTIONS.map(([id, label], index) => (
+        {sections.map(([id, label], index) => (
           <button
             key={id}
             ref={(element) => {
@@ -142,18 +147,18 @@ export function CandidateWorkspace({ candidateId }: { candidateId: string }) {
             onKeyDown={(event) => {
               let target: number | undefined;
               if (event.key === "Home") target = 0;
-              if (event.key === "End") target = SECTIONS.length - 1;
+              if (event.key === "End") target = sections.length - 1;
               if (event.key === "ArrowRight")
                 target =
-                  (index + (language === "ur" ? -1 : 1) + SECTIONS.length) %
-                  SECTIONS.length;
+                  (index + (language === "ur" ? -1 : 1) + sections.length) %
+                  sections.length;
               if (event.key === "ArrowLeft")
                 target =
-                  (index + (language === "ur" ? 1 : -1) + SECTIONS.length) %
-                  SECTIONS.length;
+                  (index + (language === "ur" ? 1 : -1) + sections.length) %
+                  sections.length;
               if (target !== undefined) {
                 event.preventDefault();
-                setSection(SECTIONS[target][0]);
+                setSection(sections[target][0]);
                 tabs.current[target]?.focus();
               }
             }}
@@ -200,10 +205,10 @@ export function CandidateWorkspace({ candidateId }: { candidateId: string }) {
           </>
         ) : null}
         {section === "records" ? (
-          <>
-            <WorkflowPanel candidateId={candidateId} section="records" />
-            <CandidateAiCallsCard candidateId={candidateId} />
-          </>
+          <WorkflowPanel candidateId={candidateId} section="records" />
+        ) : null}
+        {section === "aiCalls" ? (
+          <CandidateAiCallsCard candidateId={candidateId} />
         ) : null}
         {section === "activity" ? (
           <WorkflowPanel candidateId={candidateId} section="activity" />

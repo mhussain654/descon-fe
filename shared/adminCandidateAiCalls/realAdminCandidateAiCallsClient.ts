@@ -11,7 +11,7 @@ import type { ApiClient, ApiError } from '../api-client';
 import type { StaffAuthClient, StaffAuthError } from '../auth/staffTypes';
 import type {
   AdminAiCallActorRef,
-  AdminAiCallReason,
+  AdminAiCallVoice,
   AdminCandidateAiCall,
   AdminCandidateAiCallError,
   AdminCandidateAiCallErrorCode,
@@ -26,7 +26,10 @@ interface CandidateAiCallActorResponse {
 interface CandidateAiCallResponse {
   id: string;
   direction: AdminCandidateAiCall['direction'];
-  call_reason: AdminAiCallReason;
+  call_reason: string;
+  trigger: AdminCandidateAiCall['trigger'];
+  workflow_stage_code: string | null;
+  voice: { voice_id: string; name_en: string | null; name_ur: string | null } | null;
   language_code: string;
   status: AdminCandidateAiCall['status'];
   triggered_by: CandidateAiCallActorResponse | null;
@@ -51,11 +54,19 @@ function toActorRef(actor: CandidateAiCallActorResponse | null): AdminAiCallActo
   return actor ? { id: actor.id, role: actor.role } : undefined;
 }
 
+function toVoice(voice: CandidateAiCallResponse['voice']): AdminAiCallVoice | undefined {
+  if (!voice) return undefined;
+  return { voiceId: voice.voice_id, nameEn: voice.name_en ?? undefined, nameUr: voice.name_ur ?? undefined };
+}
+
 function toCandidateAiCall(data: CandidateAiCallResponse): AdminCandidateAiCall {
   return {
     id: data.id,
     direction: data.direction,
     callReason: data.call_reason,
+    trigger: data.trigger,
+    workflowStageCode: data.workflow_stage_code ?? undefined,
+    voice: toVoice(data.voice),
     languageCode: data.language_code,
     status: data.status,
     triggeredBy: toActorRef(data.triggered_by),
@@ -143,14 +154,14 @@ export function createAdminCandidateAiCallsClient(options: RealAdminCandidateAiC
 
     async triggerCandidateAiCall(
       candidateId: string,
-      callReason: AdminAiCallReason,
+      robocallVoiceId: string,
       idempotencyKey: string
     ): Promise<AdminCandidateAiCall> {
       try {
         const data = await staffAuthClient.authenticatedDataRequest((token) =>
           apiClient.post<CandidateAiCallResponse>(
             `/admin/candidates/${encodeURIComponent(candidateId)}/ai_calls`,
-            { candidate_ai_call: { call_reason: callReason } },
+            { candidate_ai_call: { robocall_voice_id: robocallVoiceId } },
             { headers: { Authorization: `Bearer ${token}`, 'X-Locale': getLocale(), 'Idempotency-Key': idempotencyKey } }
           )
         );
