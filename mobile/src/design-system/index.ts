@@ -23,6 +23,7 @@ export * from './OtpField';
 export * from './ProgressBar';
 export * from './RetryBanner';
 export * from './SearchField';
+export * from './SelectField';
 export * from './SessionExpiredState';
 export * from './Skeleton';
 export * from './Spinner';

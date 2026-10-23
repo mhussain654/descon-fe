@@ -1125,8 +1125,24 @@ describe("DocumentsScreen", () => {
       fireEvent.press(screen.getByRole("button", { name: "Submit" }));
 
       expect(await screen.findByText("Enter the account title.")).toBeOnTheScreen();
-      expect(screen.getByText("Enter the account number or IBAN.")).toBeOnTheScreen();
-      expect(screen.getByText("Enter the bank name.")).toBeOnTheScreen();
+      expect(screen.getByText("Enter the account number.")).toBeOnTheScreen();
+      expect(screen.getByText("Select your bank.")).toBeOnTheScreen();
+      expect(candidateBankDetailsClient.submitBankDetail).not.toHaveBeenCalled();
+    });
+
+    it("rejects an account number that is not 6 to 20 digits, without calling the API", async () => {
+      candidateDocumentsClient.getChecklist.mockResolvedValue([item({ status: "missing" })]);
+      applicationProgressClient.getProgress.mockResolvedValue(progress());
+      renderDocumentsScreen();
+
+      fireEvent.press(await screen.findByRole("button", { name: "Add bank details" }));
+      fireEvent.changeText(screen.getByLabelText("Account title"), "Ahmed Ali");
+      fireEvent.changeText(screen.getByLabelText("Account number"), "12345");
+      fireEvent.press(screen.getByLabelText("Bank name"));
+      fireEvent.press(screen.getByRole("button", { name: "Meezan Bank Limited" }));
+      fireEvent.press(screen.getByRole("button", { name: "Submit" }));
+
+      expect(await screen.findByText("Enter a valid account number (6 to 20 digits).")).toBeOnTheScreen();
       expect(candidateBankDetailsClient.submitBankDetail).not.toHaveBeenCalled();
     });
 
@@ -1139,8 +1155,9 @@ describe("DocumentsScreen", () => {
 
       fireEvent.press(await screen.findByRole("button", { name: "Add bank details" }));
       fireEvent.changeText(screen.getByLabelText("Account title"), "Ahmed Ali");
-      fireEvent.changeText(screen.getByLabelText("Account number / IBAN"), "PK36SCBL0000001123456702");
-      fireEvent.changeText(screen.getByLabelText("Bank name"), "Meezan Bank");
+      fireEvent.changeText(screen.getByLabelText("Account number"), "0000001123456702");
+      fireEvent.press(screen.getByLabelText("Bank name"));
+      fireEvent.press(screen.getByRole("button", { name: "Meezan Bank Limited" }));
       fireEvent.press(await screen.findByRole("button", { name: "Choose file" }));
       await screen.findByText(/Selected file: cheque\.pdf/);
 
@@ -1152,8 +1169,8 @@ describe("DocumentsScreen", () => {
       const [params] = candidateBankDetailsClient.submitBankDetail.mock.calls[0];
       expect(params.accessToken).toBe("candidate-access-token");
       expect(params.formData.get("bank_detail[account_title]")).toBe("Ahmed Ali");
-      expect(params.formData.get("bank_detail[account_number]")).toBe("PK36SCBL0000001123456702");
-      expect(params.formData.get("bank_detail[bank_name]")).toBe("Meezan Bank");
+      expect(params.formData.get("bank_detail[account_number]")).toBe("0000001123456702");
+      expect(params.formData.get("bank_detail[bank_name]")).toBe("Meezan Bank Limited");
 
       expect(await screen.findByText("Complete")).toBeOnTheScreen();
     });
@@ -1167,8 +1184,9 @@ describe("DocumentsScreen", () => {
 
       fireEvent.press(await screen.findByRole("button", { name: "Add bank details" }));
       fireEvent.changeText(screen.getByLabelText("Account title"), "Ahmed Ali");
-      fireEvent.changeText(screen.getByLabelText("Account number / IBAN"), "PK36SCBL0000001123456702");
-      fireEvent.changeText(screen.getByLabelText("Bank name"), "Meezan Bank");
+      fireEvent.changeText(screen.getByLabelText("Account number"), "0000001123456702");
+      fireEvent.press(screen.getByLabelText("Bank name"));
+      fireEvent.press(screen.getByRole("button", { name: "Meezan Bank Limited" }));
       fireEvent.press(await screen.findByRole("button", { name: "Choose file" }));
       await screen.findByText(/Selected file: cheque\.pdf/);
       fireEvent.press(screen.getByRole("button", { name: "Submit" }));

@@ -7,8 +7,10 @@
 // validateSelectedFile from shared/candidateDocuments/fileValidation.ts
 // directly.
 
-/** Mirrors CandidateBankDetail::ACCOUNT_NUMBER_FORMAT exactly: 4-34 uppercase letters/digits after normalization (whitespace stripped, lowercase uppercased) -- covers both a plain account number and an IBAN. */
-const ACCOUNT_NUMBER_FORMAT = /^[A-Z0-9]{4,34}$/;
+import { isPakistanBank } from './pakistanBanks';
+
+/** Mirrors CandidateBankDetail::ACCOUNT_NUMBER_FORMAT exactly: 6-20 digits after normalization (whitespace stripped). */
+const ACCOUNT_NUMBER_FORMAT = /^\d{6,20}$/;
 
 export type BankDetailFieldError = 'REQUIRED' | 'INVALID_ACCOUNT_NUMBER';
 
@@ -35,7 +37,8 @@ export function validateBankDetailFields(fields: { accountTitle: string; account
     errors.accountNumber = 'INVALID_ACCOUNT_NUMBER';
   }
 
-  if (!fields.bankName.trim()) errors.bankName = 'REQUIRED';
+  // The form offers a fixed list of banks (see pakistanBanks.ts), so anything else is treated as not chosen.
+  if (!isPakistanBank(fields.bankName)) errors.bankName = 'REQUIRED';
 
   return errors;
 }

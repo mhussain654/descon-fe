@@ -7,8 +7,10 @@ import {
   Input,
   Label,
   LoadingState,
+  Select,
   ValidationMessage,
 } from "../../../../design-system";
+import { PAKISTAN_BANKS } from "../../../../../../shared/candidateBankDetails/pakistanBanks";
 import { CANDIDATE_BANK_DETAILS_ERROR_KEYS } from "../../../../../../shared/candidateBankDetails/errorMessages";
 import { describeFileType } from "../../../../../../shared/candidateDocuments/fileDescription";
 import { formatFileSize } from "../../../../../../shared/candidateDocuments/formatting";
@@ -22,6 +24,8 @@ const FILE_VALIDATION_ERROR_KEYS = {
   FILE_TOO_LARGE: "candidateDocumentsFileTooLargeError",
   INVALID_TYPE: "candidateDocumentsInvalidFileTypeError",
 };
+
+const BANK_OPTIONS = PAKISTAN_BANKS.map((bank) => ({ value: bank, label: bank }));
 
 const FIELD_ERROR_KEYS = {
   accountTitle: { REQUIRED: "candidateBankDetailsAccountTitleRequiredError" },
@@ -150,6 +154,7 @@ function BankDetailsForm({ t, language, upload, onDone }) {
         <Input
           label={t("candidateBankDetailsAccountNumberLabel")}
           value={upload.accountNumber}
+          inputMode="numeric"
           onChange={(event) => upload.setAccountNumber(event.currentTarget.value)}
           errorMessage={
             upload.fieldErrors.accountNumber ? t(FIELD_ERROR_KEYS.accountNumber[upload.fieldErrors.accountNumber]) : undefined
@@ -158,9 +163,10 @@ function BankDetailsForm({ t, language, upload, onDone }) {
         />
       </div>
       <div className="mb-3">
-        <Input
+        <Select
           label={t("candidateBankDetailsBankNameLabel")}
           value={upload.bankName}
+          options={[{ value: "", label: t("candidateBankDetailsBankNamePlaceholder") }, ...BANK_OPTIONS]}
           onChange={(event) => upload.setBankName(event.currentTarget.value)}
           errorMessage={upload.fieldErrors.bankName ? t(FIELD_ERROR_KEYS.bankName[upload.fieldErrors.bankName]) : undefined}
         />

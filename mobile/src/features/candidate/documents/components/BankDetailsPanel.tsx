@@ -8,6 +8,7 @@ import {
   HelperText,
   Label,
   LoadingState,
+  SelectField,
   TextField,
   ValidationMessage,
 } from "../../../../design-system";
@@ -15,6 +16,7 @@ import { colors, elevation, spacing } from "../../../../design-system/tokens";
 import { getFontFamily } from "../../../../design-system/fonts";
 import { CANDIDATE_BANK_DETAILS_ERROR_KEYS } from "../../../../../../shared/candidateBankDetails/errorMessages";
 import type { CandidateBankDetailsError, CandidateBankDetailsErrorCode } from "../../../../../../shared/candidateBankDetails/types";
+import { PAKISTAN_BANKS } from "../../../../../../shared/candidateBankDetails/pakistanBanks";
 import type { BankDetailFieldError } from "../../../../../../shared/candidateBankDetails/formValidation";
 import { describeFileType, isPreviewableImageType } from "../../../../../../shared/candidateDocuments/fileDescription";
 import type { FileValidationError } from "../../../../../../shared/candidateDocuments/fileValidation";
@@ -40,6 +42,8 @@ const FILE_VALIDATION_ERROR_KEYS: Record<FileValidationError, TranslationKey> = 
   FILE_TOO_LARGE: "candidateDocumentsFileTooLargeError",
   INVALID_TYPE: "candidateDocumentsInvalidFileTypeError",
 };
+
+const BANK_OPTIONS = PAKISTAN_BANKS.map((bank) => ({ value: bank, label: bank }));
 
 const FIELD_ERROR_KEYS: Record<'accountTitle' | 'accountNumber' | 'bankName', Record<BankDetailFieldError, TranslationKey>> = {
   accountTitle: { REQUIRED: "candidateBankDetailsAccountTitleRequiredError", INVALID_ACCOUNT_NUMBER: "candidateBankDetailsAccountTitleRequiredError" },
@@ -174,6 +178,7 @@ function BankDetailsForm({ t, language, upload, onDone }: BankDetailsFormProps) 
           label={t("candidateBankDetailsAccountNumberLabel")}
           value={upload.accountNumber}
           onChangeText={upload.setAccountNumber}
+          keyboardType="number-pad"
           errorMessage={
             upload.fieldErrors.accountNumber ? t(FIELD_ERROR_KEYS.accountNumber[upload.fieldErrors.accountNumber]) : undefined
           }
@@ -182,10 +187,13 @@ function BankDetailsForm({ t, language, upload, onDone }: BankDetailsFormProps) 
         />
       </View>
       <View style={styles.field}>
-        <TextField
+        <SelectField
           label={t("candidateBankDetailsBankNameLabel")}
           value={upload.bankName}
-          onChangeText={upload.setBankName}
+          options={BANK_OPTIONS}
+          onChange={upload.setBankName}
+          placeholder={t("candidateBankDetailsBankNamePlaceholder")}
+          cancelLabel={t("candidateDocumentsCancel")}
           errorMessage={upload.fieldErrors.bankName ? t(FIELD_ERROR_KEYS.bankName[upload.fieldErrors.bankName]) : undefined}
           language={language}
         />
