@@ -88,7 +88,7 @@ function WelcomeHero({ width, topInset, language, t }) {
   };
 
   return (
-    <View style={{ width, height: heroHeight + topInset, backgroundColor: "#0873DF" }}>
+    <View style={{ width, height: heroHeight + topInset, backgroundColor: "#0065B3" }}>
       <Image
           source={art.source}
           style={StyleSheet.absoluteFill}

@@ -342,7 +342,7 @@ describe("DocumentsPage", () => {
     const missingLine = screen.getByText("Pending • Required").closest("div");
 
     expect(verifiedLine).toHaveClass("text-[#10B981]");
-    expect(uploadedLine).toHaveClass("text-[#0066CC]");
+    expect(uploadedLine).toHaveClass("text-[#0065B3]");
     expect(missingLine).toHaveClass("text-[#6B7280]");
   });
 
