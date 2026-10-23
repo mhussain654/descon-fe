@@ -91,6 +91,9 @@ describe('createPaymentsClient (real)', () => {
       expect(result).toEqual({
         eligible: false,
         checkoutAvailable: false,
+        voucherAvailable: false,
+        openVoucher: null,
+        cardCheckoutOpen: false,
         requiredStageCode: 'fee_pending',
         currentStageCode: 'documents_uploaded',
         blockingReasons: ['payment_stage_not_reached'],
@@ -114,6 +117,7 @@ describe('createPaymentsClient (real)', () => {
         currencyCode: 'PKR',
         provider: 'mock_hosted_checkout',
         checkoutUrl: 'https://mock-payments.example.test/checkout?orderid=PAY-DES-001001-ABC123',
+        voucherNumber: null,
         checkoutExpiresAt: '2026-08-31T09:30:00Z',
         paidAt: null,
         updatedAt: '2026-08-31T09:00:00Z',
@@ -144,6 +148,57 @@ describe('createPaymentsClient (real)', () => {
       const client = buildClient();
 
       await expect(client.getEligibility('bad-token')).rejects.toEqual({ code: 'SESSION_EXPIRED', message: undefined });
+    });
+  });
+
+  describe('createVoucher', () => {
+    const voucherPayment = () =>
+      paymentPayload({ provider: 'kuickpay_voucher', checkout_url: null, voucher_number: '0000832249220' });
+
+    it('posts to the voucher path with no body and the Idempotency-Key, and maps the code and the open method', async () => {
+      let capturedUrl = '';
+      let capturedBody: string | null | undefined;
+      let capturedHeaders: Record<string, string> | undefined;
+      stubFetch(async (url, init) => {
+        capturedUrl = String(url);
+        capturedBody = init?.body as string | null | undefined;
+        capturedHeaders = init?.headers as Record<string, string>;
+        return jsonResponse(
+          successEnvelope({
+            eligibility: eligibilityPayload({ voucher_available: true, open_voucher: voucherPayment(), latest_payment: voucherPayment() }),
+            payment: voucherPayment(),
+          }),
+          { status: 201 }
+        );
+      });
+      const client = buildClient();
+
+      const result = await client.createVoucher('candidate-token', 'idem-voucher-1');
+
+      expect(capturedUrl).toContain('/candidate/payment/voucher');
+      expect(capturedBody == null).toBe(true);
+      expect(capturedHeaders?.['Idempotency-Key']).toBe('idem-voucher-1');
+      expect(result.payment).toMatchObject({ provider: 'kuickpay_voucher', voucherNumber: '0000832249220', checkoutUrl: null });
+      expect(result.eligibility).toMatchObject({ voucherAvailable: true, cardCheckoutOpen: false });
+      expect(result.eligibility.openVoucher).toMatchObject({ voucherNumber: '0000832249220' });
+    });
+
+    it('maps the open code and whether a card checkout is open', async () => {
+      stubFetch(async () => jsonResponse(successEnvelope(eligibilityPayload({ open_voucher: voucherPayment(), card_checkout_open: true }))));
+
+      const result = await buildClient().getEligibility('candidate-token');
+
+      expect(result.openVoucher).toMatchObject({ provider: 'kuickpay_voucher', voucherNumber: '0000832249220' });
+      expect(result.cardCheckoutOpen).toBe(true);
+    });
+
+    it('treats a missing open code or card flag as none', async () => {
+      stubFetch(async () => jsonResponse(successEnvelope(eligibilityPayload())));
+
+      const result = await buildClient().getEligibility('candidate-token');
+
+      expect(result.openVoucher).toBeNull();
+      expect(result.cardCheckoutOpen).toBe(false);
     });
   });
 

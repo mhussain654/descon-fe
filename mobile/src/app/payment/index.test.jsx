@@ -1,5 +1,6 @@
 import { QueryClientProvider } from "@tanstack/react-query";
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react-native";
+import * as Clipboard from "expo-clipboard";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { AuthProvider } from "../../contexts/AuthContext";
 import { LanguageProvider } from "../../contexts/LanguageContext";
@@ -65,14 +66,29 @@ jest.mock("@expo-google-fonts/inter", () => ({
   Inter_600SemiBold: "Inter_600SemiBold",
 }));
 
+jest.mock("expo-clipboard", () => ({ setStringAsync: jest.fn(() => Promise.resolve(true)) }));
+
 jest.mock("../../lib/payments-client", () => ({
-  paymentsClient: { getEligibility: jest.fn(), initiateCheckout: jest.fn() },
+  paymentsClient: { getEligibility: jest.fn(), initiateCheckout: jest.fn(), createVoucher: jest.fn() },
 }));
+
+// The server says whether a card checkout is open: an unexpired, pending payment that is not a payment code.
+function cardCheckoutOpenFor(latestPayment) {
+  return Boolean(
+    latestPayment &&
+      latestPayment.provider !== "kuickpay_voucher" &&
+      latestPayment.status === "checkout_pending" &&
+      new Date(latestPayment.checkoutExpiresAt) > new Date()
+  );
+}
 
 function eligibility(overrides = {}) {
   return {
     eligible: true,
     checkoutAvailable: true,
+    voucherAvailable: false,
+    openVoucher: null,
+    cardCheckoutOpen: cardCheckoutOpenFor(overrides.latestPayment),
     requiredStageCode: "fee_pending",
     currentStageCode: "fee_pending",
     blockingReasons: [],
@@ -92,6 +108,7 @@ function payment(overrides = {}) {
     currencyCode: "PKR",
     provider: "mock_hosted_checkout",
     checkoutUrl: "https://mock-payments.example.test/checkout?orderid=1",
+    voucherNumber: null,
     checkoutExpiresAt: new Date(Date.now() + 30 * 60 * 1000).toISOString(),
     paidAt: null,
     updatedAt: "2026-08-31T09:00:00Z",
@@ -105,6 +122,7 @@ afterEach(async () => {
   await cleanup();
   jest.mocked(paymentsClient.getEligibility).mockReset();
   jest.mocked(paymentsClient.initiateCheckout).mockReset();
+  jest.mocked(paymentsClient.createVoucher).mockReset();
   latestWebViewProps = null;
   mockReplace.mockReset();
   mockBack.mockReset();
@@ -206,6 +224,9 @@ describe("PaymentScreen", () => {
       eligibility({
         latestPayment: payment({ id: "payment-public-id-42", status: "paid", paidAt: "2026-08-31T10:00:00Z" }),
         checkoutAvailable: true,
+        voucherAvailable: false,
+        openVoucher: null,
+        cardCheckoutOpen: false,
       })
     );
     renderPaymentScreen();
@@ -330,5 +351,149 @@ describe("PaymentScreen", () => {
     renderPaymentScreen();
 
     expect(await screen.findByRole("button", { name: "ابھی ادائیگی کریں" })).toBeOnTheScreen();
+  });
+});
+
+describe("PaymentScreen payment code (voucher)", () => {
+  // The Urdu test above leaves "ur" persisted; these run in English unless they say otherwise.
+  beforeEach(async () => {
+    await require("@react-native-async-storage/async-storage").removeItem("descon.language");
+  });
+
+  const voucher = (overrides = {}) =>
+    payment({
+      id: "voucher-1",
+      provider: "kuickpay_voucher",
+      checkoutUrl: null,
+      voucherNumber: "0000832249220",
+      checkoutExpiresAt: new Date(Date.now() + 10 * 24 * 60 * 60 * 1000).toISOString(),
+      ...overrides,
+    });
+
+  it("opens on the payment code tab when both ways are offered, and can switch to the card tab", async () => {
+    paymentsClient.getEligibility.mockResolvedValue(eligibility({ voucherAvailable: true }));
+    renderPaymentScreen();
+
+    expect(await screen.findByRole("button", { name: "Get my payment code" })).toBeOnTheScreen();
+    expect(screen.queryByRole("button", { name: "Pay now" })).toBeNull();
+
+    fireEvent.press(screen.getByRole("tab", { name: "Pay by card" }));
+
+    expect(screen.getByRole("button", { name: "Pay now" })).toBeOnTheScreen();
+  });
+
+  it("shows no tabs when only the card is offered", async () => {
+    paymentsClient.getEligibility.mockResolvedValue(eligibility());
+    renderPaymentScreen();
+
+    await screen.findByRole("button", { name: "Pay now" });
+    expect(screen.queryByRole("tab")).toBeNull();
+  });
+
+  it("gets a payment code and shows it with the steps", async () => {
+    paymentsClient.getEligibility.mockResolvedValue(eligibility({ voucherAvailable: true }));
+    const issued = voucher();
+    paymentsClient.createVoucher.mockResolvedValue({
+      eligibility: eligibility({ voucherAvailable: true, openVoucher: issued, latestPayment: issued }),
+      payment: issued,
+    });
+    renderPaymentScreen();
+
+    fireEvent.press(await screen.findByRole("button", { name: "Get my payment code" }));
+
+    expect(await screen.findByText("0000832249220")).toBeOnTheScreen();
+    expect(paymentsClient.createVoucher).toHaveBeenCalledWith("candidate-access-token", expect.any(String));
+    expect(screen.getByText("How to pay your code")).toBeOnTheScreen();
+    expect(screen.getByText(/Once your payment is received/)).toBeOnTheScreen();
+  });
+
+  it("copies the payment code with the Copy button and says so", async () => {
+    paymentsClient.getEligibility.mockResolvedValue(
+      eligibility({ voucherAvailable: true, openVoucher: voucher(), latestPayment: voucher() })
+    );
+    renderPaymentScreen();
+
+    fireEvent.press(await screen.findByRole("button", { name: "Copy code" }));
+
+    await waitFor(() => expect(Clipboard.setStringAsync).toHaveBeenCalledWith("0000832249220"));
+    expect(await screen.findByText("Code copied")).toBeOnTheScreen();
+  });
+
+  it("explains the two ways to pay: from the phone and at a shop", async () => {
+    paymentsClient.getEligibility.mockResolvedValue(
+      eligibility({ voucherAvailable: true, openVoucher: voucher(), latestPayment: voucher() })
+    );
+    renderPaymentScreen();
+
+    expect(await screen.findByText("How to pay your code")).toBeOnTheScreen();
+    expect(screen.getByText("From your phone")).toBeOnTheScreen();
+    expect(screen.getByText(/Open your JazzCash or Easypaisa app, or your bank app/)).toBeOnTheScreen();
+    expect(screen.getByText("At a shop")).toBeOnTheScreen();
+    expect(screen.getByText(/go to a JazzCash or Easypaisa shop/)).toBeOnTheScreen();
+    expect(screen.getByText("Pay as soon as you can, so your process is not delayed.")).toBeOnTheScreen();
+    expect(screen.queryByRole("link", { name: "JazzCash" })).toBeNull();
+  });
+
+  it("lets the candidate choose the card while a code is open, with a warning to pay one way only", async () => {
+    const open = voucher();
+    paymentsClient.getEligibility.mockResolvedValue(eligibility({ voucherAvailable: true, openVoucher: open, latestPayment: open }));
+    renderPaymentScreen();
+
+    expect(await screen.findByText(/Pay by code or by card, not both/)).toBeOnTheScreen();
+
+    fireEvent.press(screen.getByRole("tab", { name: "Pay by card" }));
+
+    expect(screen.getByText(/You already have a payment code/)).toBeOnTheScreen();
+    expect(screen.getByRole("button", { name: "Pay now" })).toBeOnTheScreen();
+  });
+
+  it("still shows the open code when the newest payment is a card checkout", async () => {
+    paymentsClient.getEligibility.mockResolvedValue(
+      eligibility({ voucherAvailable: true, openVoucher: voucher(), cardCheckoutOpen: true, latestPayment: payment() })
+    );
+    renderPaymentScreen();
+
+    expect(await screen.findByText("0000832249220")).toBeOnTheScreen();
+  });
+
+  it("lets the candidate get a code while a card checkout is in progress, with a warning", async () => {
+    paymentsClient.getEligibility.mockResolvedValue(
+      eligibility({ voucherAvailable: true, cardCheckoutOpen: true, latestPayment: payment() })
+    );
+    renderPaymentScreen();
+
+    await screen.findByRole("tab", { name: "Pay with a code" });
+    fireEvent.press(screen.getByRole("tab", { name: "Pay with a code" }));
+
+    expect(screen.getByText(/A card payment is open/)).toBeOnTheScreen();
+    expect(screen.getByRole("button", { name: "Get my payment code" })).toBeOnTheScreen();
+  });
+
+  it("offers a new code once the old one has expired", async () => {
+    const expired = voucher({ checkoutExpiresAt: new Date(Date.now() - 60 * 60 * 1000).toISOString() });
+    paymentsClient.getEligibility.mockResolvedValue(eligibility({ voucherAvailable: true, latestPayment: expired }));
+    renderPaymentScreen();
+
+    expect(await screen.findByText("This payment code has expired. Get a new one to pay.")).toBeOnTheScreen();
+    expect(screen.getByRole("button", { name: "Get a new payment code" })).toBeOnTheScreen();
+  });
+
+  it("shows the server's message when the code cannot be taken", async () => {
+    paymentsClient.getEligibility.mockResolvedValue(eligibility({ voucherAvailable: true }));
+    paymentsClient.createVoucher.mockRejectedValue({ code: "CHECKOUT_UNAVAILABLE", message: "Payment codes are paused." });
+    renderPaymentScreen();
+
+    fireEvent.press(await screen.findByRole("button", { name: "Get my payment code" }));
+
+    expect(await screen.findByText("Payment codes are paused.")).toBeOnTheScreen();
+  });
+
+  it("renders the payment code tab in Urdu", async () => {
+    paymentsClient.getEligibility.mockResolvedValue(eligibility({ voucherAvailable: true }));
+    const AsyncStorage = require("@react-native-async-storage/async-storage");
+    await AsyncStorage.setItem("descon.language", "ur");
+    renderPaymentScreen();
+
+    expect(await screen.findByRole("button", { name: "میرا ادائیگی کا کوڈ حاصل کریں" })).toBeOnTheScreen();
   });
 });

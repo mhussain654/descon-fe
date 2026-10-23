@@ -14,9 +14,10 @@ import { useCorrectPayment } from '../hooks/useCorrectPayment';
 /**
  * Which correction fields make sense for a given finding -- mirrors
  * Admin::Payments::CorrectionService's own allowlist exactly (never offer a
- * choice the backend will reject). `workflow_payment_mismatch` has no safe
- * field-level fix at the payment layer, so only a note-only resolution is
- * offered for it.
+ * choice the backend will reject). `workflow_payment_mismatch` and
+ * `duplicate_fee_payment` have no safe field-level fix at the payment layer
+ * (a refund happens outside the system), so only a note-only resolution is
+ * offered for them.
  */
 const FIELDS_BY_FINDING: Partial<Record<ReconciliationFindingCode, PaymentCorrectionField[]>> = {
   paid_at_missing: ['paid_at'],
@@ -24,6 +25,7 @@ const FIELDS_BY_FINDING: Partial<Record<ReconciliationFindingCode, PaymentCorrec
   duplicate_external_reference: ['external_reference'],
   terminal_event_conflict: ['status_code'],
   workflow_payment_mismatch: [],
+  duplicate_fee_payment: [],
 };
 
 const FIELD_LABEL_KEYS: Record<PaymentCorrectionField, TranslationKey> = {

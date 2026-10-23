@@ -72,6 +72,9 @@ describe("PaymentPage", () => {
     paymentsClient.getEligibility.mockResolvedValue({
       eligible: true,
       checkoutAvailable: true,
+      voucherAvailable: false,
+      openVoucher: null,
+      cardCheckoutOpen: false,
       requiredStageCode: "fee_pending",
       currentStageCode: "fee_pending",
       blockingReasons: [],
@@ -91,6 +94,9 @@ describe("PaymentPage", () => {
     paymentsClient.getEligibility.mockResolvedValue({
       eligible: true,
       checkoutAvailable: true,
+      voucherAvailable: false,
+      openVoucher: null,
+      cardCheckoutOpen: false,
       requiredStageCode: "fee_pending",
       currentStageCode: "fee_pending",
       blockingReasons: [],

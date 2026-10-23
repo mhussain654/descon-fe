@@ -171,6 +171,9 @@ describe('createApplicationProgressClient (real) -- getProgress', () => {
       payment: {
         eligible: false,
         checkoutAvailable: false,
+        voucherAvailable: false,
+        openVoucher: null,
+        cardCheckoutOpen: false,
         requiredStageCode: '',
         currentStageCode: null,
         blockingReasons: [],
@@ -229,6 +232,9 @@ describe('createApplicationProgressClient (real) -- getProgress', () => {
     expect(progress.payment).toEqual({
       eligible: true,
       checkoutAvailable: true,
+      voucherAvailable: false,
+      openVoucher: null,
+      cardCheckoutOpen: false,
       requiredStageCode: 'fee_pending',
       currentStageCode: 'fee_pending',
       blockingReasons: [],
