@@ -4,13 +4,14 @@ import Svg, { Defs, LinearGradient, Rect, Stop } from 'react-native-svg';
 
 export type IconTone = 'blue' | 'orange' | 'green' | 'purple' | 'coral';
 
-// Two-stop gradients per tone, matching the approved home design.
+// Two-stop gradients per tone. blue/purple are shades of Descon Blue and coral is Descon Red (the brand palette);
+// orange and green stay because they carry status meaning (pending, done).
 const TONE_GRADIENTS: Record<IconTone, [string, string]> = {
-  blue: ['#18A9FF', '#0870EC'],
+  blue: ['#2B8CD4', '#0065B3'],
   orange: ['#FFB12E', '#FF7900'],
   green: ['#36D878', '#0BAC5F'],
-  purple: ['#A365FF', '#6A2EE8'],
-  coral: ['#FF7A55', '#EF4E3A'],
+  purple: ['#1F78C1', '#004C87'],
+  coral: ['#F5565C', '#ED1B24'],
 };
 
 interface GradientIconBoxProps {

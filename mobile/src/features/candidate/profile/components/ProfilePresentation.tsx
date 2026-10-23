@@ -29,7 +29,7 @@ export function ProfileHeader({ language, t, topInset, profile }: LocaleProps & 
   return (
     <View style={[profileStyles.hero, { paddingTop: topInset + spacing[3] }]}>
       <MeasuredSvg>
-        <Defs><LinearGradient id="profileHero" x1="0" y1="0" x2="1" y2="1"><Stop offset="0" stopColor="#16A5EE" /><Stop offset="0.5" stopColor="#0873DF" /><Stop offset="1" stopColor="#0649B9" /></LinearGradient></Defs>
+        <Defs><LinearGradient id="profileHero" x1="0" y1="0" x2="1" y2="1"><Stop offset="0" stopColor="#2B8CD4" /><Stop offset="0.5" stopColor="#0065B3" /><Stop offset="1" stopColor="#004C87" /></LinearGradient></Defs>
         <Rect width="100%" height="100%" fill="url(#profileHero)" />
         <Circle cx="96%" cy="90%" r="78" stroke="#FFFFFF" strokeOpacity={0.12} strokeWidth={22} fill="none" />
       </MeasuredSvg>
@@ -103,14 +103,14 @@ export function ProfileSettings({ language, t, onLanguageChange, onLogout }: Loc
 
 export const profileStyles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: '#F0F7FF' },
-  hero: { paddingHorizontal: spacing[5], paddingBottom: spacing[8], overflow: 'hidden', backgroundColor: '#0873DF' },
+  hero: { paddingHorizontal: spacing[5], paddingBottom: spacing[8], overflow: 'hidden', backgroundColor: '#0065B3' },
   heroRow: { alignItems: 'center', gap: spacing[3], marginTop: 0 },
   flex: { flex: 1, minWidth: 0 },
   title: { fontSize: 25, lineHeight: 34, color: '#FFFFFF' },
   subtitle: { fontSize: 13, lineHeight: 21, color: '#E5F4FF', marginTop: spacing[1] },
   heroAvatar: { width: 52, height: 52, flexShrink: 0, borderRadius: 26, overflow: 'hidden', borderWidth: 2, borderColor: '#BFDDFB', backgroundColor: '#EAFBFF', alignItems: 'center', justifyContent: 'center' },
   heroPhoto: { width: '100%', height: '100%' },
-  heroInitial: { fontSize: 23, color: '#0873DF' },
+  heroInitial: { fontSize: 23, color: '#0065B3' },
   scroll: { flex: 1, marginTop: -20, borderTopLeftRadius: 28, borderTopRightRadius: 28, backgroundColor: '#F0F7FF' },
   content: { paddingHorizontal: spacing[4], paddingTop: spacing[4], width: '100%', maxWidth: 600, alignSelf: 'center' },
   card: { borderRadius: 20, backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#DFEAF8', padding: spacing[4], marginBottom: spacing[4], ...elevation.sm },

@@ -24,7 +24,7 @@ export function PaymentHeader({ language, t, topInset, onBack }: LocaleProps & {
   return (
     <View style={[paymentStyles.hero, { paddingTop: topInset + spacing[3] }]}>
       <Svg style={StyleSheet.absoluteFill} width="100%" height="100%" accessible={false} pointerEvents="none">
-        <Defs><LinearGradient id="paymentHero" x1="0" y1="0" x2="1" y2="1"><Stop offset="0" stopColor="#16A5EE" /><Stop offset="0.5" stopColor="#0873DF" /><Stop offset="1" stopColor="#0649B9" /></LinearGradient></Defs>
+        <Defs><LinearGradient id="paymentHero" x1="0" y1="0" x2="1" y2="1"><Stop offset="0" stopColor="#2B8CD4" /><Stop offset="0.5" stopColor="#0065B3" /><Stop offset="1" stopColor="#004C87" /></LinearGradient></Defs>
         <Rect width="100%" height="100%" fill="url(#paymentHero)" />
         <Circle cx="96%" cy="90%" r="78" stroke="#FFFFFF" strokeOpacity={0.12} strokeWidth={22} fill="none" />
       </Svg>
@@ -33,7 +33,7 @@ export function PaymentHeader({ language, t, topInset, onBack }: LocaleProps & {
           <BackIcon size={20} color="#FFFFFF" />
         </Pressable>
         <Text accessibilityRole="header" style={[paymentStyles.title, paymentCopyStyle(language), { fontFamily: getFontFamily(language, 'bold') }]}>{t('makePayment')}</Text>
-        <View style={paymentStyles.heroIcon} accessible={false}><CreditCard size={26} color="#0873DF" /></View>
+        <View style={paymentStyles.heroIcon} accessible={false}><CreditCard size={26} color="#0065B3" /></View>
       </View>
       <Text style={[paymentStyles.subtitle, paymentCopyStyle(language)]}>{t('makePaymentDesc')}</Text>
     </View>
@@ -91,7 +91,7 @@ export function PaymentNotice({ title, message, language, children }: { title?: 
 
 export const paymentStyles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: '#F0F7FF' },
-  hero: { paddingHorizontal: spacing[5], paddingBottom: spacing[8], overflow: 'hidden', backgroundColor: '#0873DF' },
+  hero: { paddingHorizontal: spacing[5], paddingBottom: spacing[8], overflow: 'hidden', backgroundColor: '#0065B3' },
   heading: { alignItems: 'center', gap: spacing[3] },
   title: { flex: 1, minWidth: 0, fontSize: 25, lineHeight: 34, color: '#FFFFFF' },
   subtitle: { fontSize: 13, lineHeight: 21, color: '#E5F4FF', marginTop: spacing[2] },
@@ -115,6 +115,6 @@ export const paymentStyles = StyleSheet.create({
   noticeTitle: { fontSize: 14, lineHeight: 23, color: '#6F430B', marginBottom: spacing[1] },
   noticeText: { fontSize: 13, lineHeight: 22, color: '#6F430B' },
   noticeAction: { marginTop: spacing[3] },
-  pay: { height: 34, borderRadius: 10, backgroundColor: '#0873DF' },
+  pay: { height: 34, borderRadius: 10, backgroundColor: '#0065B3' },
   error: { marginTop: spacing[3], marginBottom: spacing[4] },
 });

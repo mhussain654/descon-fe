@@ -305,6 +305,11 @@ function StaffShellContent({ children }: { children: ReactNode }) {
 
   return (
     <div className={`min-h-screen bg-surface-background ${theme === 'dark' ? 'dark' : ''}`}>
+      {/* Descon's dual band (brand guide, "Graphic Element"): Descon Red 70% / Descon Blue 30%, pinned above everything. */}
+      <div aria-hidden="true" className="pointer-events-none fixed inset-x-0 top-0 z-overlay flex h-1">
+        <div className="w-[70%] bg-descon-red" />
+        <div className="w-[30%] bg-brand" />
+      </div>
       {/* Mobile-only top bar: the sidebar itself is hidden below `lg`, so this is
           the only way to reach it on small screens. Dark, matching the sidebar/
           drawer it opens, so the mobile and desktop nav chrome feel like the
@@ -511,16 +516,11 @@ function StaffHeader({
 function BrandMark({ navLabel, isCollapsed = false }: { navLabel: string; isCollapsed?: boolean }) {
   return (
     <div className="flex min-w-0 items-center gap-2.5">
-      {/* The logo's own white background doubles as its tile -- a colored
-          (bg-brand) wrapper behind it would show as a mismatched double
-          border against the dark sidebar, so this renders the image alone,
-          just rounded, rather than reusing the old letter-badge treatment. */}
-      <img
-        src="/descon-logo.png"
-        alt=""
-        aria-hidden="true"
-        className="h-9 w-9 shrink-0 rounded-lg object-cover"
-      />
+      {/* Brand guide: the logo goes on white, whole and with clear space around it (never cropped,
+          never reversed), so it sits on its own white tile against the dark sidebar. */}
+      <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-white p-1">
+        <img src="/descon-logo.png" alt="" aria-hidden="true" className="h-full w-full object-contain" />
+      </span>
       <span className={isCollapsed ? 'sr-only' : 'truncate text-base font-bold tracking-tight text-white'}>{navLabel}</span>
     </div>
   );
