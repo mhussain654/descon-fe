@@ -15,15 +15,20 @@
 // light values unchanged.
 //
 // Values mirror the approved prototype's existing visual language (see the
-// dashboard/status pages' `#0066CC` brand blue, `#10B981` success green,
+// dashboard/status pages' `#0065B3` brand blue, `#10B981` success green,
 // `#F59E0B` warning amber, gray-200/500/900 neutrals) rather than inventing a
 // new palette.
 
+/** Descon Red (Pantone 485), measured from the logo artwork. Used sparingly -- the dual band, small highlights -- never for body text. */
+export const DESCON_RED = '#ED1B24';
+
 export const colors = {
+  // Descon Blue (DESCON Guidebook, "Colors": Pantone 2945). The hex is measured from the
+  // official logo artwork; DESCON_RED below is the other half of the palette.
   brand: {
-    subtle: '#E6F2FF',
-    default: '#0066CC',
-    emphasis: '#0052A3',
+    subtle: '#E6F0F8',
+    default: '#0065B3',
+    emphasis: '#004E8C',
     on: '#FFFFFF',
   },
   success: {
@@ -66,7 +71,7 @@ export const colors = {
   border: {
     default: '#E5E7EB',
     strong: '#D1D5DB',
-    focus: '#0066CC',
+    focus: '#0065B3',
   },
 } as const;
 

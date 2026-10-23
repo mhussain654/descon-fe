@@ -481,7 +481,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing[3],
     paddingVertical: spacing[1.5],
     borderRadius: radii.full,
-    backgroundColor: "#0649B9",
+    backgroundColor: "#004C87",
   },
   fixedBack: { position: "absolute", zIndex: 10, minHeight: 40, ...elevation.sm },
   backText: { fontSize: 14, color: colors.text.inverse },

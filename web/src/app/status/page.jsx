@@ -33,7 +33,7 @@ function stageConfig(status) {
     case "completed":
       return { className: "bg-[#E6F9F0] text-[#10B981]", lineClassName: "bg-[#10B981]", textClassName: "text-black", symbol: "✓" };
     case "current":
-      return { className: "bg-[#E6F2FF] text-[#0066CC]", lineClassName: "bg-gray-200", textClassName: "text-black", symbol: "•" };
+      return { className: "bg-[#E6F0F8] text-[#0065B3]", lineClassName: "bg-gray-200", textClassName: "text-black", symbol: "•" };
     default:
       return { className: "bg-white text-[#9CA3AF] ring-2 ring-gray-200", lineClassName: "bg-gray-200", textClassName: "text-gray-400", symbol: "" };
   }
@@ -160,7 +160,7 @@ export default function StatusPage() {
                     </div>
                   ) : null}
                   {stage.status === "current" ? (
-                    <div className="mt-3 inline-flex rounded-lg bg-[#E6F2FF] px-3 py-2 text-xs font-medium text-[#0066CC]">
+                    <div className="mt-3 inline-flex rounded-lg bg-[#E6F0F8] px-3 py-2 text-xs font-medium text-[#0065B3]">
                       {t("inProgress")}
                     </div>
                   ) : null}
@@ -189,7 +189,7 @@ export default function StatusPage() {
                               href={resolveDocumentAccessUrl(visaCopyAccess.access.url, import.meta.env.VITE_API_BASE_URL ?? "")}
                               target="_blank"
                               rel="noopener noreferrer"
-                              className="text-sm font-medium text-[#0066CC] underline"
+                              className="text-sm font-medium text-[#0065B3] underline"
                             >
                               {t("candidateVisaOpenCopyAction")}
                             </a>
@@ -223,7 +223,7 @@ export default function StatusPage() {
                           href={resolveDocumentAccessUrl(ticketAccess.access.url, import.meta.env.VITE_API_BASE_URL ?? "")}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="text-sm font-medium text-[#0066CC] underline"
+                          className="text-sm font-medium text-[#0065B3] underline"
                         >
                           {t("candidateFlightOpenTicketAction")}
                         </a>
@@ -261,7 +261,7 @@ export default function StatusPage() {
           ) : historyQuery.error ? (
             <div className="flex items-center justify-between gap-3">
               <p className="text-sm text-gray-500">{t(WORKFLOW_HISTORY_ERROR_KEYS[historyQuery.error.code])}</p>
-              <button type="button" onClick={() => historyQuery.refetch()} className="text-sm font-medium text-[#0066CC]">
+              <button type="button" onClick={() => historyQuery.refetch()} className="text-sm font-medium text-[#0065B3]">
                 {t("retry")}
               </button>
             </div>

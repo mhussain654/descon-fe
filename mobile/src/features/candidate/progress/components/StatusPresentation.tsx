@@ -29,7 +29,7 @@ export function StatusHeader({ language, t, topInset, countryCode }: LocaleProps
   return (
     <View style={[statusStyles.hero, { paddingTop: topInset + spacing[3] }]}>
       <MeasuredSvg>
-        <Defs><LinearGradient id="statusHero" x1="0" y1="0" x2="1" y2="1"><Stop offset="0" stopColor="#16A5EE" /><Stop offset="0.5" stopColor="#0873DF" /><Stop offset="1" stopColor="#0649B9" /></LinearGradient></Defs>
+        <Defs><LinearGradient id="statusHero" x1="0" y1="0" x2="1" y2="1"><Stop offset="0" stopColor="#2B8CD4" /><Stop offset="0.5" stopColor="#0065B3" /><Stop offset="1" stopColor="#004C87" /></LinearGradient></Defs>
         <Rect width="100%" height="100%" fill="url(#statusHero)" />
         <Circle cx="96%" cy="90%" r="78" stroke="#FFFFFF" strokeOpacity={0.12} strokeWidth={22} fill="none" />
       </MeasuredSvg>
@@ -38,7 +38,7 @@ export function StatusHeader({ language, t, topInset, countryCode }: LocaleProps
           <Text accessibilityRole="header" style={[statusStyles.title, statusCopyStyle(language, 25), { fontFamily: getFontFamily(language, 'bold') }]}>{t('status')}</Text>
           <Text style={[statusStyles.subtitle, statusCopyStyle(language)]}>{t('mobilizationProgress')}</Text>
         </View>
-        <View style={statusStyles.heroIcon} accessible={false}><Plane size={29} color="#0873DF" /></View>
+        <View style={statusStyles.heroIcon} accessible={false}><Plane size={29} color="#0065B3" /></View>
       </View>
       {countryCode && BUSINESS_UNIT_KEYS[countryCode] ? <Text style={[statusStyles.businessUnit, statusCopyStyle(language)]}>{t('candidateProfileBusinessUnitLabel')}: {t(BUSINESS_UNIT_KEYS[countryCode])}</Text> : null}
     </View>
@@ -95,7 +95,7 @@ export function StatusStageCard({ stage, isLast, dateLabel, language, t, childre
 
 export const statusStyles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: '#F0F7FF' },
-  hero: { paddingHorizontal: spacing[5], paddingBottom: spacing[8], overflow: 'hidden', backgroundColor: '#0873DF' },
+  hero: { paddingHorizontal: spacing[5], paddingBottom: spacing[8], overflow: 'hidden', backgroundColor: '#0065B3' },
   businessUnit: { marginTop: spacing[2], color: '#FFFFFF', fontSize: 12, lineHeight: 22 },
   heroRow: { alignItems: 'center', gap: spacing[3], marginTop: 0 },
   flex: { flex: 1, minWidth: 0 },
@@ -110,7 +110,7 @@ export const statusStyles = StyleSheet.create({
   summaryCount: { fontSize: 21, lineHeight: 29, color: '#172B4D' },
   percent: { fontSize: 26, color: '#0862BC' },
   track: { height: 8, borderRadius: 4, backgroundColor: '#E7F0FC', overflow: 'hidden', marginTop: spacing[3] },
-  fill: { height: 8, borderRadius: 4, backgroundColor: '#16A5EE' },
+  fill: { height: 8, borderRadius: 4, backgroundColor: '#2B8CD4' },
   updated: { fontSize: 11, color: '#687A95', marginTop: spacing[2] },
   sectionTitle: { fontSize: 16, lineHeight: 24, color: '#172B4D', marginBottom: spacing[3] },
   stageRow: { gap: spacing[3] },

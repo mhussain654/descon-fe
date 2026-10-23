@@ -9,7 +9,7 @@ export default function NotFoundPage() {
       <p className="text-base text-gray-500">{t("notFoundMessage")}</p>
       <a
         href="/"
-        className="rounded-xl bg-[#0066CC] px-6 py-3 text-base font-semibold text-white transition hover:bg-[#0057AD]"
+        className="rounded-xl bg-[#0065B3] px-6 py-3 text-base font-semibold text-white transition hover:bg-[#004E8C]"
       >
         {t("goHome")}
       </a>

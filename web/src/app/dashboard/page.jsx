@@ -18,8 +18,8 @@ const BASE_QUICK_ACTIONS = [
   {
     titleKey: "uploadDocuments",
     icon: FileText,
-    color: "#0066CC",
-    bgColor: "#E6F2FF",
+    color: "#0065B3",
+    bgColor: "#E6F0F8",
     href: "/documents",
   },
   {
@@ -202,14 +202,14 @@ export default function DashboardPage() {
             ) : null}
           </div>
           <div className="mb-3 flex items-center gap-3">
-            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-[#E6F2FF] text-[#0066CC]">
+            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-[#E6F0F8] text-[#0065B3]">
               ✓
             </div>
             <div className="text-base font-medium text-black">{currentStageName ?? t("registered")}</div>
           </div>
           <div className="mb-2 h-2 overflow-hidden rounded-full bg-gray-200">
             <div
-              className="h-full rounded-full bg-[#0066CC]"
+              className="h-full rounded-full bg-[#0065B3]"
               style={{ width: `${workflow?.progressPercentage ?? 0}%` }}
             />
           </div>

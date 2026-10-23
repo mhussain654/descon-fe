@@ -78,7 +78,7 @@ const styles = StyleSheet.create({
     lineHeight: 24,
   },
   homeButton: {
-    backgroundColor: '#0066CC',
+    backgroundColor: '#0065B3',
     paddingHorizontal: 24,
     paddingVertical: 14,
     borderRadius: 12,

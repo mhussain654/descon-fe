@@ -37,7 +37,7 @@ function UserShellContent({ activeTab, children }) {
                 key={tab.href}
                 to={tab.href}
                 className={`flex flex-col items-center justify-center gap-1 py-3 text-xs font-medium transition ${
-                  isActive ? "text-[#0066CC]" : "text-[#9B9B9B]"
+                  isActive ? "text-[#0065B3]" : "text-[#9B9B9B]"
                 }`}
               >
                 <span className="text-lg leading-none">{tab.icon}</span>
