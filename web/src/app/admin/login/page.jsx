@@ -40,7 +40,7 @@ export default function StaffLoginPage() {
   }
 
   return (
-    <main className="relative isolate flex min-h-screen flex-col items-center justify-center overflow-hidden bg-gradient-to-br from-brand-emphasis via-brand to-info px-6 py-10">
+    <main className="relative isolate flex min-h-screen flex-col items-center justify-center overflow-hidden bg-gradient-to-br from-brand-emphasis to-brand px-6 py-10">
       <div aria-hidden="true" className="pointer-events-none absolute -start-24 -top-24 -z-10 h-80 w-80 rounded-full bg-white/10" />
       <div aria-hidden="true" className="pointer-events-none absolute -bottom-32 -end-20 -z-10 h-96 w-96 rounded-full bg-white/10" />
 

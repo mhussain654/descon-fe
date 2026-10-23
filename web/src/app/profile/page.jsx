@@ -14,7 +14,7 @@ const TONE_COLORS = {
   success: "text-[#10B981]",
   warning: "text-[#F59E0B]",
   danger: "text-[#EF4444]",
-  info: "text-[#0066CC]",
+  info: "text-[#0065B3]",
   neutral: "text-[#6B7280]",
 };
 
@@ -105,7 +105,7 @@ export default function ProfilePage() {
     return (
       <>
         <section className="mb-5 rounded-2xl border border-gray-200 bg-white p-6 text-center">
-          <div className="mx-auto mb-4 flex h-20 w-20 items-center justify-center rounded-full bg-[#0066CC] text-3xl font-semibold text-white">
+          <div className="mx-auto mb-4 flex h-20 w-20 items-center justify-center rounded-full bg-[#0065B3] text-3xl font-semibold text-white">
             {profile.fullName.charAt(0)}
           </div>
           <div className="text-xl font-semibold text-black">{profile.fullName}</div>
@@ -154,8 +154,8 @@ export default function ProfilePage() {
             className="flex w-full items-center justify-between rounded-xl px-4 py-4 text-start transition hover:bg-[#F6F6F6]"
           >
             <div className="flex items-center">
-              <div className="me-3 flex h-10 w-10 items-center justify-center rounded-full bg-[#E6F2FF]">
-                <Globe size={20} className="text-[#0066CC]" />
+              <div className="me-3 flex h-10 w-10 items-center justify-center rounded-full bg-[#E6F0F8]">
+                <Globe size={20} className="text-[#0065B3]" />
               </div>
               <div>
                 <div className="text-sm font-medium text-black">{t("language")}</div>

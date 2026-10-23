@@ -50,10 +50,14 @@ module.exports = {
 				// Literal hex, not CSS vars -- these aren't part of the shadcn theming
 				// contract and don't need runtime overriding.
 				brand: {
-					subtle: '#E6F2FF',
-					DEFAULT: '#0066CC',
-					emphasis: '#0052A3',
+					subtle: '#E6F0F8',
+					DEFAULT: '#0065B3',
+					emphasis: '#004E8C',
 					on: '#FFFFFF',
+				},
+				// Descon Red (guidebook, Pantone 485) -- see shared/design-tokens.ts DESCON_RED.
+				descon: {
+					red: '#ED1B24',
 				},
 				success: {
 					subtle: '#E6F9F0',

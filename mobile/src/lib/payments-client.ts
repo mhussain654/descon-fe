@@ -9,6 +9,7 @@ import type {
   PaymentEligibility,
   PaymentError,
   PaymentErrorCode,
+  PaymentMethod,
   PaymentsClient,
   PaymentStatus,
 } from '../../../shared/payments/types';
@@ -22,6 +23,7 @@ export type {
   PaymentEligibility,
   PaymentError,
   PaymentErrorCode,
+  PaymentMethod,
   PaymentsClient,
   PaymentStatus,
 };

@@ -1,6 +1,5 @@
 import { useEffect } from "react";
 import { Navigate, useNavigate } from "react-router";
-import { ShieldCheck } from "lucide-react";
 import { useAuth } from "../../contexts/AuthContext";
 import { useLanguage } from "../../contexts/LanguageContext";
 import { Button, ValidationMessage } from "../../design-system";
@@ -31,8 +30,8 @@ export default function ConsentPage() {
     <main className="min-h-screen bg-background">
       <div className="mx-auto flex min-h-screen w-full max-w-xl flex-col px-6 pb-8 pt-16">
         <div className="mb-10">
-          <div className="mb-6 flex h-16 w-16 items-center justify-center rounded-2xl bg-[#0066CC]">
-            <ShieldCheck size={32} color="#FFFFFF" strokeWidth={2} />
+          <div className="mb-6 flex h-16 w-16 items-center justify-center rounded-2xl border border-border bg-white p-2 shadow-sm">
+            <img src="/descon-logo.png" alt="Descon" className="h-full w-full object-contain" />
           </div>
           <h1 className="mb-2 text-3xl font-semibold text-text-primary">{t("consentTitle")}</h1>
           <p className="text-base leading-7 text-text-secondary">{t("consentMessage")}</p>

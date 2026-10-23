@@ -40,7 +40,7 @@ import type { KpiTrendPoint } from '../../../../../../shared/adminDashboard/type
  * built on them don't need any theme-reactive logic.
  */
 export const CHART_TONE_HEX = {
-  brand: '#0066CC',
+  brand: '#0065B3',
   success: '#10B981',
   warning: '#F59E0B',
   danger: '#DC2626',

@@ -42,7 +42,7 @@ export function ConsentContent({ language, t, topInset, bottomInset, isPending, 
     <ScrollView contentContainerStyle={[styles.content, { paddingBottom: bottomInset + spacing[5] }]}>
       <View style={[styles.hero, { paddingTop: topInset + spacing[3] }]}>
         <MeasuredSvg>
-          <Defs><LinearGradient id="consentHero" x1="0" y1="0" x2="1" y2="1"><Stop offset="0" stopColor="#16A5EE" /><Stop offset="0.48" stopColor="#0873DF" /><Stop offset="1" stopColor="#0649B9" /></LinearGradient></Defs>
+          <Defs><LinearGradient id="consentHero" x1="0" y1="0" x2="1" y2="1"><Stop offset="0" stopColor="#2B8CD4" /><Stop offset="0.48" stopColor="#0065B3" /><Stop offset="1" stopColor="#004C87" /></LinearGradient></Defs>
           <Rect width="100%" height="100%" fill="url(#consentHero)" />
           <Circle cx="100%" cy="45%" r="115" fill="none" stroke="#FFFFFF" strokeOpacity={0.08} strokeWidth={30} />
         </MeasuredSvg>
@@ -92,7 +92,7 @@ export function ConsentContent({ language, t, topInset, bottomInset, isPending, 
 
 const styles = StyleSheet.create({
   content: { flexGrow: 1, backgroundColor: '#F0F7FF' },
-  hero: { paddingHorizontal: spacing[5], paddingBottom: spacing[8], overflow: 'hidden', backgroundColor: '#0873DF' },
+  hero: { paddingHorizontal: spacing[5], paddingBottom: spacing[8], overflow: 'hidden', backgroundColor: '#0065B3' },
   topRow: { alignItems: 'center', justifyContent: 'space-between', gap: spacing[2], flexWrap: 'wrap' },
   language: { minHeight: 44, minWidth: 62, paddingHorizontal: spacing[3], borderRadius: 24, borderWidth: 1, borderColor: 'rgba(255,255,255,0.3)', backgroundColor: 'rgba(255,255,255,0.12)', alignItems: 'center', justifyContent: 'center' },
   languageText: { color: colors.text.inverse, fontSize: 12, lineHeight: 28 },

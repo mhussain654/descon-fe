@@ -36,7 +36,7 @@ const RETRYABLE_ERROR_CODES = new Set(["OFFLINE", "NETWORK_ERROR", "SERVER_ERROR
 const STATUS_CONFIG = {
   verified: { icon: CheckCircle, className: "bg-[#E6F9F0] text-[#10B981]", textClassName: "text-[#10B981]", labelKey: "verified" },
   pending_review: { icon: Clock, className: "bg-[#FFF7E6] text-[#F59E0B]", textClassName: "text-[#F59E0B]", labelKey: "candidateDocumentsStatusPendingReview" },
-  uploaded: { icon: Upload, className: "bg-[#E6F2FF] text-[#0066CC]", textClassName: "text-[#0066CC]", labelKey: "uploaded" },
+  uploaded: { icon: Upload, className: "bg-[#E6F0F8] text-[#0065B3]", textClassName: "text-[#0065B3]", labelKey: "uploaded" },
   rejected: { icon: XCircle, className: "bg-[#FEF2F2] text-[#EF4444]", textClassName: "text-[#EF4444]", labelKey: "rejected" },
   missing: { icon: Upload, className: "bg-[#F6F6F6] text-[#6B7280]", textClassName: "text-[#6B7280]", labelKey: "pending" },
   unknown: { icon: Upload, className: "bg-[#F6F6F6] text-[#6B7280]", textClassName: "text-[#6B7280]", labelKey: "candidateDocumentsStatusUnknown" },
@@ -342,7 +342,7 @@ function FileViewAction({ documentId, fileId, documentAccess, t }) {
         rel="noopener noreferrer"
         aria-label={openLabel}
         title={openLabel}
-        className="ms-2 inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-[#0066CC] hover:bg-gray-100"
+        className="ms-2 inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-[#0065B3] hover:bg-gray-100"
       >
         <Eye size={18} />
       </a>
