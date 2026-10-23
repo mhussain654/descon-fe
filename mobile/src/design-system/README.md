@@ -44,6 +44,7 @@ build target via `tailwind.config.js`/`global.css`, not native iOS/Android.
   `DataTable` + `Pagination`; mobile favors infinite scroll over paged
   navigation, so there's no separate `Pagination` component here.
 - **Search/filter**: `SearchField`, `FilterChip`.
+- **Closed-list choice**: `SelectField` (a field that opens a modal sheet of options -- RN has no native select).
 
 Import from `@/design-system` (or relative paths under
 `mobile/src/design-system/`).
