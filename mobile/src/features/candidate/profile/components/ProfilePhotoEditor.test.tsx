@@ -1,3 +1,4 @@
+import { StyleSheet } from 'react-native';
 import { QueryClientProvider } from '@tanstack/react-query';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react-native';
 import * as ImagePicker from 'expo-image-picker';
@@ -58,7 +59,7 @@ describe('ProfilePhotoEditor', () => {
     renderUrduEditor();
     const action = screen.getByRole('button', { name: 'تصویر شامل کریں' });
     expect(action.props.style).toEqual(expect.arrayContaining([expect.objectContaining({ minHeight: 48 })]));
-    expect(screen.getByText('تصویر شامل کریں').props.style).toEqual(expect.arrayContaining([expect.objectContaining({ lineHeight: 30 })]));
+    expect(StyleSheet.flatten(screen.getByText('تصویر شامل کریں').props.style)).toMatchObject({ lineHeight: 30 });
   });
   it('shows the initial and an "Add photo" action when there is no photo', () => {
     renderEditor();

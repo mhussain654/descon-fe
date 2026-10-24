@@ -46,9 +46,10 @@ export function ConsentContent({ language, t, topInset, bottomInset, isPending, 
           <Rect width="100%" height="100%" fill="url(#consentHero)" />
           <Circle cx="100%" cy="45%" r="115" fill="none" stroke="#FFFFFF" strokeOpacity={0.08} strokeWidth={30} />
         </MeasuredSvg>
-        <View style={[styles.topRow, rowStyle]}>
-          <BrandHeader language={language} primary={t('brandNamePrimary')} secondary={t('brandNameSecondary')} tileAtRowStart={isStartSide(isUrdu ? 'right' : 'left')} />
-          <Pressable accessibilityRole="button" accessibilityLabel={t('consentSwitchLanguage')} disabled={isPending} onPress={onToggleLanguage} style={styles.language}>
+        <View style={styles.topRow}>
+          <BrandHeader language={language} primary={t('brandNamePrimary')} secondary={t('brandNameSecondary')} />
+          {/* Pinned to the corner opposite the copy, so the centred brand lockup keeps the whole row. */}
+          <Pressable accessibilityRole="button" accessibilityLabel={t('consentSwitchLanguage')} disabled={isPending} onPress={onToggleLanguage} style={[styles.language, styles.languageCorner, isStartSide(isUrdu ? 'left' : 'right') ? { start: 0 } : { end: 0 }]}>
             <Text style={[styles.languageText, { fontFamily: getFontFamily(isUrdu ? 'en' : 'ur', 'medium') }]}>{isUrdu ? 'English' : 'اردو'}</Text>
           </Pressable>
         </View>
@@ -93,7 +94,8 @@ export function ConsentContent({ language, t, topInset, bottomInset, isPending, 
 const styles = StyleSheet.create({
   content: { flexGrow: 1, backgroundColor: '#F0F7FF' },
   hero: { paddingHorizontal: spacing[5], paddingBottom: spacing[8], overflow: 'hidden', backgroundColor: '#0065B3' },
-  topRow: { alignItems: 'center', justifyContent: 'space-between', gap: spacing[2], flexWrap: 'wrap' },
+  topRow: { alignItems: 'center' },
+  languageCorner: { position: 'absolute', top: 0 },
   language: { minHeight: 44, minWidth: 62, paddingHorizontal: spacing[3], borderRadius: 24, borderWidth: 1, borderColor: 'rgba(255,255,255,0.3)', backgroundColor: 'rgba(255,255,255,0.12)', alignItems: 'center', justifyContent: 'center' },
   languageText: { color: colors.text.inverse, fontSize: 12, lineHeight: 28 },
   art: { width: 176, height: 106, marginTop: spacing[3], marginBottom: spacing[1], alignSelf: 'center' },

@@ -56,10 +56,19 @@ function LanguageOptionCard({ active, label, labelLanguage, hint, onPress }) {
           <Check size={14} color={colors.brand.on} strokeWidth={3} />
         </View>
       ) : null}
-      <Text style={[styles.languageLabel, { fontFamily: getFontFamily(labelLanguage, "bold") }]}>{label}</Text>
+      <Text
+        style={[
+          styles.languageLabel,
+          labelLanguage === "ur" ? styles.languageLabelUrdu : null,
+          { fontFamily: getFontFamily(labelLanguage, "bold") },
+        ]}
+      >
+        {label}
+      </Text>
       <Text
         style={[
           styles.languageHint,
+          labelLanguage === "ur" ? styles.languageHintUrdu : null,
           labelLanguage === "ur" ? styles.secondaryTextUrdu : null,
           { fontFamily: getFontFamily(labelLanguage, "regular") },
         ]}
@@ -96,19 +105,14 @@ function WelcomeHero({ width, topInset, language, t }) {
           accessibilityIgnoresInvertColors
           accessible={false}
       />
-      <View style={[styles.brandSlot, anchorStyle, { top: topInset + spacing[4] }]}>
-          <BrandHeader
-            language={language}
-            primary={t("brandNamePrimary")}
-            secondary={t("brandNameSecondary")}
-            tileAtRowStart={copyAtStart}
-          />
+      <View style={[styles.brandSlot, { top: topInset + spacing[2] }]}>
+          <BrandHeader language={language} primary={t("brandNamePrimary")} secondary={t("brandNameSecondary")} />
       </View>
       <View
           style={[
             styles.heroCopy,
             anchorStyle,
-            { top: topInset + heroHeight * (isUrdu ? 0.19 : 0.2), width: width * (isUrdu ? 0.64 : 0.58) },
+            { top: topInset + heroHeight * (isUrdu ? 0.3 : 0.27), width: width * (isUrdu ? 0.64 : 0.58) },
           ]}
         >
           <Text
@@ -247,7 +251,7 @@ const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.surface.raised },
   scrollContent: { flexGrow: 1 },
 
-  brandSlot: { position: "absolute" },
+  brandSlot: { position: "absolute", start: 0, end: 0, alignItems: "center" },
   heroCopy: { position: "absolute" },
   anchorStart: { start: spacing[6], alignItems: "flex-start" },
   anchorEnd: { end: spacing[6], alignItems: "flex-end" },
@@ -322,6 +326,10 @@ const styles = StyleSheet.create({
   languageCardInactive: { backgroundColor: colors.surface.raised, borderColor: colors.border.default, ...elevation.sm },
   languageLabel: { fontSize: 20, color: colors.text.primary, textAlign: "center" },
   languageHint: { marginTop: spacing[1], fontSize: 14, color: colors.text.secondary, textAlign: "center" },
+  // Nastaliq stacks its marks well below the baseline; without an explicit
+  // line height the lower strokes are clipped inside the card.
+  languageLabelUrdu: { fontSize: 20, lineHeight: 46 },
+  languageHintUrdu: { marginTop: 0, fontSize: 14, lineHeight: 34 },
   languageCheck: {
     position: "absolute",
     top: spacing[2],

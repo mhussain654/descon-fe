@@ -264,7 +264,7 @@ export function Layout({ children }: { children: ReactNode }) {
         <title>MPS Connect</title>
         <Meta />
         <Links />
-        <link rel="icon" href="/favicon.png" />
+        <link rel="icon" type="image/png" href="/favicon.png" />
         {/* Render the same font links on the server and client. Rendering these
             only during SSR changes <head> during hydration, causing React to
             replace the document and discard React Router's critical CSS. */}
