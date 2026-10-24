@@ -10,7 +10,7 @@ they both import.
   temporarily for synthetic-data testing; see
   [`docs/descon-mps-home-review.md`](docs/descon-mps-home-review.md) for their
   planned removal.
-- `mobile/` — Descon Connect, the candidate-facing Expo / React Native app.
+- `mobile/` — MPS Connect, the candidate-facing Expo / React Native app.
 - `shared/` — portable TypeScript with no platform dependencies: the API
   client's request/error-normalization logic (`api-client.ts`) and the
   English/Urdu translation catalog and locale helpers (`i18n/`). Each app

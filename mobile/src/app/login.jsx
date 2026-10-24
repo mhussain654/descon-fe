@@ -219,7 +219,8 @@ export default function LoginScreen() {
           accessibilityLabel={t("back")}
           style={[styles.backPill, styles.fixedBack, rowTowards(copySide),
             isUrdu ? { right: spacing[6] } : { left: spacing[6] },
-            { top: insets.top + spacing[3] }]}
+            // 10 = half the difference between the brand tile (64) and this pill (44), so the pill centres on the logo.
+            { top: insets.top + spacing[3] + 10 }]}
           hitSlop={8}
         >
           <BackArrow language={language} color={colors.text.inverse} />
@@ -230,7 +231,7 @@ export default function LoginScreen() {
             this content taller than the viewport -- a ScrollView keeps the
             field and its action reachable instead of clipping them off-screen. */}
         <ScrollView ref={scrollRef} contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled" bounces={false}>
-          <View style={[styles.hero, { paddingTop: insets.top + spacing[3] + 48, minHeight: insets.top + width * 0.98 }]}>
+          <View style={[styles.hero, { paddingTop: insets.top + spacing[3] + 106 + spacing[3], minHeight: insets.top + width * 0.98 }]}>
             <Image
               source={HERO_PHOTO[isUrdu ? "ur" : "en"]}
               style={StyleSheet.absoluteFill}
@@ -239,14 +240,11 @@ export default function LoginScreen() {
             />
             <HeroShade copySide={copySide} />
 
-            <View style={[styles.heroCopy, anchorStyle, { maxWidth: width * 0.66 }]}>
-              <BrandHeader
-                language={language}
-                primary={t("brandNamePrimary")}
-                secondary={t("brandNameSecondary")}
-                tileAtRowStart={isStartSide(copySide)}
-              />
+            <View style={[styles.brandSlot, { top: insets.top + spacing[3] }]}>
+              <BrandHeader language={language} primary={t("brandNamePrimary")} secondary={t("brandNameSecondary")} />
+            </View>
 
+            <View style={[styles.heroCopy, anchorStyle, { maxWidth: width * 0.66 }]}>
               <Text
                 accessibilityRole="header"
                 style={[styles.heroTitle, isUrdu ? styles.heroTitleUrdu : null, copyTextStyle, font("bold")]}
@@ -473,6 +471,7 @@ const styles = StyleSheet.create({
     backgroundColor: HERO_SHADE_COLOR,
     overflow: "hidden",
   },
+  brandSlot: { position: "absolute", start: 0, end: 0, alignItems: "center" },
   heroCopy: { gap: spacing[4] },
   anchorStart: { alignSelf: "flex-start", alignItems: "flex-start" },
   anchorEnd: { alignSelf: "flex-end", alignItems: "flex-end" },
@@ -483,9 +482,10 @@ const styles = StyleSheet.create({
     borderRadius: radii.full,
     backgroundColor: "#004C87",
   },
-  fixedBack: { position: "absolute", zIndex: 10, minHeight: 40, ...elevation.sm },
+  fixedBack: { position: "absolute", zIndex: 10, minHeight: 44, alignItems: "center", ...elevation.sm },
   backText: { fontSize: 14, color: colors.text.inverse },
-  backTextUrdu: { lineHeight: 30, paddingVertical: spacing[1] },
+  // Nastaliq sits low in its line box; lifting it a touch lines it up with the arrow.
+  backTextUrdu: { lineHeight: 28, position: "relative", top: -3 },
   heroTitle: {
     marginTop: spacing[3],
     fontSize: 30,
