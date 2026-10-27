@@ -39,7 +39,7 @@ export function GradientIconBox({ tone, icon: Icon, size = 44 }: GradientIconBox
         <Rect x="0" y="0" width="100%" height="100%" fill={`url(#${gradientId})`} />
       </Svg>
       {/* Own layer above the absolutely-positioned gradient -- a bare SVG icon
-          would otherwise paint underneath it on web. */}
+          would otherwise paint underneath it. */}
       <View style={styles.iconLayer}>
         <Icon size={size * 0.52} color="#FFFFFF" strokeWidth={2.4} />
       </View>

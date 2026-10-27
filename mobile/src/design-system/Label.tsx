@@ -16,7 +16,7 @@ export interface LabelProps {
 export function Label({ children, requirementText, language = 'en' }: LabelProps) {
   return (
     // Urdu labels start at the right edge -- resolved against the live layout,
-    // which only mirrors on native after the language reload (never on web).
+    // which only mirrors after the language reload.
     <View style={[styles.row, isStartSide(language === 'ur' ? 'right' : 'left') ? null : styles.rowReversed]}>
       <Text style={[styles.label, language === 'ur' && styles.urduLabel, { fontFamily: getFontFamily(language, 'medium') }]}>{children}</Text>
       {requirementText ? (

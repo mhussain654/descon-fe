@@ -1,6 +1,6 @@
 
 import React, { useRef, useEffect } from 'react';
-import { Platform, Keyboard, KeyboardAvoidingView } from 'react-native';
+import { Platform, Keyboard } from 'react-native';
 import Animated, { useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 
 const KeyboardAvoidingAnimatedView = (props, ref) => {
@@ -109,20 +109,6 @@ const KeyboardAvoidingAnimatedView = (props, ref) => {
     // render children if padding or height
     return children;
   };
-
-  // for web, default to unused keyboard avoiding view
-  if (Platform.OS === 'web') {
-    return (
-      <KeyboardAvoidingView
-        behavior={behavior}
-        style={style}
-        contentContainerStyle={contentContainerStyle}
-        {...leftoverProps}
-      >
-        {children}
-      </KeyboardAvoidingView>
-    );
-  }
 
   return (
     <Animated.View

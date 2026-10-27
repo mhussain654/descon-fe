@@ -15,31 +15,6 @@ config.maxWorkers = 6;
 // Node-only-compatible test dependency) into the app bundle itself.
 config.resolver.blockList = [...config.resolver.blockList, /\.test\.(js|jsx|ts|tsx)$/];
 
-const WEB_ALIASES = {
-  'expo-secure-store': path.resolve(__dirname, './polyfills/web/secureStore.web.ts'),
-  'react-native-webview': path.resolve(__dirname, './polyfills/web/webview.web.tsx'),
-  'react-native-safe-area-context': path.resolve(
-    __dirname,
-    './polyfills/web/safeAreaContext.web.jsx'
-  ),
-  'react-native-maps': path.resolve(__dirname, './polyfills/web/maps.web.jsx'),
-  'react-native-web/dist/exports/SafeAreaView': path.resolve(
-    __dirname,
-    './polyfills/web/SafeAreaView.web.jsx'
-  ),
-  'react-native-web/dist/exports/Alert': path.resolve(__dirname, './polyfills/web/alerts.web.tsx'),
-  'react-native-web/dist/exports/RefreshControl': path.resolve(
-    __dirname,
-    './polyfills/web/refreshControl.web.tsx'
-  ),
-  'expo-status-bar': path.resolve(__dirname, './polyfills/web/statusBar.web.tsx'),
-  './layouts/Tabs': path.resolve(__dirname, './polyfills/web/tabbar.web.jsx'),
-  'expo-font': path.resolve(__dirname, './polyfills/web/expo-font.web.ts'),
-  'react-native-web/dist/exports/ScrollView': path.resolve(
-    __dirname,
-    './polyfills/web/scrollview.web.jsx'
-  ),
-};
 const NATIVE_ALIASES = {
   './Libraries/Components/TextInput/TextInput': path.resolve(
     __dirname,
@@ -61,7 +36,7 @@ config.watchFolders = [...config.watchFolders, path.resolve(__dirname, '../share
 // regardless of what tsconfig says, so both tools get what they need.
 const REACT_MODULE_PATH = path.resolve(__dirname, 'node_modules/react');
 
-// Add web-specific alias configuration through resolveRequest
+// Module aliasing through resolveRequest
 config.resolver.resolveRequest = (context, moduleName, platform) => {
   // Applies everywhere, including polyfills below -- every importer needs
   // the real `react`, not whatever tsconfig's `paths` would otherwise send
@@ -72,7 +47,6 @@ config.resolver.resolveRequest = (context, moduleName, platform) => {
   // Polyfills are not resolved by Metro
   if (
     context.originModulePath.startsWith(`${__dirname}/polyfills/native`) ||
-    context.originModulePath.startsWith(`${__dirname}/polyfills/web`) ||
     context.originModulePath.startsWith(`${__dirname}/polyfills/shared`)
   ) {
     return context.resolveRequest(context, moduleName, platform);
@@ -84,14 +58,6 @@ config.resolver.resolveRequest = (context, moduleName, platform) => {
   if (SHARED_ALIASES[moduleName] && !moduleName.startsWith('./polyfills/')) {
     return context.resolveRequest(context, SHARED_ALIASES[moduleName], platform);
   }
-  if (platform === 'web') {
-    // Only apply aliases if the module is one of our polyfills
-    if (WEB_ALIASES[moduleName] && !moduleName.startsWith('./polyfills/')) {
-      return context.resolveRequest(context, WEB_ALIASES[moduleName], platform);
-    }
-    return context.resolveRequest(context, moduleName, platform);
-  }
-
   if (NATIVE_ALIASES[moduleName] && !moduleName.startsWith('./polyfills/')) {
     return context.resolveRequest(context, NATIVE_ALIASES[moduleName], platform);
   }
