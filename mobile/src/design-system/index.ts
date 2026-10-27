@@ -6,6 +6,7 @@ export * from './Badge';
 export * from './Button';
 export * from './Card';
 export * from './CnicField';
+export * from './DateField';
 export * from './Dialog';
 export * from './EmptyState';
 export * from './ErrorState';

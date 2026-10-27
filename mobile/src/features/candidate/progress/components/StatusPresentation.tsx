@@ -65,6 +65,9 @@ export function StatusProgressSummary({ workflow, updatedLabel, language, t }: L
   );
 }
 
+/** A tag label is one short word. A box wider than the word means Android never has a reason to wrap its last letter away ("مکمل" shown as "مکم"). */
+const BADGE_LABEL_BOX = { minWidth: 56, textAlign: 'center' as const };
+
 export function StatusStageCard({ stage, isLast, dateLabel, language, t, children }: LocaleProps & { stage: WorkflowTimelineStage; isLast: boolean; dateLabel: string | null; children?: ReactNode }) {
   const completed = stage.status === 'completed';
   const current = stage.status === 'current';
@@ -83,7 +86,7 @@ export function StatusStageCard({ stage, isLast, dateLabel, language, t, childre
         <View style={[statusStyles.stageHeading, { flexDirection: rowDirectionTowards('left') }]}>
           <Text style={[statusStyles.stageName, statusCopyStyle(language), { fontFamily: getFontFamily(language, current ? 'bold' : 'semibold') }]}>{stage.name}</Text>
           <View style={[statusStyles.badge, { backgroundColor: completed ? '#DFF5E9' : current ? '#DBECFF' : '#E8EEF7' }]}>
-            <Text style={[statusStyles.badgeText, statusCopyStyle(language), { color, fontFamily: getFontFamily(language, 'medium') }]}>{t(completed ? 'candidateStatusCompleted' : current ? 'inProgress' : 'pending')}</Text>
+            <Text style={[statusStyles.badgeText, statusCopyStyle(language), BADGE_LABEL_BOX, { color, fontFamily: getFontFamily(language, 'medium') }]}>{t(completed ? 'candidateStatusCompleted' : current ? 'inProgress' : 'pending')}</Text>
           </View>
         </View>
         {dateLabel ? <Text style={[statusStyles.date, statusCopyStyle(language)]}>{dateLabel}</Text> : null}

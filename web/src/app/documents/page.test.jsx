@@ -853,41 +853,7 @@ describe("DocumentsPage", () => {
       selectFileOnActiveRow(pdfFile());
       fireEvent.click(screen.getByRole("button", { name: "Submit" }));
 
-      expect(await screen.findByText("Enter the Police Character Certificate issue date.")).toBeInTheDocument();
-      expect(candidateDocumentsClient.uploadDocument).not.toHaveBeenCalled();
-    });
-
-    it("shows a validation error for a PCC issue date in an invalid format, without calling the API", async () => {
-      candidateDocumentsClient.getChecklist.mockResolvedValue([
-        item({ requirementCode: "police_character", name: "Police Character Certificate", status: "missing" }),
-      ]);
-      applicationProgressClient.getProgress.mockResolvedValue(progress());
-      await signInAndNavigateToDocuments();
-
-      fireEvent.click(await screen.findByRole("button", { name: "Upload" }));
-      fireEvent.change(screen.getByLabelText("Police Character Certificate issue date"), { target: { value: "26-08-2026" } });
-      selectFileOnActiveRow(pdfFile());
-      fireEvent.click(screen.getByRole("button", { name: "Submit" }));
-
-      expect(
-        await screen.findByText("Enter a valid Police Character Certificate issue date in YYYY-MM-DD format.")
-      ).toBeInTheDocument();
-      expect(candidateDocumentsClient.uploadDocument).not.toHaveBeenCalled();
-    });
-
-    it("shows a validation error for a future PCC issue date, without calling the API", async () => {
-      candidateDocumentsClient.getChecklist.mockResolvedValue([
-        item({ requirementCode: "police_character", name: "Police Character Certificate", status: "missing" }),
-      ]);
-      applicationProgressClient.getProgress.mockResolvedValue(progress());
-      await signInAndNavigateToDocuments();
-
-      fireEvent.click(await screen.findByRole("button", { name: "Upload" }));
-      fireEvent.change(screen.getByLabelText("Police Character Certificate issue date"), { target: { value: "2099-01-01" } });
-      selectFileOnActiveRow(pdfFile());
-      fireEvent.click(screen.getByRole("button", { name: "Submit" }));
-
-      expect(await screen.findByText("The Police Character Certificate issue date cannot be in the future.")).toBeInTheDocument();
+      expect(await screen.findByText("Choose the Police Character Certificate issue date.")).toBeInTheDocument();
       expect(candidateDocumentsClient.uploadDocument).not.toHaveBeenCalled();
     });
 

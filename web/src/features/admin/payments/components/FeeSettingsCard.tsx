@@ -253,6 +253,9 @@ function FeeEditor({
                 : undefined
             }
           />
+          <p className="text-xs text-text-secondary">
+            {t("adminFeeIncludesGatewayFee")}
+          </p>
           <Textarea
             label={t("adminFeeReason")}
             value={reason}

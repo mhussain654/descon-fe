@@ -1,10 +1,11 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router";
 import { useAuth } from "../../contexts/AuthContext";
 import { useLanguage } from "../../contexts/LanguageContext";
 import { Button, Dialog, DialogContent, CnicField, OtpField, RetryBanner, ValidationMessage, toast } from "../../design-system";
 import { AUTH_ERROR_KEYS, CNIC_FIELD_ERROR_KEYS } from "../../../../shared/auth/errorMessages";
 import { withCountdown } from "../../../../shared/auth/cnicOtpFlow";
+import { formatCnic } from "../../../../shared/cnic";
 import { OTP_LENGTH } from "../../../../shared/auth/types";
 import { useCnicOtpFlow } from "../../../../shared/auth/useCnicOtpFlow";
 import { candidateAuthClient } from "../../lib/auth-client";
@@ -49,8 +50,15 @@ export default function LoginPage() {
     backToCnic,
   } = flow;
 
+  // The CNIC shown in the not-registered dialog is the one that was submitted, frozen when the
+  // error arrives -- never the live field, which changes as the candidate types a correction.
+  const cnicRef = useRef(cnic);
+  cnicRef.current = cnic;
+  const [notRegisteredCnic, setNotRegisteredCnic] = useState("");
   useEffect(() => {
-    setRegistrationGuidanceOpen(otpError?.code === "CNIC_NOT_FOUND");
+    const notFound = otpError?.code === "CNIC_NOT_FOUND";
+    if (notFound) setNotRegisteredCnic(cnicRef.current);
+    setRegistrationGuidanceOpen(notFound);
   }, [otpError]);
 
   useEffect(() => {
@@ -90,6 +98,10 @@ export default function LoginPage() {
     <main className="min-h-screen bg-background">
       <Dialog open={registrationGuidanceOpen} onOpenChange={setRegistrationGuidanceOpen}>
         <DialogContent title={t("authCnicNotFoundError")} description={t("authRegistrationGuidance")} closeLabel={t("dsClose")}>
+          <div className="rounded-xl bg-surface-sunken px-4 py-2">
+            <p className="text-sm text-text-secondary">{t("authCnicEnteredLabel")}</p>
+            <p dir="ltr" className="text-xl font-bold tracking-wide text-text-primary">{formatCnic(notRegisteredCnic)}</p>
+          </div>
           <Button fullWidth onClick={() => setRegistrationGuidanceOpen(false)}>{t("authChangeCnic")}</Button>
         </DialogContent>
       </Dialog>

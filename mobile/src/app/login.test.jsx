@@ -209,6 +209,9 @@ describe('LoginScreen', () => {
 
     expect(await screen.findByText("Sorry, you are not registered for the current mobilization.")).toBeOnTheScreen();
     expect(screen.getByText(/Check your CNIC and try again/)).toBeOnTheScreen();
+    // The dialog repeats the CNIC that was submitted, so the candidate can spot a typo.
+    expect(screen.getByText("CNIC you entered")).toBeOnTheScreen();
+    expect(screen.getByText("12345-1234567-1")).toBeOnTheScreen();
     fireEvent.press(screen.getByRole("button", { name: "Change CNIC" }));
   });
 
