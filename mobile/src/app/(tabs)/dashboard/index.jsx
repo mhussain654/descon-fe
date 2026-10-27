@@ -28,6 +28,7 @@ import { interpolate } from "../../../../../shared/i18n/interpolate";
 import { formatCurrency, formatDate } from "../../../../../shared/i18n/locale";
 import { resolveNextAction, NEXT_ACTION_KEYS } from "../../../../../shared/applicationProgress/nextAction";
 import { currentDashboardStage, upcomingDashboardStage } from "../../../../../shared/applicationProgress/currentDashboardStage";
+import { journeyProgress } from "../../../../../shared/applicationProgress/journeyMilestones";
 import { LoadingState, ErrorState, OfflineState, SessionExpiredState, ForbiddenState, getFontFamily, toast } from "../../../design-system";
 import { colors, spacing } from "../../../design-system/tokens";
 
@@ -237,7 +238,9 @@ export default function DashboardScreen() {
   const currentStageCode = workflow?.timeline.find((stage) => stage.status === "current")?.code;
   const currentStageKey = currentStageCode ? STAGE_UPDATE_DESCRIPTION_KEYS[currentStageCode] : undefined;
   const waitingDescription = [currentStageKey ? t(currentStageKey) : null, t("homeWaitingDescription")].filter(Boolean).join(" ");
-  const percentage = workflow?.progressPercentage ?? 0;
+  // Counted over the milestones My Journey lists, so both screens give the same figures.
+  const journey = workflow ? journeyProgress(workflow.timeline) : null;
+  const percentage = journey?.percentage ?? 0;
   const nextAction =
     progressQuery.data && checklistQuery.data ? resolveNextAction(progressQuery.data, checklistQuery.data) : null;
   const nextActionMessage = nextAction
@@ -328,8 +331,8 @@ export default function DashboardScreen() {
             title={t("homeMyJourney")}
             stageLabel={currentStage ? currentStage.name : null}
             stepsLine={interpolate(t("homeStepsComplete"), {
-              completed: workflow?.completedCount ?? 0,
-              total: workflow?.totalCount ?? 0,
+              completed: journey?.completedCount ?? 0,
+              total: journey?.totalCount ?? 0,
             })}
             percentLine={interpolate(t("homePercentComplete"), { percent: percentage })}
             percentage={percentage}

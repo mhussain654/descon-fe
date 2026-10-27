@@ -21,6 +21,8 @@ import { APPLICATION_PROGRESS_ERROR_KEYS } from "../../../../../shared/applicati
 import { WORKFLOW_HISTORY_ERROR_KEYS } from "../../../../../shared/candidateWorkflow/errorMessages";
 import { findLatestQvcOutcome, QVC_OUTCOME_KEYS, QVC_OUTCOME_TONES } from "../../../../../shared/candidateWorkflow/qvcOutcome";
 import { isActionableHistoryItem } from "../../../../../shared/candidateWorkflow/actionableHistory";
+import { currentDashboardStage } from "../../../../../shared/applicationProgress/currentDashboardStage";
+import { journeyProgress } from "../../../../../shared/applicationProgress/journeyMilestones";
 import { VISA_OUTCOME_KEYS, VISA_OUTCOME_TONES } from "../../../../../shared/candidateVisaDecisions/outcomeLabels";
 import { CANDIDATE_FLIGHT_DETAIL_ERROR_KEYS } from "../../../../../shared/candidateFlightDetail/errorMessages";
 import { CANDIDATE_VISA_DECISIONS_ERROR_KEYS } from "../../../../../shared/candidateVisaDecisions/errorMessages";
@@ -63,6 +65,10 @@ export default function StatusScreen() {
 
   const workflow = progressQuery.data?.workflow;
   const timeline = workflow?.timeline ?? [];
+  // The list shows milestones only; waiting states ("documents pending", "under
+  // verification" ...) appear once, as the current status above it.
+  const journey = journeyProgress(timeline);
+  const currentStatusName = currentDashboardStage(timeline)?.name ?? null;
   const qvcOutcome = findLatestQvcOutcome(historyQuery.data?.items ?? []);
   // The latest recorded visa decision (a candidate can be re-submitted, so this is
   // never assumed to be the only one) -- the backend returns the list in chronological order.
@@ -140,7 +146,7 @@ export default function StatusScreen() {
         ) : null}
 
         {!progressQuery.isPending && !progressQuery.error && timeline.length > 0 ? (
-          <StatusProgressSummary workflow={workflow} updatedLabel={lastUpdatedLabel} language={language} t={t} />
+          <StatusProgressSummary completedCount={journey.completedCount} totalCount={journey.totalCount} percentage={journey.percentage} currentStatusName={currentStatusName} updatedLabel={lastUpdatedLabel} language={language} t={t} />
         ) : null}
 
         {!progressQuery.isPending && !progressQuery.error && timeline.length === 0 ? (
@@ -151,8 +157,8 @@ export default function StatusScreen() {
         {!progressQuery.isPending && !progressQuery.error && timeline.length > 0 ? (
           <View>
             <Text accessibilityRole="header" style={[statusStyles.sectionTitle, statusCopyStyle(language, 16), { fontFamily: getFontFamily(language, "bold") }]}>{t("candidateStatusJourneyTitle")}</Text>
-            {timeline.map((stage, index) => {
-              const isLast = index === timeline.length - 1;
+            {journey.milestones.map((stage, index) => {
+              const isLast = index === journey.milestones.length - 1;
               const startedLabel = formatStageDate(stage.startedAt, language);
               const completedLabel = formatStageDate(stage.completedAt, language);
               const outcomeTone = qvcOutcome ? QVC_TONE_COLORS[QVC_OUTCOME_TONES[qvcOutcome.code]] : null;
