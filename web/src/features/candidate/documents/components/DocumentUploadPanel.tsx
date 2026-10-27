@@ -96,8 +96,8 @@ export function DocumentUploadPanel({ labelText, instructions, upload, t, langua
             errorMessage={upload.issuedOnError ? t(PCC_ISSUE_DATE_ERROR_KEYS[upload.issuedOnError]) : undefined}
             value={upload.issuedOn}
             onChange={(event) => upload.setIssuedOn(event.currentTarget.value)}
-            placeholder="YYYY-MM-DD"
-            inputMode="numeric"
+            type="date"
+            max={new Date().toISOString().slice(0, 10)}
           />
         </div>
       ) : null}

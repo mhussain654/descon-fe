@@ -1,7 +1,7 @@
 import { StyleSheet } from 'react-native';
 import { render, screen } from '@testing-library/react-native';
 import { getFontFamily } from './fonts';
-import { NASTALIQ_FAMILY_PREFIX, Text, nastaliqFontSize, nastaliqLineHeight, nastaliqPadding } from './Text';
+import { NASTALIQ_FAMILY_PREFIX, Text, nastaliqFontSize, nastaliqLineHeight, nastaliqPadding, withTrailingSpace } from './Text';
 
 const styleOf = (name: string) => StyleSheet.flatten(screen.getByText(name).props.style);
 const lineHeightOf = (name: string) => styleOf(name).lineHeight;
@@ -42,7 +42,7 @@ describe('Text', () => {
         <Text style={{ fontFamily: getFontFamily('ur', 'regular'), fontSize: 20, paddingStart: 2, paddingBottom: 1 }}>سفر</Text>
       </>
     );
-    expect(styleOf('میرا')).toMatchObject({ paddingHorizontal: 8, paddingBottom: 7, paddingTop: 2 });
+    expect(styleOf('میرا')).toMatchObject({ paddingHorizontal: 12, paddingBottom: 7, paddingTop: 2 });
     expect(styleOf('سفر').paddingHorizontal).toBeUndefined();
     expect(styleOf('سفر').paddingBottom).toBe(1);
     expect(styleOf('سفر').paddingTop).toBe(2);
@@ -51,6 +51,22 @@ describe('Text', () => {
   it('uses the simple line-break mode so a content-sized Urdu text never loses its last word', () => {
     render(<Text style={{ fontFamily: getFontFamily('ur', 'regular') }}>میرا سفر</Text>);
     expect(screen.getByText('میرا سفر').props.textBreakStrategy).toBe('simple');
+  });
+
+  it('adds a trailing space so the last letter of a content-sized Urdu word never wraps away', () => {
+    render(<Text style={{ fontFamily: getFontFamily('ur', 'regular') }}>مکمل</Text>);
+    expect(screen.getByText('مکمل').props.children).toBe('مکمل ');
+  });
+
+  it('appends the trailing space to the last string of several children, and leaves other children alone', () => {
+    expect(withTrailingSpace(['15', '% مکمل'])).toEqual(['15', '% مکمل ']);
+    expect(withTrailingSpace(['x', 5])).toEqual(['x', 5]);
+    expect(withTrailingSpace(null)).toBeNull();
+  });
+
+  it('leaves English text without a trailing space', () => {
+    render(<Text style={{ fontFamily: getFontFamily('en', 'regular') }}>Complete</Text>);
+    expect(screen.getByText('Complete').props.children).toBe('Complete');
   });
 
   it('never gives English text a size, line height, padding or break mode of its own', () => {
@@ -63,7 +79,8 @@ describe('Text', () => {
     expect(nastaliqFontSize(undefined)).toBe(14);
     expect(nastaliqFontSize(12)).toBe(14);
     expect(nastaliqFontSize(22)).toBe(22);
-    expect(nastaliqPadding(14, {})).toEqual({ paddingHorizontal: 6, paddingBottom: 5, paddingTop: 1 });
+    expect(nastaliqPadding(14, {})).toEqual({ paddingHorizontal: 10, paddingBottom: 5, paddingTop: 1 });
+    expect(nastaliqPadding(60, {}).paddingHorizontal).toBe(16);
     expect(nastaliqPadding(24, { paddingHorizontal: 0 })).toEqual({ paddingBottom: 8, paddingTop: 2 });
     expect(nastaliqPadding(24, { padding: 4 })).toEqual({});
   });

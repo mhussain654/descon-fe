@@ -9,7 +9,7 @@ import {
   Label,
   LoadingState,
   OfflineState,
-  TextField,
+  DateField,
   ValidationMessage,
 } from '../../../../design-system';
 import { colors, spacing } from '../../../../design-system/tokens';
@@ -128,14 +128,18 @@ export function DocumentUploadPanel({ labelText, instructions, upload, t, langua
 
       {upload.isPccRequirement ? (
         <View style={styles.section}>
-          <TextField
+          <DateField
             label={t('candidateDocumentsPccIssueDateFieldLabel')}
             helperText={upload.issuedOnError ? undefined : t('candidateDocumentsPccIssueDateFieldHelper')}
             errorMessage={upload.issuedOnError ? t(PCC_ISSUE_DATE_ERROR_KEYS[upload.issuedOnError]) : undefined}
             value={upload.issuedOn}
-            onChangeText={upload.setIssuedOn}
-            placeholder="YYYY-MM-DD"
-            keyboardType="numbers-and-punctuation"
+            onChange={upload.setIssuedOn}
+            placeholder={t('dateFieldSelectPlaceholder')}
+            doneLabel={t('dateFieldDone')}
+            cancelLabel={t('candidateDocumentsCancel')}
+            dayLabel={t('dateFieldDay')}
+            monthLabel={t('dateFieldMonth')}
+            yearLabel={t('dateFieldYear')}
             language={language}
           />
         </View>

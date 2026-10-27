@@ -62,8 +62,9 @@ const styles = StyleSheet.create({
   logo: { width: 52, height: 50 },
   name: { fontSize: 18, lineHeight: 26, color: colors.text.inverse, letterSpacing: 0 },
   // Nastaliq needs the extra line height or its lower strokes clip.
-  nameRow: { alignItems: 'center', gap: spacing[1.5], marginTop: -spacing[1] },
-  nameUrdu: { fontSize: 16, lineHeight: 41, writingDirection: 'rtl' },
+  nameRow: { alignItems: 'center', marginTop: -spacing[1] },
+  // Small side padding (not the shared Urdu default) so the two words sit one word-space apart, as a single phrase.
+  nameUrdu: { fontSize: 16, lineHeight: 41, writingDirection: 'rtl', paddingHorizontal: 3 },
   // "کنیکٹ" rides higher in its line box than "ایم پی ایس"; nudging it down levels the two words.
   nameUrduSecond: { marginTop: 13 },
 });

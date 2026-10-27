@@ -155,6 +155,9 @@ describe('LoginPage', () => {
     expect(screen.getByText("Sorry, you are not registered for the current mobilization.")).toBeInTheDocument();
     expect(screen.getByRole("dialog")).toBeInTheDocument();
     expect(screen.getByText(/Check your CNIC and try again/)).toBeInTheDocument();
+    // The dialog repeats the CNIC that was submitted, so the candidate can spot a typo.
+    expect(screen.getByText("CNIC you entered")).toBeInTheDocument();
+    expect(screen.getByText("12345-1234567-1")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Change CNIC" }));
 
     vi.restoreAllMocks();

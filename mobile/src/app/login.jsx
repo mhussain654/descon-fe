@@ -30,6 +30,7 @@ import {
 import { colors, elevation, fontWeights, radii, spacing } from "../design-system/tokens";
 import { AUTH_ERROR_KEYS, CNIC_FIELD_ERROR_KEYS } from "../../../shared/auth/errorMessages";
 import { formatCountdown, withCountdown } from "../../../shared/auth/cnicOtpFlow";
+import { formatCnic } from "../../../shared/cnic";
 import { OTP_LENGTH } from "../../../shared/auth/types";
 import { useCnicOtpFlow } from "../../../shared/auth/useCnicOtpFlow";
 import { candidateAuthClient } from "../lib/auth-client";
@@ -84,14 +85,21 @@ export default function LoginScreen() {
   const scrollRef = useRef(null);
   useEffect(() => {
     const showEvent = Platform.OS === "ios" ? "keyboardWillShow" : "keyboardDidShow";
+    const hideEvent = Platform.OS === "ios" ? "keyboardWillHide" : "keyboardDidHide";
     let scrollTimer;
-    const subscription = Keyboard.addListener(showEvent, () => {
+    const showSubscription = Keyboard.addListener(showEvent, () => {
       clearTimeout(scrollTimer);
       scrollTimer = setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 320);
     });
+    // Once the keyboard closes, go back to the top so the logo and heading are visible again.
+    const hideSubscription = Keyboard.addListener(hideEvent, () => {
+      clearTimeout(scrollTimer);
+      scrollRef.current?.scrollTo({ y: 0, animated: true });
+    });
     return () => {
       clearTimeout(scrollTimer);
-      subscription.remove();
+      showSubscription.remove();
+      hideSubscription.remove();
     };
   }, []);
   const router = useRouter();
@@ -164,8 +172,15 @@ export default function LoginScreen() {
   }, [resendOtp]);
   const retryOtpAction = lastOtpAction === "resend" ? resendOtpAndTrack : () => submitOtpAndTrack();
 
+  // The CNIC shown in the not-registered dialog is the one that was submitted, frozen when the
+  // error arrives -- never the live field, which changes as the candidate types a correction.
+  const cnicRef = useRef(cnic);
+  cnicRef.current = cnic;
+  const [notRegisteredCnic, setNotRegisteredCnic] = useState("");
   useEffect(() => {
-    setRegistrationGuidanceOpen(otpError?.code === "CNIC_NOT_FOUND");
+    const notFound = otpError?.code === "CNIC_NOT_FOUND";
+    if (notFound) setNotRegisteredCnic(cnicRef.current);
+    setRegistrationGuidanceOpen(notFound);
   }, [otpError]);
 
   useEffect(() => {
@@ -208,7 +223,7 @@ export default function LoginScreen() {
   return (
     <RequireGuest>
       <KeyboardAvoidingAnimatedView style={styles.screen} behavior="padding">
-        <RegistrationGuidance open={registrationGuidanceOpen} onClose={() => setRegistrationGuidanceOpen(false)} title={t("authCnicNotFoundError")} description={t("authRegistrationGuidance")} closeLabel={t("authChangeCnic")} language={language} />
+        <RegistrationGuidance open={registrationGuidanceOpen} onClose={() => setRegistrationGuidanceOpen(false)} title={t("authCnicNotFoundError")} description={t("authRegistrationGuidance")} closeLabel={t("authChangeCnic")} language={language} cnic={formatCnic(notRegisteredCnic)} cnicLabel={t("authCnicEnteredLabel")} />
         <StatusBar style="light" />
 
         {/* Keep navigation visible while the keyboard scrolls the CNIC field
@@ -231,7 +246,7 @@ export default function LoginScreen() {
             this content taller than the viewport -- a ScrollView keeps the
             field and its action reachable instead of clipping them off-screen. */}
         <ScrollView ref={scrollRef} contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled" bounces={false}>
-          <View style={[styles.hero, { paddingTop: insets.top + spacing[3] + 106 + spacing[3], minHeight: insets.top + width * 0.98 }]}>
+          <View style={[styles.hero, { paddingTop: insets.top + spacing[3] + 106 + spacing[3], minHeight: insets.top + width * 0.78 }]}>
             <Image
               source={HERO_PHOTO[isUrdu ? "ur" : "en"]}
               style={StyleSheet.absoluteFill}
@@ -244,7 +259,7 @@ export default function LoginScreen() {
               <BrandHeader language={language} primary={t("brandNamePrimary")} secondary={t("brandNameSecondary")} />
             </View>
 
-            <View style={[styles.heroCopy, anchorStyle, { maxWidth: width * 0.66 }]}>
+            <View style={[styles.heroCopy, anchorStyle, { maxWidth: width * (isUrdu ? 0.82 : 0.66) }]}>
               <Text
                 accessibilityRole="header"
                 style={[styles.heroTitle, isUrdu ? styles.heroTitleUrdu : null, copyTextStyle, font("bold")]}
@@ -257,7 +272,7 @@ export default function LoginScreen() {
             </View>
           </View>
 
-          <View style={[styles.sheet, { paddingBottom: insets.bottom + spacing[5] }]}>
+          <View style={[styles.sheet, { paddingBottom: insets.bottom + spacing[3] }]}>
             <View style={[styles.sheetHeading, rowTowards(copySide)]}>
               <View style={[styles.sheetHeadingText, isUrdu ? styles.alignEndUrdu : null]}>
                 <Text style={[styles.sheetTitle, isUrdu ? styles.sheetTitleUrdu : null, copyTextStyle, font("bold")]}>
@@ -340,9 +355,6 @@ export default function LoginScreen() {
                     </Button>
                   </>
                 )}
-                <Text style={[styles.note, isUrdu ? styles.secondaryUrdu : null, font("regular")]}>
-                  {t("loginCnicHelpNote")}
-                </Text>
               </View>
             ) : (
               <View style={styles.fieldStack}>
@@ -507,7 +519,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing[6],
     paddingTop: spacing[6],
   },
-  sheetHeading: { alignItems: "flex-start", justifyContent: "space-between", gap: spacing[3], marginBottom: spacing[5] },
+  sheetHeading: { alignItems: "flex-start", justifyContent: "space-between", gap: spacing[3], marginBottom: spacing[3] },
   sheetHeadingText: { flex: 1 },
   alignEndUrdu: { alignItems: "stretch" },
   sheetTitle: { fontSize: 24, lineHeight: 30, color: colors.text.primary },
@@ -545,6 +557,6 @@ const styles = StyleSheet.create({
   // Nastaliq's thin strokes wash out in the standard secondary grey.
   secondaryUrdu: { color: colors.text.primary, opacity: 0.74, lineHeight: 26 },
 
-  spacer: { flexGrow: 1, minHeight: spacing[6], maxHeight: spacing[10] },
-  footer: { paddingTop: spacing[4], borderTopWidth: 1, borderTopColor: colors.border.default },
+  spacer: { flexGrow: 1, minHeight: spacing[2], maxHeight: spacing[10] },
+  footer: { paddingTop: spacing[3], borderTopWidth: 1, borderTopColor: colors.border.default },
 });

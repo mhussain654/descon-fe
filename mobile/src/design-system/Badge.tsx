@@ -43,7 +43,7 @@ export function Badge({ tone = 'neutral', children, icon, language = 'en' }: Bad
   return (
     <View style={[styles.badge, { backgroundColor: background }]}>
       {resolvedIcon}
-      <Text style={[styles.text, { color: text, fontFamily: getFontFamily(language, 'semibold') }]}>{children}</Text>
+      <Text style={[styles.text, language === 'ur' ? styles.textUrdu : null, { color: text, fontFamily: getFontFamily(language, 'semibold') }]}>{children}</Text>
     </View>
   );
 }
@@ -59,4 +59,6 @@ const styles = StyleSheet.create({
     paddingVertical: spacing[1],
   },
   text: { fontSize: 12, fontWeight: fontWeights.semibold },
+  // A box wider than a short Urdu word means Android never wraps its last letter away ("مکمل" shown as "مکم").
+  textUrdu: { minWidth: 48, textAlign: 'center' },
 });

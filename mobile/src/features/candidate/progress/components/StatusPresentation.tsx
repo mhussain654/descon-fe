@@ -4,7 +4,7 @@ import { Text } from '../../../../design-system/Text';
 import { Check, Clock, Plane, Route } from 'lucide-react-native';
 import { Circle, Defs, LinearGradient, Rect, Stop } from 'react-native-svg';
 import { MeasuredSvg } from '../../../../design-system/MeasuredSvg';
-import type { ApplicationProgressWorkflow, WorkflowTimelineStage } from '../../../../../../shared/applicationProgress/types';
+import type { WorkflowTimelineStage } from '../../../../../../shared/applicationProgress/types';
 import type { Language, TranslationKey } from '../../../../../../shared/i18n/translations';
 import { formatNumber } from '../../../../../../shared/i18n/locale';
 import { getFontFamily } from '../../../../design-system';
@@ -45,15 +45,21 @@ export function StatusHeader({ language, t, topInset, countryCode }: LocaleProps
   );
 }
 
-export function StatusProgressSummary({ workflow, updatedLabel, language, t }: LocaleProps & { workflow: ApplicationProgressWorkflow; updatedLabel: string | null }) {
-  const percentage = Math.max(0, Math.min(100, workflow.progressPercentage));
+export function StatusProgressSummary({ completedCount, totalCount, percentage: rawPercentage, currentStatusName, updatedLabel, language, t }: LocaleProps & { completedCount: number; totalCount: number; percentage: number; currentStatusName: string | null; updatedLabel: string | null }) {
+  const percentage = Math.max(0, Math.min(100, rawPercentage));
   return (
     <View style={statusStyles.summary}>
+      {currentStatusName ? (
+        <View style={statusStyles.currentStatus}>
+          <Text style={[statusStyles.summaryLabel, statusCopyStyle(language)]}>{t('currentStatus')}</Text>
+          <Text style={[statusStyles.currentStatusName, statusCopyStyle(language, 18), { fontFamily: getFontFamily(language, 'bold') }]}>{currentStatusName}</Text>
+        </View>
+      ) : null}
       <View style={[statusStyles.summaryRow, { flexDirection: rowDirectionTowards(language === 'ur' ? 'right' : 'left') }]}>
         <GradientIconBox icon={Route} tone="purple" size={36} />
         <View style={statusStyles.flex}>
           <Text style={[statusStyles.summaryLabel, statusCopyStyle(language)]}>{t('workflowStagesCompletedPrefix')}</Text>
-          <Text style={[statusStyles.summaryCount, statusCopyStyle(language, 21), { fontFamily: getFontFamily(language, 'bold') }]}>{formatNumber(workflow.completedCount, language)} / {formatNumber(workflow.totalCount, language)}</Text>
+          <Text style={[statusStyles.summaryCount, statusCopyStyle(language, 21), { fontFamily: getFontFamily(language, 'bold') }]}>{formatNumber(completedCount, language)} / {formatNumber(totalCount, language)}</Text>
         </View>
         <Text style={[statusStyles.percent, { fontFamily: getFontFamily(language, 'bold') }]}>{formatNumber(percentage, language)}%</Text>
       </View>
@@ -64,6 +70,9 @@ export function StatusProgressSummary({ workflow, updatedLabel, language, t }: L
     </View>
   );
 }
+
+/** A tag label is one short word. A box wider than the word means Android never has a reason to wrap its last letter away ("مکمل" shown as "مکم"). */
+const BADGE_LABEL_BOX = { minWidth: 56, textAlign: 'center' as const };
 
 export function StatusStageCard({ stage, isLast, dateLabel, language, t, children }: LocaleProps & { stage: WorkflowTimelineStage; isLast: boolean; dateLabel: string | null; children?: ReactNode }) {
   const completed = stage.status === 'completed';
@@ -83,7 +92,7 @@ export function StatusStageCard({ stage, isLast, dateLabel, language, t, childre
         <View style={[statusStyles.stageHeading, { flexDirection: rowDirectionTowards('left') }]}>
           <Text style={[statusStyles.stageName, statusCopyStyle(language), { fontFamily: getFontFamily(language, current ? 'bold' : 'semibold') }]}>{stage.name}</Text>
           <View style={[statusStyles.badge, { backgroundColor: completed ? '#DFF5E9' : current ? '#DBECFF' : '#E8EEF7' }]}>
-            <Text style={[statusStyles.badgeText, statusCopyStyle(language), { color, fontFamily: getFontFamily(language, 'medium') }]}>{t(completed ? 'candidateStatusCompleted' : current ? 'inProgress' : 'pending')}</Text>
+            <Text style={[statusStyles.badgeText, statusCopyStyle(language), BADGE_LABEL_BOX, { color, fontFamily: getFontFamily(language, 'medium') }]}>{t(completed ? 'candidateStatusCompleted' : current ? 'inProgress' : 'pending')}</Text>
           </View>
         </View>
         {dateLabel ? <Text style={[statusStyles.date, statusCopyStyle(language)]}>{dateLabel}</Text> : null}
@@ -105,6 +114,8 @@ export const statusStyles = StyleSheet.create({
   scroll: { flex: 1, marginTop: -20, borderTopLeftRadius: 28, borderTopRightRadius: 28, backgroundColor: '#F0F7FF' },
   content: { paddingHorizontal: spacing[4], paddingTop: spacing[4], width: '100%', maxWidth: 600, alignSelf: 'center' },
   summary: { borderRadius: 20, backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#DFEAF8', padding: spacing[4], marginBottom: spacing[5], ...elevation.sm },
+  currentStatus: { marginBottom: spacing[3], paddingBottom: spacing[3], borderBottomWidth: 1, borderBottomColor: '#DFEAF8' },
+  currentStatusName: { fontSize: 18, color: '#0862BC' },
   summaryRow: { gap: spacing[3], alignItems: 'center' },
   summaryLabel: { fontSize: 12, lineHeight: 19, color: '#687A95' },
   summaryCount: { fontSize: 21, lineHeight: 29, color: '#172B4D' },

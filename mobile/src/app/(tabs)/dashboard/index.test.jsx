@@ -221,8 +221,9 @@ describe("DashboardScreen", () => {
     expect(screen.getByText("HOF# DES-001001")).toBeOnTheScreen();
     // The current stage is the highlighted status badge on "My Journey".
     expect(screen.getByText("Documents Uploaded")).toBeOnTheScreen();
-    expect(screen.getByText("2 of 15 steps completed")).toBeOnTheScreen();
-    expect(screen.getByText("13% complete")).toBeOnTheScreen();
+    // Only Registered is done among the 12 milestones (Documents Pending is a waiting stage, not counted).
+    expect(screen.getByText("1 of 12 steps completed")).toBeOnTheScreen();
+    expect(screen.getByText("8% complete")).toBeOnTheScreen();
   });
 
   it("shows the Business Unit country and falls back to initials when there is no photo", async () => {
@@ -236,7 +237,7 @@ describe("DashboardScreen", () => {
     expect(screen.getByLabelText("Profile photo")).toBeOnTheScreen();
   });
 
-  it("counts completed steps out of the full workflow", async () => {
+  it("counts completed steps out of the journey milestones, leaving out the waiting stages", async () => {
     candidateProfileClient.getProfile.mockResolvedValue(profilePayload());
     candidateDocumentsClient.getChecklist.mockResolvedValue([]);
     applicationProgressClient.getProgress.mockResolvedValue(
@@ -247,8 +248,9 @@ describe("DashboardScreen", () => {
     );
     renderDashboardScreen();
 
-    expect(await screen.findByText("5 of 15 steps completed")).toBeOnTheScreen();
-    expect(screen.getByText("33% complete")).toBeOnTheScreen();
+    // Registered, Documents Uploaded and Verified; Documents Pending and Under Verification never count.
+    expect(await screen.findByText("3 of 12 steps completed")).toBeOnTheScreen();
+    expect(screen.getByText("25% complete")).toBeOnTheScreen();
   });
 
   it("prompts to upload required documents generically when nothing has been submitted yet", async () => {
