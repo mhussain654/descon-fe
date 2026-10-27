@@ -69,7 +69,7 @@ export function QuickActionTile({ language, tone, icon, title, subtitle, onPress
           {subtitle}
         </Text>
       </View>
-      {/* Own layer so the bare SVG icon paints above the gradient on web. */}
+      {/* Own layer so the bare SVG icon paints above the gradient. */}
       <View style={styles.chevron}>
         <Chevron size={14} color={surface.chevron} strokeWidth={2.8} />
       </View>

@@ -35,6 +35,7 @@ export const RECONCILIATION_FINDING_CODE_KEYS: Record<ReconciliationFindingCode,
   duplicate_external_reference: 'adminFinancePaymentFindingDuplicateExternalReference',
   workflow_payment_mismatch: 'adminFinancePaymentFindingWorkflowPaymentMismatch',
   terminal_event_conflict: 'adminFinancePaymentFindingTerminalEventConflict',
+  duplicate_fee_payment: 'adminFinancePaymentFindingDuplicateFeePayment',
 };
 
 /** Known event_type values actually produced today (Payments::NotificationEventRecorder, Admin::Payments::CorrectionService) -- event_type/event_source are otherwise free-form on the backend (validated only by a lowercase-snake-case regex), so anything not in this map falls back to a plain humanized version of the raw code rather than crashing or showing a raw translation-key string. */

@@ -2,6 +2,7 @@
 // descon-be's openapi.yaml:
 //   GET  /api/v1/candidate/payment
 //   POST /api/v1/candidate/payment
+//   POST /api/v1/candidate/payment/voucher
 import type { ApiClient, ApiError } from '../api-client';
 import { toBlockingReasons, toPayment, toPaymentEligibility, type EligibilityResponse, type PaymentResponse } from './mapEligibilityResponse';
 import type { InitiateCheckoutResult, PaymentBlockingReason, PaymentEligibility, PaymentError, PaymentErrorCode, PaymentsClient } from './types';
@@ -66,6 +67,25 @@ function toPaymentError(error: unknown): PaymentError {
 export function createPaymentsClient(options: RealPaymentsClientOptions): PaymentsClient {
   const { apiClient, getLocale } = options;
 
+  async function postPayment(path: string, accessToken: string, idempotencyKey: string): Promise<InitiateCheckoutResult> {
+    let data: InitiateCheckoutResponse | undefined;
+    try {
+      data = await apiClient.post<InitiateCheckoutResponse>(path, undefined, {
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          'X-Locale': getLocale(),
+          'Idempotency-Key': idempotencyKey,
+        },
+      });
+    } catch (error) {
+      throw toPaymentError(error);
+    }
+
+    const payment = toPayment(data?.payment);
+    if (!payment) throw { code: 'UNKNOWN' } satisfies PaymentError;
+    return { eligibility: toPaymentEligibility(data?.eligibility), payment };
+  }
+
   return {
     async getEligibility(accessToken: string): Promise<PaymentEligibility> {
       try {
@@ -78,26 +98,11 @@ export function createPaymentsClient(options: RealPaymentsClientOptions): Paymen
       }
     },
 
-    async initiateCheckout(accessToken: string, idempotencyKey: string): Promise<InitiateCheckoutResult> {
-      let data: InitiateCheckoutResponse | undefined;
-      try {
-        // The request body is always empty -- the backend controls amount,
-        // currency, provider, and order reference entirely; there is
-        // nothing for the candidate to submit.
-        data = await apiClient.post<InitiateCheckoutResponse>('/candidate/payment', undefined, {
-          headers: {
-            Authorization: `Bearer ${accessToken}`,
-            'X-Locale': getLocale(),
-            'Idempotency-Key': idempotencyKey,
-          },
-        });
-      } catch (error) {
-        throw toPaymentError(error);
-      }
+    // The request body is always empty -- the backend controls amount,
+    // currency, provider, and order reference entirely; there is nothing
+    // for the candidate to submit.
+    initiateCheckout: (accessToken: string, idempotencyKey: string) => postPayment('/candidate/payment', accessToken, idempotencyKey),
 
-      const payment = toPayment(data?.payment);
-      if (!payment) throw { code: 'UNKNOWN' } satisfies PaymentError;
-      return { eligibility: toPaymentEligibility(data?.eligibility), payment };
-    },
+    createVoucher: (accessToken: string, idempotencyKey: string) => postPayment('/candidate/payment/voucher', accessToken, idempotencyKey),
   };
 }

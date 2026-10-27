@@ -25,7 +25,8 @@ export type ReconciliationFindingCode =
   | 'external_reference_missing'
   | 'duplicate_external_reference'
   | 'workflow_payment_mismatch'
-  | 'terminal_event_conflict';
+  | 'terminal_event_conflict'
+  | 'duplicate_fee_payment';
 
 export type ReconciliationFindingState = 'open' | 'resolved';
 

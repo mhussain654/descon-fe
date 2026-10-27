@@ -1,14 +1,17 @@
+import { useState } from "react";
 import { View, ScrollView, RefreshControl } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
 import { useRouter } from "expo-router";
-import { CreditCard } from "lucide-react-native";
+import { Banknote, CreditCard } from "lucide-react-native";
 import { ButtonHeightContext } from "../../design-system/Button";
 import { PaymentHeader, PaymentAmountCard, LatestPaymentCard, PaymentNotice, paymentStyles } from "../../features/candidate/payments/components/PaymentPresentation";
 import { useAuth } from "../../contexts/AuthContext";
 import { useLanguage } from "../../contexts/LanguageContext";
 import { usePaymentEligibility } from "../../features/candidate/payments/hooks/usePaymentEligibility";
 import { useInitiateCheckout } from "../../features/candidate/payments/hooks/useInitiateCheckout";
+import { useCreateVoucher } from "../../features/candidate/payments/hooks/useCreateVoucher";
+import { PaymentMethodTabs, VoucherCodeCard } from "../../features/candidate/payments/components/VoucherPresentation";
 import { HostedCheckoutWebView } from "../../features/candidate/payments/components/HostedCheckoutWebView";
 import {
   Button,
@@ -24,6 +27,11 @@ import {
   isCheckoutExpired,
   PAYMENT_BLOCKING_REASON_KEYS,
 } from "../../../../shared/payments/statusLabels";
+import {
+  availablePaymentMethods,
+  defaultPaymentMethod,
+  openVoucherPayment,
+} from "../../../../shared/payments/paymentMethods";
 
 const RETRYABLE_ERROR_CODES = new Set(["NETWORK_ERROR", "OFFLINE", "SERVER_ERROR", "RATE_LIMITED", "IDEMPOTENCY_IN_PROGRESS"]);
 
@@ -34,6 +42,8 @@ export default function PaymentScreen() {
   const { logout } = useAuth();
   const eligibilityQuery = usePaymentEligibility();
   const checkout = useInitiateCheckout();
+  const voucher = useCreateVoucher();
+  const [chosenMethod, setChosenMethod] = useState(null);
 
   const returnToSignIn = async () => {
     await logout("expired");
@@ -101,17 +111,23 @@ export default function PaymentScreen() {
 
     const payment = eligibility.latestPayment;
     const expired = payment ? isCheckoutExpired(payment.status, payment.checkoutExpiresAt) : false;
-    const stillWaiting = payment?.status === "checkout_pending" && !expired;
+    // Once the fee is paid there is nothing left to pay, whatever else the screen would offer.
+    const alreadyPaid = payment?.status === "paid";
+    const methods = alreadyPaid ? [] : availablePaymentMethods(eligibility);
+    const selectedMethod = chosenMethod && methods.includes(chosenMethod) ? chosenMethod : defaultPaymentMethod(eligibility);
+    const openVoucher = openVoucherPayment(eligibility);
+    const voucherExpired = payment?.provider === "kuickpay_voucher" && expired;
+    const stillWaitingForCard = eligibility.cardCheckoutOpen;
     const checkoutError = checkout.mutation.error;
+    const voucherError = voucher.mutation.error;
     const canRetryCheckout = checkoutError && RETRYABLE_ERROR_CODES.has(checkoutError.code);
-    const showPayAction =
-      eligibility.checkoutAvailable && (!payment || payment.status === "failed" || payment.status === "cancelled" || expired);
+    const showPayAction = eligibility.checkoutAvailable && !eligibility.cardCheckoutOpen;
 
     return (
       <View>
         <PaymentAmountCard amount={eligibility.amount} currencyCode={eligibility.currencyCode} language={language} t={t} />
 
-        {payment ? <LatestPaymentCard payment={payment} expired={expired} language={language} t={t} /> : null}
+        {payment && payment.id !== openVoucher?.id ? <LatestPaymentCard payment={payment} expired={expired} language={language} t={t} /> : null}
 
         {!eligibility.eligible ? (
           <PaymentNotice
@@ -121,47 +137,104 @@ export default function PaymentScreen() {
           />
         ) : null}
 
-        {eligibility.eligible && !eligibility.checkoutAvailable ? (
+        {eligibility.eligible && !alreadyPaid && methods.length === 0 ? (
           <ValidationMessage tone="error" language={language}>
             {t("paymentProviderUnavailableError")}
           </ValidationMessage>
         ) : null}
 
-        {showPayAction ? (
-          <Button
-            fullWidth
-            style={paymentStyles.pay}
-            leadingIcon={<CreditCard size={16} color="#FFFFFF" />}
-            onPress={checkout.initiate}
-            disabled={checkout.mutation.isPending}
-            loading={checkout.mutation.isPending}
-            language={language}
-          >
-            {t("paymentPayAction")}
-          </Button>
+        {eligibility.eligible && methods.length > 0 ? (
+          <PaymentMethodTabs methods={methods} selected={selectedMethod} onSelect={setChosenMethod} language={language} t={t} />
         ) : null}
 
-        {checkoutError && checkoutError.code !== "IDEMPOTENCY_CONFLICT" ? (
-          <View style={paymentStyles.error}>
-            <ValidationMessage tone="error" language={language}>
-              {checkoutError.message || t(PAYMENT_ERROR_KEYS[checkoutError.code])}
-            </ValidationMessage>
-            {canRetryCheckout ? (
-              <Button variant="text" size="sm" onPress={checkout.initiate} disabled={checkout.mutation.isPending} language={language}>
-                {t("retry")}
-              </Button>
+        {eligibility.eligible && selectedMethod === "voucher" && methods.includes("voucher") ? (
+          <View>
+            {openVoucher ? (
+              <>
+                <VoucherCodeCard voucher={openVoucher} language={language} t={t} />
+                <PaymentNotice language={language} message={t("paymentVoucherWaiting")}>
+                  <Button variant="outline" size="sm" onPress={() => eligibilityQuery.refetch()} disabled={eligibilityQuery.isFetching} language={language}>
+                    {t("paymentManualRefreshAction")}
+                  </Button>
+                </PaymentNotice>
+                <PaymentNotice language={language} message={t("paymentPayOnlyOneNotice")} />
+              </>
+            ) : (
+              <>
+                <PaymentNotice language={language} message={t("paymentVoucherIntro")} />
+                {voucherExpired ? (
+                  <ValidationMessage tone="error" language={language}>{t("paymentVoucherExpiredMessage")}</ValidationMessage>
+                ) : null}
+                {eligibility.cardCheckoutOpen ? <PaymentNotice language={language} message={t("paymentCodeWhileCardOpenNotice")} /> : null}
+                {!eligibility.voucherAvailable ? (
+                  <ValidationMessage tone="error" language={language}>{t("paymentVoucherUnavailableError")}</ValidationMessage>
+                ) : null}
+                {eligibility.voucherAvailable ? (
+                  <Button
+                    fullWidth
+                    style={paymentStyles.pay}
+                    leadingIcon={<Banknote size={16} color="#FFFFFF" />}
+                    onPress={voucher.getCode}
+                    disabled={voucher.mutation.isPending}
+                    loading={voucher.mutation.isPending}
+                    language={language}
+                  >
+                    {t(voucherExpired ? "paymentVoucherGetNewCodeAction" : "paymentVoucherGetCodeAction")}
+                  </Button>
+                ) : null}
+              </>
+            )}
+            {voucherError && voucherError.code !== "IDEMPOTENCY_CONFLICT" ? (
+              <View style={paymentStyles.error}>
+                <ValidationMessage tone="error" language={language}>
+                  {voucherError.message || t(PAYMENT_ERROR_KEYS[voucherError.code])}
+                </ValidationMessage>
+              </View>
             ) : null}
           </View>
         ) : null}
 
-        {stillWaiting ? (
-          <PaymentNotice language={language} message={t(eligibilityQuery.pollingTimedOut ? "paymentPollingTimedOutMessage" : "paymentWaitingForConfirmation")}>
-            {eligibilityQuery.pollingTimedOut ? (
-              <Button variant="outline" size="sm" onPress={() => eligibilityQuery.refetch()} disabled={eligibilityQuery.isFetching} language={language}>
-                {t("paymentManualRefreshAction")}
+        {eligibility.eligible && selectedMethod === "card" && methods.includes("card") ? (
+          <View>
+            {openVoucher ? <PaymentNotice language={language} message={t("paymentCardWhileCodeOpenNotice")} /> : null}
+
+            {showPayAction ? (
+              <Button
+                fullWidth
+                style={paymentStyles.pay}
+                leadingIcon={<CreditCard size={16} color="#FFFFFF" />}
+                onPress={checkout.initiate}
+                disabled={checkout.mutation.isPending}
+                loading={checkout.mutation.isPending}
+                language={language}
+              >
+                {t("paymentPayAction")}
               </Button>
             ) : null}
-          </PaymentNotice>
+
+            {checkoutError && checkoutError.code !== "IDEMPOTENCY_CONFLICT" ? (
+              <View style={paymentStyles.error}>
+                <ValidationMessage tone="error" language={language}>
+                  {checkoutError.message || t(PAYMENT_ERROR_KEYS[checkoutError.code])}
+                </ValidationMessage>
+                {canRetryCheckout ? (
+                  <Button variant="text" size="sm" onPress={checkout.initiate} disabled={checkout.mutation.isPending} language={language}>
+                    {t("retry")}
+                  </Button>
+                ) : null}
+              </View>
+            ) : null}
+
+            {stillWaitingForCard ? (
+              <PaymentNotice language={language} message={t(eligibilityQuery.pollingTimedOut ? "paymentPollingTimedOutMessage" : "paymentWaitingForConfirmation")}>
+                {eligibilityQuery.pollingTimedOut ? (
+                  <Button variant="outline" size="sm" onPress={() => eligibilityQuery.refetch()} disabled={eligibilityQuery.isFetching} language={language}>
+                    {t("paymentManualRefreshAction")}
+                  </Button>
+                ) : null}
+              </PaymentNotice>
+            ) : null}
+          </View>
         ) : null}
       </View>
     );

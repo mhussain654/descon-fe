@@ -1,9 +1,12 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { CheckCircle, XCircle, Clock, Ban } from "lucide-react";
 import { useAuth } from "../../../../contexts/AuthContext";
 import { useLanguage } from "../../../../contexts/LanguageContext";
 import { usePaymentEligibility } from "../hooks/usePaymentEligibility";
 import { useInitiateCheckout } from "../hooks/useInitiateCheckout";
+import { useCreateVoucher } from "../hooks/useCreateVoucher";
+import { PaymentMethodTabs } from "./PaymentMethodTabs";
+import { VoucherPanel } from "./VoucherPanel";
 import {
   Badge,
   Button,
@@ -16,6 +19,12 @@ import {
   ValidationMessage,
 } from "../../../../design-system";
 import { PAYMENT_ERROR_KEYS } from "../../../../../../shared/payments/errorMessages";
+import {
+  availablePaymentMethods,
+  defaultPaymentMethod,
+  openVoucherPayment,
+} from "../../../../../../shared/payments/paymentMethods";
+import type { PaymentMethod } from "../../../../../../shared/payments/types";
 import {
   isCheckoutExpired,
   PAYMENT_BLOCKING_REASON_KEYS,
@@ -38,18 +47,20 @@ export function PaymentPanel() {
   const { logout } = useAuth();
   const eligibilityQuery = usePaymentEligibility();
   const checkout = useInitiateCheckout();
+  const voucher = useCreateVoucher();
+  const [chosenMethod, setChosenMethod] = useState<PaymentMethod | null>(null);
 
   const returnToSignIn = () => {
     logout("expired");
   };
 
   useEffect(() => {
-    const code = checkout.mutation.error?.code;
+    const code = checkout.mutation.error?.code ?? voucher.mutation.error?.code;
     if (code === "SESSION_EXPIRED" || code === "INACTIVE_ACCOUNT") {
       returnToSignIn();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [checkout.mutation.error]);
+  }, [checkout.mutation.error, voucher.mutation.error]);
 
   if (eligibilityQuery.isLoading) {
     return <LoadingState message={t("loading")} />;
@@ -92,11 +103,15 @@ export function PaymentPanel() {
 
   const payment = eligibility.latestPayment;
   const expired = payment ? isCheckoutExpired(payment.status, payment.checkoutExpiresAt) : false;
-  const stillWaiting = payment?.status === "checkout_pending" && !expired;
+  // Once the fee is paid there is nothing left to pay, whatever else the screen would offer.
+  const alreadyPaid = payment?.status === "paid";
+  const methods = alreadyPaid ? [] : availablePaymentMethods(eligibility);
+  const selectedMethod = chosenMethod && methods.includes(chosenMethod) ? chosenMethod : defaultPaymentMethod(eligibility);
+  const openVoucher = openVoucherPayment(eligibility);
+  const stillWaitingForCard = eligibility.cardCheckoutOpen;
   const checkoutError = checkout.mutation.error;
   const canRetryCheckout = checkoutError && RETRYABLE_ERROR_CODES.has(checkoutError.code);
-  const showPayAction =
-    eligibility.checkoutAvailable && (!payment || payment.status === "failed" || payment.status === "cancelled" || expired);
+  const showPayAction = eligibility.checkoutAvailable && !eligibility.cardCheckoutOpen;
 
   return (
     <div className="space-y-5">
@@ -107,7 +122,7 @@ export function PaymentPanel() {
         </div>
       </div>
 
-      {payment ? <LatestPaymentCard payment={payment} expired={expired} language={language} t={t} /> : null}
+      {payment && payment.id !== openVoucher?.id ? <LatestPaymentCard payment={payment} expired={expired} language={language} t={t} /> : null}
 
       {!eligibility.eligible ? (
         <EmptyState
@@ -116,47 +131,81 @@ export function PaymentPanel() {
         />
       ) : null}
 
-      {eligibility.eligible && !eligibility.checkoutAvailable ? (
+      {eligibility.eligible && !alreadyPaid && methods.length === 0 ? (
         <ValidationMessage tone="error">{t("paymentProviderUnavailableError")}</ValidationMessage>
       ) : null}
 
-      {showPayAction ? (
-        <Button onClick={checkout.initiate} disabled={checkout.mutation.isPending} loading={checkout.mutation.isPending}>
-          {t("paymentPayAction")}
-        </Button>
-      ) : null}
+      {eligibility.eligible && methods.length > 0 ? (
+        <>
+          <PaymentMethodTabs
+            methods={methods}
+            selected={selectedMethod}
+            onSelect={setChosenMethod}
+            label={t("paymentMethodTabsLabel")}
+            t={t}
+          />
 
-      {checkoutError && checkoutError.code !== "IDEMPOTENCY_CONFLICT" ? (
-        <div>
-          <ValidationMessage tone="error">{checkoutError.message || t(PAYMENT_ERROR_KEYS[checkoutError.code])}</ValidationMessage>
-          {canRetryCheckout ? (
-            <Button variant="text" size="sm" onClick={checkout.initiate} disabled={checkout.mutation.isPending}>
-              {t("retry")}
-            </Button>
-          ) : null}
-        </div>
-      ) : null}
+          {selectedMethod === "voucher" ? (
+            <div role="tabpanel" id="payment-panel-voucher" aria-labelledby="payment-tab-voucher">
+              <VoucherPanel
+                openVoucher={openVoucher}
+                latestPayment={payment}
+                voucherAvailable={eligibility.voucherAvailable}
+                cardCheckoutOpen={eligibility.cardCheckoutOpen}
+                isGettingCode={voucher.mutation.isPending}
+                error={voucher.mutation.error}
+                onGetCode={voucher.getCode}
+                onRefresh={() => eligibilityQuery.refetch()}
+                isRefreshing={eligibilityQuery.isFetching}
+                language={language}
+                t={t}
+              />
+            </div>
+          ) : (
+            <div role="tabpanel" id="payment-panel-card" aria-labelledby="payment-tab-card" className="space-y-4">
+              {openVoucher ? <p className="rounded-xl bg-[#FFF7E6] px-4 py-3 text-sm text-gray-700">{t("paymentCardWhileCodeOpenNotice")}</p> : null}
 
-      {checkout.manualCheckoutUrl ? (
-        <div className="rounded-xl bg-[#FFF7E6] px-4 py-3">
-          <p className="mb-2 text-sm text-gray-700">{t("paymentPopupBlockedMessage")}</p>
-          <Button variant="outline" size="sm" onClick={checkout.openCheckoutManually}>
-            {t("paymentOpenCheckoutAction")}
-          </Button>
-        </div>
-      ) : null}
+              {showPayAction ? (
+                <Button onClick={checkout.initiate} disabled={checkout.mutation.isPending} loading={checkout.mutation.isPending}>
+                  {t("paymentPayAction")}
+                </Button>
+              ) : null}
 
-      {stillWaiting && !eligibilityQuery.pollingTimedOut ? (
-        <div className="rounded-xl bg-[#FFF7E6] px-4 py-3 text-sm text-gray-700">{t("paymentWaitingForConfirmation")}</div>
-      ) : null}
+              {checkoutError && checkoutError.code !== "IDEMPOTENCY_CONFLICT" ? (
+                <div>
+                  <ValidationMessage tone="error">{checkoutError.message || t(PAYMENT_ERROR_KEYS[checkoutError.code])}</ValidationMessage>
+                  {canRetryCheckout ? (
+                    <Button variant="text" size="sm" onClick={checkout.initiate} disabled={checkout.mutation.isPending}>
+                      {t("retry")}
+                    </Button>
+                  ) : null}
+                </div>
+              ) : null}
 
-      {stillWaiting && eligibilityQuery.pollingTimedOut ? (
-        <div className="rounded-xl bg-[#FFF7E6] px-4 py-3">
-          <p className="mb-2 text-sm text-gray-700">{t("paymentPollingTimedOutMessage")}</p>
-          <Button variant="outline" size="sm" onClick={() => eligibilityQuery.refetch()} disabled={eligibilityQuery.isFetching}>
-            {t("paymentManualRefreshAction")}
-          </Button>
-        </div>
+              {checkout.manualCheckoutUrl ? (
+                <div className="rounded-xl bg-[#FFF7E6] px-4 py-3">
+                  <p className="mb-2 text-sm text-gray-700">{t("paymentPopupBlockedMessage")}</p>
+                  <Button variant="outline" size="sm" onClick={checkout.openCheckoutManually}>
+                    {t("paymentOpenCheckoutAction")}
+                  </Button>
+                </div>
+              ) : null}
+
+              {stillWaitingForCard && !eligibilityQuery.pollingTimedOut ? (
+                <div className="rounded-xl bg-[#FFF7E6] px-4 py-3 text-sm text-gray-700">{t("paymentWaitingForConfirmation")}</div>
+              ) : null}
+
+              {stillWaitingForCard && eligibilityQuery.pollingTimedOut ? (
+                <div className="rounded-xl bg-[#FFF7E6] px-4 py-3">
+                  <p className="mb-2 text-sm text-gray-700">{t("paymentPollingTimedOutMessage")}</p>
+                  <Button variant="outline" size="sm" onClick={() => eligibilityQuery.refetch()} disabled={eligibilityQuery.isFetching}>
+                    {t("paymentManualRefreshAction")}
+                  </Button>
+                </div>
+              ) : null}
+            </div>
+          )}
+        </>
       ) : null}
     </div>
   );

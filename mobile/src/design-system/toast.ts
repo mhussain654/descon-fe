@@ -1,6 +1,6 @@
-// Thin semantic wrapper over sonner-native, which mirrors sonner's API used
-// on web. Mount `<Toaster />` (re-exported below) once near the app root --
-// see mobile/src/app/_layout.jsx -- the same place web mounts sonner's.
+// Thin semantic wrapper over sonner-native, which mirrors sonner's API.
+// Mount `<Toaster />` (re-exported below) once near the app root --
+// see mobile/src/app/_layout.jsx.
 import { toast as sonnerToast, Toaster } from 'sonner-native';
 
 export { Toaster };

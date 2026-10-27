@@ -19,9 +19,9 @@ levels (`sm`/`md`/`lg`) to the iOS `shadow*` properties and Android's single
 
 Every component builds its `StyleSheet` from these tokens rather than
 hardcoded hex/pixel values (AGENTS.md: "Use `StyleSheet`, shared design
-tokens or the repository-approved native styling approach"). NativeWind is
-not used -- Tailwind classes on mobile only apply to the `react-native-web`
-build target via `tailwind.config.js`/`global.css`, not native iOS/Android.
+tokens or the repository-approved native styling approach"). NativeWind and
+Tailwind are not used on mobile, and the app has no web build target (it runs
+on iOS and Android only).
 
 ## Components
 

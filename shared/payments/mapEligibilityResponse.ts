@@ -16,6 +16,7 @@ export interface PaymentResponse {
   currency_code: string;
   provider: string;
   checkout_url: string | null;
+  voucher_number?: string | null;
   checkout_expires_at: string | null;
   paid_at: string | null;
   updated_at: string | null;
@@ -24,6 +25,9 @@ export interface PaymentResponse {
 export interface EligibilityResponse {
   eligible: boolean;
   checkout_available: boolean;
+  voucher_available?: boolean;
+  open_voucher?: PaymentResponse | null;
+  card_checkout_open?: boolean;
   required_stage_code: string;
   current_stage_code: string | null;
   blocking_reasons: string[];
@@ -68,6 +72,7 @@ export function toPayment(raw: unknown): Payment | null {
     currencyCode: typeof value.currency_code === 'string' ? value.currency_code : '',
     provider: typeof value.provider === 'string' ? value.provider : '',
     checkoutUrl: typeof value.checkout_url === 'string' ? value.checkout_url : null,
+    voucherNumber: typeof value.voucher_number === 'string' ? value.voucher_number : null,
     checkoutExpiresAt: typeof value.checkout_expires_at === 'string' ? value.checkout_expires_at : null,
     paidAt: typeof value.paid_at === 'string' ? value.paid_at : null,
     updatedAt: typeof value.updated_at === 'string' ? value.updated_at : null,
@@ -80,6 +85,9 @@ export function toPaymentEligibility(raw: unknown): PaymentEligibility {
   return {
     eligible: value.eligible === true,
     checkoutAvailable: value.checkout_available === true,
+    voucherAvailable: value.voucher_available === true,
+    openVoucher: toPayment(value.open_voucher),
+    cardCheckoutOpen: value.card_checkout_open === true,
     requiredStageCode: typeof value.required_stage_code === 'string' ? value.required_stage_code : '',
     currentStageCode: typeof value.current_stage_code === 'string' ? value.current_stage_code : null,
     blockingReasons: toBlockingReasons(value.blocking_reasons),
