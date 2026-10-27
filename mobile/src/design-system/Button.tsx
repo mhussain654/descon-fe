@@ -62,6 +62,10 @@ export function Button({
   const variantStyle = VARIANT_STYLES[variant];
   const isUrdu = language === 'ur';
   const buttonHeight = screenButtonHeight ?? Math.max(sizeStyle.height, minTouchTarget);
+  // A screen's own fixed `height` (compact 30-36px buttons) would cut the bottom off Urdu labels, so
+  // for Urdu it becomes a minimum the button can grow past.
+  const styleHeight = StyleSheet.flatten(style)?.height;
+  const urduGrowStyle = isUrdu && styleHeight !== undefined ? { height: undefined, minHeight: styleHeight } : null;
 
   return (
     <Pressable
@@ -83,6 +87,7 @@ export function Button({
           alignSelf: fullWidth ? 'stretch' : undefined,
         },
         style,
+        urduGrowStyle,
       ]}
     >
       {loading ? (

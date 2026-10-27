@@ -52,6 +52,13 @@ afterEach(() => {
   sessionStorage.clear();
 });
 describe("FeeSettingsCard", () => {
+  it("tells the admin the fee must include tax and the KuickPay fee", async () => {
+    await mount();
+    fireEvent.click(await screen.findByRole("button", { name: "Edit fee" }));
+    expect(
+      screen.getByText(/Include tax and the KuickPay fee/),
+    ).toBeInTheDocument();
+  });
   it("sets the global default with a reason", async () => {
     vi.mocked(adminFeesClient.updateFee).mockResolvedValue({
       ...fee,

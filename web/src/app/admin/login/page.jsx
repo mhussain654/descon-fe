@@ -47,7 +47,9 @@ export default function StaffLoginPage() {
       <div className="flex w-full max-w-md justify-center rounded-3xl bg-white py-5 shadow-2xl sm:py-6">
         <img src="/descon-logo.png" alt="Descon" className="h-28 w-auto object-contain sm:h-36" />
       </div>
-      <p className="mt-5 text-center text-sm font-semibold uppercase tracking-widest text-white/85">{t("connectEyebrow")}</p>
+      <p className="mt-5 text-center text-2xl text-white">
+        <span className="font-bold">{t("brandNamePrimary")}</span> <span className="font-normal">{t("brandNameSecondary")}</span>
+      </p>
 
       <div className="mt-8 w-full max-w-md rounded-3xl border border-border bg-surface-raised p-8 shadow-2xl sm:p-10">
         <div className="mb-8 text-center">

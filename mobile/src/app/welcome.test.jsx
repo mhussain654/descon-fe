@@ -85,9 +85,9 @@ describe('WelcomeScreen', () => {
   it('shows the hero copy, language choice and secure-footer text', async () => {
     renderWelcomeScreen();
     expect(await screen.findByText('Choose your language')).toBeOnTheScreen();
-    expect(screen.getByText('Welcome!\nYour next step starts here.')).toBeOnTheScreen();
+    expect(screen.getByText('Welcome!\nYour journey abroad\nstarts here.')).toBeOnTheScreen();
     expect(
-      screen.getByText('Track your progress, upload documents and get help — all in one simple app.')
+      screen.getByText('Upload your documents, follow your visa and travel steps, and get help — all in one app.')
     ).toBeOnTheScreen();
     expect(screen.getByText('You can change it later from your profile.')).toBeOnTheScreen();
     expect(screen.getByText('Securely managed by Descon Manpower Services')).toBeOnTheScreen();

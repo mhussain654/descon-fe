@@ -853,41 +853,7 @@ describe("DocumentsPage", () => {
       selectFileOnActiveRow(pdfFile());
       fireEvent.click(screen.getByRole("button", { name: "Submit" }));
 
-      expect(await screen.findByText("Enter the Police Character Certificate issue date.")).toBeInTheDocument();
-      expect(candidateDocumentsClient.uploadDocument).not.toHaveBeenCalled();
-    });
-
-    it("shows a validation error for a PCC issue date in an invalid format, without calling the API", async () => {
-      candidateDocumentsClient.getChecklist.mockResolvedValue([
-        item({ requirementCode: "police_character", name: "Police Character Certificate", status: "missing" }),
-      ]);
-      applicationProgressClient.getProgress.mockResolvedValue(progress());
-      await signInAndNavigateToDocuments();
-
-      fireEvent.click(await screen.findByRole("button", { name: "Upload" }));
-      fireEvent.change(screen.getByLabelText("Police Character Certificate issue date"), { target: { value: "26-08-2026" } });
-      selectFileOnActiveRow(pdfFile());
-      fireEvent.click(screen.getByRole("button", { name: "Submit" }));
-
-      expect(
-        await screen.findByText("Enter a valid Police Character Certificate issue date in YYYY-MM-DD format.")
-      ).toBeInTheDocument();
-      expect(candidateDocumentsClient.uploadDocument).not.toHaveBeenCalled();
-    });
-
-    it("shows a validation error for a future PCC issue date, without calling the API", async () => {
-      candidateDocumentsClient.getChecklist.mockResolvedValue([
-        item({ requirementCode: "police_character", name: "Police Character Certificate", status: "missing" }),
-      ]);
-      applicationProgressClient.getProgress.mockResolvedValue(progress());
-      await signInAndNavigateToDocuments();
-
-      fireEvent.click(await screen.findByRole("button", { name: "Upload" }));
-      fireEvent.change(screen.getByLabelText("Police Character Certificate issue date"), { target: { value: "2099-01-01" } });
-      selectFileOnActiveRow(pdfFile());
-      fireEvent.click(screen.getByRole("button", { name: "Submit" }));
-
-      expect(await screen.findByText("The Police Character Certificate issue date cannot be in the future.")).toBeInTheDocument();
+      expect(await screen.findByText("Choose the Police Character Certificate issue date.")).toBeInTheDocument();
       expect(candidateDocumentsClient.uploadDocument).not.toHaveBeenCalled();
     });
 
@@ -1123,8 +1089,8 @@ describe("DocumentsPage", () => {
       fireEvent.click(screen.getByRole("button", { name: "Submit" }));
 
       expect(await screen.findByText("Enter the account title.")).toBeInTheDocument();
-      expect(screen.getByText("Enter the account number or IBAN.")).toBeInTheDocument();
-      expect(screen.getByText("Enter the bank name.")).toBeInTheDocument();
+      expect(screen.getByText("Enter the account number.")).toBeInTheDocument();
+      expect(screen.getByText("Select your bank.")).toBeInTheDocument();
       expect(candidateBankDetailsClient.submitBankDetail).not.toHaveBeenCalled();
     });
 
@@ -1135,11 +1101,11 @@ describe("DocumentsPage", () => {
 
       fireEvent.click(await screen.findByRole("button", { name: "Add bank details" }));
       fireEvent.change(screen.getByLabelText("Account title"), { target: { value: "Ahmed Ali" } });
-      fireEvent.change(screen.getByLabelText("Account number / IBAN"), { target: { value: "!!" } });
-      fireEvent.change(screen.getByLabelText("Bank name"), { target: { value: "Meezan Bank" } });
+      fireEvent.change(screen.getByLabelText("Account number"), { target: { value: "!!" } });
+      fireEvent.change(screen.getByLabelText("Bank name"), { target: { value: "Meezan Bank Limited" } });
       fireEvent.click(screen.getByRole("button", { name: "Submit" }));
 
-      expect(await screen.findByText("Enter a valid account number or IBAN.")).toBeInTheDocument();
+      expect(await screen.findByText("Enter a valid account number (6 to 20 digits).")).toBeInTheDocument();
       expect(candidateBankDetailsClient.submitBankDetail).not.toHaveBeenCalled();
     });
 
@@ -1150,8 +1116,8 @@ describe("DocumentsPage", () => {
 
       fireEvent.click(await screen.findByRole("button", { name: "Add bank details" }));
       fireEvent.change(screen.getByLabelText("Account title"), { target: { value: "Ahmed Ali" } });
-      fireEvent.change(screen.getByLabelText("Account number / IBAN"), { target: { value: "PK36SCBL0000001123456702" } });
-      fireEvent.change(screen.getByLabelText("Bank name"), { target: { value: "Meezan Bank" } });
+      fireEvent.change(screen.getByLabelText("Account number"), { target: { value: "0000001123456702" } });
+      fireEvent.change(screen.getByLabelText("Bank name"), { target: { value: "Meezan Bank Limited" } });
       fireEvent.click(screen.getByRole("button", { name: "Submit" }));
 
       expect(await screen.findByText("Choose a file to upload.")).toBeInTheDocument();
@@ -1166,8 +1132,8 @@ describe("DocumentsPage", () => {
 
       fireEvent.click(await screen.findByRole("button", { name: "Add bank details" }));
       fireEvent.change(screen.getByLabelText("Account title"), { target: { value: "Ahmed Ali" } });
-      fireEvent.change(screen.getByLabelText("Account number / IBAN"), { target: { value: "PK36SCBL0000001123456702" } });
-      fireEvent.change(screen.getByLabelText("Bank name"), { target: { value: "Meezan Bank" } });
+      fireEvent.change(screen.getByLabelText("Account number"), { target: { value: "0000001123456702" } });
+      fireEvent.change(screen.getByLabelText("Bank name"), { target: { value: "Meezan Bank Limited" } });
       const fileInput = document.querySelector('input[type="file"]');
       fireEvent.change(fileInput, { target: { files: [pdfFile("cheque.pdf")] } });
       fireEvent.click(screen.getByRole("button", { name: "Submit" }));
@@ -1176,8 +1142,8 @@ describe("DocumentsPage", () => {
       const [params] = candidateBankDetailsClient.submitBankDetail.mock.calls[0];
       expect(params.accessToken).toBe("candidate-access-token");
       expect(params.formData.get("bank_detail[account_title]")).toBe("Ahmed Ali");
-      expect(params.formData.get("bank_detail[account_number]")).toBe("PK36SCBL0000001123456702");
-      expect(params.formData.get("bank_detail[bank_name]")).toBe("Meezan Bank");
+      expect(params.formData.get("bank_detail[account_number]")).toBe("0000001123456702");
+      expect(params.formData.get("bank_detail[bank_name]")).toBe("Meezan Bank Limited");
       expect(params.formData.get("bank_detail[proof]").name).toBe("cheque.pdf");
 
       expect(await screen.findByText("Complete")).toBeInTheDocument();
@@ -1188,20 +1154,20 @@ describe("DocumentsPage", () => {
       applicationProgressClient.getProgress.mockResolvedValue(progress());
       candidateBankDetailsClient.submitBankDetail.mockRejectedValue({
         code: "INVALID_ACCOUNT_NUMBER",
-        message: "Enter a valid account number or IBAN.",
+        message: "Enter a valid account number (6 to 20 digits).",
         field: "bank_detail.account_number",
       });
       await signInAndNavigateToDocuments();
 
       fireEvent.click(await screen.findByRole("button", { name: "Add bank details" }));
       fireEvent.change(screen.getByLabelText("Account title"), { target: { value: "Ahmed Ali" } });
-      fireEvent.change(screen.getByLabelText("Account number / IBAN"), { target: { value: "PK36SCBL0000001123456702" } });
-      fireEvent.change(screen.getByLabelText("Bank name"), { target: { value: "Meezan Bank" } });
+      fireEvent.change(screen.getByLabelText("Account number"), { target: { value: "0000001123456702" } });
+      fireEvent.change(screen.getByLabelText("Bank name"), { target: { value: "Meezan Bank Limited" } });
       const fileInput = document.querySelector('input[type="file"]');
       fireEvent.change(fileInput, { target: { files: [pdfFile("cheque.pdf")] } });
       fireEvent.click(screen.getByRole("button", { name: "Submit" }));
 
-      expect(await screen.findByText("Enter a valid account number or IBAN.")).toBeInTheDocument();
+      expect(await screen.findByText("Enter a valid account number (6 to 20 digits).")).toBeInTheDocument();
       expect(screen.getByLabelText("Account title")).toBeInTheDocument();
     });
 
@@ -1213,8 +1179,8 @@ describe("DocumentsPage", () => {
 
       fireEvent.click(await screen.findByRole("button", { name: "Add bank details" }));
       fireEvent.change(screen.getByLabelText("Account title"), { target: { value: "Ahmed Ali" } });
-      fireEvent.change(screen.getByLabelText("Account number / IBAN"), { target: { value: "PK36SCBL0000001123456702" } });
-      fireEvent.change(screen.getByLabelText("Bank name"), { target: { value: "Meezan Bank" } });
+      fireEvent.change(screen.getByLabelText("Account number"), { target: { value: "0000001123456702" } });
+      fireEvent.change(screen.getByLabelText("Bank name"), { target: { value: "Meezan Bank Limited" } });
       const fileInput = document.querySelector('input[type="file"]');
       fireEvent.change(fileInput, { target: { files: [pdfFile("cheque.pdf")] } });
       fireEvent.click(screen.getByRole("button", { name: "Submit" }));

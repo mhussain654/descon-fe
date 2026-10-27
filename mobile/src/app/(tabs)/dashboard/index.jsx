@@ -28,6 +28,7 @@ import { interpolate } from "../../../../../shared/i18n/interpolate";
 import { formatCurrency, formatDate } from "../../../../../shared/i18n/locale";
 import { resolveNextAction, NEXT_ACTION_KEYS } from "../../../../../shared/applicationProgress/nextAction";
 import { currentDashboardStage, upcomingDashboardStage } from "../../../../../shared/applicationProgress/currentDashboardStage";
+import { journeyProgress } from "../../../../../shared/applicationProgress/journeyMilestones";
 import { LoadingState, ErrorState, OfflineState, SessionExpiredState, ForbiddenState, getFontFamily, toast } from "../../../design-system";
 import { colors, spacing } from "../../../design-system/tokens";
 
@@ -228,11 +229,18 @@ export default function DashboardScreen() {
   // behind it, so summarizing "current status" here from the same timeline
   // Status renders keeps the two screens telling the same story.
   const currentStage = workflow ? currentDashboardStage(workflow.timeline) : null;
-  // What the next-step card announces when the next move is on staff's side:
-  // the upcoming stage, never the current one (that's the badge above and
-  // the latest update below), so the three never repeat each other.
+  // Whether anything is left ahead -- once nothing is, the next-step card
+  // congratulates instead of asking the candidate to wait.
   const upcomingStage = workflow ? upcomingDashboardStage(workflow.timeline) : null;
-  const percentage = workflow?.progressPercentage ?? 0;
+  // What is happening right now, for the waiting card. Never a stage *name*
+  // as the title: "Documents Verified" under "Next step" reads as done, not
+  // as something to do. Stages with no sentence of their own say nothing here.
+  const currentStageCode = workflow?.timeline.find((stage) => stage.status === "current")?.code;
+  const currentStageKey = currentStageCode ? STAGE_UPDATE_DESCRIPTION_KEYS[currentStageCode] : undefined;
+  const waitingDescription = [currentStageKey ? t(currentStageKey) : null, t("homeWaitingDescription")].filter(Boolean).join(" ");
+  // Counted over the milestones My Journey lists, so both screens give the same figures.
+  const journey = workflow ? journeyProgress(workflow.timeline) : null;
+  const percentage = journey?.percentage ?? 0;
   const nextAction =
     progressQuery.data && checklistQuery.data ? resolveNextAction(progressQuery.data, checklistQuery.data) : null;
   const nextActionMessage = nextAction
@@ -256,8 +264,8 @@ export default function DashboardScreen() {
       route: "/(tabs)/documents",
     },
     waiting: {
-      title: upcomingStage ? upcomingStage.name : t("homeJourneyCompleteTitle"),
-      description: upcomingStage ? t("homeWaitingDescription") : t("homeJourneyCompleteDescription"),
+      title: upcomingStage ? t("homeWaitingTitle") : t("homeJourneyCompleteTitle"),
+      description: upcomingStage ? waitingDescription : t("homeJourneyCompleteDescription"),
       actionLabel: t("homeViewStatus"),
       route: "/(tabs)/status",
     },
@@ -323,8 +331,8 @@ export default function DashboardScreen() {
             title={t("homeMyJourney")}
             stageLabel={currentStage ? currentStage.name : null}
             stepsLine={interpolate(t("homeStepsComplete"), {
-              completed: workflow?.completedCount ?? 0,
-              total: workflow?.totalCount ?? 0,
+              completed: journey?.completedCount ?? 0,
+              total: journey?.totalCount ?? 0,
             })}
             percentLine={interpolate(t("homePercentComplete"), { percent: percentage })}
             percentage={percentage}

@@ -34,6 +34,24 @@ describe('Button', () => {
     expect(label.lineHeight).toBe(28);
   });
 
+  it("turns a screen's own fixed height into a minimum for Urdu, but keeps it fixed for English", () => {
+    render(
+      <>
+        <Button language="ur" onPress={() => {}} style={{ height: 34 }}>
+          فائل منتخب کریں
+        </Button>
+        <Button onPress={() => {}} style={{ height: 34 }}>
+          Choose file
+        </Button>
+      </>
+    );
+    const urdu = StyleSheet.flatten(screen.getByRole('button', { name: 'فائل منتخب کریں' }).props.style);
+    const english = StyleSheet.flatten(screen.getByRole('button', { name: 'Choose file' }).props.style);
+    expect(urdu.height).toBeUndefined();
+    expect(urdu.minHeight).toBe(34);
+    expect(english.height).toBe(34);
+  });
+
   it('keeps the fixed height and default line height for English', () => {
     render(
       <Button size="sm" onPress={() => {}}>

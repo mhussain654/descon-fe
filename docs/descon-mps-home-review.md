@@ -1,7 +1,7 @@
 # Descon Manpower Service home — client review version
 
 The public root (`/`) introduces **Descon Manpower Service (Descon MPS)** and
-links staff to `/admin/login`. **Descon Connect** is the name of the candidate
+links staff to `/admin/login`. **MPS Connect** is the name of the candidate
 mobile app only. Candidate onboarding belongs in that native app.
 
 ## Temporary web candidate flow and removal
@@ -44,6 +44,6 @@ from Descon's public contact page. Descon should approve the draft wording,
 images, branding, and contact details. Store approved image files locally to
 avoid a runtime dependency on the corporate website.
 
-The Descon Connect mobile app section says “coming soon” until official app
+The MPS Connect mobile app section says “coming soon” until official app
 store links exist. No fake download links are shown. After review, replace
 the imagery, add real mobile download links, and incorporate client feedback.

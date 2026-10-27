@@ -221,8 +221,9 @@ describe("DashboardScreen", () => {
     expect(screen.getByText("HOF# DES-001001")).toBeOnTheScreen();
     // The current stage is the highlighted status badge on "My Journey".
     expect(screen.getByText("Documents Uploaded")).toBeOnTheScreen();
-    expect(screen.getByText("2 of 15 steps completed")).toBeOnTheScreen();
-    expect(screen.getByText("13% complete")).toBeOnTheScreen();
+    // Only Registered is done among the 12 milestones (Documents Pending is a waiting stage, not counted).
+    expect(screen.getByText("1 of 12 steps completed")).toBeOnTheScreen();
+    expect(screen.getByText("8% complete")).toBeOnTheScreen();
   });
 
   it("shows the Business Unit country and falls back to initials when there is no photo", async () => {
@@ -236,7 +237,7 @@ describe("DashboardScreen", () => {
     expect(screen.getByLabelText("Profile photo")).toBeOnTheScreen();
   });
 
-  it("counts completed steps out of the full workflow", async () => {
+  it("counts completed steps out of the journey milestones, leaving out the waiting stages", async () => {
     candidateProfileClient.getProfile.mockResolvedValue(profilePayload());
     candidateDocumentsClient.getChecklist.mockResolvedValue([]);
     applicationProgressClient.getProgress.mockResolvedValue(
@@ -247,8 +248,9 @@ describe("DashboardScreen", () => {
     );
     renderDashboardScreen();
 
-    expect(await screen.findByText("5 of 15 steps completed")).toBeOnTheScreen();
-    expect(screen.getByText("33% complete")).toBeOnTheScreen();
+    // Registered, Documents Uploaded and Verified; Documents Pending and Under Verification never count.
+    expect(await screen.findByText("3 of 12 steps completed")).toBeOnTheScreen();
+    expect(screen.getByText("25% complete")).toBeOnTheScreen();
   });
 
   it("prompts to upload required documents generically when nothing has been submitted yet", async () => {
@@ -285,7 +287,7 @@ describe("DashboardScreen", () => {
     expect(await screen.findByText(/Replace your rejected document: Passport/)).toBeOnTheScreen();
   });
 
-  it("announces the upcoming stage -- not the current one -- once the next move is on staff's side", async () => {
+  it("asks the candidate to wait and says what is happening now -- never a stage name -- once the next move is on staff's side", async () => {
     candidateProfileClient.getProfile.mockResolvedValue(profilePayload());
     candidateDocumentsClient.getChecklist.mockResolvedValue([checklistItem({ status: "verified" })]);
     applicationProgressClient.getProgress.mockResolvedValue(
@@ -298,12 +300,33 @@ describe("DashboardScreen", () => {
     renderDashboardScreen();
 
     expect(await screen.findByText("Next step")).toBeOnTheScreen();
-    expect(screen.getByText("Documents Shared with Qatar BU")).toBeOnTheScreen();
+    expect(screen.getByText("Wait for an update")).toBeOnTheScreen();
+    expect(screen.getByText("Your onboarding fee payment has been received. We’ll update you here.")).toBeOnTheScreen();
+    // Neither the upcoming stage nor the current one is announced as the next step.
+    expect(screen.queryByText("Documents Shared with Qatar BU")).toBeNull();
     // "Fee Paid" is the current-stage badge only, never repeated as the next step.
     expect(screen.getAllByText("Fee Paid")).toHaveLength(1);
     expect(screen.queryByText(/Continue with your application/)).toBeNull();
     fireEvent.press(screen.getByRole("button", { name: "View status" }));
     expect(mockPush).toHaveBeenCalledWith("/(tabs)/status");
+  });
+
+  it("does not show the next stage (\"Documents Verified\") as the next step while documents are still under verification", async () => {
+    candidateProfileClient.getProfile.mockResolvedValue(profilePayload());
+    candidateDocumentsClient.getChecklist.mockResolvedValue([checklistItem({ status: "pending_review" })]);
+    applicationProgressClient.getProgress.mockResolvedValue(
+      progress({
+        currentWorkflowStage: { code: "under_verification", name: "Under Verification" },
+        documents: documentsSummary({ submissionState: "submitted", missing: 0, pendingReview: 0 }),
+        workflow: workflowPayload({ timeline: timelineThrough(4), completedCount: 3, progressPercentage: 15 }),
+      })
+    );
+    renderDashboardScreen();
+
+    expect(await screen.findByText("Wait for an update")).toBeOnTheScreen();
+    expect(screen.getByText("Your documents are being reviewed. We’ll update you here.")).toBeOnTheScreen();
+    // "Verified" is the next stage in this fixture's timeline; it must not be announced as the next step.
+    expect(screen.queryByText("Verified")).toBeNull();
   });
 
   it("congratulates the candidate once every stage is complete", async () => {

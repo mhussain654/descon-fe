@@ -197,13 +197,15 @@ function renderStatusScreen() {
   );
 }
 
-/** The timeline's own row for a stage name -- picks the first match, since the same stage name can legitimately also appear in the "Recent Updates" history section below the timeline. */
+/** The timeline's own row for a stage name -- the first match inside a stage card, since the same name can also appear in the current-status line above the list and in the "Recent Updates" history below it. */
 function stageRow(labelText) {
   // Stage name sits inside the heading row; its parent card also holds dates and downloads.
-  let node = screen.getAllByText(labelText)[0];
-  while (node && !node.props.testID?.startsWith("status-stage-")) node = node.parent;
-  if (!node) throw new Error(`Missing stage card: ${labelText}`);
-  return node;
+  for (const match of screen.getAllByText(labelText)) {
+    let node = match;
+    while (node && !node.props.testID?.startsWith("status-stage-")) node = node.parent;
+    if (node) return node;
+  }
+  throw new Error(`Missing stage card: ${labelText}`);
 }
 
 describe("StatusScreen", () => {
@@ -213,12 +215,14 @@ describe("StatusScreen", () => {
     expect(await screen.findByText('Destination (Business Unit): Qatar')).toBeOnTheScreen();
   });
 
-  it("shows the backend progress percentage rather than inferring progress from the cards", async () => {
-    applicationProgressClient.getProgress.mockResolvedValue(progressPayload({ workflow: workflowPayload({ progressPercentage: 37 }) }));
+  it("counts progress over the journey milestones only, leaving out the waiting stages", async () => {
+    // Through "Fee Pending": of the 12 milestones, Registered, Documents Uploaded, Verified and... are done; waiting stages never count.
+    applicationProgressClient.getProgress.mockResolvedValue(progressPayload({ workflow: workflowPayload({ timeline: timelineThrough(8), completedCount: 7, totalCount: 15, progressPercentage: 47 }) }));
     candidateWorkflowClient.getWorkflowHistory.mockResolvedValue(historyPayload());
     renderStatusScreen();
-    expect(await screen.findByText("37%")).toBeOnTheScreen();
-    expect(screen.getByRole("progressbar")).toHaveAccessibilityValue({ min: 0, max: 100, now: 37 });
+    expect(await screen.findByText("33%")).toBeOnTheScreen();
+    expect(screen.getByText("4 / 12")).toBeOnTheScreen();
+    expect(screen.getByRole("progressbar")).toHaveAccessibilityValue({ min: 0, max: 100, now: 33 });
     expect(screen.getByText("Your journey")).toBeOnTheScreen();
   });
 
@@ -239,15 +243,34 @@ describe("StatusScreen", () => {
     expect(await screen.findByText("Loading…")).toBeOnTheScreen();
   });
 
-  it("renders the real, backend-authoritative 15-stage workflow timeline exactly as returned, never fabricating or reordering a stage", async () => {
-    applicationProgressClient.getProgress.mockResolvedValue(progressPayload());
+  it("lists only the milestones, in the backend's order, and numbers them without gaps", async () => {
+    applicationProgressClient.getProgress.mockResolvedValue(progressPayload({ workflow: workflowPayload({ timeline: timelineThrough(1) }) }));
     candidateWorkflowClient.getWorkflowHistory.mockResolvedValue(historyPayload());
     renderStatusScreen();
 
-    await screen.findByText("Documents Pending");
-    for (const stage of CANONICAL_STAGES) {
-      expect(screen.getAllByText(stage.name).length).toBeGreaterThan(0);
+    await screen.findAllByText("Registered");
+    const WAITING = ["documents_pending", "under_verification", "fee_pending"];
+    const rows = CANONICAL_STAGES.filter((stage) => !WAITING.includes(stage.code));
+    for (const stage of rows) {
+      expect(screen.getByTestId(`status-stage-${stage.code}`)).toBeOnTheScreen();
     }
+    for (const code of WAITING) {
+      expect(screen.queryByTestId(`status-stage-${code}`)).toBeNull();
+    }
+    // 12 milestones, so the last marker reads 12, not 15.
+    expect(screen.getByText("12")).toBeOnTheScreen();
+    expect(screen.queryByText("15")).toBeNull();
+  });
+
+  it("shows a waiting stage once, as the current status above the list, never as a list row", async () => {
+    applicationProgressClient.getProgress.mockResolvedValue(progressPayload({ workflow: workflowPayload({ timeline: timelineThrough(4) }) }));
+    candidateWorkflowClient.getWorkflowHistory.mockResolvedValue(historyPayload());
+    renderStatusScreen();
+
+    expect(await screen.findByText("Current Status")).toBeOnTheScreen();
+    expect(screen.getByText("Under Verification")).toBeOnTheScreen();
+    expect(screen.queryByTestId("status-stage-under_verification")).toBeNull();
+    expect(within(stageRow("Documents Uploaded")).getByText("Completed")).toBeOnTheScreen();
   });
 
   it("marks only the timeline's own current stage as in progress, per the backend's status field", async () => {
@@ -255,7 +278,7 @@ describe("StatusScreen", () => {
     candidateWorkflowClient.getWorkflowHistory.mockResolvedValue(historyPayload());
     renderStatusScreen();
 
-    await screen.findByText("Documents Uploaded");
+    await screen.findAllByText("Documents Uploaded");
     expect(within(stageRow("Documents Uploaded")).getByText("In Progress")).toBeOnTheScreen();
     expect(within(stageRow("Verified")).queryByText("In Progress")).toBeNull();
     expect(within(stageRow("Verified")).getByText("Pending")).toBeOnTheScreen();
@@ -266,16 +289,16 @@ describe("StatusScreen", () => {
     applicationProgressClient.getProgress.mockResolvedValue(
       progressPayload({
         workflow: workflowPayload({
-          timeline: timelineThrough(2, { startedAt: "2026-08-05T00:00:00Z", completedAt: "2026-08-01T00:00:00Z" }),
+          timeline: timelineThrough(3, { startedAt: "2026-08-05T00:00:00Z", completedAt: "2026-08-01T00:00:00Z" }),
         }),
       })
     );
     candidateWorkflowClient.getWorkflowHistory.mockResolvedValue(historyPayload());
     renderStatusScreen();
 
-    await screen.findByText("Documents Pending");
+    await screen.findAllByText("Documents Uploaded");
     expect(within(stageRow("Registered")).getByText(/Completed 01\/08\/2026/)).toBeOnTheScreen();
-    expect(within(stageRow("Documents Pending")).getByText(/Started 05\/08\/2026/)).toBeOnTheScreen();
+    expect(within(stageRow("Documents Uploaded")).getByText(/Started 05\/08\/2026/)).toBeOnTheScreen();
   });
 
   it("shows no in-progress stage once fully mobilized, and never fabricates downstream progress", async () => {
@@ -285,7 +308,7 @@ describe("StatusScreen", () => {
     candidateWorkflowClient.getWorkflowHistory.mockResolvedValue(historyPayload());
     renderStatusScreen();
 
-    await screen.findByText("Mobilized");
+    await screen.findAllByText("Mobilized");
     expect(screen.queryByText("In Progress")).toBeNull();
   });
 
@@ -317,13 +340,14 @@ describe("StatusScreen", () => {
         items: [
           { fromStage: null, toStage: CANONICAL_STAGES[0], occurredAt: "2026-08-01T00:00:00Z", reasonCode: null, details: null },
           { fromStage: CANONICAL_STAGES[0], toStage: CANONICAL_STAGES[1], occurredAt: "2026-08-03T00:00:00Z", reasonCode: null, details: null },
+          { fromStage: CANONICAL_STAGES[1], toStage: CANONICAL_STAGES[2], occurredAt: "2026-08-04T00:00:00Z", reasonCode: null, details: null },
         ],
       })
     );
     renderStatusScreen();
 
     await screen.findByText("Recent Updates");
-    expect(screen.getAllByText("Documents Pending").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("Documents Uploaded").length).toBeGreaterThan(0);
   });
 
   it("shows an empty state for workflow history when there is none yet", async () => {
@@ -419,7 +443,7 @@ describe("StatusScreen", () => {
       candidateFlightDetailClient.getFlightDetail.mockResolvedValue(flightDetail());
       renderStatusScreen();
 
-      await screen.findByText("Flight Details Uploaded");
+      await screen.findAllByText("Flight Details Uploaded");
       expect(within(stageRow("Flight Details Uploaded")).queryByRole("button", { name: "Download Ticket" })).toBeNull();
     });
 
@@ -429,7 +453,7 @@ describe("StatusScreen", () => {
       candidateFlightDetailClient.getFlightDetail.mockResolvedValue(flightDetail({ ticketAttached: false }));
       renderStatusScreen();
 
-      await screen.findByText("Flight Details Uploaded");
+      await screen.findAllByText("Flight Details Uploaded");
       expect(screen.queryByRole("button", { name: "Download Ticket" })).toBeNull();
     });
 
@@ -439,7 +463,7 @@ describe("StatusScreen", () => {
       candidateFlightDetailClient.getFlightDetail.mockResolvedValue(flightDetail());
       renderStatusScreen();
 
-      await screen.findByText("Flight Details Uploaded");
+      await screen.findAllByText("Flight Details Uploaded");
       expect(within(stageRow("Flight Details Uploaded")).getByRole("button", { name: "Download Ticket" })).toBeOnTheScreen();
     });
 
@@ -460,7 +484,7 @@ describe("StatusScreen", () => {
       const openURL = jest.spyOn(Linking, "openURL").mockResolvedValue();
       renderStatusScreen();
 
-      await screen.findByText("Flight Details Uploaded");
+      await screen.findAllByText("Flight Details Uploaded");
       expect(candidateFlightDetailClient.requestTicketAccess).not.toHaveBeenCalled();
 
       await act(async () => {
@@ -488,7 +512,7 @@ describe("StatusScreen", () => {
       const openURL = jest.spyOn(Linking, "openURL").mockResolvedValue();
       renderStatusScreen();
 
-      await screen.findByText("Flight Details Uploaded");
+      await screen.findAllByText("Flight Details Uploaded");
       await act(async () => {
         fireEvent.press(within(stageRow("Flight Details Uploaded")).getByRole("button", { name: "Download Ticket" }));
       });
@@ -509,7 +533,7 @@ describe("StatusScreen", () => {
       });
       renderStatusScreen();
 
-      await screen.findByText("Flight Details Uploaded");
+      await screen.findAllByText("Flight Details Uploaded");
       await act(async () => {
         fireEvent.press(within(stageRow("Flight Details Uploaded")).getByRole("button", { name: "Download Ticket" }));
       });

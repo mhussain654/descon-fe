@@ -929,49 +929,11 @@ describe("DocumentsScreen", () => {
     await screen.findByText(/Selected file: passport\.pdf/);
     fireEvent.press(screen.getByRole("button", { name: "Submit" }));
 
-    expect(await screen.findByText("Enter the Police Character Certificate issue date.")).toBeOnTheScreen();
+    expect(await screen.findByText("Choose the Police Character Certificate issue date.")).toBeOnTheScreen();
     expect(candidateDocumentsClient.uploadDocument).not.toHaveBeenCalled();
   });
 
-  it("shows a validation error for a PCC issue date in an invalid format, without calling the API", async () => {
-    candidateDocumentsClient.getChecklist.mockResolvedValue([
-      item({ requirementCode: "police_character", name: "Police Character Certificate", status: "missing" }),
-    ]);
-    applicationProgressClient.getProgress.mockResolvedValue(progress());
-    DocumentPicker.getDocumentAsync.mockResolvedValue({ canceled: false, assets: [pdfAsset()] });
-    renderDocumentsScreen();
-
-    fireEvent.press(await screen.findByRole("button", { name: "Upload" }));
-    fireEvent.changeText(screen.getByLabelText("Police Character Certificate issue date"), "26-08-2026");
-    fireEvent.press(await screen.findByRole("button", { name: "Choose file" }));
-    await screen.findByText(/Selected file: passport\.pdf/);
-    fireEvent.press(screen.getByRole("button", { name: "Submit" }));
-
-    expect(
-      await screen.findByText("Enter a valid Police Character Certificate issue date in YYYY-MM-DD format.")
-    ).toBeOnTheScreen();
-    expect(candidateDocumentsClient.uploadDocument).not.toHaveBeenCalled();
-  });
-
-  it("shows a validation error for a future PCC issue date, without calling the API", async () => {
-    candidateDocumentsClient.getChecklist.mockResolvedValue([
-      item({ requirementCode: "police_character", name: "Police Character Certificate", status: "missing" }),
-    ]);
-    applicationProgressClient.getProgress.mockResolvedValue(progress());
-    DocumentPicker.getDocumentAsync.mockResolvedValue({ canceled: false, assets: [pdfAsset()] });
-    renderDocumentsScreen();
-
-    fireEvent.press(await screen.findByRole("button", { name: "Upload" }));
-    fireEvent.changeText(screen.getByLabelText("Police Character Certificate issue date"), "2099-01-01");
-    fireEvent.press(await screen.findByRole("button", { name: "Choose file" }));
-    await screen.findByText(/Selected file: passport\.pdf/);
-    fireEvent.press(screen.getByRole("button", { name: "Submit" }));
-
-    expect(await screen.findByText("The Police Character Certificate issue date cannot be in the future.")).toBeOnTheScreen();
-    expect(candidateDocumentsClient.uploadDocument).not.toHaveBeenCalled();
-  });
-
-  it("sends the PCC issue date as issued_on once it's valid", async () => {
+  it("sends the PCC issue date chosen in the date picker as issued_on", async () => {
     candidateDocumentsClient.getChecklist.mockResolvedValue([
       item({ requirementCode: "police_character", name: "Police Character Certificate", status: "missing" }),
     ]);
@@ -983,7 +945,13 @@ describe("DocumentsScreen", () => {
     renderDocumentsScreen();
 
     fireEvent.press(await screen.findByRole("button", { name: "Upload" }));
-    fireEvent.changeText(screen.getByLabelText("Police Character Certificate issue date"), "2026-01-15");
+    // Choose 15 January of last year from the picker -- no date format is ever typed.
+    const lastYear = String(new Date().getFullYear() - 1);
+    fireEvent.press(screen.getByLabelText("Police Character Certificate issue date"));
+    fireEvent.press(screen.getByRole("button", { name: "15" }));
+    fireEvent.press(screen.getByRole("button", { name: "January" }));
+    fireEvent.press(screen.getByRole("button", { name: lastYear }));
+    fireEvent.press(screen.getByRole("button", { name: "Done" }));
     fireEvent.press(await screen.findByRole("button", { name: "Choose file" }));
     await screen.findByText(/Selected file: passport\.pdf/);
     // Wrapped in act() -- see "submits the checklist for review after
@@ -997,7 +965,7 @@ describe("DocumentsScreen", () => {
 
     await waitFor(() => expect(candidateDocumentsClient.uploadDocument).toHaveBeenCalledTimes(1));
     const [call] = candidateDocumentsClient.uploadDocument.mock.calls[0];
-    expect(call.formData.get("candidate_document[issued_on]")).toBe("2026-01-15");
+    expect(call.formData.get("candidate_document[issued_on]")).toBe(`${lastYear}-01-15`);
   });
 
   it("ends the session and returns to sign-in on a session-expired error during upload", async () => {
@@ -1125,8 +1093,24 @@ describe("DocumentsScreen", () => {
       fireEvent.press(screen.getByRole("button", { name: "Submit" }));
 
       expect(await screen.findByText("Enter the account title.")).toBeOnTheScreen();
-      expect(screen.getByText("Enter the account number or IBAN.")).toBeOnTheScreen();
-      expect(screen.getByText("Enter the bank name.")).toBeOnTheScreen();
+      expect(screen.getByText("Enter the account number.")).toBeOnTheScreen();
+      expect(screen.getByText("Select your bank.")).toBeOnTheScreen();
+      expect(candidateBankDetailsClient.submitBankDetail).not.toHaveBeenCalled();
+    });
+
+    it("rejects an account number that is not 6 to 20 digits, without calling the API", async () => {
+      candidateDocumentsClient.getChecklist.mockResolvedValue([item({ status: "missing" })]);
+      applicationProgressClient.getProgress.mockResolvedValue(progress());
+      renderDocumentsScreen();
+
+      fireEvent.press(await screen.findByRole("button", { name: "Add bank details" }));
+      fireEvent.changeText(screen.getByLabelText("Account title"), "Ahmed Ali");
+      fireEvent.changeText(screen.getByLabelText("Account number"), "12345");
+      fireEvent.press(screen.getByLabelText("Bank name"));
+      fireEvent.press(screen.getByRole("button", { name: "Meezan Bank Limited" }));
+      fireEvent.press(screen.getByRole("button", { name: "Submit" }));
+
+      expect(await screen.findByText("Enter a valid account number (6 to 20 digits).")).toBeOnTheScreen();
       expect(candidateBankDetailsClient.submitBankDetail).not.toHaveBeenCalled();
     });
 
@@ -1139,8 +1123,9 @@ describe("DocumentsScreen", () => {
 
       fireEvent.press(await screen.findByRole("button", { name: "Add bank details" }));
       fireEvent.changeText(screen.getByLabelText("Account title"), "Ahmed Ali");
-      fireEvent.changeText(screen.getByLabelText("Account number / IBAN"), "PK36SCBL0000001123456702");
-      fireEvent.changeText(screen.getByLabelText("Bank name"), "Meezan Bank");
+      fireEvent.changeText(screen.getByLabelText("Account number"), "0000001123456702");
+      fireEvent.press(screen.getByLabelText("Bank name"));
+      fireEvent.press(screen.getByRole("button", { name: "Meezan Bank Limited" }));
       fireEvent.press(await screen.findByRole("button", { name: "Choose file" }));
       await screen.findByText(/Selected file: cheque\.pdf/);
 
@@ -1152,8 +1137,8 @@ describe("DocumentsScreen", () => {
       const [params] = candidateBankDetailsClient.submitBankDetail.mock.calls[0];
       expect(params.accessToken).toBe("candidate-access-token");
       expect(params.formData.get("bank_detail[account_title]")).toBe("Ahmed Ali");
-      expect(params.formData.get("bank_detail[account_number]")).toBe("PK36SCBL0000001123456702");
-      expect(params.formData.get("bank_detail[bank_name]")).toBe("Meezan Bank");
+      expect(params.formData.get("bank_detail[account_number]")).toBe("0000001123456702");
+      expect(params.formData.get("bank_detail[bank_name]")).toBe("Meezan Bank Limited");
 
       expect(await screen.findByText("Complete")).toBeOnTheScreen();
     });
@@ -1167,8 +1152,9 @@ describe("DocumentsScreen", () => {
 
       fireEvent.press(await screen.findByRole("button", { name: "Add bank details" }));
       fireEvent.changeText(screen.getByLabelText("Account title"), "Ahmed Ali");
-      fireEvent.changeText(screen.getByLabelText("Account number / IBAN"), "PK36SCBL0000001123456702");
-      fireEvent.changeText(screen.getByLabelText("Bank name"), "Meezan Bank");
+      fireEvent.changeText(screen.getByLabelText("Account number"), "0000001123456702");
+      fireEvent.press(screen.getByLabelText("Bank name"));
+      fireEvent.press(screen.getByRole("button", { name: "Meezan Bank Limited" }));
       fireEvent.press(await screen.findByRole("button", { name: "Choose file" }));
       await screen.findByText(/Selected file: cheque\.pdf/);
       fireEvent.press(screen.getByRole("button", { name: "Submit" }));
