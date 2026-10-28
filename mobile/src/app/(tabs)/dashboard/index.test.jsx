@@ -221,9 +221,9 @@ describe("DashboardScreen", () => {
     expect(screen.getByText("HOF# DES-001001")).toBeOnTheScreen();
     // The current stage is the highlighted status badge on "My Journey".
     expect(screen.getByText("Documents Uploaded")).toBeOnTheScreen();
-    // Only Registered is done among the 12 milestones (Documents Pending is a waiting stage, not counted).
-    expect(screen.getByText("1 of 12 steps completed")).toBeOnTheScreen();
-    expect(screen.getByText("8% complete")).toBeOnTheScreen();
+    // Registered and the reached Documents Uploaded are done among the 12 milestones (Documents Pending is a waiting stage, not counted).
+    expect(screen.getByText("2 of 12 steps completed")).toBeOnTheScreen();
+    expect(screen.getByText("17% complete")).toBeOnTheScreen();
   });
 
   it("shows the Business Unit country and falls back to initials when there is no photo", async () => {

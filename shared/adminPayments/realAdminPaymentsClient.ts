@@ -73,6 +73,7 @@ interface AdminPaymentSummaryResponse {
   currency_code: string;
   provider: string;
   external_reference?: string | null;
+  voucher_number?: string | null;
   reconciliation_state: string;
   paid_at?: string | null;
   created_at: string;
@@ -148,6 +149,7 @@ function toSummary(data: AdminPaymentSummaryResponse): PaymentSummary {
     currencyCode: data.currency_code,
     provider: data.provider,
     externalReference: data.external_reference ?? undefined,
+    voucherNumber: data.voucher_number ?? undefined,
     reconciliationState: data.reconciliation_state as PaymentSummary['reconciliationState'],
     paidAt: data.paid_at ?? undefined,
     createdAt: data.created_at,

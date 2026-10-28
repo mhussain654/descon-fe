@@ -28,7 +28,7 @@ export interface JourneyProgress {
 }
 
 export function journeyProgress(timeline: WorkflowTimelineStage[]): JourneyProgress {
-  const milestones = timeline
+  const milestones = withNextMilestoneInProgress(timeline)
     .filter((stage) => !WAITING_STAGE_CODES.has(stage.code))
     .map((stage, index) => ({ ...stage, position: index + 1 }));
   const completedCount = milestones.filter((stage) => stage.status === 'completed').length;
@@ -39,4 +39,27 @@ export function journeyProgress(timeline: WorkflowTimelineStage[]): JourneyProgr
     totalCount,
     percentage: totalCount === 0 ? 0 : Math.round((completedCount / totalCount) * 100),
   };
+}
+
+// A milestone is something that has happened ("fee paid", "documents shared"), so
+// once the workflow reaches it the candidate sees it as completed and the next
+// milestone as in progress. A current waiting stage likewise puts the milestone
+// after it in progress. Both date from when the current stage was reached.
+function withNextMilestoneInProgress(timeline: WorkflowTimelineStage[]): WorkflowTimelineStage[] {
+  const currentIndex = timeline.findIndex((stage) => stage.status === 'current');
+  if (currentIndex === -1) return timeline;
+
+  const reachedAt = timeline[currentIndex].startedAt;
+  const currentIsMilestone = !WAITING_STAGE_CODES.has(timeline[currentIndex].code);
+  const nextMilestoneIndex = timeline.findIndex(
+    (stage, index) => index > currentIndex && !WAITING_STAGE_CODES.has(stage.code)
+  );
+
+  return timeline.map((stage, index) => {
+    if (index === currentIndex && currentIsMilestone) {
+      return { ...stage, status: 'completed', startedAt: null, completedAt: reachedAt };
+    }
+    if (index === nextMilestoneIndex) return { ...stage, status: 'current', startedAt: reachedAt };
+    return stage;
+  });
 }

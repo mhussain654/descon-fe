@@ -216,13 +216,13 @@ describe("StatusScreen", () => {
   });
 
   it("counts progress over the journey milestones only, leaving out the waiting stages", async () => {
-    // Through "Fee Pending": of the 12 milestones, Registered, Documents Uploaded, Verified and... are done; waiting stages never count.
+    // At "Documents Shared with Qatar BU": Registered, Documents Uploaded, Verified, Fee Paid and the reached stage itself are done; waiting stages never count.
     applicationProgressClient.getProgress.mockResolvedValue(progressPayload({ workflow: workflowPayload({ timeline: timelineThrough(8), completedCount: 7, totalCount: 15, progressPercentage: 47 }) }));
     candidateWorkflowClient.getWorkflowHistory.mockResolvedValue(historyPayload());
     renderStatusScreen();
-    expect(await screen.findByText("33%")).toBeOnTheScreen();
-    expect(screen.getByText("4 / 12")).toBeOnTheScreen();
-    expect(screen.getByRole("progressbar")).toHaveAccessibilityValue({ min: 0, max: 100, now: 33 });
+    expect(await screen.findByText("42%")).toBeOnTheScreen();
+    expect(screen.getByText("5 / 12")).toBeOnTheScreen();
+    expect(screen.getByRole("progressbar")).toHaveAccessibilityValue({ min: 0, max: 100, now: 42 });
     expect(screen.getByText("Your journey")).toBeOnTheScreen();
   });
 
@@ -273,15 +273,15 @@ describe("StatusScreen", () => {
     expect(within(stageRow("Documents Uploaded")).getByText("Completed")).toBeOnTheScreen();
   });
 
-  it("marks only the timeline's own current stage as in progress, per the backend's status field", async () => {
-    applicationProgressClient.getProgress.mockResolvedValue(progressPayload({ workflow: workflowPayload({ timeline: timelineThrough(3) }) }));
+  it("shows the milestone the workflow has reached as completed, and the next one as in progress", async () => {
+    applicationProgressClient.getProgress.mockResolvedValue(progressPayload({ workflow: workflowPayload({ timeline: timelineThrough(7) }) }));
     candidateWorkflowClient.getWorkflowHistory.mockResolvedValue(historyPayload());
     renderStatusScreen();
 
-    await screen.findAllByText("Documents Uploaded");
-    expect(within(stageRow("Documents Uploaded")).getByText("In Progress")).toBeOnTheScreen();
-    expect(within(stageRow("Verified")).queryByText("In Progress")).toBeNull();
-    expect(within(stageRow("Verified")).getByText("Pending")).toBeOnTheScreen();
+    await screen.findAllByText("Fee Paid");
+    expect(within(stageRow("Fee Paid")).getByText("Completed")).toBeOnTheScreen();
+    expect(within(stageRow("Documents Shared with Qatar BU")).getByText("In Progress")).toBeOnTheScreen();
+    expect(within(stageRow("QVC Appointment Booked")).getByText("Pending")).toBeOnTheScreen();
     expect(screen.queryByText("Upcoming")).toBeNull();
   });
 
@@ -298,7 +298,8 @@ describe("StatusScreen", () => {
 
     await screen.findAllByText("Documents Uploaded");
     expect(within(stageRow("Registered")).getByText(/Completed 01\/08\/2026/)).toBeOnTheScreen();
-    expect(within(stageRow("Documents Uploaded")).getByText(/Started 05\/08\/2026/)).toBeOnTheScreen();
+    expect(within(stageRow("Documents Uploaded")).getByText(/Completed 05\/08\/2026/)).toBeOnTheScreen();
+    expect(within(stageRow("Verified")).getByText(/Started 05\/08\/2026/)).toBeOnTheScreen();
   });
 
   it("shows no in-progress stage once fully mobilized, and never fabricates downstream progress", async () => {

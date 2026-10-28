@@ -86,7 +86,16 @@ describe('PaymentDetail', () => {
       expect(screen.getByText('onboarding_fee')).toBeInTheDocument();
       expect(screen.getByText('kuickpay')).toBeInTheDocument();
       expect(screen.getByText('KP-1')).toBeInTheDocument();
+      expect(screen.queryByText('Voucher number')).not.toBeInTheDocument();
       expect(adminPaymentsClient.getPayment).toHaveBeenCalledWith('payment-1');
+    });
+
+    it('shows the voucher number of a voucher payment', async () => {
+      adminPaymentsClient.getPayment.mockResolvedValue(paymentDetail({ provider: 'kuickpay_voucher', voucherNumber: '10420261000061939' }));
+      await renderDetail();
+
+      expect(await screen.findByText('Voucher number')).toBeInTheDocument();
+      expect(screen.getByText('10420261000061939')).toBeInTheDocument();
     });
 
     it('shows "Not set" when there is no external reference yet', async () => {

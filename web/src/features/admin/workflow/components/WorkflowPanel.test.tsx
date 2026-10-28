@@ -353,7 +353,7 @@ describe("WorkflowPanel", () => {
     renderPanel(client);
 
     expect(await screen.findByText("Documents Shared with Qatar BU")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Confirm sharing" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Confirm documents shared" })).toBeInTheDocument();
   });
 
   it("shows the Qatar BU card as blocked, with the exact blocking reasons and no action, when the backend disallows it", async () => {
@@ -369,7 +369,7 @@ describe("WorkflowPanel", () => {
     await screen.findByText("Documents Shared with Qatar BU");
     expect(screen.getByText("Payment has not been recorded yet.")).toBeInTheDocument();
     expect(screen.getByText("Expired")).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Confirm sharing" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Confirm documents shared" })).not.toBeInTheDocument();
   });
 
   it("never renders the current stage's raw status code, and shows no redundant/contradictory badge while the workflow is ongoing", async () => {
@@ -413,7 +413,7 @@ describe("WorkflowPanel", () => {
     renderPanel(client);
 
     await screen.findByText("Documents Shared with Qatar BU");
-    expect(screen.queryByRole("button", { name: "Confirm sharing" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Confirm documents shared" })).not.toBeInTheDocument();
   });
 
   describe("role-based action visibility", () => {
@@ -426,7 +426,7 @@ describe("WorkflowPanel", () => {
       renderPanel(client);
 
       await screen.findByText("Documents Shared with Qatar BU");
-      expect(screen.queryByRole("button", { name: "Confirm sharing" })).not.toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: "Confirm documents shared" })).not.toBeInTheDocument();
       expect(screen.getByText("You don't have permission to perform this transition.")).toBeInTheDocument();
     });
 
@@ -452,15 +452,15 @@ describe("WorkflowPanel", () => {
       renderPanel(client);
       await screen.findByText("Documents Shared with Qatar BU");
 
-      fireEvent.click(screen.getByRole("button", { name: "Confirm sharing" }));
-      expect(await screen.findByText("Share documents with Qatar BU?")).toBeInTheDocument();
+      fireEvent.click(screen.getByRole("button", { name: "Confirm documents shared" }));
+      expect(await screen.findByText("Documents shared with Qatar BU?")).toBeInTheDocument();
       fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
-      await waitFor(() => expect(screen.queryByText("Share documents with Qatar BU?")).not.toBeInTheDocument());
+      await waitFor(() => expect(screen.queryByText("Documents shared with Qatar BU?")).not.toBeInTheDocument());
       expect(adminWorkflowClient.submitTransition).not.toHaveBeenCalled();
 
-      fireEvent.click(screen.getByRole("button", { name: "Confirm sharing" }));
-      await screen.findByText("Share documents with Qatar BU?");
-      const dialogConfirmButtons = screen.getAllByRole("button", { name: "Confirm sharing" });
+      fireEvent.click(screen.getByRole("button", { name: "Confirm documents shared" }));
+      await screen.findByText("Documents shared with Qatar BU?");
+      const dialogConfirmButtons = screen.getAllByRole("button", { name: "Confirm documents shared" });
       fireEvent.click(dialogConfirmButtons[dialogConfirmButtons.length - 1]);
 
       await waitFor(() => expect(adminWorkflowClient.submitTransition).toHaveBeenCalledTimes(1));
@@ -471,7 +471,7 @@ describe("WorkflowPanel", () => {
           expectedCurrentStageCode: "fee_paid",
         })
       );
-      await waitFor(() => expect(screen.queryByText("Share documents with Qatar BU?")).not.toBeInTheDocument());
+      await waitFor(() => expect(screen.queryByText("Documents shared with Qatar BU?")).not.toBeInTheDocument());
     });
 
     it("submits expected_current_stage_code from the currently-loaded workflow state", async () => {
@@ -483,9 +483,9 @@ describe("WorkflowPanel", () => {
       renderPanel(client);
       await screen.findByText("Documents Shared with Qatar BU");
 
-      fireEvent.click(screen.getByRole("button", { name: "Confirm sharing" }));
-      await screen.findByText("Share documents with Qatar BU?");
-      const dialogConfirmButtons = screen.getAllByRole("button", { name: "Confirm sharing" });
+      fireEvent.click(screen.getByRole("button", { name: "Confirm documents shared" }));
+      await screen.findByText("Documents shared with Qatar BU?");
+      const dialogConfirmButtons = screen.getAllByRole("button", { name: "Confirm documents shared" });
       fireEvent.click(dialogConfirmButtons[dialogConfirmButtons.length - 1]);
 
       await waitFor(() =>
@@ -509,9 +509,9 @@ describe("WorkflowPanel", () => {
       renderPanel(client);
       await screen.findByText("Documents Shared with Qatar BU");
 
-      fireEvent.click(screen.getByRole("button", { name: "Confirm sharing" }));
-      await screen.findByText("Share documents with Qatar BU?");
-      const dialogConfirmButtons = screen.getAllByRole("button", { name: "Confirm sharing" });
+      fireEvent.click(screen.getByRole("button", { name: "Confirm documents shared" }));
+      await screen.findByText("Documents shared with Qatar BU?");
+      const dialogConfirmButtons = screen.getAllByRole("button", { name: "Confirm documents shared" });
       const dialogConfirm = dialogConfirmButtons[dialogConfirmButtons.length - 1];
       fireEvent.click(dialogConfirm);
       fireEvent.click(dialogConfirm);
@@ -530,13 +530,13 @@ describe("WorkflowPanel", () => {
       renderPanel(client);
       await screen.findByText("Documents Shared with Qatar BU");
 
-      fireEvent.click(screen.getByRole("button", { name: "Confirm sharing" }));
-      await screen.findByText("Share documents with Qatar BU?");
-      const firstButtons = screen.getAllByRole("button", { name: "Confirm sharing" });
+      fireEvent.click(screen.getByRole("button", { name: "Confirm documents shared" }));
+      await screen.findByText("Documents shared with Qatar BU?");
+      const firstButtons = screen.getAllByRole("button", { name: "Confirm documents shared" });
       fireEvent.click(firstButtons[firstButtons.length - 1]);
       await waitFor(() => expect(adminWorkflowClient.submitTransition).toHaveBeenCalledTimes(1));
 
-      const retryButtons = screen.getAllByRole("button", { name: "Confirm sharing" });
+      const retryButtons = screen.getAllByRole("button", { name: "Confirm documents shared" });
       fireEvent.click(retryButtons[retryButtons.length - 1]);
       await waitFor(() => expect(adminWorkflowClient.submitTransition).toHaveBeenCalledTimes(2));
 
@@ -558,12 +558,12 @@ describe("WorkflowPanel", () => {
       const stateCallsBefore = adminWorkflowClient.getWorkflowState.mock.calls.length;
       const transitionsCallsBefore = adminWorkflowClient.getAllowedTransitions.mock.calls.length;
 
-      fireEvent.click(screen.getByRole("button", { name: "Confirm sharing" }));
-      await screen.findByText("Share documents with Qatar BU?");
-      const dialogButtons = screen.getAllByRole("button", { name: "Confirm sharing" });
+      fireEvent.click(screen.getByRole("button", { name: "Confirm documents shared" }));
+      await screen.findByText("Documents shared with Qatar BU?");
+      const dialogButtons = screen.getAllByRole("button", { name: "Confirm documents shared" });
       fireEvent.click(dialogButtons[dialogButtons.length - 1]);
 
-      await waitFor(() => expect(screen.queryByText("Share documents with Qatar BU?")).not.toBeInTheDocument());
+      await waitFor(() => expect(screen.queryByText("Documents shared with Qatar BU?")).not.toBeInTheDocument());
       expect(
         await screen.findByText("The workflow changed before this could be applied. Review the updated state below before trying again.")
       ).toBeInTheDocument();
@@ -585,14 +585,14 @@ describe("WorkflowPanel", () => {
       renderPanel(client);
       await screen.findByText("Documents Shared with Qatar BU");
 
-      fireEvent.click(screen.getByRole("button", { name: "Confirm sharing" }));
-      await screen.findByText("Share documents with Qatar BU?");
-      const dialogButtons = screen.getAllByRole("button", { name: "Confirm sharing" });
+      fireEvent.click(screen.getByRole("button", { name: "Confirm documents shared" }));
+      await screen.findByText("Documents shared with Qatar BU?");
+      const dialogButtons = screen.getAllByRole("button", { name: "Confirm documents shared" });
       fireEvent.click(dialogButtons[dialogButtons.length - 1]);
 
       // Prerequisite-missing is treated the same as stale (terminal, refresh + review) --
       // the dialog closes rather than staying open on data the backend just rejected.
-      await waitFor(() => expect(screen.queryByText("Share documents with Qatar BU?")).not.toBeInTheDocument());
+      await waitFor(() => expect(screen.queryByText("Documents shared with Qatar BU?")).not.toBeInTheDocument());
     });
 
     it("shows an idempotency-conflict message inline and keeps the dialog open for a fresh retry", async () => {
@@ -604,13 +604,13 @@ describe("WorkflowPanel", () => {
       renderPanel(client);
       await screen.findByText("Documents Shared with Qatar BU");
 
-      fireEvent.click(screen.getByRole("button", { name: "Confirm sharing" }));
-      await screen.findByText("Share documents with Qatar BU?");
-      const dialogButtons = screen.getAllByRole("button", { name: "Confirm sharing" });
+      fireEvent.click(screen.getByRole("button", { name: "Confirm documents shared" }));
+      await screen.findByText("Documents shared with Qatar BU?");
+      const dialogButtons = screen.getAllByRole("button", { name: "Confirm documents shared" });
       fireEvent.click(dialogButtons[dialogButtons.length - 1]);
 
       expect(await screen.findByText("This request couldn't be repeated safely. Confirm again to make a fresh attempt.")).toBeInTheDocument();
-      expect(screen.getByText("Share documents with Qatar BU?")).toBeInTheDocument();
+      expect(screen.getByText("Documents shared with Qatar BU?")).toBeInTheDocument();
     });
   });
 
@@ -661,7 +661,7 @@ describe("WorkflowPanel", () => {
 
       expect(await screen.findByText("ورک فلو")).toBeInTheDocument();
       expect(screen.getByText("دستیاب تبدیلیاں")).toBeInTheDocument();
-      expect(screen.getByRole("button", { name: "شیئرنگ کی تصدیق کریں" })).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "دستاویزات بھیجنے کی تصدیق کریں" })).toBeInTheDocument();
     });
 
     it("shows the Urdu blocking-reason translation, never a raw backend code", async () => {
@@ -689,7 +689,7 @@ describe("WorkflowPanel", () => {
 
       renderPanel(client);
 
-      const confirmButton = await screen.findByRole("button", { name: "Confirm sharing" });
+      const confirmButton = await screen.findByRole("button", { name: "Confirm documents shared" });
       expect(confirmButton.tagName).toBe("BUTTON");
       confirmButton.focus();
       expect(confirmButton).toHaveFocus();
