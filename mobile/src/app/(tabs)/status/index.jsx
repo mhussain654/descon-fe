@@ -227,7 +227,7 @@ export default function StatusScreen() {
                         ) : null}
                       </View>
                     ) : null}
-                    {FLIGHT_TICKET_STAGE_CODES.has(stage.code) && stage.status !== "pending" && flightDetailQuery.data?.ticketAttached ? (
+                    {FLIGHT_TICKET_STAGE_CODES.has(stage.code) && stage.status === "completed" && flightDetailQuery.data?.ticketAttached ? (
                       <View style={{ marginTop: 8 }}>
                         <Button
                           variant="outline"

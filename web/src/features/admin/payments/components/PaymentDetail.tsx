@@ -132,6 +132,14 @@ export function PaymentDetail({ paymentId }: PaymentDetailProps) {
             <dt className="text-xs text-text-tertiary">{t('adminFinancePaymentExternalReferenceLabel')}</dt>
             <dd className="text-sm text-text-primary">{payment.externalReference || t('adminFinancePaymentExternalReferenceNotSet')}</dd>
           </div>
+          {payment.voucherNumber ? (
+            <div>
+              <dt className="text-xs text-text-tertiary">{t('adminFinancePaymentVoucherNumberLabel')}</dt>
+              <dd className="text-sm text-text-primary" dir="ltr">
+                {payment.voucherNumber}
+              </dd>
+            </div>
+          ) : null}
           <div>
             <dt className="text-xs text-text-tertiary">{t('adminFinancePaymentSubmittedOnLabel')}</dt>
             <dd className="text-sm text-text-primary" dir="ltr">

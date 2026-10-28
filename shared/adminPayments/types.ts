@@ -79,6 +79,8 @@ export interface PaymentSummary {
   currencyCode: string;
   provider: string;
   externalReference?: string;
+  /** KuickPay voucher (consumer) number the candidate paid against; voucher payments only. */
+  voucherNumber?: string;
   reconciliationState: PaymentReconciliationState;
   paidAt?: string;
   createdAt: string;
@@ -100,7 +102,7 @@ export interface PaymentDetail extends PaymentSummary {
  * created_to/reconciliation_state.
  */
 export interface PaymentListFilters {
-  /** Matches candidate full name, assignment reference number, or external_reference (Admin::Payments::IndexQuery#apply_search). */
+  /** Matches candidate full name, assignment reference number, external_reference or voucher_number (Admin::Payments::IndexQuery#apply_search). */
   search?: string;
   status?: AdminPaymentStatus;
   providerCode?: string;
