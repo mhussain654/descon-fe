@@ -5,7 +5,7 @@ import { createMockStaffAuthClient, MOCK_STAFF_ACCOUNTS, MOCK_STAFF_PASSWORD } f
 import { LanguageProvider } from "../../../../contexts/LanguageContext";
 import { StaffAuthProvider } from "../../../../contexts/StaffAuthContext";
 import { adminAiCallOperationalSettingsClient } from "../../../../lib/admin-ai-call-operational-settings-client";
-import { AiCallOperationalSettingsPage } from "./AiCallOperationalSettingsPage";
+import { AiCallOperationalSettingsForm } from "./AiCallOperationalSettingsForm";
 
 vi.mock("../../../../lib/admin-ai-call-operational-settings-client", () => ({
   adminAiCallOperationalSettingsClient: { getAiCallOperationalSettings: vi.fn(), updateAiCallOperationalSettings: vi.fn() },
@@ -26,7 +26,7 @@ function renderPage(client: Awaited<ReturnType<typeof signInAs>>) {
     <QueryClientProvider client={queryClient}>
       <LanguageProvider>
         <StaffAuthProvider client={client}>
-          <AiCallOperationalSettingsPage />
+          <AiCallOperationalSettingsForm />
         </StaffAuthProvider>
       </LanguageProvider>
     </QueryClientProvider>
@@ -47,7 +47,7 @@ function settings(overrides: Record<string, unknown> = {}) {
   };
 }
 
-describe("AiCallOperationalSettingsPage", () => {
+describe("AiCallOperationalSettingsForm", () => {
   afterEach(() => {
     vi.mocked(adminAiCallOperationalSettingsClient.getAiCallOperationalSettings).mockReset();
     vi.mocked(adminAiCallOperationalSettingsClient.updateAiCallOperationalSettings).mockReset();
@@ -60,7 +60,6 @@ describe("AiCallOperationalSettingsPage", () => {
 
     renderPage(client);
 
-    expect(await screen.findByText("AI call settings")).toBeInTheDocument();
     expect(await screen.findByLabelText("Daily outbound call limit")).toHaveValue(null);
   });
 

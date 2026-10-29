@@ -5,7 +5,7 @@ import { createMockStaffAuthClient, MOCK_STAFF_ACCOUNTS, MOCK_STAFF_PASSWORD } f
 import { LanguageProvider } from "../../../../contexts/LanguageContext";
 import { StaffAuthProvider } from "../../../../contexts/StaffAuthContext";
 import { adminSupportSettingClient } from "../../../../lib/admin-support-setting-client";
-import { SupportSettingPage } from "./SupportSettingPage";
+import { SupportSettingForm } from "./SupportSettingForm";
 
 vi.mock("../../../../lib/admin-support-setting-client", () => ({
   adminSupportSettingClient: { getSupportSetting: vi.fn(), updateSupportSetting: vi.fn() },
@@ -26,7 +26,7 @@ function renderPage(client: Awaited<ReturnType<typeof signInAs>>) {
     <QueryClientProvider client={queryClient}>
       <LanguageProvider>
         <StaffAuthProvider client={client}>
-          <SupportSettingPage />
+          <SupportSettingForm />
         </StaffAuthProvider>
       </LanguageProvider>
     </QueryClientProvider>
@@ -42,7 +42,7 @@ function setting(overrides: Record<string, unknown> = {}) {
   };
 }
 
-describe("SupportSettingPage", () => {
+describe("SupportSettingForm", () => {
   afterEach(() => {
     vi.mocked(adminSupportSettingClient.getSupportSetting).mockReset();
     vi.mocked(adminSupportSettingClient.updateSupportSetting).mockReset();
@@ -55,7 +55,6 @@ describe("SupportSettingPage", () => {
 
     renderPage(client);
 
-    expect(await screen.findByText("Help & support")).toBeInTheDocument();
     expect(await screen.findByLabelText(/Support phone number/)).toHaveValue("+923001234567");
   });
 

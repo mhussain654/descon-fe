@@ -205,6 +205,22 @@ describe("StaffUsersPage", () => {
     expect(screen.getByText("Invite staff member")).toBeInTheDocument();
   });
 
+  it("shows a developer account without any action, and never offers the developer role", async () => {
+    staffDirectoryClient.listStaff.mockResolvedValue([
+      ...seedStaff(),
+      { id: "staff_developer_1", email: "developer@descon.com", role: "developer", status: "active", createdAt: "2026-06-01T00:00:00Z" },
+    ]);
+    const client = await signInAs(ADMIN);
+    await renderUsersPage(client);
+
+    const developerRow = tableRowFor("developer@descon.com");
+    expect(within(developerRow).getByText("Developer")).toBeInTheDocument();
+    expect(within(developerRow).queryByRole("button")).not.toBeInTheDocument();
+
+    fireEvent.click(within(tableRowFor("hr@descon.com")).getByRole("button", { name: "Change role" }));
+    expect(screen.queryByRole("option", { name: "Developer" })).not.toBeInTheDocument();
+  });
+
   it("suspends a staff member after explicit confirmation", async () => {
     staffDirectoryClient.listStaff.mockResolvedValue(seedStaff());
     staffDirectoryClient.updateStaffStatus.mockResolvedValue({

@@ -189,7 +189,8 @@ function StaffUsersContent() {
       key: "actions",
       header: t("staffAdminTableActions"),
       render: (member) => {
-        if (member.id === session?.staffId) return null;
+        // A developer account is managed only from the Rails console.
+        if (member.id === session?.staffId || member.role === "developer") return null;
         return (
           <div className="flex flex-wrap gap-2">
             <Button variant="outline" size="sm" onClick={() => openRoleDialog(member)}>

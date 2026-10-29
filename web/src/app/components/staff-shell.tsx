@@ -9,7 +9,6 @@ import {
   FileCheck2,
   FileUp,
   GraduationCap,
-  Headphones,
   History,
   LayoutDashboard,
   LogOut,
@@ -153,6 +152,8 @@ function StaffShellContent({ children }: { children: ReactNode }) {
   // day-to-day workflows (Candidates, Document Reviews, Finance payments,
   // Reports) stay as direct links so the most common actions are never
   // nested under a section.
+  // The whole Communications menu is developer-only (access_communications_menu).
+  const canUseCommunications = hasPermission('access_communications_menu');
   const navEntries: NavEntry[] = [
     {
       type: 'group',
@@ -207,26 +208,20 @@ function StaffShellContent({ children }: { children: ReactNode }) {
         {
           href: '/admin/communications',
           labelKey: 'staffNavCommunications',
-          visible: hasPermission('view_communications') || hasPermission('manage_communications'),
+          visible: canUseCommunications && (hasPermission('view_communications') || hasPermission('manage_communications')),
           icon: MessageSquare,
         },
         {
           href: '/admin/bulk-calls',
           labelKey: 'staffNavBulkCalls',
-          visible: hasPermission('trigger_ai_calls'),
+          visible: canUseCommunications && hasPermission('trigger_ai_calls'),
           icon: PhoneCall,
         },
         {
           href: '/admin/ai-call-scripts',
           labelKey: 'staffNavAiCallScripts',
-          visible: hasPermission('manage_ai_call_scripts'),
+          visible: canUseCommunications && hasPermission('manage_ai_call_scripts'),
           icon: ScrollText,
-        },
-        {
-          href: '/admin/ai-call-settings',
-          labelKey: 'staffNavAiCallSettings',
-          visible: hasPermission('manage_ai_call_settings'),
-          icon: SlidersHorizontal,
         },
       ],
     },
@@ -259,10 +254,15 @@ function StaffShellContent({ children }: { children: ReactNode }) {
           icon: GraduationCap,
         },
         {
-          href: '/admin/support-settings',
-          labelKey: 'staffNavSupport',
-          visible: hasPermission('manage_support_settings'),
-          icon: Headphones,
+          href: '/admin/settings',
+          labelKey: 'staffNavSettings',
+          visible:
+            hasPermission('manage_app_settings') ||
+            hasPermission('view_payments') ||
+            hasPermission('manage_payments') ||
+            hasPermission('manage_support_settings') ||
+            hasPermission('manage_ai_call_settings'),
+          icon: SlidersHorizontal,
         },
         {
           href: '/admin/candidates/import',

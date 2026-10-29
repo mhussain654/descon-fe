@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { AlertTriangle, ChevronDown, CircleDollarSign, CreditCard, SlidersHorizontal, WalletCards } from 'lucide-react';
 import { Link, useSearchParams } from 'react-router';
 import { useLanguage } from '../../../../contexts/LanguageContext';
@@ -62,7 +62,7 @@ const SORT_OPTIONS: { value: PaymentListSort; labelKey: TranslationKey }[] = [
 ];
 
 /** The finance workspace's transaction list: search, filters, sort and pagination, all backed by the URL -- mirrors CandidateListWorkspace.tsx's identical structure. No RequireStaffAuth permission prop on this route (view_payments OR manage_payments) -- gating happens here via the query's own FORBIDDEN state, same as AdminCandidateListPage. */
-export function PaymentTransactionList({ feeSettings }: { feeSettings?: ReactNode }) {
+export function PaymentTransactionList() {
   const { t, language } = useLanguage();
   const { signOut } = useStaffAuth();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -166,7 +166,6 @@ export function PaymentTransactionList({ feeSettings }: { feeSettings?: ReactNod
         </div>
       </div>
 
-      {feeSettings ? <div className="mb-5">{feeSettings}</div> : null}
 
       <PaymentStatusSummaryCard summary={query.data?.summary} t={t} />
 

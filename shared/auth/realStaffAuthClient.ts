@@ -57,7 +57,7 @@ interface UserProfilePayload {
 
 const REFRESH_TOKEN_STORE_KEY = 'descon.staffRefreshToken';
 
-const STAFF_ROLES: readonly StaffRole[] = ['admin', 'hr', 'mps', 'finance', 'management'];
+const STAFF_ROLES: readonly StaffRole[] = ['admin', 'hr', 'mps', 'finance', 'management', 'developer'];
 
 function isStaffRole(value: unknown): value is StaffRole {
   return typeof value === 'string' && (STAFF_ROLES as readonly string[]).includes(value);

@@ -9,7 +9,8 @@
 
 import type { TranslationKey } from '../i18n/translations';
 
-export type StaffRole = 'admin' | 'hr' | 'mps' | 'finance' | 'management';
+/** `developer` is set only from the Rails console -- never offered when inviting or changing a role. */
+export type StaffRole = 'admin' | 'hr' | 'mps' | 'finance' | 'management' | 'developer';
 
 export type StaffStatus = 'active' | 'invited' | 'suspended';
 
@@ -20,6 +21,7 @@ export const STAFF_ROLE_LABEL_KEYS: Record<StaffRole, TranslationKey> = {
   mps: 'staffAdminRoleMps',
   finance: 'staffAdminRoleFinance',
   management: 'staffAdminRoleManagement',
+  developer: 'staffAdminRoleDeveloper',
 };
 
 /**
@@ -36,6 +38,7 @@ export const STAFF_ROLE_RANK: Record<StaffRole, number> = {
   mps: 0,
   finance: 0,
   management: 0,
+  developer: 2,
 };
 
 /**

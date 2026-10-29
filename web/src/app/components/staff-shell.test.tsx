@@ -96,17 +96,19 @@ describe('StaffShell sidebar navigation', () => {
     expect(screen.queryByRole('link', { name: 'Training' })).not.toBeInTheDocument();
   });
 
-  it('shows the Help & support nav link under the Administration section for a staff member with manage_support_settings', async () => {
+  it('shows one Settings nav link, in place of the separate support and call-settings links, to an admin', async () => {
     await renderShellAs(ADMIN);
 
-    expect(await screen.findByRole('link', { name: 'Help & support' })).toHaveAttribute('href', '/admin/support-settings');
+    expect(await screen.findByRole('link', { name: 'Settings' })).toHaveAttribute('href', '/admin/settings');
+    expect(screen.queryByRole('link', { name: 'Help & support' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'AI call settings' })).not.toBeInTheDocument();
   });
 
-  it('never renders the Help & support nav link for a staff member without manage_support_settings', async () => {
+  it('never renders the Settings nav link for a staff member without any settings permission', async () => {
     await renderShellAs(MPS);
 
     expect(await screen.findByText('page content')).toBeInTheDocument();
-    expect(screen.queryByRole('link', { name: 'Help & support' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'Settings' })).not.toBeInTheDocument();
   });
 
   it('shows the Audit log nav link under the Administration section for a staff member with view_audit_events', async () => {
@@ -133,12 +135,26 @@ describe('StaffShell sidebar navigation', () => {
     expect(screen.queryByRole('link', { name: 'AI call settings' })).not.toBeInTheDocument();
   });
 
-  it('shows Bulk calls, Automatic calls and AI call settings to a staff member who holds those permissions', async () => {
-    await renderShellAs(FINANCE, ['/'], ['trigger_ai_calls', 'manage_ai_call_scripts', 'manage_ai_call_settings']);
+  it('hides the whole Communications menu from staff without the developer-only permission', async () => {
+    await renderShellAs(FINANCE, ['/'], ['trigger_ai_calls', 'manage_ai_call_scripts', 'view_communications']);
+
+    expect(await screen.findByText('page content')).toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'Bulk calls' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'Automatic calls' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'Communications' })).not.toBeInTheDocument();
+  });
+
+  it('shows Bulk calls, Automatic calls and Settings to a developer who holds those permissions', async () => {
+    await renderShellAs(FINANCE, ['/'], [
+      'access_communications_menu',
+      'trigger_ai_calls',
+      'manage_ai_call_scripts',
+      'manage_ai_call_settings',
+    ]);
 
     expect(await screen.findByRole('link', { name: 'Bulk calls' })).toHaveAttribute('href', '/admin/bulk-calls');
     expect(screen.getByRole('link', { name: 'Automatic calls' })).toHaveAttribute('href', '/admin/ai-call-scripts');
-    expect(screen.getByRole('link', { name: 'AI call settings' })).toHaveAttribute('href', '/admin/ai-call-settings');
+    expect(screen.getByRole('link', { name: 'Settings' })).toHaveAttribute('href', '/admin/settings');
   });
 
   it('shows the Dashboard nav link under the Dashboards section for a staff member with view_admin_dashboard', async () => {
