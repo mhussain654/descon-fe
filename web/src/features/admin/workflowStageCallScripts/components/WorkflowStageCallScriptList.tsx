@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { Bot, Mic, Radio, ShieldCheck } from 'lucide-react';
+import { Mic, Radio, ShieldCheck } from 'lucide-react';
 import { useLanguage } from '../../../../contexts/LanguageContext';
 import { useStaffAuth } from '../../../../contexts/StaffAuthContext';
 import { Card, EmptyState, ErrorState, ForbiddenState, LoadingState, OfflineState } from '../../../../design-system';
@@ -7,9 +7,8 @@ import { sortByWorkflowStageOrder } from '../../../../../../shared/adminCandidat
 import { useWorkflowStageCallScriptList } from '../hooks/useWorkflowStageCallScriptList';
 import { WorkflowStageCallScriptRow } from './WorkflowStageCallScriptRow';
 
-/** The workflow-stage AI call script list (MPS-708/MPS-F706): a fixed, small set of canonical-stage rows, each editable in place. No RequireStaffAuth permission prop on this route -- gating happens here via the query's own FORBIDDEN state, same as AuditEventList/CommunicationList. */
+/** The workflow-stage automatic call list (MPS-708/MPS-F706), shown as Settings' Automatic call settings tab: a fixed, small set of canonical-stage rows, each editable in place. Gating happens here via the query's own FORBIDDEN state, same as AuditEventList/CommunicationList. */
 export function WorkflowStageCallScriptList() {
-  const { t } = useLanguage();
   const { signOut } = useStaffAuth();
   const query = useWorkflowStageCallScriptList();
 
@@ -21,26 +20,7 @@ export function WorkflowStageCallScriptList() {
     }
   }, [query.error, signOut]);
 
-  return (
-    <div className="mx-auto max-w-[1200px] px-4 py-5 sm:px-6 sm:py-6">
-      <div className="relative mb-5 overflow-hidden rounded-2xl bg-brand shadow-md">
-        <div aria-hidden="true" className="absolute -right-14 -top-20 h-52 w-52 rounded-full border-[28px] border-white/10" />
-        <div aria-hidden="true" className="absolute -bottom-16 right-40 h-36 w-36 rounded-full bg-white/5" />
-        <div className="relative flex items-center gap-4 px-6 py-7 lg:px-8">
-          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-white/15 text-white">
-            <Bot className="h-5 w-5" aria-hidden="true" />
-          </div>
-          <div className="max-w-3xl">
-            <p className="mb-1 text-xs font-semibold uppercase tracking-widest text-white/70">{t('adminWorkflowStageCallScriptEyebrow')}</p>
-            <h1 className="text-2xl font-semibold tracking-tight text-white sm:text-3xl">{t('adminWorkflowStageCallScriptTitle')}</h1>
-            <p className="mt-1 text-sm leading-6 text-white/80">{t('adminWorkflowStageCallScriptSubtitle')}</p>
-          </div>
-        </div>
-      </div>
-
-      <Content query={query} />
-    </div>
-  );
+  return <Content query={query} />;
 }
 
 function Content({ query }: { query: ReturnType<typeof useWorkflowStageCallScriptList> }) {

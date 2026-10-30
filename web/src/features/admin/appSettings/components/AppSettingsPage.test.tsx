@@ -13,6 +13,10 @@ vi.mock("../../supportSetting/components/SupportSettingForm", () => ({ SupportSe
 vi.mock("../../aiCallOperationalSettings/components/AiCallOperationalSettingsForm", () => ({
   AiCallOperationalSettingsForm: () => <p>call limits form</p>,
 }));
+vi.mock("../../bulkCalls/components/CallTypesCard", () => ({ CallTypesCard: () => <p>call types card</p> }));
+vi.mock("../../workflowStageCallScripts/components/WorkflowStageCallScriptList", () => ({
+  WorkflowStageCallScriptList: () => <p>automatic calls list</p>,
+}));
 
 async function renderAs(role: string, path = "/admin/settings") {
   const account = MOCK_STAFF_ACCOUNTS.find((candidate) => candidate.role === role && !candidate.locked && !candidate.suspended)!;
@@ -39,15 +43,20 @@ describe("AppSettingsPage", () => {
 
     expect(await screen.findByRole("tab", { name: "Features" })).toHaveAttribute("aria-selected", "true");
     expect(screen.getByRole("tab", { name: "Support number" })).toBeInTheDocument();
-    expect(screen.getByRole("tab", { name: "Call limits" })).toBeInTheDocument();
+    expect(screen.getByRole("tab", { name: "Automated call limits" })).toBeInTheDocument();
+    expect(screen.getByRole("tab", { name: "Bulk call settings" })).toBeInTheDocument();
+    expect(screen.getByRole("tab", { name: "Automatic call settings" })).toBeInTheDocument();
     expect(screen.getByText("feature switches")).toBeInTheDocument();
   });
 
-  it("does not show an admin the developer-only Features tab", async () => {
+  it("does not show an admin the developer-only Features and call limits tabs", async () => {
     await renderAs("admin");
 
     expect(await screen.findByRole("tab", { name: "Support number" })).toHaveAttribute("aria-selected", "true");
     expect(screen.queryByRole("tab", { name: "Features" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("tab", { name: "Automated call limits" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("tab", { name: "Bulk call settings" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("tab", { name: "Automatic call settings" })).not.toBeInTheDocument();
     expect(screen.queryByText("feature switches")).not.toBeInTheDocument();
   });
 
@@ -56,6 +65,12 @@ describe("AppSettingsPage", () => {
 
     expect(await screen.findByText("support form")).toBeInTheDocument();
     expect(screen.getByRole("tab", { name: "Support number" })).toHaveAttribute("aria-selected", "true");
+  });
+
+  it("opens the automatic calls tab from the old Automatic calls link", async () => {
+    await renderAs("developer", "/admin/settings?tab=automatic-calls");
+
+    expect(await screen.findByText("automatic calls list")).toBeInTheDocument();
   });
 
   it("shows finance only the fee tab", async () => {

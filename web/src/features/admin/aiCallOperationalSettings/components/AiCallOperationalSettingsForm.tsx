@@ -3,27 +3,25 @@ import { useLanguage } from '../../../../contexts/LanguageContext';
 import { useStaffAuth } from '../../../../contexts/StaffAuthContext';
 import { Button, Card, ErrorState, ForbiddenState, HelperText, Input, LoadingState, OfflineState, ValidationMessage } from '../../../../design-system';
 import { formatDate } from '../../../../../../shared/i18n/locale';
-import type { AiCallOperationalSetting } from '../../../../lib/admin-ai-call-operational-settings-client';
+import type { AiCallOperationalKnob, AiCallOperationalSetting } from '../../../../../../shared/adminAiCallOperationalSettings/types';
 import { useAiCallOperationalSettings } from '../hooks/useAiCallOperationalSettings';
 import { useUpdateAiCallOperationalSettings } from '../hooks/useUpdateAiCallOperationalSettings';
 import { Clock3, Gauge, PhoneCall, Save, ShieldCheck } from 'lucide-react';
 
-/** A settings field's controlled string state -- empty string represents "unset" (null server-side, falls back to the ENV default), distinct from any numeric value including 0. */
-type FieldState = Record<
-  'outboundTriggerCooldownMinutes' | 'dailyOutboundCallLimit' | 'adminTriggerRateLimitPerHour' | 'callingHoursStart' | 'callingHoursEnd' | 'maxCallDurationMinutes',
-  string
->;
+const KNOBS: readonly AiCallOperationalKnob[] = [
+  'outboundTriggerCooldownMinutes',
+  'dailyOutboundCallLimit',
+  'adminTriggerRateLimitPerHour',
+  'callingHoursStart',
+  'callingHoursEnd',
+  'maxCallDurationMinutes',
+];
+
+/** Each field's controlled string state. A field opens showing the value in force -- the saved override, or the default when there is none -- and an empty string means "use the default". */
+type FieldState = Record<AiCallOperationalKnob, string>;
 
 function toFieldState(settings: AiCallOperationalSetting): FieldState {
-  const toStr = (value: number | null) => (value === null ? '' : String(value));
-  return {
-    outboundTriggerCooldownMinutes: toStr(settings.outboundTriggerCooldownMinutes),
-    dailyOutboundCallLimit: toStr(settings.dailyOutboundCallLimit),
-    adminTriggerRateLimitPerHour: toStr(settings.adminTriggerRateLimitPerHour),
-    callingHoursStart: toStr(settings.callingHoursStart),
-    callingHoursEnd: toStr(settings.callingHoursEnd),
-    maxCallDurationMinutes: toStr(settings.maxCallDurationMinutes),
-  };
+  return Object.fromEntries(KNOBS.map((knob) => [knob, String(settings[knob] ?? settings.defaults[knob])])) as FieldState;
 }
 
 function toNullableInt(value: string): number | null {
@@ -31,6 +29,12 @@ function toNullableInt(value: string): number | null {
   if (trimmed === '') return null;
   const parsed = Number(trimmed);
   return Number.isFinite(parsed) ? Math.trunc(parsed) : null;
+}
+
+/** The override to save: null (keep following the default) when the field is blank or still equals the default. */
+function toOverride(value: string, defaultValue: number): number | null {
+  const parsed = toNullableInt(value);
+  return parsed === defaultValue ? null : parsed;
 }
 
 /** The AI call rate-limit / calling-hours singleton settings form (MPS-712/MPS-F706). Always directly editable -- unlike WorkflowStageCallScriptRow's per-row view/edit toggle, this page has nothing else to show, so there is no separate "view mode" worth the extra click. */
@@ -77,15 +81,15 @@ export function AiCallOperationalSettingsForm() {
   const setField = (key: keyof FieldState) => (event: React.ChangeEvent<HTMLInputElement>) =>
     setFields((current) => (current ? { ...current, [key]: event.target.value } : current));
 
+  const { defaults } = settings;
+  /** What a knob is in force as right now: the typed value, or its default while the field is blank. */
+  const effective = (knob: AiCallOperationalKnob) => toNullableInt(fields[knob]) ?? defaults[knob];
+  const defaultHint = (knob: AiCallOperationalKnob) => t('adminAiCallSettingsDefaultHint').replace('%{value}', String(defaults[knob]));
+
   const handleSave = () => {
-    mutation.mutate({
-      outboundTriggerCooldownMinutes: toNullableInt(fields.outboundTriggerCooldownMinutes),
-      dailyOutboundCallLimit: toNullableInt(fields.dailyOutboundCallLimit),
-      adminTriggerRateLimitPerHour: toNullableInt(fields.adminTriggerRateLimitPerHour),
-      callingHoursStart: toNullableInt(fields.callingHoursStart),
-      callingHoursEnd: toNullableInt(fields.callingHoursEnd),
-      maxCallDurationMinutes: toNullableInt(fields.maxCallDurationMinutes),
-    });
+    mutation.mutate(
+      Object.fromEntries(KNOBS.map((knob) => [knob, toOverride(fields[knob], defaults[knob])])) as Record<AiCallOperationalKnob, number | null>
+    );
   };
 
   const errorMessage = mutation.isError && mutation.error.code === 'VALIDATION_FAILED' ? mutation.error.message : undefined;
@@ -93,9 +97,9 @@ export function AiCallOperationalSettingsForm() {
   return (
     <div className="space-y-5">
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-        <SettingSummary icon={PhoneCall} label={t('adminAiCallSettingsDailySummary')} value={fields.dailyOutboundCallLimit || t('adminAiCallSettingsDefaultPlaceholder')} className="border-t-brand bg-brand-subtle/45 text-brand" />
-        <SettingSummary icon={Clock3} label={t('adminAiCallSettingsWindowSummary')} value={fields.callingHoursStart && fields.callingHoursEnd ? `${fields.callingHoursStart}:00–${fields.callingHoursEnd}:00` : t('adminAiCallSettingsDefaultPlaceholder')} className="border-t-info bg-info-subtle/55 text-info-emphasis" />
-        <SettingSummary icon={ShieldCheck} label={t('adminAiCallSettingsDurationSummary')} value={fields.maxCallDurationMinutes ? `${fields.maxCallDurationMinutes} ${t('adminAiCallSettingsMinutesShort')}` : t('adminAiCallSettingsDefaultPlaceholder')} className="border-t-success bg-success-subtle/55 text-success-emphasis" />
+        <SettingSummary icon={PhoneCall} label={t('adminAiCallSettingsDailySummary')} value={String(effective('dailyOutboundCallLimit'))} className="border-t-brand bg-brand-subtle/45 text-brand" />
+        <SettingSummary icon={Clock3} label={t('adminAiCallSettingsWindowSummary')} value={`${effective('callingHoursStart')}:00–${effective('callingHoursEnd')}:00`} className="border-t-info bg-info-subtle/55 text-info-emphasis" />
+        <SettingSummary icon={ShieldCheck} label={t('adminAiCallSettingsDurationSummary')} value={`${effective('maxCallDurationMinutes')} ${t('adminAiCallSettingsMinutesShort')}`} className="border-t-success bg-success-subtle/55 text-success-emphasis" />
       </div>
 
       <Card className="p-0 overflow-hidden">
@@ -111,8 +115,8 @@ export function AiCallOperationalSettingsForm() {
             type="number"
             min={0}
             label={t('adminAiCallSettingsCooldownLabel')}
-            placeholder={t('adminAiCallSettingsDefaultPlaceholder')}
-            helperText={t('adminAiCallSettingsDefaultHint')}
+            placeholder={String(defaults.outboundTriggerCooldownMinutes)}
+            helperText={defaultHint('outboundTriggerCooldownMinutes')}
             value={fields.outboundTriggerCooldownMinutes}
             onChange={setField('outboundTriggerCooldownMinutes')}
           />
@@ -120,8 +124,8 @@ export function AiCallOperationalSettingsForm() {
             type="number"
             min={0}
             label={t('adminAiCallSettingsDailyLimitLabel')}
-            placeholder={t('adminAiCallSettingsDefaultPlaceholder')}
-            helperText={t('adminAiCallSettingsDefaultHint')}
+            placeholder={String(defaults.dailyOutboundCallLimit)}
+            helperText={defaultHint('dailyOutboundCallLimit')}
             value={fields.dailyOutboundCallLimit}
             onChange={setField('dailyOutboundCallLimit')}
           />
@@ -129,8 +133,8 @@ export function AiCallOperationalSettingsForm() {
             type="number"
             min={0}
             label={t('adminAiCallSettingsAdminRateLimitLabel')}
-            placeholder={t('adminAiCallSettingsDefaultPlaceholder')}
-            helperText={t('adminAiCallSettingsDefaultHint')}
+            placeholder={String(defaults.adminTriggerRateLimitPerHour)}
+            helperText={defaultHint('adminTriggerRateLimitPerHour')}
             value={fields.adminTriggerRateLimitPerHour}
             onChange={setField('adminTriggerRateLimitPerHour')}
           />
@@ -138,8 +142,8 @@ export function AiCallOperationalSettingsForm() {
             type="number"
             min={0}
             label={t('adminAiCallSettingsMaxDurationLabel')}
-            placeholder={t('adminAiCallSettingsDefaultPlaceholder')}
-            helperText={t('adminAiCallSettingsDefaultHint')}
+            placeholder={String(defaults.maxCallDurationMinutes)}
+            helperText={defaultHint('maxCallDurationMinutes')}
             value={fields.maxCallDurationMinutes}
             onChange={setField('maxCallDurationMinutes')}
           />
@@ -160,8 +164,8 @@ export function AiCallOperationalSettingsForm() {
             min={0}
             max={23}
             label={t('adminAiCallSettingsCallingHoursStartLabel')}
-            placeholder={t('adminAiCallSettingsDefaultPlaceholder')}
-            helperText={t('adminAiCallSettingsDefaultHint')}
+            placeholder={String(defaults.callingHoursStart)}
+            helperText={defaultHint('callingHoursStart')}
             value={fields.callingHoursStart}
             onChange={setField('callingHoursStart')}
           />
@@ -170,8 +174,8 @@ export function AiCallOperationalSettingsForm() {
             min={0}
             max={23}
             label={t('adminAiCallSettingsCallingHoursEndLabel')}
-            placeholder={t('adminAiCallSettingsDefaultPlaceholder')}
-            helperText={t('adminAiCallSettingsDefaultHint')}
+            placeholder={String(defaults.callingHoursEnd)}
+            helperText={defaultHint('callingHoursEnd')}
             value={fields.callingHoursEnd}
             onChange={setField('callingHoursEnd')}
           />

@@ -2,9 +2,8 @@ import { Phone } from 'lucide-react';
 import { useLanguage } from '../../../../contexts/LanguageContext';
 import { BulkCallBatchList } from './BulkCallBatchList';
 import { BulkCallPlanner } from './BulkCallPlanner';
-import { CallTypesCard } from './CallTypesCard';
 
-/** The bulk-call page: call types, then the planner (stage + call type -> who is left -> start a batch), then recent batches. Reading and starting need `trigger_ai_calls`; each section shows its own forbidden state without it. */
+/** The bulk-call page: the planner (stage + call type -> who is left -> start a batch), then recent batches. Reading and starting need `trigger_ai_calls`; each section shows its own forbidden state without it. Setting up the call types lives in Settings (Bulk call settings). */
 export function BulkCallPage() {
   const { t } = useLanguage();
 
@@ -25,7 +24,6 @@ export function BulkCallPage() {
         </div>
       </div>
 
-      <CallTypesCard />
       <BulkCallPlanner />
       <BulkCallBatchList />
     </div>

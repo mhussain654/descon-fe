@@ -135,26 +135,24 @@ describe('StaffShell sidebar navigation', () => {
     expect(screen.queryByRole('link', { name: 'AI call settings' })).not.toBeInTheDocument();
   });
 
-  it('hides the whole Communications menu from staff without the developer-only permission', async () => {
-    await renderShellAs(FINANCE, ['/'], ['trigger_ai_calls', 'manage_ai_call_scripts', 'view_communications']);
+  it('shows the read-only Communications log to every staff member, even one with no communications permission', async () => {
+    await renderShellAs(FINANCE);
 
-    expect(await screen.findByText('page content')).toBeInTheDocument();
-    expect(screen.queryByRole('link', { name: 'Bulk calls' })).not.toBeInTheDocument();
-    expect(screen.queryByRole('link', { name: 'Automatic calls' })).not.toBeInTheDocument();
-    expect(screen.queryByRole('link', { name: 'Communications' })).not.toBeInTheDocument();
+    expect(await screen.findByRole('link', { name: 'Communications' })).toHaveAttribute('href', '/admin/communications');
   });
 
-  it('shows Bulk calls, Automatic calls and Settings to a developer who holds those permissions', async () => {
-    await renderShellAs(FINANCE, ['/'], [
-      'access_communications_menu',
-      'trigger_ai_calls',
-      'manage_ai_call_scripts',
-      'manage_ai_call_settings',
-    ]);
+  it('shows Bulk calls to any staff member who can place calls, without the developer-only permission', async () => {
+    await renderShellAs(FINANCE, ['/'], ['trigger_ai_calls']);
 
     expect(await screen.findByRole('link', { name: 'Bulk calls' })).toHaveAttribute('href', '/admin/bulk-calls');
-    expect(screen.getByRole('link', { name: 'Automatic calls' })).toHaveAttribute('href', '/admin/ai-call-scripts');
-    expect(screen.getByRole('link', { name: 'Settings' })).toHaveAttribute('href', '/admin/settings');
+    expect(screen.queryByRole('link', { name: 'Automatic calls' })).not.toBeInTheDocument();
+  });
+
+  it('shows Settings to a developer, where the call set-up now lives, and no separate Automatic calls link', async () => {
+    await renderShellAs(FINANCE, ['/'], ['access_communications_menu', 'manage_ai_call_scripts']);
+
+    expect(await screen.findByRole('link', { name: 'Settings' })).toHaveAttribute('href', '/admin/settings');
+    expect(screen.queryByRole('link', { name: 'Automatic calls' })).not.toBeInTheDocument();
   });
 
   it('shows the Dashboard nav link under the Dashboards section for a staff member with view_admin_dashboard', async () => {

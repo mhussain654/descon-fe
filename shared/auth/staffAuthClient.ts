@@ -36,7 +36,6 @@ export const MOCK_STAFF_ACCOUNTS: MockStaffAccount[] = [
       'manage_candidate_documents',
       'view_admin_dashboard',
       'manage_backups',
-      'manage_ai_call_settings',
       'manage_training_settings',
       'manage_support_settings',
     ],

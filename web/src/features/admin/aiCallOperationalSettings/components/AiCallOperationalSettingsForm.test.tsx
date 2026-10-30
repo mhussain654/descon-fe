@@ -11,7 +11,7 @@ vi.mock("../../../../lib/admin-ai-call-operational-settings-client", () => ({
   adminAiCallOperationalSettingsClient: { getAiCallOperationalSettings: vi.fn(), updateAiCallOperationalSettings: vi.fn() },
 }));
 
-const ADMIN = MOCK_STAFF_ACCOUNTS.find((account) => account.role === "admin")!;
+const ADMIN = MOCK_STAFF_ACCOUNTS.find((account) => account.role === "developer")!;
 const HR = MOCK_STAFF_ACCOUNTS.find((account) => account.role === "hr" && !account.locked && !account.suspended)!;
 
 async function signInAs(account: { email: string }) {
@@ -41,6 +41,14 @@ function settings(overrides: Record<string, unknown> = {}) {
     callingHoursStart: null,
     callingHoursEnd: null,
     maxCallDurationMinutes: null,
+    defaults: {
+      outboundTriggerCooldownMinutes: 15,
+      dailyOutboundCallLimit: 1000,
+      adminTriggerRateLimitPerHour: 50,
+      callingHoursStart: 9,
+      callingHoursEnd: 19,
+      maxCallDurationMinutes: 15,
+    },
     updatedBy: undefined,
     updatedAt: "2026-09-11T09:00:00Z",
     ...overrides,
@@ -54,29 +62,18 @@ describe("AiCallOperationalSettingsForm", () => {
     sessionStorage.clear();
   });
 
-  it("renders every field blank when no overrides are set", async () => {
+  it("shows each default value in its field when no overrides are set", async () => {
     adminAiCallOperationalSettingsClient.getAiCallOperationalSettings.mockResolvedValue(settings());
     const client = await signInAs(ADMIN);
 
     renderPage(client);
 
-    expect(await screen.findByLabelText("Daily outbound call limit")).toHaveValue(null);
-  });
-
-  it("describes a blank field's fallback generically, without claiming a specific number as the effective default", async () => {
-    adminAiCallOperationalSettingsClient.getAiCallOperationalSettings.mockResolvedValue(settings());
-    const client = await signInAs(ADMIN);
-
-    renderPage(client);
-
-    const dailyLimitField = await screen.findByLabelText("Daily outbound call limit");
-    expect(dailyLimitField).toHaveAttribute("placeholder", "Platform default");
-    expect(
-      screen.getAllByText("If left blank, this falls back to a platform-configured default, which may vary by environment.").length
-    ).toBeGreaterThan(0);
-    // No component-level constant should be asserting a specific number is
-    // "the" platform default -- a real ENV override could make that wrong.
-    expect(screen.queryByText(/Platform default: \d/)).not.toBeInTheDocument();
+    expect(await screen.findByLabelText("Daily outbound call limit")).toHaveValue(1000);
+    expect(screen.getByLabelText("Outbound trigger cooldown (minutes)")).toHaveValue(15);
+    expect(screen.getByLabelText("Calling hours start (0-23)")).toHaveValue(9);
+    expect(screen.getByText("Default: 1000. Clear the field to go back to the default.")).toBeInTheDocument();
+    expect(screen.getByText("9:00–19:00")).toBeInTheDocument();
+    expect(screen.queryByText("Platform default")).not.toBeInTheDocument();
   });
 
   it("renders existing overrides in their fields", async () => {
@@ -100,7 +97,7 @@ describe("AiCallOperationalSettingsForm", () => {
     expect(await screen.findByText("Access restricted")).toBeInTheDocument();
   });
 
-  it("saves an edited value, sending null for every untouched blank field", async () => {
+  it("saves an edited value, sending null for every field still at its default", async () => {
     adminAiCallOperationalSettingsClient.getAiCallOperationalSettings.mockResolvedValue(settings());
     adminAiCallOperationalSettingsClient.updateAiCallOperationalSettings.mockResolvedValue(settings({ dailyOutboundCallLimit: 50 }));
     const client = await signInAs(ADMIN);

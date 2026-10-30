@@ -83,12 +83,14 @@ export function ApplicationProgressCard({
 const styles = StyleSheet.create({
   card: { borderTopWidth: 4, borderTopColor: '#19C6E8' },
   row: { alignItems: 'center', justifyContent: 'space-between', gap: spacing[3] },
-  titleGroup: { flex: 1, alignItems: 'center', gap: spacing[3] },
+  // The title keeps its natural width; a long stage label wraps inside the badge
+  // instead of squeezing "My Journey" into a broken column.
+  titleGroup: { flexShrink: 0, alignItems: 'center', gap: spacing[3] },
   iconBox: { width: 40, height: 40, borderRadius: 12, alignItems: 'center', justifyContent: 'center', backgroundColor: '#E8F1FF' },
-  title: { flexShrink: 1, fontSize: 18, color: colors.text.primary },
+  title: { fontSize: 18, color: colors.text.primary },
   titleUrdu: { fontSize: 17, lineHeight: 34 },
-  badge: { borderRadius: 999, paddingHorizontal: 10, paddingVertical: 4, backgroundColor: '#FFF1D8' },
-  badgeText: { fontSize: 11, color: '#C36A00' },
+  badge: { flexShrink: 1, borderRadius: 14, paddingHorizontal: 10, paddingVertical: 4, backgroundColor: '#FFF1D8' },
+  badgeText: { fontSize: 11, color: '#C36A00', textAlign: 'center' },
   badgeTextUrdu: { lineHeight: 24 },
   metaRow: { marginTop: spacing[3] },
   meta: { flexShrink: 1, fontSize: 13, color: colors.text.primary },

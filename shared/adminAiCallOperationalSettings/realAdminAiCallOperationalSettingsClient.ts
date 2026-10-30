@@ -31,6 +31,14 @@ interface AiCallOperationalSettingResponse {
   calling_hours_start: number | null;
   calling_hours_end: number | null;
   max_call_duration_minutes: number | null;
+  defaults: {
+    outbound_trigger_cooldown_minutes: number;
+    daily_outbound_call_limit: number;
+    admin_trigger_rate_limit_per_hour: number;
+    calling_hours_start: number;
+    calling_hours_end: number;
+    max_call_duration_minutes: number;
+  };
   updated_by: AiCallOperationalSettingActorResponse | null;
   updated_at: string;
 }
@@ -54,6 +62,14 @@ function toAiCallOperationalSetting(data: AiCallOperationalSettingResponse): AiC
     callingHoursStart: data.calling_hours_start,
     callingHoursEnd: data.calling_hours_end,
     maxCallDurationMinutes: data.max_call_duration_minutes,
+    defaults: {
+      outboundTriggerCooldownMinutes: data.defaults.outbound_trigger_cooldown_minutes,
+      dailyOutboundCallLimit: data.defaults.daily_outbound_call_limit,
+      adminTriggerRateLimitPerHour: data.defaults.admin_trigger_rate_limit_per_hour,
+      callingHoursStart: data.defaults.calling_hours_start,
+      callingHoursEnd: data.defaults.calling_hours_end,
+      maxCallDurationMinutes: data.defaults.max_call_duration_minutes,
+    },
     updatedBy: toActorRef(data.updated_by),
     updatedAt: data.updated_at,
   };

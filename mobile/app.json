@@ -4,7 +4,10 @@
     "slug": "descon-mps",
     "version": "1.0.0",
     "orientation": "portrait",
-    "platforms": ["ios", "android"],
+    "platforms": [
+      "ios",
+      "android"
+    ],
     "icon": "./assets/images/icon.png",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
@@ -20,7 +23,10 @@
         "foregroundImage": "./assets/images/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
-      "package": "com.descon.manpower"
+      "package": "com.descon.manpower",
+      "permissions": [
+        "android.permission.RECORD_AUDIO"
+      ]
     },
     "plugins": [
       [
@@ -66,10 +72,10 @@
         "sitemap": false
       },
       "eas": {
-        "projectId": "33f621ae-0512-4815-b90a-8e8af6df0c87"
+        "projectId": "474d262d-6327-4b8d-9fae-1bef8423ba70"
       },
       "contactEmail": "info.mps@descon.com"
     },
-    "owner": "descon-mps"
+    "owner": "mhussain654"
   }
 }

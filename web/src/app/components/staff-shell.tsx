@@ -18,7 +18,6 @@ import {
   PanelLeftClose,
   PanelLeftOpen,
   PhoneCall,
-  ScrollText,
   SlidersHorizontal,
   Sun,
   TrendingUp,
@@ -152,8 +151,6 @@ function StaffShellContent({ children }: { children: ReactNode }) {
   // day-to-day workflows (Candidates, Document Reviews, Finance payments,
   // Reports) stay as direct links so the most common actions are never
   // nested under a section.
-  // The whole Communications menu is developer-only (access_communications_menu).
-  const canUseCommunications = hasPermission('access_communications_menu');
   const navEntries: NavEntry[] = [
     {
       type: 'group',
@@ -208,20 +205,14 @@ function StaffShellContent({ children }: { children: ReactNode }) {
         {
           href: '/admin/communications',
           labelKey: 'staffNavCommunications',
-          visible: canUseCommunications && (hasPermission('view_communications') || hasPermission('manage_communications')),
+          visible: true,
           icon: MessageSquare,
         },
         {
           href: '/admin/bulk-calls',
           labelKey: 'staffNavBulkCalls',
-          visible: canUseCommunications && hasPermission('trigger_ai_calls'),
+          visible: hasPermission('trigger_ai_calls'),
           icon: PhoneCall,
-        },
-        {
-          href: '/admin/ai-call-scripts',
-          labelKey: 'staffNavAiCallScripts',
-          visible: canUseCommunications && hasPermission('manage_ai_call_scripts'),
-          icon: ScrollText,
         },
       ],
     },
@@ -261,7 +252,8 @@ function StaffShellContent({ children }: { children: ReactNode }) {
             hasPermission('view_payments') ||
             hasPermission('manage_payments') ||
             hasPermission('manage_support_settings') ||
-            hasPermission('manage_ai_call_settings'),
+            hasPermission('manage_ai_call_settings') ||
+            hasPermission('access_communications_menu'),
           icon: SlidersHorizontal,
         },
         {

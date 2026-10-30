@@ -15,6 +15,14 @@ export interface AiCallOperationalSettingActorRef {
   role: string;
 }
 
+export type AiCallOperationalKnob =
+  | 'outboundTriggerCooldownMinutes'
+  | 'dailyOutboundCallLimit'
+  | 'adminTriggerRateLimitPerHour'
+  | 'callingHoursStart'
+  | 'callingHoursEnd'
+  | 'maxCallDurationMinutes';
+
 export interface AiCallOperationalSetting {
   outboundTriggerCooldownMinutes: number | null;
   dailyOutboundCallLimit: number | null;
@@ -22,6 +30,8 @@ export interface AiCallOperationalSetting {
   callingHoursStart: number | null;
   callingHoursEnd: number | null;
   maxCallDurationMinutes: number | null;
+  /** The value each knob uses while its own field is null. */
+  defaults: Record<AiCallOperationalKnob, number>;
   updatedBy?: AiCallOperationalSettingActorRef;
   updatedAt: string;
 }

@@ -7,11 +7,13 @@ import { useStaffAuth } from '../../../../contexts/StaffAuthContext';
 import { ForbiddenState } from '../../../../design-system';
 import type { TranslationKey } from '../../../../../../shared/i18n/translations';
 import { AiCallOperationalSettingsForm } from '../../aiCallOperationalSettings/components/AiCallOperationalSettingsForm';
+import { CallTypesCard } from '../../bulkCalls/components/CallTypesCard';
 import { FeeSettingsCard } from '../../payments/components/FeeSettingsCard';
 import { SupportSettingForm } from '../../supportSetting/components/SupportSettingForm';
+import { WorkflowStageCallScriptList } from '../../workflowStageCallScripts/components/WorkflowStageCallScriptList';
 import { AppFeatureSettingsForm } from './AppFeatureSettingsForm';
 
-export type AppSettingsTab = 'features' | 'fee' | 'support' | 'calls';
+export type AppSettingsTab = 'features' | 'fee' | 'support' | 'calls' | 'bulk-calls' | 'automatic-calls';
 
 interface TabDefinition {
   id: AppSettingsTab;
@@ -29,6 +31,8 @@ interface TabDefinition {
 export function AppSettingsPage() {
   const { t, language } = useLanguage();
   const { hasPermission } = useStaffAuth();
+  // Setting up calls (bulk call types, automatic calls) is developer-only.
+  const canSetUpCalls = hasPermission('access_communications_menu') && hasPermission('manage_ai_call_scripts');
   const [searchParams, setSearchParams] = useSearchParams();
   const tabRefs = useRef<(HTMLButtonElement | null)[]>([]);
 
@@ -42,6 +46,8 @@ export function AppSettingsPage() {
     },
     { id: 'support', labelKey: 'adminAppSettingsTabSupport', visible: hasPermission('manage_support_settings'), render: () => <SupportSettingForm /> },
     { id: 'calls', labelKey: 'adminAppSettingsTabCalls', visible: hasPermission('manage_ai_call_settings'), render: () => <AiCallOperationalSettingsForm /> },
+    { id: 'bulk-calls', labelKey: 'adminAppSettingsTabBulkCalls', visible: canSetUpCalls, render: () => <CallTypesCard /> },
+    { id: 'automatic-calls', labelKey: 'adminAppSettingsTabAutomaticCalls', visible: canSetUpCalls, render: () => <WorkflowStageCallScriptList /> },
   ].filter((tab) => tab.visible) as TabDefinition[];
 
   const requested = searchParams.get('tab');
