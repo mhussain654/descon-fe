@@ -2,6 +2,8 @@
 // openapi.yaml:
 //   GET   /api/v1/admin/app_feature_setting
 //   PATCH /api/v1/admin/app_feature_setting
+//   GET   /api/v1/admin/sms_templates
+//   PATCH /api/v1/admin/sms_templates/{message_code}
 //
 // Same request and error handling as realAdminSupportSettingClient.ts: through
 // StaffAuthClient.authenticatedDataRequest so a 422 reaches the caller intact,
@@ -17,6 +19,8 @@ import {
   type AdminAppSettingsErrorCode,
   type AdminAppSettingsUpdateInput,
   type AppFeatureSwitch,
+  type SmsTemplate,
+  type SmsTemplateUpdateInput,
 } from './types';
 
 const SWITCH_FIELDS: Record<AppFeatureSwitch, string> = {
@@ -29,7 +33,6 @@ const SWITCH_FIELDS: Record<AppFeatureSwitch, string> = {
 };
 
 type AdminAppSettingsResponse = Record<string, unknown> & {
-  sms_messages: { code: string; enabled: boolean; template_ready: boolean }[];
   server_ready: Record<string, boolean>;
   updated_by: { id: string; role: string } | null;
   updated_at: string;
@@ -52,11 +55,6 @@ export function toAdminAppSettings(data: AdminAppSettingsResponse): AdminAppSett
   return {
     enabled: switchMap((field) => data[`${field}_enabled`]),
     serverReady: switchMap((field) => data.server_ready?.[field]),
-    smsMessages: (data.sms_messages ?? []).map((message) => ({
-      code: message.code,
-      enabled: message.enabled === true,
-      templateReady: message.template_ready === true,
-    })),
     updatedBy: data.updated_by ? { id: data.updated_by.id, role: data.updated_by.role } : undefined,
     updatedAt: data.updated_at,
   };
@@ -68,8 +66,40 @@ function toRequestBody(input: AdminAppSettingsUpdateInput): Record<string, unkno
     const value = input.enabled[key];
     if (value !== undefined) body[`${SWITCH_FIELDS[key]}_enabled`] = value;
   }
-  if (input.disabledSmsMessages) body.disabled_sms_messages = input.disabledSmsMessages;
   return { app_feature_setting: body };
+}
+
+interface SmsTemplateResponse {
+  message_code: string;
+  template_id_en: string | null;
+  template_id_ur: string | null;
+  enabled: boolean;
+  can_disable: boolean;
+  variables: string[];
+  updated_by: { id: string; role: string } | null;
+  updated_at: string;
+}
+
+export function toSmsTemplate(data: SmsTemplateResponse): SmsTemplate {
+  return {
+    messageCode: data.message_code,
+    templateIdEn: data.template_id_en ?? null,
+    templateIdUr: data.template_id_ur ?? null,
+    enabled: data.enabled === true,
+    canDisable: data.can_disable === true,
+    variables: data.variables ?? [],
+    updatedBy: data.updated_by ? { id: data.updated_by.id, role: data.updated_by.role } : undefined,
+    updatedAt: data.updated_at,
+  };
+}
+
+/** A blank id is sent as an empty string, which the backend stores as unset. */
+function toSmsTemplateRequestBody(input: SmsTemplateUpdateInput): Record<string, unknown> {
+  const body: Record<string, unknown> = {};
+  if (input.templateIdEn !== undefined) body.template_id_en = input.templateIdEn.trim();
+  if (input.templateIdUr !== undefined) body.template_id_ur = input.templateIdUr.trim();
+  if (input.enabled !== undefined) body.enabled = input.enabled;
+  return { sms_template: body };
 }
 
 /** A StaffAuthError (from authenticatedDataRequest's own 401 refresh-and-retry path) has no `status`. */
@@ -127,6 +157,36 @@ export function createAdminAppSettingsClient(options: RealAdminAppSettingsClient
         );
         if (!data) throw { code: 'UNKNOWN' } satisfies AdminAppSettingsError;
         return toAdminAppSettings(data);
+      } catch (error) {
+        throw toSettingsError(error);
+      }
+    },
+
+    async listSmsTemplates(): Promise<SmsTemplate[]> {
+      try {
+        const data = await staffAuthClient.authenticatedDataRequest((token) =>
+          apiClient.get<SmsTemplateResponse[]>('/admin/sms_templates', {
+            headers: { Authorization: `Bearer ${token}`, 'X-Locale': getLocale() },
+          })
+        );
+        if (!data) throw { code: 'UNKNOWN' } satisfies AdminAppSettingsError;
+        return data.map(toSmsTemplate);
+      } catch (error) {
+        throw toSettingsError(error);
+      }
+    },
+
+    async updateSmsTemplate(messageCode: string, input: SmsTemplateUpdateInput): Promise<SmsTemplate> {
+      try {
+        const data = await staffAuthClient.authenticatedDataRequest((token) =>
+          apiClient.patch<SmsTemplateResponse>(
+            `/admin/sms_templates/${encodeURIComponent(messageCode)}`,
+            toSmsTemplateRequestBody(input),
+            { headers: { Authorization: `Bearer ${token}`, 'X-Locale': getLocale() } }
+          )
+        );
+        if (!data) throw { code: 'UNKNOWN' } satisfies AdminAppSettingsError;
+        return toSmsTemplate(data);
       } catch (error) {
         throw toSettingsError(error);
       }

@@ -1,11 +1,14 @@
-// Admin App Settings feature switches, wired to the real backend documented in
-// descon-be's openapi.yaml:
+// Admin App Settings feature switches and SMS messages, wired to the real
+// backend documented in descon-be's openapi.yaml:
 //   GET   /api/v1/admin/app_feature_setting
 //   PATCH /api/v1/admin/app_feature_setting
+//   GET   /api/v1/admin/sms_templates
+//   PATCH /api/v1/admin/sms_templates/{message_code}
 //
-// Singleton show+update only. A feature runs only when its switch is on AND
-// the server is set up for it (`serverReady`), so the page can explain why a
-// switch that is on still does nothing.
+// The feature switches are a singleton. A feature runs only when its switch is
+// on AND the server is set up for it (`serverReady`), so the page can explain
+// why a switch that is on still does nothing. Each SMS message (the OTP and
+// every progress SMS) has its own send.pk template ids and on/off switch.
 //
 // Web-only (AGENTS.md: "administrative workflows remain web-focused").
 
@@ -31,26 +34,36 @@ export interface AppSettingsActorRef {
   role: string;
 }
 
-export interface AppSmsMessageSetting {
-  /** Backend message code, e.g. `registered`, `fee_pending`. */
-  code: string;
-  enabled: boolean;
-  /** Its send.pk template id is set on the server. */
-  templateReady: boolean;
-}
-
 export interface AdminAppSettings {
   enabled: Record<AppFeatureSwitch, boolean>;
   serverReady: Record<AppFeatureSwitch, boolean>;
-  smsMessages: AppSmsMessageSetting[];
   updatedBy?: AppSettingsActorRef;
   updatedAt: string;
 }
 
 export interface AdminAppSettingsUpdateInput {
   enabled: Partial<Record<AppFeatureSwitch, boolean>>;
-  /** Message codes switched off; omit to leave them unchanged. */
-  disabledSmsMessages?: string[];
+}
+
+export interface SmsTemplate {
+  /** Backend message code, e.g. `otp`, `fee_pending`. */
+  messageCode: string;
+  /** send.pk template ids; null when not set (a message with no English id is not sent). */
+  templateIdEn: string | null;
+  templateIdUr: string | null;
+  enabled: boolean;
+  /** False for the OTP: switching it off would stop candidates logging in. */
+  canDisable: boolean;
+  /** The values the message sends, which its send.pk template must use. */
+  variables: string[];
+  updatedBy?: AppSettingsActorRef;
+  updatedAt: string;
+}
+
+export interface SmsTemplateUpdateInput {
+  templateIdEn?: string;
+  templateIdUr?: string;
+  enabled?: boolean;
 }
 
 export type AdminAppSettingsErrorCode =
@@ -73,4 +86,6 @@ export interface AdminAppSettingsError {
 export interface AdminAppSettingsClient {
   getAppSettings(): Promise<AdminAppSettings>;
   updateAppSettings(input: AdminAppSettingsUpdateInput): Promise<AdminAppSettings>;
+  listSmsTemplates(): Promise<SmsTemplate[]>;
+  updateSmsTemplate(messageCode: string, input: SmsTemplateUpdateInput): Promise<SmsTemplate>;
 }

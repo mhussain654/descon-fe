@@ -12,7 +12,6 @@ import type { LucideIcon } from 'lucide-react';
 
 interface Draft {
   enabled: Record<AppFeatureSwitch, boolean>;
-  disabledSmsMessages: string[];
 }
 
 const SECTIONS: { titleKey: TranslationKey; icon: LucideIcon; switches: AppFeatureSwitch[] }[] = [
@@ -23,19 +22,11 @@ const SECTIONS: { titleKey: TranslationKey; icon: LucideIcon; switches: AppFeatu
 ];
 
 function draftFrom(settings: AdminAppSettings): Draft {
-  return {
-    enabled: { ...settings.enabled },
-    disabledSmsMessages: settings.smsMessages.filter((message) => !message.enabled).map((message) => message.code),
-  };
+  return { enabled: { ...settings.enabled } };
 }
 
 function switchKey(name: AppFeatureSwitch, part: 'Label' | 'Description'): TranslationKey {
   return `adminAppSettings${name.charAt(0).toUpperCase()}${name.slice(1)}${part}` as TranslationKey;
-}
-
-function smsMessageKey(code: string): TranslationKey {
-  const camel = code.replace(/_([a-z])/g, (_, letter: string) => letter.toUpperCase());
-  return `adminAppSettingsSms${camel.charAt(0).toUpperCase()}${camel.slice(1)}` as TranslationKey;
 }
 
 interface ToggleRowProps {
@@ -43,13 +34,12 @@ interface ToggleRowProps {
   label: string;
   description?: string;
   checked: boolean;
-  disabled?: boolean;
   notice?: string;
   onChange: (checked: boolean) => void;
 }
 
 /** One labelled on/off switch; `notice` explains why an "on" switch may still do nothing. */
-function ToggleRow({ id, label, description, checked, disabled = false, notice, onChange }: ToggleRowProps) {
+function ToggleRow({ id, label, description, checked, notice, onChange }: ToggleRowProps) {
   const { t } = useLanguage();
 
   return (
@@ -65,9 +55,8 @@ function ToggleRow({ id, label, description, checked, disabled = false, notice, 
         aria-checked={checked}
         aria-labelledby={`${id}-label`}
         aria-describedby={description ? `${id}-description` : undefined}
-        disabled={disabled}
         onClick={() => onChange(!checked)}
-        className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 ${checked ? 'bg-brand' : 'bg-border'}`}
+        className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${checked ? 'bg-brand' : 'bg-border'}`}
       >
         <span className="sr-only">{checked ? t('adminAppSettingsOn') : t('adminAppSettingsOff')}</span>
         <span
@@ -79,7 +68,7 @@ function ToggleRow({ id, label, description, checked, disabled = false, notice, 
   );
 }
 
-/** The App Settings feature switches: payments, progress SMS (all and per message), calls and document auto-read. */
+/** The App Settings feature switches: payments, progress SMS, calls and document auto-read. Single SMS messages are on the SMS settings tab. */
 export function AppFeatureSettingsForm() {
   const { t, language } = useLanguage();
   const { signOut } = useStaffAuth();
@@ -114,13 +103,6 @@ export function AppFeatureSettingsForm() {
   const settings = query.data;
   const setSwitch = (name: AppFeatureSwitch, value: boolean) =>
     setDraft({ ...draft, enabled: { ...draft.enabled, [name]: value } });
-  const setSmsMessage = (code: string, value: boolean) =>
-    setDraft({
-      ...draft,
-      disabledSmsMessages: value
-        ? draft.disabledSmsMessages.filter((disabled) => disabled !== code)
-        : [...draft.disabledSmsMessages, code],
-    });
   const errorMessage = mutation.isError ? mutation.error.message || t('somethingWentWrong') : undefined;
 
   return (
@@ -145,24 +127,6 @@ export function AppFeatureSettingsForm() {
                 />
               ))}
             </div>
-            {switches.includes('progressSms') ? (
-              <div className="mt-2 rounded-xl border border-border-subtle bg-surface-sunken px-4">
-                <p className="pt-3 text-xs font-semibold uppercase tracking-wide text-text-secondary">{t('adminAppSettingsSmsMessagesHeading')}</p>
-                <div className="divide-y divide-border-subtle">
-                  {settings.smsMessages.map((message) => (
-                    <ToggleRow
-                      key={message.code}
-                      id={`app-setting-sms-${message.code}`}
-                      label={t(smsMessageKey(message.code))}
-                      checked={!draft.disabledSmsMessages.includes(message.code)}
-                      disabled={!draft.enabled.progressSms}
-                      notice={message.templateReady ? undefined : t('adminAppSettingsSmsTemplateMissing')}
-                      onChange={(value) => setSmsMessage(message.code, value)}
-                    />
-                  ))}
-                </div>
-              </div>
-            ) : null}
           </section>
         ))}
       </div>

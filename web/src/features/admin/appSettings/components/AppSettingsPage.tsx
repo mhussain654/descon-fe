@@ -12,8 +12,9 @@ import { FeeSettingsCard } from '../../payments/components/FeeSettingsCard';
 import { SupportSettingForm } from '../../supportSetting/components/SupportSettingForm';
 import { WorkflowStageCallScriptList } from '../../workflowStageCallScripts/components/WorkflowStageCallScriptList';
 import { AppFeatureSettingsForm } from './AppFeatureSettingsForm';
+import { SmsTemplateList } from './SmsTemplateList';
 
-export type AppSettingsTab = 'features' | 'fee' | 'support' | 'calls' | 'bulk-calls' | 'automatic-calls';
+export type AppSettingsTab = 'features' | 'fee' | 'support' | 'calls' | 'bulk-calls' | 'automatic-calls' | 'sms';
 
 interface TabDefinition {
   id: AppSettingsTab;
@@ -48,6 +49,7 @@ export function AppSettingsPage() {
     { id: 'calls', labelKey: 'adminAppSettingsTabCalls', visible: hasPermission('manage_ai_call_settings'), render: () => <AiCallOperationalSettingsForm /> },
     { id: 'bulk-calls', labelKey: 'adminAppSettingsTabBulkCalls', visible: canSetUpCalls, render: () => <CallTypesCard /> },
     { id: 'automatic-calls', labelKey: 'adminAppSettingsTabAutomaticCalls', visible: canSetUpCalls, render: () => <WorkflowStageCallScriptList /> },
+    { id: 'sms', labelKey: 'adminAppSettingsTabSms', visible: hasPermission('manage_app_settings'), render: () => <SmsTemplateList /> },
   ].filter((tab) => tab.visible) as TabDefinition[];
 
   const requested = searchParams.get('tab');

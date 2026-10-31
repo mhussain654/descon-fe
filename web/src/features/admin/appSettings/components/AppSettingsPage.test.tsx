@@ -8,6 +8,7 @@ import { StaffAuthProvider } from "../../../../contexts/StaffAuthContext";
 import { AppSettingsPage } from "./AppSettingsPage";
 
 vi.mock("./AppFeatureSettingsForm", () => ({ AppFeatureSettingsForm: () => <p>feature switches</p> }));
+vi.mock("./SmsTemplateList", () => ({ SmsTemplateList: () => <p>sms templates list</p> }));
 vi.mock("../../payments/components/FeeSettingsCard", () => ({ FeeSettingsCard: () => <p>fee card</p> }));
 vi.mock("../../supportSetting/components/SupportSettingForm", () => ({ SupportSettingForm: () => <p>support form</p> }));
 vi.mock("../../aiCallOperationalSettings/components/AiCallOperationalSettingsForm", () => ({
@@ -46,6 +47,7 @@ describe("AppSettingsPage", () => {
     expect(screen.getByRole("tab", { name: "Automated call limits" })).toBeInTheDocument();
     expect(screen.getByRole("tab", { name: "Bulk call settings" })).toBeInTheDocument();
     expect(screen.getByRole("tab", { name: "Automatic call settings" })).toBeInTheDocument();
+    expect(screen.getByRole("tab", { name: "SMS settings" })).toBeInTheDocument();
     expect(screen.getByText("feature switches")).toBeInTheDocument();
   });
 
@@ -57,6 +59,7 @@ describe("AppSettingsPage", () => {
     expect(screen.queryByRole("tab", { name: "Automated call limits" })).not.toBeInTheDocument();
     expect(screen.queryByRole("tab", { name: "Bulk call settings" })).not.toBeInTheDocument();
     expect(screen.queryByRole("tab", { name: "Automatic call settings" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("tab", { name: "SMS settings" })).not.toBeInTheDocument();
     expect(screen.queryByText("feature switches")).not.toBeInTheDocument();
   });
 
@@ -65,6 +68,12 @@ describe("AppSettingsPage", () => {
 
     expect(await screen.findByText("support form")).toBeInTheDocument();
     expect(screen.getByRole("tab", { name: "Support number" })).toHaveAttribute("aria-selected", "true");
+  });
+
+  it("opens the SMS settings tab from its link", async () => {
+    await renderAs("developer", "/admin/settings?tab=sms");
+
+    expect(await screen.findByText("sms templates list")).toBeInTheDocument();
   });
 
   it("opens the automatic calls tab from the old Automatic calls link", async () => {

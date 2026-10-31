@@ -38,10 +38,6 @@ function settings(overrides: Record<string, unknown> = {}) {
   return {
     enabled: allOn,
     serverReady: { ...allOn, documentOcr: false },
-    smsMessages: [
-      { code: "registered", enabled: true, templateReady: true },
-      { code: "fee_pending", enabled: false, templateReady: false },
-    ],
     updatedBy: undefined,
     updatedAt: "2026-10-29T09:00:00Z",
     ...overrides,
@@ -61,36 +57,24 @@ describe("AppFeatureSettingsForm", () => {
     await renderForm();
 
     expect(await screen.findByRole("switch", { name: "Payment code" })).toHaveAttribute("aria-checked", "true");
-    expect(screen.getByRole("switch", { name: "Please pay the fee" })).toHaveAttribute("aria-checked", "false");
     expect(screen.getByText("Not set up on the server, so it stays off")).toBeInTheDocument();
-    expect(screen.getByText("SMS template not set up yet")).toBeInTheDocument();
+    expect(screen.queryByRole("switch", { name: "Please pay the fee" })).not.toBeInTheDocument();
   });
 
-  it("saves the switches changed, with the SMS messages switched off", async () => {
+  it("saves the switches changed", async () => {
     vi.mocked(adminAppSettingsClient.getAppSettings).mockResolvedValue(settings());
     vi.mocked(adminAppSettingsClient.updateAppSettings).mockResolvedValue(settings());
 
     await renderForm();
     fireEvent.click(await screen.findByRole("switch", { name: "Payment code" }));
-    fireEvent.click(screen.getByRole("switch", { name: "Please pay the fee" }));
-    fireEvent.click(screen.getByRole("switch", { name: "Registered: download the app and upload documents" }));
+    fireEvent.click(screen.getByRole("switch", { name: "Progress SMS" }));
     fireEvent.click(screen.getByRole("button", { name: "Save" }));
 
     await waitFor(() =>
       expect(adminAppSettingsClient.updateAppSettings).toHaveBeenCalledWith({
-        enabled: expect.objectContaining({ voucherPayment: false, cardPayment: true }),
-        disabledSmsMessages: ["registered"],
+        enabled: expect.objectContaining({ voucherPayment: false, cardPayment: true, progressSms: false }),
       })
     );
-  });
-
-  it("disables the single SMS messages while progress SMS are off", async () => {
-    vi.mocked(adminAppSettingsClient.getAppSettings).mockResolvedValue(settings());
-
-    await renderForm();
-    fireEvent.click(await screen.findByRole("switch", { name: "Progress SMS" }));
-
-    expect(screen.getByRole("switch", { name: "Registered: download the app and upload documents" })).toBeDisabled();
   });
 
   it("shows the forbidden state for a staff member without manage_app_settings", async () => {

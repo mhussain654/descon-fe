@@ -5,4 +5,5 @@ import type { Language } from '../i18n/translations';
 
 export const adminAppSettingsQueries = {
   get: (locale: Language) => ['adminAppSettings', 'get', locale] as const,
+  smsTemplates: (locale: Language) => ['adminAppSettings', 'smsTemplates', locale] as const,
 };
