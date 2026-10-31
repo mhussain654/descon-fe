@@ -1,28 +1,25 @@
 import type { ReactNode } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { Text } from '../../../design-system/Text';
-import { CreditCard, FileText, Hourglass } from 'lucide-react-native';
+import { CreditCard, FileText } from 'lucide-react-native';
 import { Button, getFontFamily } from '../../../design-system';
 import { colors, spacing } from '../../../design-system/tokens';
 import { rowDirectionTowards } from '../../../lib/layoutDirection';
 import { GradientIconBox, type IconTone } from './GradientIconBox';
 import { homeCardStyles } from './homeCardStyles';
 
-export type NextStepVariant = 'payment' | 'documents' | 'waiting';
+export type NextStepVariant = 'payment' | 'documents';
 
 const VARIANTS: Record<NextStepVariant, { tone: IconTone; icon: typeof CreditCard; background: string; border: string }> = {
   payment: { tone: 'orange', icon: CreditCard, background: '#FFF6E4', border: '#FFD77E' },
   documents: { tone: 'blue', icon: FileText, background: '#EAF5FF', border: '#BFE2FF' },
-  waiting: { tone: 'green', icon: Hourglass, background: '#ECF9F1', border: '#BDEBCD' },
 };
 
 interface NextStepCardProps {
   language: string;
   variant: NextStepVariant;
-  /** Small label above the title, e.g. "Next step". */
-  eyebrow: string;
   title: string;
-  description: string;
+  description?: string;
   /** Payment only: the backend-configured fee, already formatted. */
   amountText?: string;
   actionLabel: string;
@@ -32,11 +29,10 @@ interface NextStepCardProps {
   trailingIcon?: ReactNode;
 }
 
-/** The candidate's single most relevant next step -- paying the fee, fixing documents, or (when it's on staff) what to expect next. */
+/** The candidate's one thing to do now -- paying the fee, or uploading documents. */
 export function NextStepCard({
   language,
   variant,
-  eyebrow,
   title,
   description,
   amountText,
@@ -56,17 +52,16 @@ export function NextStepCard({
       <View style={[styles.row, { flexDirection: rowDirection }]}>
         <GradientIconBox tone={config.tone} icon={config.icon} size={38} />
         <View style={styles.copy}>
-          <Text style={[styles.eyebrow, isUrdu && styles.eyebrowUrdu, { fontFamily: getFontFamily(language, 'semibold') }]}>
-            {eyebrow}
-          </Text>
           <Text style={[styles.title, isUrdu && styles.titleUrdu, { fontFamily: getFontFamily(language, 'bold') }]}>
             {title}
           </Text>
-          <Text
-            style={[styles.description, isUrdu && styles.descriptionUrdu, { fontFamily: getFontFamily(language, 'regular') }]}
-          >
-            {description}
-          </Text>
+          {description ? (
+            <Text
+              style={[styles.description, isUrdu && styles.descriptionUrdu, { fontFamily: getFontFamily(language, 'regular') }]}
+            >
+              {description}
+            </Text>
+          ) : null}
         </View>
       </View>
 
@@ -94,9 +89,7 @@ const styles = StyleSheet.create({
   card: { borderWidth: 1 },
   row: { alignItems: 'center', gap: spacing[3] },
   copy: { flex: 1 },
-  eyebrow: { fontSize: 10, letterSpacing: 0.6, color: '#4F5D72', textTransform: 'uppercase' },
-  eyebrowUrdu: { fontSize: 11, letterSpacing: 0, lineHeight: 20, textTransform: 'none' },
-  title: { marginTop: 1, fontSize: 15, lineHeight: 19, color: colors.text.primary },
+  title: { fontSize: 16, lineHeight: 21, color: colors.text.primary },
   titleUrdu: { fontSize: 14, lineHeight: 28 },
   description: { marginTop: 2, fontSize: 11.5, lineHeight: 15, color: '#4F5D72' },
   descriptionUrdu: { fontSize: 11, lineHeight: 22 },

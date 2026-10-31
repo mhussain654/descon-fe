@@ -2,12 +2,12 @@ import { hasBankDetailFormErrors, normalizeAccountNumber, validateBankDetailFiel
 
 describe('validateBankDetailFields', () => {
   it('passes with valid fields', () => {
-    const errors = validateBankDetailFields({ accountTitle: 'Ahmed Ali', accountNumber: '0000001123456702', bankName: 'Meezan Bank Limited' });
+    const errors = validateBankDetailFields({ accountTitle: 'Ahmed Ali', accountNumber: 'PK36SCBL0000001123456702', bankName: 'Meezan Bank Limited' });
     expect(hasBankDetailFormErrors(errors)).toBe(false);
   });
 
   it('requires account title', () => {
-    const errors = validateBankDetailFields({ accountTitle: '  ', accountNumber: '0000001123456702', bankName: 'Meezan Bank Limited' });
+    const errors = validateBankDetailFields({ accountTitle: '  ', accountNumber: 'PK36SCBL0000001123456702', bankName: 'Meezan Bank Limited' });
     expect(errors.accountTitle).toBe('REQUIRED');
   });
 
@@ -17,7 +17,7 @@ describe('validateBankDetailFields', () => {
   });
 
   it('requires bank name', () => {
-    const errors = validateBankDetailFields({ accountTitle: 'Ahmed Ali', accountNumber: '0000001123456702', bankName: '' });
+    const errors = validateBankDetailFields({ accountTitle: 'Ahmed Ali', accountNumber: 'PK36SCBL0000001123456702', bankName: '' });
     expect(errors.bankName).toBe('REQUIRED');
   });
 
@@ -26,30 +26,26 @@ describe('validateBankDetailFields', () => {
     expect(errors.accountNumber).toBe('INVALID_ACCOUNT_NUMBER');
   });
 
-  it('accepts exactly 6 and exactly 20 digits', () => {
-    expect(validateBankDetailFields({ accountTitle: 'Ahmed Ali', accountNumber: '123456', bankName: 'Meezan Bank Limited' }).accountNumber).toBeUndefined();
-    expect(validateBankDetailFields({ accountTitle: 'Ahmed Ali', accountNumber: '1'.repeat(20), bankName: 'Meezan Bank Limited' }).accountNumber).toBeUndefined();
+  it('accepts a full Pakistani IBAN', () => {
+    for (const accountNumber of ['PK36SCBL0000001123456702', 'pk09scbl0000001123456703']) {
+      expect(validateBankDetailFields({ accountTitle: 'Ahmed Ali', accountNumber, bankName: 'Meezan Bank Limited' }).accountNumber).toBeUndefined();
+    }
   });
 
-  it('rejects an account number longer than 20 digits', () => {
-    const errors = validateBankDetailFields({ accountTitle: 'Ahmed Ali', accountNumber: '1'.repeat(21), bankName: 'Meezan Bank Limited' });
-    expect(errors.accountNumber).toBe('INVALID_ACCOUNT_NUMBER');
-  });
-
-  it('rejects letters and punctuation, including an IBAN', () => {
-    for (const accountNumber of ['PK36SCBL0000001123456702', '0000-0011-2345', '12345a']) {
+  it('rejects a plain account number, a wrong length, a foreign IBAN and a wrong check digit', () => {
+    for (const accountNumber of ['0000001123456702', 'PK36SCBL000000112345670', 'GB82WEST12345698765432', 'PK37SCBL0000001123456702']) {
       const errors = validateBankDetailFields({ accountTitle: 'Ahmed Ali', accountNumber, bankName: 'Meezan Bank Limited' });
       expect(errors.accountNumber).toBe('INVALID_ACCOUNT_NUMBER');
     }
   });
 
-  it('accepts an account number with internal whitespace, stripping it before validating', () => {
-    const errors = validateBankDetailFields({ accountTitle: 'Ahmed Ali', accountNumber: '0000 0011 2345 6702', bankName: 'Meezan Bank Limited' });
+  it('accepts an IBAN with internal whitespace, stripping it before validating', () => {
+    const errors = validateBankDetailFields({ accountTitle: 'Ahmed Ali', accountNumber: 'PK36 SCBL 0000 0011 2345 6702', bankName: 'Meezan Bank Limited' });
     expect(errors.accountNumber).toBeUndefined();
   });
 
   it('rejects a bank that is not in the list', () => {
-    const errors = validateBankDetailFields({ accountTitle: 'Ahmed Ali', accountNumber: '0000001123456702', bankName: 'Some Other Bank' });
+    const errors = validateBankDetailFields({ accountTitle: 'Ahmed Ali', accountNumber: 'PK36SCBL0000001123456702', bankName: 'Some Other Bank' });
     expect(errors.bankName).toBe('REQUIRED');
   });
 

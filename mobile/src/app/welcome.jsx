@@ -5,40 +5,34 @@ import { Text } from "../design-system/Text";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
 import { useRouter } from "expo-router";
-import Svg, { Defs, Ellipse, LinearGradient, RadialGradient, Rect, Stop } from "react-native-svg";
 import { useLanguage } from "../contexts/LanguageContext";
-import { Button, getFontFamily } from "../design-system";
+import { getFontFamily } from "../design-system";
 import { colors, elevation, fontWeights, radii, spacing } from "../design-system/tokens";
 import { RequireGuest } from "../features/auth/RequireGuest";
 import { BrandHeader } from "../features/onboarding/BrandHeader";
 import { SecureFooter } from "../features/onboarding/SecureFooter";
-import { forwardArrowSlots } from "../features/onboarding/directionalArrows";
 import { isStartSide, physicalTextAlign, rowDirectionTowards } from "../lib/layoutDirection";
+import { translate } from "../../../shared/i18n/translate";
 
-// The hero artwork (skyline, globe, plane, briefcase, helmet) carries no
-// brand mark or translatable text -- the headline and subtitle are rendered on
-// top of it so they localize like every other string. Urdu gets a mirrored
-// copy (scene on the left) so its copy can sit at the reading-start right edge, the way an RTL layout should.
-const HERO_ART = {
-  en: {
-    source: require("../../assets/images/welcome-hero.webp"),
-  },
-  ur: {
-    source: require("../../assets/images/welcome-hero-rtl.webp"),
-  },
-};
+// The hero artwork (one landmark per destination country -- Oman, KSA, UAE,
+// Qatar -- with the globe, plane, briefcase and the Descon-branded helmet)
+// carries no translatable text. Its open sky is on the left, where the copy sits.
+const HERO_ART = require("../../assets/images/welcome-hero.webp");
 const HERO_ASPECT_RATIO = 675 / 694;
-const SUBTITLE_SCRIM_COLOR = "#00297A";
 // The sheet slides up over the plain ground strip at the artwork's base,
 // leaving the helmet and briefcase fully visible above it.
 const SHEET_OVERLAP = 20;
 
-// Each option's own label always renders in its own language/script -- "اردو"
-// here regardless of which language is currently active -- so a candidate who
-// can't yet read the active language can still recognize and pick their own.
-// The checkmark mirrors per card, not per active language: top-right for
-// English, top-left for Urdu.
-function LanguageOptionCard({ active, label, labelLanguage, hint, onPress }) {
+// The candidate has not chosen a language yet, so every piece of copy on this
+// screen shows in both English and Urdu, whichever is selected.
+function bilingual(key) {
+  return { en: translate("en", key), ur: translate("ur", key) };
+}
+
+// Each option's label always renders in its own script, so a candidate who
+// can't read the other language can still recognize and pick their own.
+// The checkmark mirrors per card: top-right for English, top-left for Urdu.
+function LanguageOptionCard({ active, label, labelLanguage, onPress }) {
   return (
     <Pressable
       onPress={onPress}
@@ -65,101 +59,70 @@ function LanguageOptionCard({ active, label, labelLanguage, hint, onPress }) {
       >
         {label}
       </Text>
-      <Text
-        style={[
-          styles.languageHint,
-          labelLanguage === "ur" ? styles.languageHintUrdu : null,
-          labelLanguage === "ur" ? styles.secondaryTextUrdu : null,
-          { fontFamily: getFontFamily(labelLanguage, "regular") },
-        ]}
-      >
-        {hint}
-      </Text>
     </Pressable>
   );
 }
 
-function WelcomeHero({ width, topInset, language, t }) {
-  const isUrdu = language === "ur";
+/** One line of copy in both languages, English on the left and Urdu on the right. */
+function BilingualRow({ copy, englishStyle, urduStyle, weight = "regular" }) {
+  return (
+    <View style={[styles.bilingualRow, { flexDirection: rowDirectionTowards("right") }]}>
+      <Text style={[englishStyle, styles.englishCell, { fontFamily: getFontFamily("en", weight) }]}>{copy.en}</Text>
+      <Text style={[urduStyle, styles.urduCell, { fontFamily: getFontFamily("ur", weight) }]}>{copy.ur}</Text>
+    </View>
+  );
+}
+
+/** Continue, labelled in both languages, each in its own script's font. */
+function ContinueButton({ copy, onPress }) {
+  return (
+    <Pressable
+      onPress={onPress}
+      accessibilityRole="button"
+      accessibilityLabel={`${copy.en}, ${copy.ur}`}
+      style={({ pressed }) => [styles.continueButton, pressed ? styles.continueButtonPressed : null]}
+    >
+      <View style={[styles.continueRow, { flexDirection: rowDirectionTowards("right") }]}>
+        <Text style={[styles.continueLabel, { fontFamily: getFontFamily("en", "semibold") }]}>{copy.en}</Text>
+        <View style={styles.continueDivider} />
+        <Text style={[styles.continueLabel, styles.continueLabelUrdu, { fontFamily: getFontFamily("ur", "semibold") }]}>{copy.ur}</Text>
+      </View>
+    </Pressable>
+  );
+}
+
+function WelcomeHero({ width, topInset }) {
   const heroHeight = width / HERO_ASPECT_RATIO;
-  const art = HERO_ART[isUrdu ? "ur" : "en"];
-  // Narrow phones (< 380pt) get a step-smaller copy so it keeps clear air
-  // between itself and the illustration.
+  const tagline = bilingual("welcomeTagline");
   const isCompact = width < 380;
-  // Each artwork leaves its open sky on a fixed physical side -- left for
-  // English, right for Urdu -- so the logo and copy anchor to that side.
-  const copySide = isUrdu ? "right" : "left";
-  const copyAtStart = isStartSide(copySide);
-  const anchorStyle = copyAtStart ? styles.anchorStart : styles.anchorEnd;
-  const textAlignment = {
-    textAlign: physicalTextAlign(copySide),
-    writingDirection: isUrdu ? "rtl" : "ltr",
-  };
+  const copySide = isStartSide("left") ? styles.anchorStart : styles.anchorEnd;
 
   return (
     <View style={{ width, height: heroHeight + topInset, backgroundColor: "#0065B3" }}>
-      <Image
-          source={art.source}
-          style={StyleSheet.absoluteFill}
-          contentFit="cover"
-          accessibilityIgnoresInvertColors
-          accessible={false}
-      />
+      <Image source={HERO_ART} style={StyleSheet.absoluteFill} contentFit="cover" accessibilityIgnoresInvertColors accessible={false} />
       <View style={[styles.brandSlot, { top: topInset + spacing[2] }]}>
-          <BrandHeader language={language} primary={t("brandNamePrimary")} secondary={t("brandNameSecondary")} />
+        <BrandHeader language="en" primary={translate("en", "brandNamePrimary")} secondary={translate("en", "brandNameSecondary")} />
       </View>
-      <View
+      <View style={[styles.heroCopy, copySide, { top: topInset + heroHeight * 0.24, width: width * 0.6 }]}>
+        <Text
+          accessibilityRole="header"
           style={[
-            styles.heroCopy,
-            anchorStyle,
-            { top: topInset + heroHeight * (isUrdu ? 0.3 : 0.27), width: width * (isUrdu ? 0.64 : 0.58) },
+            styles.tagline,
+            isCompact ? styles.taglineCompact : null,
+            { textAlign: physicalTextAlign("left"), writingDirection: "ltr", fontFamily: getFontFamily("en", "bold") },
           ]}
         >
-          <Text
-            accessibilityRole="header"
-            style={[
-              styles.heroTitle,
-              isUrdu ? styles.heroTitleUrdu : null,
-              isCompact ? (isUrdu ? styles.heroTitleUrduCompact : styles.heroTitleCompact) : null,
-              textAlignment,
-              { fontFamily: getFontFamily(language, "bold") },
-            ]}
-          >
-            {t("welcomeHeroTitle")}
-          </Text>
-          <View style={styles.subtitleWrap}>
-            {isUrdu ? (
-              // Urdu's description ends over the pale skyline; a soft dark-blue
-              // glow (no hard edges) behind it keeps every line in contrast.
-              <View style={styles.subtitleScrim} pointerEvents="none">
-                <Svg width="100%" height="100%">
-                  <Defs>
-                    <RadialGradient id="subtitleScrim" cx="50%" cy="50%" r="50%">
-                      <Stop offset="0" stopColor={SUBTITLE_SCRIM_COLOR} stopOpacity="0.5" />
-                      <Stop offset="0.65" stopColor={SUBTITLE_SCRIM_COLOR} stopOpacity="0.28" />
-                      <Stop offset="1" stopColor={SUBTITLE_SCRIM_COLOR} stopOpacity="0" />
-                    </RadialGradient>
-                  </Defs>
-                  <Ellipse cx="50%" cy="50%" rx="50%" ry="50%" fill="url(#subtitleScrim)" />
-                </Svg>
-              </View>
-            ) : null}
-            <Text
-              style={[
-                styles.heroSubtitle,
-                isUrdu ? styles.heroSubtitleUrdu : null,
-                textAlignment,
-                // English wraps freely, so it is narrowed to clear the artwork's
-                // dashed flight path and clouds; Urdu carries explicit,
-                // measured line breaks instead.
-                isUrdu ? null : { maxWidth: width * (isCompact ? 0.53 : 0.56) },
-                isCompact ? (isUrdu ? styles.heroSubtitleUrduCompact : styles.heroSubtitleCompact) : null,
-                { fontFamily: getFontFamily(language, "semibold") },
-              ]}
-            >
-              {t("welcomeHeroSubtitle")}
-            </Text>
-          </View>
+          {tagline.en}
+        </Text>
+        <Text
+          style={[
+            styles.taglineUrdu,
+            isCompact ? styles.taglineUrduCompact : null,
+            { textAlign: physicalTextAlign("left"), writingDirection: "rtl", fontFamily: getFontFamily("ur", "bold") },
+          ]}
+        >
+          {tagline.ur}
+        </Text>
       </View>
     </View>
   );
@@ -169,17 +132,16 @@ export default function WelcomeScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const { width } = useWindowDimensions();
-  const { t, language, setLanguage } = useLanguage();
-  const isUrdu = language === "ur";
+  const { language, setLanguage } = useLanguage();
 
   const handleContinue = () => {
     // `push`, not `replace` -- login's own Back control needs a history
-    // entry to return to (it was calling `router.back()` with nowhere to
-    // go, silently no-op-ing, when this used `replace`).
+    // entry to return to.
     router.push("/login");
   };
 
-  const continueArrow = forwardArrowSlots(language, colors.brand.on);
+  const continueLabel = bilingual("continue");
+  const footer = bilingual("welcomeSecureFooter");
 
   return (
     <RequireGuest>
@@ -190,55 +152,30 @@ export default function WelcomeScreen() {
             this content taller than the viewport -- a ScrollView keeps the
             language options and Continue button reachable instead of
             clipping them off-screen. */}
-        <ScrollView
-          contentContainerStyle={styles.scrollContent}
-          keyboardShouldPersistTaps="handled"
-          bounces={false}
-        >
-          <WelcomeHero width={width} topInset={insets.top} language={language} t={t} />
+        <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled" bounces={false}>
+          <WelcomeHero width={width} topInset={insets.top} />
 
           <View style={[styles.sheet, { paddingBottom: insets.bottom + spacing[4] }]}>
-            <Text style={[styles.sheetTitle, isUrdu && styles.sheetTitleUrdu, { fontFamily: getFontFamily(language, "bold") }]}>
-              {t("welcomeChooseLanguage")}
-            </Text>
-            <Text style={[styles.sheetHint, isUrdu && styles.sheetHintUrdu, isUrdu && styles.secondaryTextUrdu, { fontFamily: getFontFamily(language, "regular") }]}>
-              {t("welcomeChooseLanguageHint")}
-            </Text>
+            <BilingualRow
+              copy={bilingual("welcomeChooseLanguage")}
+              englishStyle={styles.sheetTitle}
+              urduStyle={styles.sheetTitleUrdu}
+              weight="bold"
+            />
+            <BilingualRow copy={bilingual("welcomeChooseLanguageHint")} englishStyle={styles.sheetHint} urduStyle={styles.sheetHintUrdu} />
 
-            <View style={[styles.languageRow, { flexDirection: rowDirectionTowards("left") }]}>
-              <LanguageOptionCard
-                active={language === "en"}
-                labelLanguage="en"
-                label="English"
-                hint="Continue in English"
-                onPress={() => setLanguage("en")}
-              />
-              <LanguageOptionCard
-                active={language === "ur"}
-                labelLanguage="ur"
-                label="اردو"
-                hint="اردو میں جاری رکھیں"
-                onPress={() => setLanguage("ur")}
-              />
+            <View style={[styles.languageRow, { flexDirection: rowDirectionTowards("right") }]}>
+              <LanguageOptionCard active={language === "en"} labelLanguage="en" label="English" onPress={() => setLanguage("en")} />
+              <LanguageOptionCard active={language === "ur"} labelLanguage="ur" label="اردو" onPress={() => setLanguage("ur")} />
             </View>
 
             <View style={styles.spacer} />
 
-            <Button
-              variant="primary"
-              size="lg"
-              fullWidth
-              language={language}
-              onPress={handleContinue}
-              labelStyle={isUrdu ? styles.continueLabelUrdu : null}
-              leadingIcon={continueArrow.leadingIcon}
-              trailingIcon={continueArrow.trailingIcon}
-            >
-              {t("continue")}
-            </Button>
+            <ContinueButton copy={continueLabel} onPress={handleContinue} />
 
             <View style={styles.footer}>
-              <SecureFooter language={language}>{t("welcomeSecureFooter")}</SecureFooter>
+              <SecureFooter language="en">{footer.en}</SecureFooter>
+              <SecureFooter language="ur">{footer.ur}</SecureFooter>
             </View>
           </View>
         </ScrollView>
@@ -252,42 +189,32 @@ const styles = StyleSheet.create({
   scrollContent: { flexGrow: 1 },
 
   brandSlot: { position: "absolute", start: 0, end: 0, alignItems: "center" },
-  heroCopy: { position: "absolute" },
-  anchorStart: { start: spacing[6], alignItems: "flex-start" },
-  anchorEnd: { end: spacing[6], alignItems: "flex-end" },
-  heroTitle: {
-    fontSize: 30,
-    lineHeight: 36,
+  heroCopy: { position: "absolute", gap: spacing[2] },
+  anchorStart: { start: spacing[6] },
+  anchorEnd: { end: spacing[6] },
+  tagline: {
+    fontSize: 24,
+    lineHeight: 31,
+    fontStyle: "italic",
     color: colors.text.inverse,
-    letterSpacing: -0.5,
-    textShadowColor: "rgba(0, 32, 96, 0.35)",
+    letterSpacing: -0.3,
+    textShadowColor: "rgba(0, 32, 96, 0.45)",
     textShadowOffset: { width: 0, height: 1 },
     textShadowRadius: 6,
   },
+  taglineCompact: { fontSize: 21, lineHeight: 27 },
   // Nastaliq needs ~2x line height so stacked descenders and dots never touch,
   // and side padding so its overhanging strokes are not clipped.
-  heroTitleUrdu: { fontSize: 22, lineHeight: 44, letterSpacing: 0, paddingHorizontal: spacing[1] },
-  heroTitleCompact: { fontSize: 26, lineHeight: 32 },
-  heroTitleUrduCompact: { fontSize: 20, lineHeight: 40 },
-  heroSubtitle: {
-    marginTop: spacing[3],
-    fontSize: 15,
-    lineHeight: 22,
-    fontWeight: fontWeights.semibold,
+  taglineUrdu: {
+    fontSize: 17,
+    lineHeight: 36,
+    paddingHorizontal: spacing[1],
     color: colors.text.inverse,
-    // A firm dark halo keeps the copy prominent where it crosses the lighter
-    // sky, clouds and skyline further down the artwork.
     textShadowColor: "rgba(0, 28, 84, 0.8)",
     textShadowOffset: { width: 0, height: 1 },
     textShadowRadius: 8,
   },
-  subtitleWrap: { alignSelf: "stretch" },
-  // Sits behind the Urdu description only, bleeding evenly past it on every
-  // side so the glow has no visible edge.
-  subtitleScrim: { position: "absolute", top: -spacing[4], bottom: -spacing[4], start: -spacing[5], end: -spacing[5] },
-  heroSubtitleCompact: { fontSize: 14, lineHeight: 20 },
-  heroSubtitleUrdu: { fontSize: 15, lineHeight: 30, marginTop: spacing[2], paddingHorizontal: spacing[1] },
-  heroSubtitleUrduCompact: { fontSize: 14, lineHeight: 28 },
+  taglineUrduCompact: { fontSize: 15, lineHeight: 32 },
 
   sheet: {
     flex: 1,
@@ -304,17 +231,20 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing[6],
     paddingTop: spacing[6],
   },
-  sheetTitle: { fontSize: 22, lineHeight: 28, color: colors.text.primary },
-  // Nastaliq's tall line box already carries its own top air, so the Urdu
-  // heading pulls up to keep the sheet as compact as the English one.
-  sheetTitleUrdu: { fontSize: 20, lineHeight: 40, marginTop: -spacing[2] },
-  sheetHint: { marginTop: spacing[1], fontSize: 14, lineHeight: 20, color: colors.text.secondary },
-  sheetHintUrdu: { fontSize: 13, lineHeight: 28 },
+  bilingualRow: { alignItems: "center", justifyContent: "space-between", gap: spacing[3] },
+  englishCell: { flexShrink: 1, textAlign: physicalTextAlign("left"), writingDirection: "ltr" },
+  urduCell: { flexShrink: 1, textAlign: physicalTextAlign("right"), writingDirection: "rtl", paddingHorizontal: spacing[1] },
+  sheetTitle: { fontSize: 19, lineHeight: 26, color: colors.text.primary },
+  sheetTitleUrdu: { fontSize: 17, lineHeight: 36, color: colors.text.primary },
+  sheetHint: { fontSize: 13, lineHeight: 18, color: colors.text.secondary },
+  // Nastaliq's thin strokes wash out in the standard secondary grey, so Urdu
+  // secondary copy uses a deeper tone of the same text color.
+  sheetHintUrdu: { fontSize: 12, lineHeight: 26, color: colors.text.primary, opacity: 0.74 },
 
-  languageRow: { flexDirection: "row", gap: spacing[3], marginTop: spacing[5] },
+  languageRow: { gap: spacing[3], marginTop: spacing[4] },
   languageCard: {
     flex: 1,
-    minHeight: 140,
+    minHeight: 110,
     alignItems: "center",
     justifyContent: "center",
     borderRadius: radii.xl,
@@ -324,12 +254,10 @@ const styles = StyleSheet.create({
   },
   languageCardActive: { backgroundColor: colors.brand.subtle, borderColor: colors.brand.default },
   languageCardInactive: { backgroundColor: colors.surface.raised, borderColor: colors.border.default, ...elevation.sm },
-  languageLabel: { fontSize: 20, color: colors.text.primary, textAlign: "center" },
-  languageHint: { marginTop: spacing[1], fontSize: 14, color: colors.text.secondary, textAlign: "center" },
+  languageLabel: { fontSize: 22, color: colors.text.primary, textAlign: "center" },
   // Nastaliq stacks its marks well below the baseline; without an explicit
   // line height the lower strokes are clipped inside the card.
-  languageLabelUrdu: { fontSize: 20, lineHeight: 46 },
-  languageHintUrdu: { marginTop: 0, fontSize: 14, lineHeight: 34 },
+  languageLabelUrdu: { fontSize: 22, lineHeight: 50 },
   languageCheck: {
     position: "absolute",
     top: spacing[2],
@@ -340,13 +268,21 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-
-  continueLabelUrdu: { fontSize: 16 },
   languageCheckStart: { start: spacing[2] },
   languageCheckEnd: { end: spacing[2] },
   spacer: { flexGrow: 1, minHeight: spacing[5], maxHeight: spacing[12] },
-  footer: { marginTop: spacing[4] },
-  // Nastaliq's thin strokes wash out in the standard secondary grey, so Urdu
-  // secondary copy uses a deeper tone of the same text color.
-  secondaryTextUrdu: { color: colors.text.primary, opacity: 0.74 },
+  continueButton: {
+    minHeight: 56,
+    borderRadius: radii.lg,
+    backgroundColor: colors.brand.default,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: spacing[6],
+  },
+  continueButtonPressed: { opacity: 0.85 },
+  continueRow: { alignItems: "center", gap: spacing[3] },
+  continueLabel: { fontSize: 18, fontWeight: fontWeights.semibold, color: colors.brand.on },
+  continueLabelUrdu: { fontSize: 16, lineHeight: 34 },
+  continueDivider: { width: 1, height: 20, backgroundColor: colors.brand.on, opacity: 0.5 },
+  footer: { marginTop: spacing[4], gap: spacing[1] },
 });

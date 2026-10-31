@@ -277,17 +277,26 @@ describe("DocumentsScreen", () => {
     expect(screen.queryByRole("button", { name: "Upload" })).toBeNull();
   });
 
-  it("shows the verified/pending/missing stat tiles from real progress counts", async () => {
-    candidateDocumentsClient.getChecklist.mockResolvedValue([item()]);
-    applicationProgressClient.getProgress.mockResolvedValue(
-      progress({ documents: documentsSummary({ verified: 2, pendingReview: 1, missing: 3 }) })
-    );
+  it("counts documents under the four statuses -- Complete, Under Review, Required, Rejected -- including the bank account", async () => {
+    candidateDocumentsClient.getChecklist.mockResolvedValue([
+      item({ requirementCode: "passport", status: "verified", document: uploadedDocument() }),
+      item({ requirementCode: "cnic", name: "CNIC", status: "verified", document: uploadedDocument() }),
+      item({ requirementCode: "photograph", name: "Photo", status: "pending_review", document: uploadedDocument() }),
+      item({ requirementCode: "cv", name: "CV", status: "missing" }),
+      item({ requirementCode: "polio_certificate", name: "Polio", status: "missing" }),
+      item({ requirementCode: "cheque_copy", name: "Cheque", status: "rejected", document: uploadedDocument() }),
+    ]);
+    applicationProgressClient.getProgress.mockResolvedValue(progress());
+    candidateBankDetailsClient.getBankDetail.mockResolvedValue(bankDetailSummary({ status: "missing", bankDetail: null }));
     renderDocumentsScreen();
 
     await screen.findByText("Passport");
+    // 2 complete, 1 under review, 3 required (CV, polio and the bank account), 1 rejected.
+    await waitFor(() => expect(screen.getByText("3")).toBeOnTheScreen());
     expect(screen.getByText("2")).toBeOnTheScreen();
-    expect(screen.getByText("1")).toBeOnTheScreen();
-    expect(screen.getByText("3")).toBeOnTheScreen();
+    expect(screen.getAllByText("1")).toHaveLength(2);
+    expect(screen.queryByText("Missing")).toBeNull();
+    expect(screen.queryByText("Pending review")).toBeNull();
   });
 
   it("renders a required missing document with an Upload action", async () => {
@@ -296,7 +305,8 @@ describe("DocumentsScreen", () => {
     renderDocumentsScreen();
 
     await screen.findByText("Passport");
-    expect(screen.getByText("Pending • Required")).toBeOnTheScreen();
+    // The row's status and the summary tile both say Required.
+    expect(screen.getAllByText("Required").length).toBeGreaterThanOrEqual(2);
     expect(screen.getByRole("button", { name: "Upload" })).toBeOnTheScreen();
   });
 
@@ -638,7 +648,7 @@ describe("DocumentsScreen", () => {
     expect(await screen.findByText("Uploading…")).toBeOnTheScreen();
 
     resolveUpload(item({ status: "uploaded", document: uploadedDocument() }));
-    await waitFor(() => expect(screen.getByText(/Uploaded/)).toBeOnTheScreen());
+    await waitFor(() => expect(screen.getByText(/Under Review/)).toBeOnTheScreen());
     expect(screen.queryByText("Submit")).toBeNull();
   });
 
@@ -945,12 +955,15 @@ describe("DocumentsScreen", () => {
     renderDocumentsScreen();
 
     fireEvent.press(await screen.findByRole("button", { name: "Upload" }));
-    // Choose 15 January of last year from the picker -- no date format is ever typed.
-    const lastYear = String(new Date().getFullYear() - 1);
+    // Choose the 1st of this month from the picker -- within the last 5 months, never in the future.
+    const now = new Date();
+    const month = now.toLocaleString("en-US", { month: "long" });
+    const year = String(now.getFullYear());
+    const monthNumber = String(now.getMonth() + 1).padStart(2, "0");
     fireEvent.press(screen.getByLabelText("Police Character Certificate issue date"));
-    fireEvent.press(screen.getByRole("button", { name: "15" }));
-    fireEvent.press(screen.getByRole("button", { name: "January" }));
-    fireEvent.press(screen.getByRole("button", { name: lastYear }));
+    fireEvent.press(screen.getByRole("button", { name: "1" }));
+    fireEvent.press(screen.getByRole("button", { name: month }));
+    fireEvent.press(screen.getByRole("button", { name: year }));
     fireEvent.press(screen.getByRole("button", { name: "Done" }));
     fireEvent.press(await screen.findByRole("button", { name: "Choose file" }));
     await screen.findByText(/Selected file: passport\.pdf/);
@@ -965,7 +978,59 @@ describe("DocumentsScreen", () => {
 
     await waitFor(() => expect(candidateDocumentsClient.uploadDocument).toHaveBeenCalledTimes(1));
     const [call] = candidateDocumentsClient.uploadDocument.mock.calls[0];
-    expect(call.formData.get("candidate_document[issued_on]")).toBe(`${lastYear}-01-15`);
+    expect(call.formData.get("candidate_document[issued_on]")).toBe(`${year}-${monthNumber}-01`);
+  });
+
+  it("refuses a PCC issued more than 5 months ago before uploading anything", async () => {
+    candidateDocumentsClient.getChecklist.mockResolvedValue([
+      item({ requirementCode: "police_character", name: "Police Character Certificate", status: "missing" }),
+    ]);
+    applicationProgressClient.getProgress.mockResolvedValue(progress());
+    DocumentPicker.getDocumentAsync.mockResolvedValue({ canceled: false, assets: [pdfAsset()] });
+    renderDocumentsScreen();
+
+    fireEvent.press(await screen.findByRole("button", { name: "Upload" }));
+    fireEvent.press(screen.getByLabelText("Police Character Certificate issue date"));
+    fireEvent.press(screen.getByRole("button", { name: "15" }));
+    fireEvent.press(screen.getByRole("button", { name: "January" }));
+    fireEvent.press(screen.getByRole("button", { name: String(new Date().getFullYear() - 1) }));
+    fireEvent.press(screen.getByRole("button", { name: "Done" }));
+    fireEvent.press(await screen.findByRole("button", { name: "Choose file" }));
+    await screen.findByText(/Selected file: passport\.pdf/);
+    fireEvent.press(screen.getByRole("button", { name: "Submit" }));
+
+    expect(await screen.findByText("This PCC was issued more than 5 months ago. Please get a new one and upload it.")).toBeOnTheScreen();
+    expect(candidateDocumentsClient.uploadDocument).not.toHaveBeenCalled();
+  });
+
+  it("asks how the Next of Kin is related before uploading their CNIC, and sends the relation", async () => {
+    candidateDocumentsClient.getChecklist.mockResolvedValue([
+      item({ requirementCode: "next_of_kin_cnic", name: "Next of Kin CNIC", status: "missing" }),
+    ]);
+    applicationProgressClient.getProgress.mockResolvedValue(progress());
+    DocumentPicker.getDocumentAsync.mockResolvedValue({ canceled: false, assets: [pdfAsset()] });
+    candidateDocumentsClient.uploadDocument.mockResolvedValue(
+      item({ requirementCode: "next_of_kin_cnic", status: "uploaded", document: uploadedDocument() })
+    );
+    renderDocumentsScreen();
+
+    fireEvent.press(await screen.findByRole("button", { name: "Upload" }));
+    fireEvent.press(await screen.findByRole("button", { name: "Choose file" }));
+    await screen.findByText(/Selected file: passport\.pdf/);
+    fireEvent.press(screen.getByRole("button", { name: "Submit" }));
+    expect(await screen.findByText("Choose how your Next of Kin is related to you.")).toBeOnTheScreen();
+    expect(candidateDocumentsClient.uploadDocument).not.toHaveBeenCalled();
+
+    fireEvent.press(screen.getByLabelText("Relation with your Next of Kin"));
+    fireEvent.press(await screen.findByRole("button", { name: "Wife" }));
+    expect(await screen.findByText("You will also need to upload your marriage certificate (Nikah Nama).")).toBeOnTheScreen();
+    await act(async () => {
+      fireEvent.press(screen.getByRole("button", { name: "Submit" }));
+    });
+
+    await waitFor(() => expect(candidateDocumentsClient.uploadDocument).toHaveBeenCalledTimes(1));
+    const [call] = candidateDocumentsClient.uploadDocument.mock.calls[0];
+    expect(call.formData.get("candidate_document[next_of_kin_relation]")).toBe("wife");
   });
 
   it("ends the session and returns to sign-in on a session-expired error during upload", async () => {
@@ -1040,7 +1105,7 @@ describe("DocumentsScreen", () => {
     await AsyncStorage.setItem("descon.language", "ur");
     renderDocumentsScreen();
 
-    expect(await screen.findByText("زیر التوا • لازمی")).toBeOnTheScreen();
+    expect((await screen.findAllByText("درکار")).length).toBeGreaterThanOrEqual(2);
   });
 
   it("renders the capture buttons, guidance and a permission-blocked notice in Urdu", async () => {
@@ -1072,7 +1137,7 @@ describe("DocumentsScreen", () => {
       applicationProgressClient.getProgress.mockResolvedValue(progress());
       renderDocumentsScreen();
 
-      expect(await screen.findByText("Incomplete")).toBeOnTheScreen();
+      expect((await screen.findAllByText("Required")).length).toBeGreaterThan(0);
     });
 
     it("shows Complete when a bank detail already exists", async () => {
@@ -1081,7 +1146,8 @@ describe("DocumentsScreen", () => {
       candidateBankDetailsClient.getBankDetail.mockResolvedValue(bankDetailSummary({ status: "submitted", bankDetail: bankDetail() }));
       renderDocumentsScreen();
 
-      expect(await screen.findByText("Complete")).toBeOnTheScreen();
+      // The bank account reads Under Review once submitted, matching the documents' own statuses.
+      expect(await screen.findAllByText("Under Review")).toHaveLength(2);
     });
 
     it("validates required fields client-side before calling the API", async () => {
@@ -1093,24 +1159,24 @@ describe("DocumentsScreen", () => {
       fireEvent.press(screen.getByRole("button", { name: "Submit" }));
 
       expect(await screen.findByText("Enter the account title.")).toBeOnTheScreen();
-      expect(screen.getByText("Enter the account number.")).toBeOnTheScreen();
+      expect(screen.getByText("Enter your IBAN.")).toBeOnTheScreen();
       expect(screen.getByText("Select your bank.")).toBeOnTheScreen();
       expect(candidateBankDetailsClient.submitBankDetail).not.toHaveBeenCalled();
     });
 
-    it("rejects an account number that is not 6 to 20 digits, without calling the API", async () => {
+    it("rejects an account number that is not a full Pakistani IBAN, without calling the API", async () => {
       candidateDocumentsClient.getChecklist.mockResolvedValue([item({ status: "missing" })]);
       applicationProgressClient.getProgress.mockResolvedValue(progress());
       renderDocumentsScreen();
 
       fireEvent.press(await screen.findByRole("button", { name: "Add bank details" }));
       fireEvent.changeText(screen.getByLabelText("Account title"), "Ahmed Ali");
-      fireEvent.changeText(screen.getByLabelText("Account number"), "12345");
+      fireEvent.changeText(screen.getByLabelText("IBAN"), "0000001123456702");
       fireEvent.press(screen.getByLabelText("Bank name"));
       fireEvent.press(screen.getByRole("button", { name: "Meezan Bank Limited" }));
       fireEvent.press(screen.getByRole("button", { name: "Submit" }));
 
-      expect(await screen.findByText("Enter a valid account number (6 to 20 digits).")).toBeOnTheScreen();
+      expect(await screen.findByText("Enter your full IBAN: 24 characters starting with PK. Otherwise your bank details will be rejected.")).toBeOnTheScreen();
       expect(candidateBankDetailsClient.submitBankDetail).not.toHaveBeenCalled();
     });
 
@@ -1123,7 +1189,7 @@ describe("DocumentsScreen", () => {
 
       fireEvent.press(await screen.findByRole("button", { name: "Add bank details" }));
       fireEvent.changeText(screen.getByLabelText("Account title"), "Ahmed Ali");
-      fireEvent.changeText(screen.getByLabelText("Account number"), "0000001123456702");
+      fireEvent.changeText(screen.getByLabelText("IBAN"), "PK36SCBL0000001123456702");
       fireEvent.press(screen.getByLabelText("Bank name"));
       fireEvent.press(screen.getByRole("button", { name: "Meezan Bank Limited" }));
       fireEvent.press(await screen.findByRole("button", { name: "Choose file" }));
@@ -1137,10 +1203,11 @@ describe("DocumentsScreen", () => {
       const [params] = candidateBankDetailsClient.submitBankDetail.mock.calls[0];
       expect(params.accessToken).toBe("candidate-access-token");
       expect(params.formData.get("bank_detail[account_title]")).toBe("Ahmed Ali");
-      expect(params.formData.get("bank_detail[account_number]")).toBe("0000001123456702");
+      expect(params.formData.get("bank_detail[account_number]")).toBe("PK36SCBL0000001123456702");
       expect(params.formData.get("bank_detail[bank_name]")).toBe("Meezan Bank Limited");
 
-      expect(await screen.findByText("Complete")).toBeOnTheScreen();
+      // The bank account reads Under Review once submitted, matching the documents' own statuses.
+      expect(await screen.findAllByText("Under Review")).toHaveLength(2);
     });
 
     it("ends the session and returns to sign-in when the bank-detail submission fails because the session expired", async () => {
@@ -1152,7 +1219,7 @@ describe("DocumentsScreen", () => {
 
       fireEvent.press(await screen.findByRole("button", { name: "Add bank details" }));
       fireEvent.changeText(screen.getByLabelText("Account title"), "Ahmed Ali");
-      fireEvent.changeText(screen.getByLabelText("Account number"), "0000001123456702");
+      fireEvent.changeText(screen.getByLabelText("IBAN"), "PK36SCBL0000001123456702");
       fireEvent.press(screen.getByLabelText("Bank name"));
       fireEvent.press(screen.getByRole("button", { name: "Meezan Bank Limited" }));
       fireEvent.press(await screen.findByRole("button", { name: "Choose file" }));

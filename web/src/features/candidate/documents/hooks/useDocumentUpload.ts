@@ -24,6 +24,7 @@ import {
   type PairUploadMode,
 } from '../../../../../../shared/candidateDocuments/fileSet';
 import { PCC_REQUIREMENT_CODE, validatePccIssueDate, type PccIssueDateError } from '../../../../../../shared/candidateDocuments/pccIssueDate';
+import { NEXT_OF_KIN_REQUIREMENT_CODE, type NextOfKinRelation } from '../../../../../../shared/candidateDocuments/nextOfKin';
 import type { DocumentSideCode, DocumentUploadRules } from '../../../../../../shared/candidateDocuments/types';
 import { documentQueries } from '../../../../../../shared/queryKeys/documentQueries';
 
@@ -31,6 +32,7 @@ interface UploadVariables {
   requirementCode: string;
   entries: FileSetEntry<File>[];
   issuedOn: string;
+  nextOfKinRelation: NextOfKinRelation | null;
   idempotencyKey: string;
   /** Captured at the moment `mutate()` is called -- lets onSuccess skip touching the cache if the candidate logged out (or another candidate signed in) since this request started. */
   accessTokenAtCallTime: string;
@@ -38,20 +40,26 @@ interface UploadVariables {
 
 /**
  * Identifies the whole file set (each file, its part label and order) plus
- * the PCC issue date, matching what the backend's own idempotency fingerprint
- * covers -- any change starts a fresh attempt with a new key.
+ * the PCC issue date and next-of-kin relation, matching what the backend's own
+ * idempotency fingerprint covers -- any change starts a fresh attempt with a new key.
  */
-function fileSetSignature(entries: FileSetEntry<File>[], issuedOn: string): string {
+function fileSetSignature(entries: FileSetEntry<File>[], issuedOn: string, nextOfKinRelation: NextOfKinRelation | null): string {
   const files = entries.map(({ sideCode, file }) => `${sideCode ?? '-'}:${file.name}:${file.size}:${file.lastModified}`);
-  return `${files.join('|')}#${issuedOn}`;
+  return `${files.join('|')}#${issuedOn}#${nextOfKinRelation ?? ''}`;
 }
 
 /**
  * Sends the file set as `files[]` (each a file plus its part label, when the
- * requirement uses labels). `issued_on` is only sent for the PCC requirement;
- * `expires_on` is never sent -- the backend always calculates it.
+ * requirement uses labels). `issued_on` is only sent for the PCC requirement and
+ * `next_of_kin_relation` only for the next of kin's CNIC; `expires_on` is never
+ * sent -- the backend always calculates it.
  */
-function buildFormData(requirementCode: string, entries: FileSetEntry<File>[], issuedOn: string): FormData {
+function buildFormData(
+  requirementCode: string,
+  entries: FileSetEntry<File>[],
+  issuedOn: string,
+  nextOfKinRelation: NextOfKinRelation | null
+): FormData {
   const formData = new FormData();
   formData.append('candidate_document[requirement_code]', requirementCode);
   for (const { sideCode, file } of entries) {
@@ -60,6 +68,9 @@ function buildFormData(requirementCode: string, entries: FileSetEntry<File>[], i
   }
   if (requirementCode === PCC_REQUIREMENT_CODE && issuedOn.trim()) {
     formData.append('candidate_document[issued_on]', issuedOn.trim());
+  }
+  if (requirementCode === NEXT_OF_KIN_REQUIREMENT_CODE && nextOfKinRelation) {
+    formData.append('candidate_document[next_of_kin_relation]', nextOfKinRelation);
   }
   return formData;
 }
@@ -91,6 +102,8 @@ export function useDocumentUpload() {
   const [showSetError, setShowSetError] = useState(false);
   const [issuedOn, setIssuedOnState] = useState('');
   const [issuedOnError, setIssuedOnError] = useState<PccIssueDateError | null>(null);
+  const [nextOfKinRelation, setNextOfKinRelationState] = useState<NextOfKinRelation | null>(null);
+  const [nextOfKinRelationMissing, setNextOfKinRelationMissing] = useState(false);
   const [idempotencyState, setIdempotencyState] = useState<IdempotencyKeyState>(EMPTY_IDEMPOTENCY_KEY_STATE);
 
   // A response for an item the candidate has since navigated away from must
@@ -104,21 +117,23 @@ export function useDocumentUpload() {
     [active, entries]
   );
   const isPccRequirement = active?.requirementCode === PCC_REQUIREMENT_CODE;
+  const isNextOfKinRequirement = active?.requirementCode === NEXT_OF_KIN_REQUIREMENT_CODE;
 
   const resetSelection = useCallback(() => {
     setEntries([]);
     setShowSetError(false);
     setIssuedOnState('');
     setIssuedOnError(null);
+    setNextOfKinRelationMissing(false);
     setIdempotencyState(EMPTY_IDEMPOTENCY_KEY_STATE);
   }, []);
 
   const mutation = useMutation<CandidateDocumentChecklistItem, CandidateDocumentsError, UploadVariables>({
-    mutationFn: ({ requirementCode, entries: files, issuedOn: date, idempotencyKey, accessTokenAtCallTime }) =>
+    mutationFn: ({ requirementCode, entries: files, issuedOn: date, nextOfKinRelation: relation, idempotencyKey, accessTokenAtCallTime }) =>
       candidateDocumentsClient.uploadDocument({
         accessToken: accessTokenAtCallTime,
         requirementCode,
-        formData: buildFormData(requirementCode, files, date),
+        formData: buildFormData(requirementCode, files, date, relation),
         idempotencyKey,
       }),
     onSuccess: (result, variables) => {
@@ -130,6 +145,10 @@ export function useDocumentUpload() {
       // Counts, submission state and the next action on Dashboard/Status/
       // Profile all come from application progress -- refresh it too.
       queryClient.invalidateQueries({ queryKey: documentQueries.applicationProgress(candidateId, language) });
+      // The next of kin's relation decides whether the marriage certificate is on the checklist.
+      if (result.requirementCode === NEXT_OF_KIN_REQUIREMENT_CODE) {
+        queryClient.invalidateQueries({ queryKey: documentQueries.candidateChecklist(candidateId, language) });
+      }
       toast.success(t('candidateDocumentsUploadSuccessToast'));
 
       if (activeRequirementCodeRef.current === result.requirementCode) {
@@ -151,8 +170,10 @@ export function useDocumentUpload() {
   });
 
   const startUpload = useCallback(
-    (item: Pick<CandidateDocumentChecklistItem, 'requirementCode' | 'uploadRules'>) => {
+    (item: Pick<CandidateDocumentChecklistItem, 'requirementCode' | 'uploadRules'> & Partial<Pick<CandidateDocumentChecklistItem, 'document'>>) => {
       setActive({ requirementCode: item.requirementCode, rules: item.uploadRules });
+      // A replacement starts from the relation given last time.
+      setNextOfKinRelationState(item.document?.nextOfKinRelation ?? null);
       setModeState('parts');
       resetSelection();
       mutation.reset();
@@ -209,6 +230,11 @@ export function useDocumentUpload() {
     setIssuedOnError(null);
   }, []);
 
+  const setNextOfKinRelation = useCallback((value: NextOfKinRelation) => {
+    setNextOfKinRelationState(value);
+    setNextOfKinRelationMissing(false);
+  }, []);
+
   const submit = useCallback(() => {
     if (!active || !layout || !session || mutation.isPending) return;
     setShowSetError(true);
@@ -220,12 +246,17 @@ export function useDocumentUpload() {
       if (dateError) return;
     }
 
+    if (isNextOfKinRequirement && !nextOfKinRelation) {
+      setNextOfKinRelationMissing(true);
+      return;
+    }
+
     const files = orderedEntries(layout, entries);
     // Reused for an unchanged retry; minted fresh for any change to the set,
     // the requirement or the issue date.
     const resolved = resolveIdempotencyKey(
       idempotencyState,
-      { requirementCode: active.requirementCode, fileSignature: fileSetSignature(files, issuedOn) },
+      { requirementCode: active.requirementCode, fileSignature: fileSetSignature(files, issuedOn, nextOfKinRelation) },
       randomIdempotencyKey
     );
     setIdempotencyState(resolved);
@@ -234,10 +265,11 @@ export function useDocumentUpload() {
       requirementCode: active.requirementCode,
       entries: files,
       issuedOn,
+      nextOfKinRelation: isNextOfKinRequirement ? nextOfKinRelation : null,
       idempotencyKey: resolved.key as string,
       accessTokenAtCallTime: session.accessToken,
     });
-  }, [active, layout, session, mutation, validation, isPccRequirement, issuedOn, entries, idempotencyState]);
+  }, [active, layout, session, mutation, validation, isPccRequirement, issuedOn, isNextOfKinRequirement, nextOfKinRelation, entries, idempotencyState]);
 
   return {
     activeRequirementCode: active?.requirementCode ?? null,
@@ -252,6 +284,10 @@ export function useDocumentUpload() {
     issuedOn,
     setIssuedOn,
     issuedOnError,
+    isNextOfKinRequirement,
+    nextOfKinRelation,
+    setNextOfKinRelation,
+    nextOfKinRelationMissing,
     startUpload,
     cancelUpload,
     selectSlotFile,

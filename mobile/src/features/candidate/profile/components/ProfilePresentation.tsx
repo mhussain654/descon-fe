@@ -2,13 +2,13 @@ import type { ComponentType } from 'react';
 import { Image } from 'expo-image';
 import { Pressable, StyleSheet, View } from 'react-native';
 import { Text } from '../../../../design-system/Text';
-import { CheckCircle, ChevronLeft, ChevronRight, FileText, Flag, Globe, IdCard, LogOut, MapPin } from 'lucide-react-native';
+import { CheckCircle, ChevronLeft, ChevronRight, FileText, Globe, IdCard, LogOut, MapPin } from 'lucide-react-native';
 import { Circle, Defs, LinearGradient, Rect, Stop } from 'react-native-svg';
 import { MeasuredSvg } from '../../../../design-system/MeasuredSvg';
 import type { CandidateProfile } from '../../../../../../shared/candidateProfile/types';
 import { candidateStatusLabel } from '../../../../../../shared/candidateProfile/formatting';
-import type { ApplicationProgressDocuments } from '../../../../../../shared/applicationProgress/types';
-import { APPLICATION_SUBMISSION_STATE_KEYS, APPLICATION_SUBMISSION_STATE_TONES } from '../../../../../../shared/applicationProgress/statusLabels';
+import type { MobilizationJourney } from '../../../../../../shared/applicationProgress/mobilizationJourney';
+import { journeyStepLine } from '../../progress/components/StatusPresentation';
 import type { Language, TranslationKey } from '../../../../../../shared/i18n/translations';
 import { Button, getFontFamily } from '../../../../design-system';
 import { elevation, spacing } from '../../../../design-system/tokens';
@@ -18,7 +18,6 @@ import { GradientIconBox, type IconTone } from '../../home/GradientIconBox';
 import { ProfilePhotoEditor } from './ProfilePhotoEditor';
 
 type LocaleProps = { language: Language; t: (key: TranslationKey) => string };
-const DOCUMENT_TONES: Record<string, IconTone> = { success: 'green', warning: 'orange', danger: 'coral', info: 'blue', neutral: 'purple' };
 function copyStyle(language: Language) {
   return { fontFamily: getFontFamily(language), textAlign: physicalTextAlign(language === 'ur' ? 'right' : 'left'), writingDirection: language === 'ur' ? 'rtl' as const : 'ltr' as const, ...(language === 'ur' ? { lineHeight: 30 } : {}) };
 }
@@ -58,7 +57,11 @@ function ProfileInfoRow({ icon, tone, label, value, language }: { icon: Componen
   );
 }
 
-export function ProfileDetails({ profile, documents, language, t }: LocaleProps & { profile: CandidateProfile; documents?: ApplicationProgressDocuments }) {
+const STATUS_TONES: Record<string, IconTone> = { approved: 'green', in_process: 'blue', rejected: 'coral', upcoming: 'purple' };
+
+/** Client feedback: the assignment card shows only where the application is in process for and its current status ("Visa in process"). */
+export function ProfileDetails({ profile, journey, language, t }: LocaleProps & { profile: CandidateProfile; journey?: MobilizationJourney | null }) {
+  const current = journey?.current ?? null;
   const unassigned = t('candidateProfileNotAssignedYet');
   return (
     <>
@@ -74,9 +77,13 @@ export function ProfileDetails({ profile, documents, language, t }: LocaleProps 
       <View style={profileStyles.card}>
         <Text accessibilityRole="header" style={[profileStyles.sectionTitle, copyStyle(language), { fontFamily: getFontFamily(language, 'bold') }]}>{t('candidateProfileAssignmentTitle')}</Text>
         <ProfileInfoRow icon={MapPin} tone="orange" label={t('candidateProfileBusinessUnitLabel')} value={profile.country?.name ?? unassigned} language={language} />
-        <ProfileInfoRow icon={CheckCircle} tone="green" label={t('candidateProfileStatusLabel')} value={candidateStatusLabel(profile)} language={language} />
-        <ProfileInfoRow icon={Flag} tone="blue" label={t('candidateProfileWorkflowStageLabel')} value={profile.currentWorkflowStage?.name ?? unassigned} language={language} />
-        {documents ? <ProfileInfoRow icon={CheckCircle} tone={DOCUMENT_TONES[APPLICATION_SUBMISSION_STATE_TONES[documents.submissionState]]} label={t('candidateProfileDocumentsSectionTitle')} value={t(APPLICATION_SUBMISSION_STATE_KEYS[documents.submissionState] as TranslationKey)} language={language} /> : null}
+        <ProfileInfoRow
+          icon={CheckCircle}
+          tone={current ? STATUS_TONES[current.status] : 'green'}
+          label={t('candidateProfileStatusLabel')}
+          value={current ? journeyStepLine(current, t) : candidateStatusLabel(profile)}
+          language={language}
+        />
       </View>
     </>
   );

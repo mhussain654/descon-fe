@@ -176,11 +176,11 @@ describe("ProfilePage", () => {
     expect(screen.queryByText("Document verification")).not.toBeInTheDocument();
   });
 
-  it("shows the destination country (Business Unit) of the current assignment", async () => {
+  it("shows which country the application is in process for", async () => {
     candidateProfileClient.getProfile.mockResolvedValue(profilePayload());
     await signInAndNavigateToProfile();
 
-    expect(await screen.findByText("Destination (Business Unit)")).toBeInTheDocument();
+    expect(await screen.findByText("In process for")).toBeInTheDocument();
     expect(screen.getByText("Qatar")).toBeInTheDocument();
   });
 

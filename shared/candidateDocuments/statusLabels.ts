@@ -1,12 +1,12 @@
 import type { CandidateDocumentDisplayStatus, PccComplianceDisplayStatus } from './types';
 
-/** Maps every possible display status (including the `'unknown'` fallback) to its translation key. Never render `status` directly -- always go through this map (ticket: "Do not render raw requirement codes or raw status codes as user-facing text."). */
+/** Maps every possible display status (including the `'unknown'` fallback) to its translation key -- the four candidate-facing statuses (see statusGroups.ts). Never render `status` directly -- always go through this map (ticket: "Do not render raw requirement codes or raw status codes as user-facing text."). */
 export const CANDIDATE_DOCUMENT_STATUS_KEYS: Record<CandidateDocumentDisplayStatus, string> = {
-  missing: 'candidateDocumentsStatusMissing',
-  uploaded: 'uploaded',
-  pending_review: 'candidateDocumentsStatusPendingReview',
-  verified: 'verified',
-  rejected: 'rejected',
+  missing: 'candidateDocumentsStatusRequired',
+  uploaded: 'candidateDocumentsStatusUnderReview',
+  pending_review: 'candidateDocumentsStatusUnderReview',
+  verified: 'candidateDocumentsStatusComplete',
+  rejected: 'candidateDocumentsStatusRejected',
   unknown: 'candidateDocumentsStatusUnknown',
 };
 

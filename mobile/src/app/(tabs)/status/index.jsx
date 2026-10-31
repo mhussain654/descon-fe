@@ -3,9 +3,9 @@ import { Text } from "../../../design-system/Text";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
 import { Download } from "lucide-react-native";
-import { StatusHeader, StatusProgressSummary, StatusStageCard, statusStyles, statusCopyStyle } from "../../../features/candidate/progress/components/StatusPresentation";
+import { StatusHeader, JourneySummary, JourneyStepCard, statusStyles, statusCopyStyle } from "../../../features/candidate/progress/components/StatusPresentation";
 import { ButtonHeightContext } from "../../../design-system/Button";
-import { isStartSide, rowDirectionTowards } from "../../../lib/layoutDirection";
+import { isStartSide } from "../../../lib/layoutDirection";
 import { useRouter } from "expo-router";
 import { useAuth } from "../../../contexts/AuthContext";
 import { useLanguage } from "../../../contexts/LanguageContext";
@@ -18,18 +18,16 @@ import { useCandidateVisaDecisions } from "../../../features/candidate/workflow/
 import { useVisaCopyAccess } from "../../../features/candidate/workflow/hooks/useVisaCopyAccess";
 import { LoadingState, ErrorState, OfflineState, SessionExpiredState, ForbiddenState, Button, ValidationMessage, getFontFamily } from "../../../design-system";
 import { APPLICATION_PROGRESS_ERROR_KEYS } from "../../../../../shared/applicationProgress/errorMessages";
-import { WORKFLOW_HISTORY_ERROR_KEYS } from "../../../../../shared/candidateWorkflow/errorMessages";
 import { findLatestQvcOutcome, QVC_OUTCOME_KEYS, QVC_OUTCOME_TONES } from "../../../../../shared/candidateWorkflow/qvcOutcome";
-import { isActionableHistoryItem } from "../../../../../shared/candidateWorkflow/actionableHistory";
-import { currentDashboardStage } from "../../../../../shared/applicationProgress/currentDashboardStage";
-import { journeyProgress } from "../../../../../shared/applicationProgress/journeyMilestones";
+import { mobilizationJourney } from "../../../../../shared/applicationProgress/mobilizationJourney";
 import { VISA_OUTCOME_KEYS, VISA_OUTCOME_TONES } from "../../../../../shared/candidateVisaDecisions/outcomeLabels";
 import { CANDIDATE_FLIGHT_DETAIL_ERROR_KEYS } from "../../../../../shared/candidateFlightDetail/errorMessages";
 import { CANDIDATE_VISA_DECISIONS_ERROR_KEYS } from "../../../../../shared/candidateVisaDecisions/errorMessages";
 
-const QVC_OUTCOME_STAGE_CODE = "qvc_completed_outcome_received";
-const VISA_OUTCOME_STAGE_CODE = "visa_issued_or_rejected";
-const FLIGHT_TICKET_STAGE_CODES = new Set(["flight_details_uploaded", "mobilized"]);
+// The steps that carry an outcome or a download of their own.
+const QVC_OUTCOME_STEP = "qvc_status";
+const VISA_OUTCOME_STEP = "visa";
+const FLIGHT_TICKET_STEP = "ready_to_fly";
 
 const QVC_TONE_COLORS = {
   success: { bg: "#E6F9F0", text: "#087C46" },
@@ -65,19 +63,18 @@ export default function StatusScreen() {
 
   const workflow = progressQuery.data?.workflow;
   const timeline = workflow?.timeline ?? [];
-  // The list shows milestones only; waiting states ("documents pending", "under
-  // verification" ...) appear once, as the current status above it.
-  const journey = journeyProgress(timeline);
-  const currentStatusName = currentDashboardStage(timeline)?.name ?? null;
+  // The client's mobilization process for the candidate's Business Unit: a few
+  // steps, each Approved / In process / Rejected, instead of every internal stage.
+  const journey = mobilizationJourney({
+    countryCode: workflow?.mobilizationProcess?.countryCode,
+    timeline,
+    outcomes: workflow?.outcomes,
+    documents: progressQuery.data?.documents,
+  });
   const qvcOutcome = findLatestQvcOutcome(historyQuery.data?.items ?? []);
   // The latest recorded visa decision (a candidate can be re-submitted, so this is
   // never assumed to be the only one) -- the backend returns the list in chronological order.
   const latestVisaDecision = visaDecisionsQuery.data?.at(-1) ?? null;
-  // Only real actions/outcomes ("documents uploaded", "fee paid", "visa
-  // issued") -- a waiting state like "fee pending" is already shown as the
-  // *current* position in the stepper above, so repeating it here under a
-  // "completed" heading would misleadingly read as something having happened.
-  const historyItems = (historyQuery.data?.items ?? []).filter(isActionableHistoryItem);
   const lastUpdatedLabel = workflow ? formatStageDate(workflow.updatedAt, language) : null;
 
   return (
@@ -146,7 +143,7 @@ export default function StatusScreen() {
         ) : null}
 
         {!progressQuery.isPending && !progressQuery.error && timeline.length > 0 ? (
-          <StatusProgressSummary completedCount={journey.completedCount} totalCount={journey.totalCount} percentage={journey.percentage} currentStatusName={currentStatusName} updatedLabel={lastUpdatedLabel} language={language} t={t} />
+          <JourneySummary journey={journey} updatedLabel={lastUpdatedLabel} language={language} t={t} />
         ) : null}
 
         {!progressQuery.isPending && !progressQuery.error && timeline.length === 0 ? (
@@ -156,17 +153,17 @@ export default function StatusScreen() {
         {/* Timeline */}
         {!progressQuery.isPending && !progressQuery.error && timeline.length > 0 ? (
           <View>
-            <Text accessibilityRole="header" style={[statusStyles.sectionTitle, statusCopyStyle(language, 16), { fontFamily: getFontFamily(language, "bold") }]}>{t("candidateStatusJourneyTitle")}</Text>
-            {journey.milestones.map((stage, index) => {
-              const isLast = index === journey.milestones.length - 1;
-              const startedLabel = formatStageDate(stage.startedAt, language);
-              const completedLabel = formatStageDate(stage.completedAt, language);
+            <Text accessibilityRole="header" style={[statusStyles.sectionTitle, statusCopyStyle(language, 16), { fontFamily: getFontFamily(language, "bold") }]}>{t("journeyMobilizationProcessTitle")}</Text>
+            {journey.steps.map((step, index) => {
+              const isLast = index === journey.steps.length - 1;
+              const startedLabel = formatStageDate(step.startedAt, language);
+              const completedLabel = formatStageDate(step.completedAt, language);
               const outcomeTone = qvcOutcome ? QVC_TONE_COLORS[QVC_OUTCOME_TONES[qvcOutcome.code]] : null;
               const visaOutcomeTone = latestVisaDecision ? QVC_TONE_COLORS[VISA_OUTCOME_TONES[latestVisaDecision.outcomeCode]] : null;
 
               return (
-                <StatusStageCard key={stage.code} stage={stage} isLast={isLast} language={language} t={t} dateLabel={completedLabel ? `${t("workflowStageCompletedPrefix")} ${completedLabel}` : startedLabel ? `${t("workflowStageStartedPrefix")} ${startedLabel}` : null}>
-                    {stage.code === QVC_OUTCOME_STAGE_CODE && qvcOutcome ? (
+                <JourneyStepCard key={step.code} step={step} isLast={isLast} language={language} t={t} dateLabel={completedLabel ? `${t("workflowStageCompletedPrefix")} ${completedLabel}` : startedLabel ? `${t("workflowStageStartedPrefix")} ${startedLabel}` : null}>
+                    {step.code === QVC_OUTCOME_STEP && qvcOutcome ? (
                       <View
                         style={{
                           backgroundColor: outcomeTone.bg,
@@ -183,7 +180,7 @@ export default function StatusScreen() {
                         </Text>
                       </View>
                     ) : null}
-                    {stage.code === VISA_OUTCOME_STAGE_CODE && latestVisaDecision ? (
+                    {step.code === VISA_OUTCOME_STEP && latestVisaDecision ? (
                       <View>
                         <View
                           style={{
@@ -227,7 +224,7 @@ export default function StatusScreen() {
                         ) : null}
                       </View>
                     ) : null}
-                    {FLIGHT_TICKET_STAGE_CODES.has(stage.code) && stage.status === "completed" && flightDetailQuery.data?.ticketAttached ? (
+                    {step.code === FLIGHT_TICKET_STEP && step.status !== "upcoming" && flightDetailQuery.data?.ticketAttached ? (
                       <View style={{ marginTop: 8 }}>
                         <Button
                           variant="outline"
@@ -250,46 +247,12 @@ export default function StatusScreen() {
                         ) : null}
                       </View>
                     ) : null}
-                </StatusStageCard>
+                </JourneyStepCard>
               );
             })}
           </View>
         ) : null}
 
-        {/* Recent updates */}
-        {!progressQuery.isPending && !progressQuery.error && timeline.length > 0 ? (
-          <View style={statusStyles.history}>
-            <Text accessibilityRole="header" style={[statusStyles.sectionTitle, statusCopyStyle(language, 16), { fontFamily: getFontFamily(language, "bold") }]}>{t("workflowHistoryTitle")}</Text>
-            {historyQuery.isPending ? (
-              <Text style={[statusStyles.historyName, statusCopyStyle(language)]}>{t("loading")}</Text>
-            ) : historyQuery.error ? (
-              <View style={[statusStyles.historyRow, { flexDirection: rowDirectionTowards(language === "ur" ? "right" : "left") }]}>
-                <Text style={[statusStyles.historyName, statusCopyStyle(language)]}>
-                  {t(WORKFLOW_HISTORY_ERROR_KEYS[historyQuery.error.code])}
-                </Text>
-                <Button variant="text" size="sm" onPress={() => historyQuery.refetch()} language={language}>{t("retry")}</Button>
-              </View>
-            ) : historyItems.length === 0 ? (
-              <Text style={[statusStyles.historyName, statusCopyStyle(language)]}>
-                {t("workflowHistoryEmpty")}
-              </Text>
-            ) : (
-              [...historyItems].reverse().map((item) => (
-                <View
-                  key={`${item.toStage.code}-${item.occurredAt}`}
-                  style={[statusStyles.historyRow, { flexDirection: rowDirectionTowards(language === "ur" ? "right" : "left") }]}
-                >
-                  <Text style={[statusStyles.historyName, statusCopyStyle(language)]}>
-                    {item.toStage.name}
-                  </Text>
-                  <Text style={[statusStyles.historyDate, statusCopyStyle(language)]}>
-                    {formatStageDate(item.occurredAt, language)}
-                  </Text>
-                </View>
-              ))
-            )}
-          </View>
-        ) : null}
       </ScrollView>
     </View>
     </ButtonHeightContext.Provider>

@@ -133,7 +133,7 @@ export function BankDetailsPanel({ isDark, t, language, onSessionEnd }: BankDeta
             <Text
               style={[styles.subtitle, { color: isComplete ? "#087C46" : "#6B7280", fontFamily: getFontFamily(language, "regular"), textAlign: physicalTextAlign(language === "ur" ? "right" : "left"), lineHeight: language === "ur" ? 30 : 20 }]}
             >
-              {t(isComplete ? "candidateBankDetailsComplete" : "candidateBankDetailsIncomplete")}
+              {t(isComplete ? "candidateDocumentsStatusUnderReview" : "candidateDocumentsStatusRequired")}
             </Text>
           </View>
           <Chevron size={20} color={isDark ? "#6B7280" : "#9CA3AF"} />
@@ -178,7 +178,10 @@ function BankDetailsForm({ t, language, upload, onDone }: BankDetailsFormProps) 
           label={t("candidateBankDetailsAccountNumberLabel")}
           value={upload.accountNumber}
           onChangeText={upload.setAccountNumber}
-          keyboardType="number-pad"
+          // An IBAN mixes letters and digits ("PK36SCBL…").
+          autoCapitalize="characters"
+          autoCorrect={false}
+          maxLength={34}
           errorMessage={
             upload.fieldErrors.accountNumber ? t(FIELD_ERROR_KEYS.accountNumber[upload.fieldErrors.accountNumber]) : undefined
           }

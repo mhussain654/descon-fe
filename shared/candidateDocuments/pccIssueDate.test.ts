@@ -29,6 +29,17 @@ describe('validatePccIssueDate', () => {
   it('accepts a valid past date', () => {
     expect(validatePccIssueDate('2026-08-01', today)).toBeNull();
   });
+
+  it('accepts a PCC issued exactly 5 months ago, and refuses one issued earlier', () => {
+    expect(validatePccIssueDate('2026-03-28', today)).toBeNull();
+    expect(validatePccIssueDate('2026-03-27', today)).toBe('TOO_OLD');
+  });
+
+  it('counts 5 months back to the end of a shorter month, as the backend does', () => {
+    const endOfJuly = new Date('2026-07-31T08:00:00Z');
+    expect(validatePccIssueDate('2026-02-28', endOfJuly)).toBeNull();
+    expect(validatePccIssueDate('2026-02-27', endOfJuly)).toBe('TOO_OLD');
+  });
 });
 
 describe('PCC_REQUIREMENT_CODE', () => {

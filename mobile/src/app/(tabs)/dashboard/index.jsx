@@ -26,9 +26,9 @@ import { rowDirectionTowards } from "../../../lib/layoutDirection";
 import { latestActionableUpdate, STAGE_UPDATE_DESCRIPTION_KEYS, STAGE_UPDATE_FALLBACK_KEY } from "../../../../../shared/candidateWorkflow/latestUpdate";
 import { interpolate } from "../../../../../shared/i18n/interpolate";
 import { formatCurrency, formatDate } from "../../../../../shared/i18n/locale";
-import { resolveNextAction, NEXT_ACTION_KEYS } from "../../../../../shared/applicationProgress/nextAction";
-import { currentDashboardStage, upcomingDashboardStage } from "../../../../../shared/applicationProgress/currentDashboardStage";
-import { journeyProgress } from "../../../../../shared/applicationProgress/journeyMilestones";
+import { resolveNextAction } from "../../../../../shared/applicationProgress/nextAction";
+import { mobilizationJourney } from "../../../../../shared/applicationProgress/mobilizationJourney";
+import { journeyStepLine } from "../../../features/candidate/progress/components/StatusPresentation";
 import { LoadingState, ErrorState, OfflineState, SessionExpiredState, ForbiddenState, getFontFamily, toast } from "../../../design-system";
 import { colors, spacing } from "../../../design-system/tokens";
 
@@ -56,13 +56,14 @@ function resolveNextActionRoute(nextActionKind) {
   }
 }
 // Which next-step card the home screen shows for a `NextActionKind`: the fee
-// gets its own payment card, document problems a documents card, and every
-// staff/system-driven wait a calm "what happens next" card.
+// gets its own payment card and document work an "Upload Documents" card.
+// A staff/system-driven wait shows no card: My Journey and Quick Access
+// already lead to the Status page, and a third button there was redundant.
 function nextStepVariant(nextActionKind) {
   const route = resolveNextActionRoute(nextActionKind);
   if (route === "/payment") return "payment";
   if (route === "/(tabs)/documents") return "documents";
-  return "waiting";
+  return null;
 }
 
 function greetingKey(date = new Date()) {
@@ -224,30 +225,21 @@ export default function DashboardScreen() {
   const profile = profileQuery.data;
   const workflow = progressQuery.data?.workflow;
   const isUrdu = language === "ur";
-  // The real, backend-authoritative workflow (MPS-501) -- `currentWorkflowStage`
-  // is a separate, HR-advanced pipeline position that can legitimately lag
-  // behind it, so summarizing "current status" here from the same timeline
-  // Status renders keeps the two screens telling the same story.
-  const currentStage = workflow ? currentDashboardStage(workflow.timeline) : null;
-  // Whether anything is left ahead -- once nothing is, the next-step card
-  // congratulates instead of asking the candidate to wait.
-  const upcomingStage = workflow ? upcomingDashboardStage(workflow.timeline) : null;
-  // What is happening right now, for the waiting card. Never a stage *name*
-  // as the title: "Documents Verified" under "Next step" reads as done, not
-  // as something to do. Stages with no sentence of their own say nothing here.
-  const currentStageCode = workflow?.timeline.find((stage) => stage.status === "current")?.code;
-  const currentStageKey = currentStageCode ? STAGE_UPDATE_DESCRIPTION_KEYS[currentStageCode] : undefined;
-  const waitingDescription = [currentStageKey ? t(currentStageKey) : null, t("homeWaitingDescription")].filter(Boolean).join(" ");
-  // Counted over the milestones My Journey lists, so both screens give the same figures.
-  const journey = workflow ? journeyProgress(workflow.timeline) : null;
+  // The same mobilization process Status lists (client's steps per Business
+  // Unit), so both screens tell the same story.
+  const journey = workflow
+    ? mobilizationJourney({
+        countryCode: workflow.mobilizationProcess?.countryCode,
+        timeline: workflow.timeline,
+        outcomes: workflow.outcomes,
+        documents: progressQuery.data?.documents,
+      })
+    : null;
   const percentage = journey?.percentage ?? 0;
   const nextAction =
     progressQuery.data && checklistQuery.data ? resolveNextAction(progressQuery.data, checklistQuery.data) : null;
-  const nextActionMessage = nextAction
-    ? `${t(NEXT_ACTION_KEYS[nextAction.kind])}${nextAction.requirementName ? `: ${nextAction.requirementName}` : ""}`
-    : t("waitingForVerification");
-  const variant = nextAction ? nextStepVariant(nextAction.kind) : "waiting";
-  const nextStep = {
+  const variant = nextAction ? nextStepVariant(nextAction.kind) : null;
+  const nextStep = variant && {
     payment: {
       title: t("homePayFeeTitle"),
       description: t("homePayFeeDescription"),
@@ -258,16 +250,9 @@ export default function DashboardScreen() {
       route: "/payment",
     },
     documents: {
-      title: nextActionMessage,
-      description: t("homeDocumentsActionDescription"),
-      actionLabel: t("homeGoToDocuments"),
+      title: t("homeUploadDocumentsTitle"),
+      actionLabel: t("homeProceed"),
       route: "/(tabs)/documents",
-    },
-    waiting: {
-      title: upcomingStage ? t("homeWaitingTitle") : t("homeJourneyCompleteTitle"),
-      description: upcomingStage ? waitingDescription : t("homeJourneyCompleteDescription"),
-      actionLabel: t("homeViewStatus"),
-      route: "/(tabs)/status",
     },
   }[variant];
   const forwardArrow = forwardArrowSlots(language, colors.brand.on, 15);
@@ -323,33 +308,35 @@ export default function DashboardScreen() {
           photoUri={photoUri}
           photoLabel={t("homeProfilePhoto")}
           country={profile.country}
+          countryLine={profile.country ? interpolate(t("homeApplicationInProcessFor"), { country: profile.country.name }) : null}
         />
 
         <View style={styles.content}>
           <ApplicationProgressCard
             language={language}
             title={t("homeMyJourney")}
-            stageLabel={currentStage ? currentStage.name : null}
-            stepsLine={interpolate(t("homeStepsComplete"), {
-              completed: journey?.completedCount ?? 0,
+            stageLabel={journey?.current ? journeyStepLine(journey.current, t) : null}
+            stepsLine={interpolate(t("journeyStepsApproved"), {
+              approved: journey?.approvedCount ?? 0,
               total: journey?.totalCount ?? 0,
             })}
             percentLine={interpolate(t("homePercentComplete"), { percent: percentage })}
             percentage={percentage}
           />
 
-          <NextStepCard
-            language={language}
-            variant={variant}
-            eyebrow={t("homeNextStepLabel")}
-            title={nextStep.title}
-            description={nextStep.description}
-            amountText={nextStep.amountText}
-            actionLabel={nextStep.actionLabel}
-            onAction={() => router.push(nextStep.route)}
-            leadingIcon={forwardArrow.leadingIcon}
-            trailingIcon={forwardArrow.trailingIcon}
-          />
+          {nextStep ? (
+            <NextStepCard
+              language={language}
+              variant={variant}
+              title={nextStep.title}
+              description={nextStep.description}
+              amountText={nextStep.amountText}
+              actionLabel={nextStep.actionLabel}
+              onAction={() => router.push(nextStep.route)}
+              leadingIcon={forwardArrow.leadingIcon}
+              trailingIcon={forwardArrow.trailingIcon}
+            />
+          ) : null}
 
           <View>
             <Text style={[styles.sectionTitle, isUrdu && styles.sectionTitleUrdu, { fontFamily: getFontFamily(language, "bold") }]}>

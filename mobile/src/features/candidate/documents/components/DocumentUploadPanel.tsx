@@ -10,6 +10,7 @@ import {
   LoadingState,
   OfflineState,
   DateField,
+  SelectField,
   ValidationMessage,
 } from '../../../../design-system';
 import { colors, spacing } from '../../../../design-system/tokens';
@@ -24,6 +25,7 @@ import {
 } from '../../../../../../shared/candidateDocuments/fileSet';
 import { formatFileSize } from '../../../../../../shared/candidateDocuments/formatting';
 import type { PccIssueDateError } from '../../../../../../shared/candidateDocuments/pccIssueDate';
+import { NEXT_OF_KIN_RELATION_KEYS, NEXT_OF_KIN_RELATIONS, isNextOfKinRelation } from '../../../../../../shared/candidateDocuments/nextOfKin';
 import type { DocumentSideCode } from '../../../../../../shared/candidateDocuments/types';
 import { interpolate } from '../../../../../../shared/i18n/interpolate';
 import type { CandidateDocumentsError } from '../../../../lib/candidate-documents-client';
@@ -47,6 +49,7 @@ const PCC_ISSUE_DATE_ERROR_KEYS: Record<PccIssueDateError, TranslationKey> = {
   REQUIRED: 'candidateDocumentsPccIssueDateRequiredError',
   INVALID_FORMAT: 'candidateDocumentsPccIssueDateInvalidError',
   IN_FUTURE: 'candidateDocumentsPccIssueDateInFutureError',
+  TOO_OLD: 'candidateDocumentsPccIssueDateTooOldError',
 };
 
 type Translate = (key: TranslationKey) => string;
@@ -124,6 +127,26 @@ export function DocumentUploadPanel({ labelText, instructions, upload, t, langua
       {!isCnicPair && !isPassportPair ? <Label language={language}>{labelText}</Label> : null}
       {instructions && !isPassportPair && !isCnicPair ? (
         <Text style={[styles.instructions, { fontFamily: getFontFamily(language, 'regular') }]}>{instructions}</Text>
+      ) : null}
+
+      {upload.isNextOfKinRequirement ? (
+        <View style={styles.section}>
+          <SelectField
+            label={t('candidateDocumentsNextOfKinRelationLabel')}
+            value={upload.nextOfKinRelation ?? ''}
+            options={NEXT_OF_KIN_RELATIONS.map((relation) => ({ value: relation, label: t(NEXT_OF_KIN_RELATION_KEYS[relation]) }))}
+            onChange={(value) => {
+              if (isNextOfKinRelation(value)) upload.setNextOfKinRelation(value);
+            }}
+            placeholder={t('candidateDocumentsNextOfKinRelationPlaceholder')}
+            cancelLabel={t('candidateDocumentsCancel')}
+            helperText={
+              upload.nextOfKinRelation === 'wife' ? t('candidateDocumentsNextOfKinWifeHint') : undefined
+            }
+            errorMessage={upload.nextOfKinRelationMissing ? t('candidateDocumentsNextOfKinRelationRequiredError') : undefined}
+            language={language}
+          />
+        </View>
       ) : null}
 
       {upload.isPccRequirement ? (

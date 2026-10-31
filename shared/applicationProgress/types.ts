@@ -72,6 +72,11 @@ export interface WorkflowTimelineStage {
   completedAt: string | null;
 }
 
+export interface WorkflowOutcomes {
+  medical: 'fit' | 'unfit' | null;
+  visa: 'issued' | 'rejected' | null;
+}
+
 export interface ApplicationProgressWorkflow {
   mobilizationProcess: MobilizationProcessSummary | null;
   timeline: WorkflowTimelineStage[];
@@ -80,6 +85,8 @@ export interface ApplicationProgressWorkflow {
   progressPercentage: number;
   /** ISO 8601, or null when the candidate has no current assignment yet. */
   updatedAt: string | null;
+  /** The latest medical result and visa decision (null until recorded) -- marks those journey steps Rejected. */
+  outcomes: WorkflowOutcomes;
 }
 
 export interface ApplicationProgressDocuments {

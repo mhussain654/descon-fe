@@ -1,10 +1,16 @@
 import type { ReactNode } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { Text } from '../../../../design-system/Text';
-import { Check, Clock, Plane, Route } from 'lucide-react-native';
+import { Check, Clock, Plane, Route, X } from 'lucide-react-native';
 import { Circle, Defs, LinearGradient, Rect, Stop } from 'react-native-svg';
 import { MeasuredSvg } from '../../../../design-system/MeasuredSvg';
-import type { WorkflowTimelineStage } from '../../../../../../shared/applicationProgress/types';
+import {
+  JOURNEY_STATUS_KEYS,
+  JOURNEY_STEP_KEYS,
+  type JourneyStep,
+  type MobilizationJourney,
+} from '../../../../../../shared/applicationProgress/mobilizationJourney';
+import { interpolate } from '../../../../../../shared/i18n/interpolate';
 import type { Language, TranslationKey } from '../../../../../../shared/i18n/translations';
 import { formatNumber } from '../../../../../../shared/i18n/locale';
 import { getFontFamily } from '../../../../design-system';
@@ -45,21 +51,37 @@ export function StatusHeader({ language, t, topInset, countryCode }: LocaleProps
   );
 }
 
-export function StatusProgressSummary({ completedCount, totalCount, percentage: rawPercentage, currentStatusName, updatedLabel, language, t }: LocaleProps & { completedCount: number; totalCount: number; percentage: number; currentStatusName: string | null; updatedLabel: string | null }) {
-  const percentage = Math.max(0, Math.min(100, rawPercentage));
+/** "Visa in process", "Medical rejected" ... -- the step and its status as one line. */
+export function journeyStepLine(step: JourneyStep, t: (key: TranslationKey) => string): string {
+  return interpolate(t('journeyCurrentStepLine'), { step: t(JOURNEY_STEP_KEYS[step.code]), status: t(JOURNEY_STATUS_KEYS[step.status]).toLowerCase() });
+}
+
+/** The candidate's current status and next step (all they need, per the client), with overall progress. */
+export function JourneySummary({ journey, updatedLabel, language, t }: LocaleProps & { journey: MobilizationJourney; updatedLabel: string | null }) {
+  const percentage = Math.max(0, Math.min(100, journey.percentage));
+  const current = journey.current;
   return (
     <View style={statusStyles.summary}>
-      {currentStatusName ? (
+      {current ? (
         <View style={statusStyles.currentStatus}>
-          <Text style={[statusStyles.summaryLabel, statusCopyStyle(language)]}>{t('currentStatus')}</Text>
-          <Text style={[statusStyles.currentStatusName, statusCopyStyle(language, 18), { fontFamily: getFontFamily(language, 'bold') }]}>{currentStatusName}</Text>
+          <Text style={[statusStyles.summaryLabel, statusCopyStyle(language)]}>{t('journeyCurrentStatusLabel')}</Text>
+          <Text style={[statusStyles.currentStatusName, statusCopyStyle(language, 18), { fontFamily: getFontFamily(language, 'bold'), color: STATUS_COLORS[current.status].text }]}>
+            {journeyStepLine(current, t)}
+          </Text>
         </View>
       ) : null}
+      <View style={statusStyles.currentStatus}>
+        <Text style={[statusStyles.summaryLabel, statusCopyStyle(language)]}>{t('journeyNextStepLabel')}</Text>
+        <Text style={[statusStyles.nextStepName, statusCopyStyle(language, 16), { fontFamily: getFontFamily(language, 'semibold') }]}>
+          {journey.next ? t(JOURNEY_STEP_KEYS[journey.next.code]) : t('journeyAllStepsApproved')}
+        </Text>
+      </View>
       <View style={[statusStyles.summaryRow, { flexDirection: rowDirectionTowards(language === 'ur' ? 'right' : 'left') }]}>
         <GradientIconBox icon={Route} tone="purple" size={36} />
         <View style={statusStyles.flex}>
-          <Text style={[statusStyles.summaryLabel, statusCopyStyle(language)]}>{t('workflowStagesCompletedPrefix')}</Text>
-          <Text style={[statusStyles.summaryCount, statusCopyStyle(language, 21), { fontFamily: getFontFamily(language, 'bold') }]}>{formatNumber(completedCount, language)} / {formatNumber(totalCount, language)}</Text>
+          <Text style={[statusStyles.summaryCount, statusCopyStyle(language, 15), { fontFamily: getFontFamily(language, 'semibold') }]}>
+            {interpolate(t('journeyStepsApproved'), { approved: formatNumber(journey.approvedCount, language), total: formatNumber(journey.totalCount, language) })}
+          </Text>
         </View>
         <Text style={[statusStyles.percent, { fontFamily: getFontFamily(language, 'bold') }]}>{formatNumber(percentage, language)}%</Text>
       </View>
@@ -71,29 +93,39 @@ export function StatusProgressSummary({ completedCount, totalCount, percentage: 
   );
 }
 
+const STATUS_COLORS = {
+  approved: { marker: '#10AD70', badge: '#DFF5E9', text: '#087C46' },
+  in_process: { marker: '#0862BC', badge: '#DBECFF', text: '#0862BC' },
+  rejected: { marker: '#D92D20', badge: '#FDE8E7', text: '#B42318' },
+  upcoming: { marker: '#E5EDF8', badge: '#E8EEF7', text: '#687A95' },
+} as const;
+
+const STATUS_ICONS = { approved: Check, in_process: Clock, rejected: X, upcoming: null } as const;
+
 /** A tag label is one short word. A box wider than the word means Android never has a reason to wrap its last letter away ("مکمل" shown as "مکم"). */
 const BADGE_LABEL_BOX = { minWidth: 56, textAlign: 'center' as const };
 
-export function StatusStageCard({ stage, isLast, dateLabel, language, t, children }: LocaleProps & { stage: WorkflowTimelineStage; isLast: boolean; dateLabel: string | null; children?: ReactNode }) {
-  const completed = stage.status === 'completed';
-  const current = stage.status === 'current';
-  const tone = completed ? statusStyles.completed : current ? statusStyles.current : statusStyles.upcoming;
-  const color = completed ? '#087C46' : current ? '#0862BC' : '#687A95';
-  const Icon = completed ? Check : current ? Clock : null;
+/** One step of the mobilization process. Steps not started yet carry no status tag: the client's statuses are Approved, In process and Rejected only. */
+export function JourneyStepCard({ step, isLast, dateLabel, language, t, children }: LocaleProps & { step: JourneyStep; isLast: boolean; dateLabel: string | null; children?: ReactNode }) {
+  const colors = STATUS_COLORS[step.status];
+  const Icon = STATUS_ICONS[step.status];
+  const tone = { approved: statusStyles.completed, in_process: statusStyles.current, rejected: statusStyles.rejected, upcoming: statusStyles.upcoming }[step.status];
   return (
     <View style={[statusStyles.stageRow, { flexDirection: rowDirectionTowards(language === 'ur' ? 'right' : 'left') }]}>
       <View style={statusStyles.rail} accessible={false}>
-        <View style={[statusStyles.marker, { backgroundColor: completed ? '#10AD70' : current ? '#0862BC' : '#E5EDF8' }]}>
-          {Icon ? <Icon size={18} color="#FFFFFF" strokeWidth={2.5} /> : <Text style={[statusStyles.position, { fontFamily: getFontFamily(language, 'semibold') }]}>{formatNumber(stage.position, language)}</Text>}
+        <View style={[statusStyles.marker, { backgroundColor: colors.marker }]}>
+          {Icon ? <Icon size={18} color="#FFFFFF" strokeWidth={2.5} /> : <Text style={[statusStyles.position, { fontFamily: getFontFamily(language, 'semibold') }]}>{formatNumber(step.position, language)}</Text>}
         </View>
-        {!isLast ? <View style={[statusStyles.connector, completed && statusStyles.connectorCompleted]} /> : null}
+        {!isLast ? <View style={[statusStyles.connector, step.status === 'approved' && statusStyles.connectorCompleted]} /> : null}
       </View>
-      <View testID={`status-stage-${stage.code}`} style={[statusStyles.stageCard, tone]}>
+      <View testID={`status-step-${step.code}`} style={[statusStyles.stageCard, tone]}>
         <View style={[statusStyles.stageHeading, { flexDirection: rowDirectionTowards('left') }]}>
-          <Text style={[statusStyles.stageName, statusCopyStyle(language), { fontFamily: getFontFamily(language, current ? 'bold' : 'semibold') }]}>{stage.name}</Text>
-          <View style={[statusStyles.badge, { backgroundColor: completed ? '#DFF5E9' : current ? '#DBECFF' : '#E8EEF7' }]}>
-            <Text style={[statusStyles.badgeText, statusCopyStyle(language), BADGE_LABEL_BOX, { color, fontFamily: getFontFamily(language, 'medium') }]}>{t(completed ? 'candidateStatusCompleted' : current ? 'inProgress' : 'pending')}</Text>
-          </View>
+          <Text style={[statusStyles.stageName, statusCopyStyle(language), { fontFamily: getFontFamily(language, step.status === 'in_process' ? 'bold' : 'semibold') }]}>{t(JOURNEY_STEP_KEYS[step.code])}</Text>
+          {step.status !== 'upcoming' ? (
+            <View style={[statusStyles.badge, { backgroundColor: colors.badge }]}>
+              <Text style={[statusStyles.badgeText, statusCopyStyle(language), BADGE_LABEL_BOX, { color: colors.text, fontFamily: getFontFamily(language, 'medium') }]}>{t(JOURNEY_STATUS_KEYS[step.status])}</Text>
+            </View>
+          ) : null}
         </View>
         {dateLabel ? <Text style={[statusStyles.date, statusCopyStyle(language)]}>{dateLabel}</Text> : null}
         {children}
@@ -116,6 +148,7 @@ export const statusStyles = StyleSheet.create({
   summary: { borderRadius: 20, backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#DFEAF8', padding: spacing[4], marginBottom: spacing[5], ...elevation.sm },
   currentStatus: { marginBottom: spacing[3], paddingBottom: spacing[3], borderBottomWidth: 1, borderBottomColor: '#DFEAF8' },
   currentStatusName: { fontSize: 18, color: '#0862BC' },
+  nextStepName: { fontSize: 16, color: '#172B4D' },
   summaryRow: { gap: spacing[3], alignItems: 'center' },
   summaryLabel: { fontSize: 12, lineHeight: 19, color: '#687A95' },
   summaryCount: { fontSize: 21, lineHeight: 29, color: '#172B4D' },
@@ -134,6 +167,7 @@ export const statusStyles = StyleSheet.create({
   completed: { backgroundColor: '#F0FBF5', borderColor: '#C7EAD9' },
   current: { backgroundColor: '#FFFFFF', borderColor: '#6DAEF5', ...elevation.sm },
   upcoming: { backgroundColor: '#F8FAFE', borderColor: '#DFE8F5' },
+  rejected: { backgroundColor: '#FFF5F4', borderColor: '#F5C2BD' },
   stageHeading: { alignItems: 'flex-start', gap: spacing[2] },
   stageName: { flex: 1, minWidth: 0, fontSize: 14, lineHeight: 22, color: '#172B4D' },
   date: { fontSize: 11, lineHeight: 18, color: '#687A95', marginTop: spacing[1] },

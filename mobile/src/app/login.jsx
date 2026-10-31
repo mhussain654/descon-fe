@@ -6,8 +6,6 @@ import { StatusBar } from "expo-status-bar";
 import { useRouter } from "expo-router";
 import { Image } from "expo-image";
 import { Clock, IdCard } from "lucide-react-native";
-import { Defs, LinearGradient, Rect, Stop } from "react-native-svg";
-import { MeasuredSvg } from "../design-system/MeasuredSvg";
 import { useAuth } from "../contexts/AuthContext";
 import { useLanguage } from "../contexts/LanguageContext";
 import { RequireGuest } from "../features/auth/RequireGuest";
@@ -35,40 +33,22 @@ import { OTP_LENGTH } from "../../../shared/auth/types";
 import { useCnicOtpFlow } from "../../../shared/auth/useCnicOtpFlow";
 import { candidateAuthClient } from "../lib/auth-client";
 
-// The worker/globe photo leaves its open, shaded sky on one side for the copy:
-// left in English, and in the mirrored Urdu copy on the right.
-const HERO_PHOTO = {
-  en: require("../../assets/images/login-hero.webp"),
-  ur: require("../../assets/images/login-hero-rtl.webp"),
+// The same artwork as the language page (no person): the landmarks, globe and
+// Descon-branded helmet, with open sky on one side for the copy -- left in
+// English, and in the mirrored Urdu copy on the right. Only the white sheet
+// below differs between the two screens.
+const HERO_ART = {
+  en: require("../../assets/images/welcome-hero.webp"),
+  ur: require("../../assets/images/welcome-hero-rtl.webp"),
 };
-// The sheet's rounded top slides up over the base of the photo.
+// The sheet's rounded top slides up over the plain ground at the art's base.
 const SHEET_OVERLAP = 28;
-const HERO_SHADE_COLOR = "#00379A";
-
-// Dark-blue shade over the photo's copy side (fading out toward the worker),
-// plus a soft top band behind the status bar -- what keeps the white copy
-// legible over a busy photograph.
-function HeroShade({ copySide }) {
-  const fromLeft = copySide === "left";
-  return (
-    <MeasuredSvg>
-      <Defs>
-        <LinearGradient id="heroShadeAcross" x1={fromLeft ? "0" : "1"} y1="0" x2={fromLeft ? "1" : "0"} y2="0">
-          <Stop offset="0" stopColor={HERO_SHADE_COLOR} stopOpacity="0.93" />
-          <Stop offset="0.43" stopColor={HERO_SHADE_COLOR} stopOpacity="0.73" />
-          <Stop offset="0.75" stopColor={HERO_SHADE_COLOR} stopOpacity="0.12" />
-          <Stop offset="1" stopColor={HERO_SHADE_COLOR} stopOpacity="0.05" />
-        </LinearGradient>
-        <LinearGradient id="heroShadeDown" x1="0" y1="0" x2="0" y2="1">
-          <Stop offset="0" stopColor={HERO_SHADE_COLOR} stopOpacity="0.25" />
-          <Stop offset="0.66" stopColor={HERO_SHADE_COLOR} stopOpacity="0" />
-        </LinearGradient>
-      </Defs>
-      <Rect x="0" y="0" width="100%" height="100%" fill="url(#heroShadeAcross)" />
-      <Rect x="0" y="0" width="100%" height="100%" fill="url(#heroShadeDown)" />
-    </MeasuredSvg>
-  );
-}
+// A soft dark halo keeps the white copy readable where it crosses lighter sky and clouds.
+const HERO_TEXT_SHADOW = {
+  textShadowColor: "rgba(0, 28, 84, 0.7)",
+  textShadowOffset: { width: 0, height: 1 },
+  textShadowRadius: 8,
+};
 
 // A row whose first child sits on the given physical side in the live layout.
 function rowTowards(side) {
@@ -248,18 +228,19 @@ export default function LoginScreen() {
         <ScrollView ref={scrollRef} contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled" bounces={false}>
           <View style={[styles.hero, { paddingTop: insets.top + spacing[3] + 106 + spacing[3], minHeight: insets.top + width * 0.78 }]}>
             <Image
-              source={HERO_PHOTO[isUrdu ? "ur" : "en"]}
+              source={HERO_ART[isUrdu ? "ur" : "en"]}
               style={StyleSheet.absoluteFill}
               contentFit="cover"
+              // Keep the landmarks and helmet in view; any crop comes off the plain sky.
+              contentPosition="bottom"
               accessible={false}
             />
-            <HeroShade copySide={copySide} />
 
             <View style={[styles.brandSlot, { top: insets.top + spacing[3] }]}>
               <BrandHeader language={language} primary={t("brandNamePrimary")} secondary={t("brandNameSecondary")} />
             </View>
 
-            <View style={[styles.heroCopy, anchorStyle, { maxWidth: width * (isUrdu ? 0.82 : 0.66) }]}>
+            <View style={[styles.heroCopy, anchorStyle, { maxWidth: width * (isUrdu ? 0.7 : 0.6) }]}>
               <Text
                 accessibilityRole="header"
                 style={[styles.heroTitle, isUrdu ? styles.heroTitleUrdu : null, copyTextStyle, font("bold")]}
@@ -281,6 +262,11 @@ export default function LoginScreen() {
                 <Text style={[styles.sheetSubtitle, isUrdu ? styles.secondaryUrdu : null, copyTextStyle, font("regular")]}>
                   {step === "cnic" ? t("loginSheetSubtitle") : t("otpSheetSubtitle")}
                 </Text>
+                {step === "cnic" ? (
+                  <Text style={[styles.sheetSubtitle, isUrdu ? styles.secondaryUrdu : null, copyTextStyle, font("regular")]}>
+                    {t("loginOtpNotice")}
+                  </Text>
+                ) : null}
               </View>
 
               {step === "cnic" ? (
@@ -313,6 +299,7 @@ export default function LoginScreen() {
                 <CnicField
                   label={t("cnic")}
                   placeholder={t("enterCNIC")}
+                  helperText={t("authCnicExample")}
                   value={cnic}
                   onValueChange={setCnic}
                   errorMessage={cnicError ? t(CNIC_FIELD_ERROR_KEYS[cnicError]) : undefined}
@@ -366,9 +353,6 @@ export default function LoginScreen() {
                       ? `${t("otpCodeSentTo")} ${challenge.maskedDestination}`
                       : t("otpCodeSentToRegistered")}
                   </Text>
-                  <Pressable onPress={backToCnic} accessibilityRole="button" hitSlop={8}>
-                    <Text style={[styles.link, font("bold")]}>{t("authChangeCnic")}</Text>
-                  </Pressable>
                 </View>
 
                 <View>
@@ -425,7 +409,7 @@ export default function LoginScreen() {
                       leadingIcon={forwardArrow.leadingIcon}
                       trailingIcon={forwardArrow.trailingIcon}
                     >
-                      {t("verifyAndContinue")}
+                      {t("continue")}
                     </Button>
 
                     {!isExpired && !isLockedOut ? (
@@ -480,7 +464,7 @@ const styles = StyleSheet.create({
   hero: {
     paddingHorizontal: spacing[6],
     paddingBottom: SHEET_OVERLAP + spacing[6],
-    backgroundColor: HERO_SHADE_COLOR,
+    backgroundColor: "#0065B3",
     overflow: "hidden",
   },
   brandSlot: { position: "absolute", start: 0, end: 0, alignItems: "center" },
@@ -504,10 +488,11 @@ const styles = StyleSheet.create({
     lineHeight: 35,
     color: colors.text.inverse,
     letterSpacing: -0.5,
+    ...HERO_TEXT_SHADOW,
   },
   // Nastaliq needs ~2x line height so stacked descenders and dots never touch.
   heroTitleUrdu: { fontSize: 24, lineHeight: 48, letterSpacing: 0, paddingHorizontal: spacing[1] },
-  heroLead: { marginTop: -spacing[2], fontSize: 14, lineHeight: 21, color: colors.text.inverse, opacity: 0.95 },
+  heroLead: { marginTop: -spacing[2], fontSize: 15, lineHeight: 22, color: colors.text.inverse, ...HERO_TEXT_SHADOW },
   heroLeadUrdu: { marginTop: -spacing[1], fontSize: 14, lineHeight: 28, paddingHorizontal: spacing[1] },
 
   sheet: {

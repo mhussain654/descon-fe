@@ -2,6 +2,7 @@
 // documented in descon-be's openapi.yaml:
 //   GET  /api/v1/candidate/documents
 //   POST /api/v1/candidate/documents
+import { isNextOfKinRelation } from './nextOfKin';
 import type { ApiClient, ApiError } from '../api-client';
 import { toDocumentFiles, toSideCode } from './documentFiles';
 import type {
@@ -33,6 +34,7 @@ interface CandidateDocumentMetadataResponse {
   issued_on?: string | null;
   expires_on?: string | null;
   compliance_status?: string | null;
+  next_of_kin_relation?: string | null;
   reviewed_at?: string | null;
   rejection_reason?: string | null;
 }
@@ -150,6 +152,7 @@ function toDocumentMetadata(raw: unknown): CandidateDocumentMetadata | null {
     issuedOn: typeof value.issued_on === 'string' ? value.issued_on : undefined,
     expiresOn: typeof value.expires_on === 'string' ? value.expires_on : undefined,
     complianceStatus: toComplianceStatus(value.compliance_status),
+    nextOfKinRelation: isNextOfKinRelation(value.next_of_kin_relation) ? value.next_of_kin_relation : undefined,
     reviewedAt: typeof value.reviewed_at === 'string' ? value.reviewed_at : undefined,
     rejectionReason: typeof value.rejection_reason === 'string' ? value.rejection_reason : undefined,
   };

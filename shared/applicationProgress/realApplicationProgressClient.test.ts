@@ -154,6 +154,7 @@ describe('createApplicationProgressClient (real) -- getProgress', () => {
         totalCount: 15,
         progressPercentage: 6,
         updatedAt: '2026-08-02T00:00:00Z',
+        outcomes: { medical: null, visa: null },
       },
       documents: {
         requiredTotal: 1,
@@ -249,7 +250,10 @@ describe('createApplicationProgressClient (real) -- getProgress', () => {
     const client = buildClient();
     const progress = await client.getProgress('token');
 
-    expect(progress.workflow).toEqual({ mobilizationProcess: null, timeline: [], completedCount: 0, totalCount: 0, progressPercentage: 0, updatedAt: null });
+    expect(progress.workflow).toEqual({
+      mobilizationProcess: null, timeline: [], completedCount: 0, totalCount: 0, progressPercentage: 0, updatedAt: null,
+      outcomes: { medical: null, visa: null },
+    });
   });
 
   it('drops a malformed workflow timeline stage (missing code) rather than crashing or fabricating one', async () => {

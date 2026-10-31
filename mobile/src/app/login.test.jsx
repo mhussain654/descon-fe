@@ -172,13 +172,40 @@ describe('LoginScreen', () => {
     expect(screen.queryByLabelText('CNIC Number')).toBeNull();
   });
 
+  it('welcomes the candidate (not "welcome back") and explains which CNIC to use and that an OTP follows', async () => {
+    renderLoginScreen();
+    await screen.findByLabelText('CNIC Number');
+
+    expect(screen.getByText('Welcome')).toBeOnTheScreen();
+    expect(screen.queryByText('Welcome back')).toBeNull();
+    expect(screen.getByText('Your Gateway to Overseas Employment')).toBeOnTheScreen();
+    expect(screen.getByText('Use the CNIC provided with your application')).toBeOnTheScreen();
+    expect(screen.getByText('An OTP will be sent to your registered mobile number.')).toBeOnTheScreen();
+    expect(screen.getByText('Example: 35202-1234567-1 or 3520212345671 (with or without dashes)')).toBeOnTheScreen();
+  });
+
+  it('on the OTP step, tells the candidate to check their inbox, offers only Continue and no Change CNIC', async () => {
+    renderLoginScreen();
+    fireEvent.changeText(await screen.findByLabelText('CNIC Number'), '35202-1234567-1');
+    fireEvent.press(screen.getByRole('button', { name: 'Send OTP' }));
+
+    await waitFor(() => expect(screen.getByLabelText('One-Time Password')).toBeOnTheScreen());
+    expect(screen.getByText('Check your messages inbox')).toBeOnTheScreen();
+    expect(
+      screen.getByText('A six-digit verification code has been sent from Descon - MPS Connect to your registered mobile number.')
+    ).toBeOnTheScreen();
+    expect(screen.getByRole('button', { name: 'Continue' })).toBeOnTheScreen();
+    expect(screen.queryByRole('button', { name: 'Verify and continue' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Change CNIC' })).toBeNull();
+  });
+
   it('renders in Urdu when that is the persisted language, with a long-text error that is not clipped', async () => {
     await AsyncStorage.setItem('descon.language', 'ur');
     renderLoginScreen();
 
     const input = await screen.findByLabelText('شناختی کارڈ نمبر');
     expect(input.props.placeholder).toBe('00000-0000000-0');
-    expect(screen.getByText('اپنا شناختی کارڈ نمبر درج کریں')).toBeOnTheScreen();
+    expect(screen.getByText('مثال: 35202-1234567-1 یا 3520212345671 (ڈیش کے ساتھ یا اس کے بغیر)')).toBeOnTheScreen();
     const back = screen.getByRole('button', { name: 'واپس' });
     expect(back.props.style).toEqual(expect.arrayContaining([expect.objectContaining({ position: 'absolute', zIndex: 10 })]));
 
@@ -271,7 +298,7 @@ describe('LoginScreen', () => {
       fireEvent.changeText(screen.getByLabelText('One-Time Password'), '123456');
 
       await waitFor(() => expect(screen.getByText('You can try again in 0:20')).toBeOnTheScreen());
-      expect(screen.getByRole('button', { name: 'Verify and continue' })).toBeDisabled();
+      expect(screen.getByRole('button', { name: 'Continue' })).toBeDisabled();
     });
 
     it('shows a live countdown after a resend is rate-limited, independent of the Verify action', async () => {

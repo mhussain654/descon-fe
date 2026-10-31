@@ -12,6 +12,7 @@ import { useCandidateDocuments } from "../../../features/candidate/documents/hoo
 import { useDocumentUpload } from "../../../features/candidate/documents/hooks/useDocumentUpload";
 import { useDocumentAccess } from "../../../features/candidate/documents/hooks/useDocumentAccess";
 import { useApplicationProgress } from "../../../features/candidate/progress/hooks/useApplicationProgress";
+import { useBankDetail } from "../../../features/candidate/documents/hooks/useBankDetail";
 import { useSubmitDocuments } from "../../../features/candidate/progress/hooks/useSubmitDocuments";
 import { DocumentUploadPanel } from "../../../features/candidate/documents/components/DocumentUploadPanel";
 import { DocumentViewPanel } from "../../../features/candidate/documents/components/DocumentViewPanel";
@@ -33,17 +34,24 @@ import { APPLICATION_PROGRESS_ERROR_KEYS } from "../../../../../shared/applicati
 import { DocumentsHeader, DocumentsSummary, DocumentCardHeading, documentsStyles } from "../../../features/candidate/documents/components/DocumentsPresentation";
 import { physicalTextAlign, rowDirectionTowards } from "../../../lib/layoutDirection";
 import { PCC_COMPLIANCE_STATUS_KEYS } from "../../../../../shared/candidateDocuments/statusLabels";
+import { countDocumentStatusGroups, documentStatusGroup, DOCUMENT_STATUS_GROUP_KEYS } from "../../../../../shared/candidateDocuments/statusGroups";
 
 import { ButtonHeightContext } from "../../../design-system/Button";
 
-const STATUS_CONFIG = {
-  verified: { color: "#087C46", labelKey: "verified" },
-  pending_review: { color: "#9A5700", labelKey: "candidateDocumentsStatusPendingReview" },
-  uploaded: { color: "#0862BC", labelKey: "uploaded" },
-  rejected: { color: "#B42318", labelKey: "rejected" },
-  missing: { color: "#6B7280", labelKey: "pending" },
-  unknown: { color: "#6B7280", labelKey: "candidateDocumentsStatusUnknown" },
+// The four statuses the candidate sees (see shared/candidateDocuments/statusGroups.ts).
+const STATUS_COLORS = {
+  complete: "#087C46",
+  under_review: "#9A5700",
+  required: "#6B7280",
+  rejected: "#B42318",
 };
+
+function statusPresentation(item) {
+  const group = documentStatusGroup(item.status);
+  if (group === null) return { color: STATUS_COLORS.required, labelKey: "candidateDocumentsStatusUnknown" };
+  if (group === "required" && !item.required) return { color: STATUS_COLORS.required, labelKey: "candidateDocumentsStatusOptional" };
+  return { color: STATUS_COLORS[group], labelKey: DOCUMENT_STATUS_GROUP_KEYS[group] };
+}
 
 export default function DocumentsScreen() {
   const insets = useSafeAreaInsets();
@@ -53,6 +61,7 @@ export default function DocumentsScreen() {
   const { logout } = useAuth();
   const checklistQuery = useCandidateDocuments();
   const progressQuery = useApplicationProgress();
+  const bankDetailQuery = useBankDetail();
   const upload = useDocumentUpload();
   const submit = useSubmitDocuments();
   const documentAccess = useDocumentAccess();
@@ -85,11 +94,7 @@ export default function DocumentsScreen() {
   }, [upload.mutation.error, submit.mutation.error, documentAccess.error]);
 
   const documents = progressQuery.data?.documents;
-  const stats = {
-    verified: documents?.verified ?? 0,
-    pendingReview: documents?.pendingReview ?? 0,
-    missing: documents?.missing ?? 0,
-  };
+  const stats = countDocumentStatusGroups(checklistQuery.data ?? [], bankDetailQuery.data?.status ?? null);
 
   const renderBody = () => {
     // `isPending`, not `isLoading` -- a disabled query (auth not yet
@@ -263,7 +268,7 @@ function DocumentRow({
   isViewOpen,
   onToggleView,
 }) {
-  const config = STATUS_CONFIG[item.status] ?? STATUS_CONFIG.unknown;
+  const config = statusPresentation(item);
   const canUpload = item.status === "missing";
   const canReplace = item.document !== null && item.replacementAllowed;
   const hasAction = canUpload || canReplace;
@@ -279,7 +284,6 @@ function DocumentRow({
   const statusLine = [
     t(config.labelKey),
     item.document?.uploadedAt ? new Date(item.document.uploadedAt).toLocaleDateString(language === "ur" ? "ur-PK" : "en-GB") : null,
-    item.required ? t("candidateDocumentsRequiredLabel") : null,
     complianceStatus && complianceStatus !== "current" && complianceStatus !== "not_applicable" ? t(PCC_COMPLIANCE_STATUS_KEYS[complianceStatus]) : null,
   ]
     .filter(Boolean)

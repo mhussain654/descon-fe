@@ -9,8 +9,24 @@
 
 import { isPakistanBank } from './pakistanBanks';
 
-/** Mirrors CandidateBankDetail::ACCOUNT_NUMBER_FORMAT exactly: 6-20 digits after normalization (whitespace stripped). */
-const ACCOUNT_NUMBER_FORMAT = /^\d{6,20}$/;
+/** Mirrors descon-be's PakistanIban::FORMAT: "PK", 2 check digits, a 4-letter bank code and 16 digits. */
+const PAKISTAN_IBAN_FORMAT = /^PK\d{2}[A-Z]{4}\d{16}$/;
+
+/** ISO 13616 mod-97 check of an already-normalized IBAN, computed piecewise so no big integers are needed. */
+function ibanChecksumValid(iban: string): boolean {
+  const rearranged = iban.slice(4) + iban.slice(0, 4);
+  let remainder = 0;
+  for (const char of rearranged) {
+    const value = /\d/.test(char) ? char : String(char.charCodeAt(0) - 55);
+    for (const digit of value) remainder = (remainder * 10 + Number(digit)) % 97;
+  }
+  return remainder === 1;
+}
+
+/** Client rule: the candidate's full Pakistani IBAN, not a plain account number. Mirrors PakistanIban.valid?. */
+export function isValidPakistanIban(normalized: string): boolean {
+  return PAKISTAN_IBAN_FORMAT.test(normalized) && ibanChecksumValid(normalized);
+}
 
 export type BankDetailFieldError = 'REQUIRED' | 'INVALID_ACCOUNT_NUMBER';
 
@@ -33,7 +49,7 @@ export function validateBankDetailFields(fields: { accountTitle: string; account
   const normalizedAccountNumber = normalizeAccountNumber(fields.accountNumber);
   if (!normalizedAccountNumber) {
     errors.accountNumber = 'REQUIRED';
-  } else if (!ACCOUNT_NUMBER_FORMAT.test(normalizedAccountNumber)) {
+  } else if (!isValidPakistanIban(normalizedAccountNumber)) {
     errors.accountNumber = 'INVALID_ACCOUNT_NUMBER';
   }
 

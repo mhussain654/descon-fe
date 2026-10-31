@@ -108,7 +108,7 @@ export function BankDetailsPanel({ t, language, onSessionEnd }) {
         <div className="ms-3 flex-1">
           <div className="mb-0.5 text-[15px] font-medium text-black">{t("candidateBankDetailsTitle")}</div>
           <div className={`text-[13px] ${isComplete ? "text-[#10B981]" : "text-[#6B7280]"}`}>
-            {t(isComplete ? "candidateBankDetailsComplete" : "candidateBankDetailsIncomplete")}
+            {t(isComplete ? "candidateDocumentsStatusUnderReview" : "candidateDocumentsStatusRequired")}
           </div>
         </div>
         <Chevron size={20} className="text-gray-400" />
@@ -154,7 +154,9 @@ function BankDetailsForm({ t, language, upload, onDone }) {
         <Input
           label={t("candidateBankDetailsAccountNumberLabel")}
           value={upload.accountNumber}
-          inputMode="numeric"
+          autoCapitalize="characters"
+          autoComplete="off"
+          maxLength={34}
           onChange={(event) => upload.setAccountNumber(event.currentTarget.value)}
           errorMessage={
             upload.fieldErrors.accountNumber ? t(FIELD_ERROR_KEYS.accountNumber[upload.fieldErrors.accountNumber]) : undefined

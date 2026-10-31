@@ -100,6 +100,8 @@ function timelineThrough(currentPosition, { startedAt = "2026-08-01", completedA
 
 function workflowPayload(overrides = {}) {
   return {
+    mobilizationProcess: { code: "qatar_mobilization", version: 1, provisional: false, countryCode: "qatar" },
+    outcomes: { medical: null, visa: null },
     timeline: timelineThrough(2),
     completedCount: 1,
     totalCount: 15,
@@ -197,33 +199,38 @@ function renderStatusScreen() {
   );
 }
 
-/** The timeline's own row for a stage name -- the first match inside a stage card, since the same name can also appear in the current-status line above the list and in the "Recent Updates" history below it. */
+/** The list's own card for a step name -- the first match inside a step card, since the same name can also appear in the summary above the list. */
 function stageRow(labelText) {
-  // Stage name sits inside the heading row; its parent card also holds dates and downloads.
+  // Step name sits inside the heading row; its parent card also holds dates and downloads.
   for (const match of screen.getAllByText(labelText)) {
     let node = match;
-    while (node && !node.props.testID?.startsWith("status-stage-")) node = node.parent;
+    while (node && !node.props.testID?.startsWith("status-step-")) node = node.parent;
     if (node) return node;
   }
-  throw new Error(`Missing stage card: ${labelText}`);
+  throw new Error(`Missing step card: ${labelText}`);
 }
+
+const QATAR_STEPS = [
+  "enrolled", "document_submission", "medical", "mobilization_fee", "qvc_appointment", "qvc_status",
+  "visa", "protection", "pre_flight_brief", "ready_to_fly",
+];
 
 describe("StatusScreen", () => {
   it("shows the Business Unit from the backend mobilization process", async () => {
     applicationProgressClient.getProgress.mockResolvedValue(progressPayload({ workflow: workflowPayload({ mobilizationProcess: { code: 'qatar-v1', version: 1, provisional: false, countryCode: 'qatar' } }) }));
     renderStatusScreen();
-    expect(await screen.findByText('Destination (Business Unit): Qatar')).toBeOnTheScreen();
+    expect(await screen.findByText('In process for: Qatar')).toBeOnTheScreen();
   });
 
-  it("counts progress over the journey milestones only, leaving out the waiting stages", async () => {
-    // At "Documents Shared with Qatar BU": Registered, Documents Uploaded, Verified, Fee Paid and the reached stage itself are done; waiting stages never count.
+  it("counts progress over the client's mobilization steps for the Business Unit", async () => {
+    // At "Documents Shared with Qatar BU": Enrolled, Document Submission, Medical and Mobilization Fee are approved.
     applicationProgressClient.getProgress.mockResolvedValue(progressPayload({ workflow: workflowPayload({ timeline: timelineThrough(8), completedCount: 7, totalCount: 15, progressPercentage: 47 }) }));
     candidateWorkflowClient.getWorkflowHistory.mockResolvedValue(historyPayload());
     renderStatusScreen();
-    expect(await screen.findByText("42%")).toBeOnTheScreen();
-    expect(screen.getByText("5 / 12")).toBeOnTheScreen();
-    expect(screen.getByRole("progressbar")).toHaveAccessibilityValue({ min: 0, max: 100, now: 42 });
-    expect(screen.getByText("Your journey")).toBeOnTheScreen();
+    expect(await screen.findByText("40%")).toBeOnTheScreen();
+    expect(screen.getByText("4 of 10 steps approved")).toBeOnTheScreen();
+    expect(screen.getByRole("progressbar")).toHaveAccessibilityValue({ min: 0, max: 100, now: 40 });
+    expect(screen.getByText("Mobilization process")).toBeOnTheScreen();
   });
 
   it("shows an assignment empty state without invented stages or downloads", async () => {
@@ -231,7 +238,7 @@ describe("StatusScreen", () => {
     candidateWorkflowClient.getWorkflowHistory.mockResolvedValue(historyPayload());
     renderStatusScreen();
     expect(await screen.findByText("Your mobilization timeline will appear here once your assignment is ready.")).toBeOnTheScreen();
-    expect(screen.queryByText("Your journey")).toBeNull();
+    expect(screen.queryByText("Mobilization process")).toBeNull();
     expect(screen.queryByText("Download Ticket")).toBeNull();
     expect(screen.queryByText("Download Visa Copy")).toBeNull();
   });
@@ -243,46 +250,53 @@ describe("StatusScreen", () => {
     expect(await screen.findByText("Loading…")).toBeOnTheScreen();
   });
 
-  it("lists only the milestones, in the backend's order, and numbers them without gaps", async () => {
+  it("lists the client's Qatar mobilization steps, numbered 1 to 10, instead of every internal stage", async () => {
     applicationProgressClient.getProgress.mockResolvedValue(progressPayload({ workflow: workflowPayload({ timeline: timelineThrough(1) }) }));
     candidateWorkflowClient.getWorkflowHistory.mockResolvedValue(historyPayload());
     renderStatusScreen();
 
-    await screen.findAllByText("Registered");
-    const WAITING = ["documents_pending", "under_verification", "fee_pending"];
-    const rows = CANONICAL_STAGES.filter((stage) => !WAITING.includes(stage.code));
-    for (const stage of rows) {
-      expect(screen.getByTestId(`status-stage-${stage.code}`)).toBeOnTheScreen();
+    await screen.findAllByText("Enrolled");
+    for (const code of QATAR_STEPS) {
+      expect(screen.getByTestId(`status-step-${code}`)).toBeOnTheScreen();
     }
-    for (const code of WAITING) {
-      expect(screen.queryByTestId(`status-stage-${code}`)).toBeNull();
-    }
-    // 12 milestones, so the last marker reads 12, not 15.
-    expect(screen.getByText("12")).toBeOnTheScreen();
+    expect(screen.queryByText("Under Verification")).toBeNull();
+    expect(screen.getByText("10")).toBeOnTheScreen();
     expect(screen.queryByText("15")).toBeNull();
   });
 
-  it("shows a waiting stage once, as the current status above the list, never as a list row", async () => {
+  it("shows only the current status and the next step above the list", async () => {
     applicationProgressClient.getProgress.mockResolvedValue(progressPayload({ workflow: workflowPayload({ timeline: timelineThrough(4) }) }));
     candidateWorkflowClient.getWorkflowHistory.mockResolvedValue(historyPayload());
     renderStatusScreen();
 
-    expect(await screen.findByText("Current Status")).toBeOnTheScreen();
-    expect(screen.getByText("Under Verification")).toBeOnTheScreen();
-    expect(screen.queryByTestId("status-stage-under_verification")).toBeNull();
-    expect(within(stageRow("Documents Uploaded")).getByText("Completed")).toBeOnTheScreen();
+    expect(await screen.findByText("Current status")).toBeOnTheScreen();
+    expect(screen.getByText("Document Submission in process")).toBeOnTheScreen();
+    expect(screen.getByText("Next step")).toBeOnTheScreen();
+    expect(within(stageRow("Document Submission")).getByText("In process")).toBeOnTheScreen();
+    expect(within(stageRow("Enrolled")).getByText("Approved")).toBeOnTheScreen();
   });
 
-  it("shows the milestone the workflow has reached as completed, and the next one as in progress", async () => {
+  it("approves a step once it is done and leaves later steps without a status tag", async () => {
     applicationProgressClient.getProgress.mockResolvedValue(progressPayload({ workflow: workflowPayload({ timeline: timelineThrough(7) }) }));
     candidateWorkflowClient.getWorkflowHistory.mockResolvedValue(historyPayload());
     renderStatusScreen();
 
-    await screen.findAllByText("Fee Paid");
-    expect(within(stageRow("Fee Paid")).getByText("Completed")).toBeOnTheScreen();
-    expect(within(stageRow("Documents Shared with Qatar BU")).getByText("In Progress")).toBeOnTheScreen();
-    expect(within(stageRow("QVC Appointment Booked")).getByText("Pending")).toBeOnTheScreen();
+    expect(await screen.findByText("Mobilization Fee approved")).toBeOnTheScreen();
+    expect(within(stageRow("Mobilization Fee")).getByText("Approved")).toBeOnTheScreen();
+    expect(within(stageRow("QVC Appointment")).queryByText("In process")).toBeNull();
+    expect(within(stageRow("QVC Appointment")).queryByText("Approved")).toBeNull();
     expect(screen.queryByText("Upcoming")).toBeNull();
+  });
+
+  it("shows a refused visa as Rejected", async () => {
+    applicationProgressClient.getProgress.mockResolvedValue(
+      progressPayload({ workflow: workflowPayload({ timeline: timelineThrough(11), outcomes: { medical: "fit", visa: "rejected" } }) })
+    );
+    candidateWorkflowClient.getWorkflowHistory.mockResolvedValue(historyPayload());
+    renderStatusScreen();
+
+    expect(await screen.findByText("Visa rejected")).toBeOnTheScreen();
+    expect(within(stageRow("Visa")).getByText("Rejected")).toBeOnTheScreen();
   });
 
   it("shows the started/completed date the backend reports for each stage", async () => {
@@ -296,10 +310,9 @@ describe("StatusScreen", () => {
     candidateWorkflowClient.getWorkflowHistory.mockResolvedValue(historyPayload());
     renderStatusScreen();
 
-    await screen.findAllByText("Documents Uploaded");
-    expect(within(stageRow("Registered")).getByText(/Completed 01\/08\/2026/)).toBeOnTheScreen();
-    expect(within(stageRow("Documents Uploaded")).getByText(/Completed 05\/08\/2026/)).toBeOnTheScreen();
-    expect(within(stageRow("Verified")).getByText(/Started 05\/08\/2026/)).toBeOnTheScreen();
+    await screen.findAllByText("Document Submission");
+    expect(within(stageRow("Enrolled")).getByText(/Completed 01\/08\/2026/)).toBeOnTheScreen();
+    expect(within(stageRow("Document Submission")).getByText(/Started 05\/08\/2026/)).toBeOnTheScreen();
   });
 
   it("shows no in-progress stage once fully mobilized, and never fabricates downstream progress", async () => {
@@ -309,8 +322,8 @@ describe("StatusScreen", () => {
     candidateWorkflowClient.getWorkflowHistory.mockResolvedValue(historyPayload());
     renderStatusScreen();
 
-    await screen.findAllByText("Mobilized");
-    expect(screen.queryByText("In Progress")).toBeNull();
+    expect(await screen.findByText("All steps approved. Have a safe journey!")).toBeOnTheScreen();
+    expect(screen.queryByText("In process")).toBeNull();
   });
 
   it("shows the QVC outcome on the QVC stage once the backend has recorded one, sourced from workflow history", async () => {
@@ -330,33 +343,17 @@ describe("StatusScreen", () => {
     );
     renderStatusScreen();
 
-    await screen.findAllByText("QVC Completed / Outcome Received");
-    expect(within(stageRow("QVC Completed / Outcome Received")).getByText(/Approved/)).toBeOnTheScreen();
+    await screen.findAllByText("QVC Status");
+    expect(within(stageRow("QVC Status")).getByText(/QVC Outcome/).children.join("")).toContain("Approved");
   });
 
-  it("shows the workflow history list", async () => {
+  it("no longer lists every internal stage change under Recent Updates", async () => {
     applicationProgressClient.getProgress.mockResolvedValue(progressPayload());
-    candidateWorkflowClient.getWorkflowHistory.mockResolvedValue(
-      historyPayload({
-        items: [
-          { fromStage: null, toStage: CANONICAL_STAGES[0], occurredAt: "2026-08-01T00:00:00Z", reasonCode: null, details: null },
-          { fromStage: CANONICAL_STAGES[0], toStage: CANONICAL_STAGES[1], occurredAt: "2026-08-03T00:00:00Z", reasonCode: null, details: null },
-          { fromStage: CANONICAL_STAGES[1], toStage: CANONICAL_STAGES[2], occurredAt: "2026-08-04T00:00:00Z", reasonCode: null, details: null },
-        ],
-      })
-    );
+    candidateWorkflowClient.getWorkflowHistory.mockResolvedValue(historyPayload());
     renderStatusScreen();
 
-    await screen.findByText("Recent Updates");
-    expect(screen.getAllByText("Documents Uploaded").length).toBeGreaterThan(0);
-  });
-
-  it("shows an empty state for workflow history when there is none yet", async () => {
-    applicationProgressClient.getProgress.mockResolvedValue(progressPayload());
-    candidateWorkflowClient.getWorkflowHistory.mockResolvedValue(historyPayload({ items: [] }));
-    renderStatusScreen();
-
-    expect(await screen.findByText("No updates yet.")).toBeOnTheScreen();
+    await screen.findAllByText("Enrolled");
+    expect(screen.queryByText("Recent Updates")).toBeNull();
   });
 
   it("shows a session-expired state and returns to sign-in on the confirming action", async () => {
@@ -389,7 +386,7 @@ describe("StatusScreen", () => {
     expect(await screen.findByText("You are offline")).toBeOnTheScreen();
     fireEvent.press(screen.getByRole("button", { name: "Retry" }));
 
-    await screen.findAllByText("Registered");
+    await screen.findAllByText("Enrolled");
   });
 
   it("retries the query when the retry action is used after a server error", async () => {
@@ -400,30 +397,24 @@ describe("StatusScreen", () => {
     expect(await screen.findByText("Something went wrong.")).toBeOnTheScreen();
     fireEvent.press(screen.getByRole("button", { name: "Retry" }));
 
-    await screen.findAllByText("Registered");
+    await screen.findAllByText("Enrolled");
   });
 
-  it("renders the timeline using the server-localized Urdu stage names when that is the persisted language", async () => {
-    applicationProgressClient.getProgress.mockResolvedValue(
-      progressPayload({
-        workflow: workflowPayload({
-          timeline: timelineThrough(2).map((stage) => (stage.code === "registered" ? { ...stage, name: "رجسٹرڈ" } : stage)),
-        }),
-      })
-    );
+  it("renders the mobilization steps in Urdu when that is the persisted language", async () => {
+    applicationProgressClient.getProgress.mockResolvedValue(progressPayload());
     candidateWorkflowClient.getWorkflowHistory.mockResolvedValue(historyPayload());
     const AsyncStorage = require("@react-native-async-storage/async-storage");
     await AsyncStorage.setItem("descon.language", "ur");
     renderStatusScreen();
 
-    expect(await screen.findByText("رجسٹرڈ")).toBeOnTheScreen();
+    expect(await screen.findByText("اندراج")).toBeOnTheScreen();
   });
 
-  it("refreshes both the workflow timeline and the workflow history on pull-to-refresh, so QVC outcomes and Recent Updates cannot go stale", async () => {
+  it("refreshes both the workflow timeline and the workflow history on pull-to-refresh, so QVC outcomes cannot go stale", async () => {
     applicationProgressClient.getProgress.mockResolvedValue(progressPayload());
     candidateWorkflowClient.getWorkflowHistory.mockResolvedValue(historyPayload());
     renderStatusScreen();
-    await screen.findByText("Documents Pending");
+    await screen.findAllByText("Enrolled");
     applicationProgressClient.getProgress.mockClear();
     candidateWorkflowClient.getWorkflowHistory.mockClear();
     candidateFlightDetailClient.getFlightDetail.mockClear();
@@ -438,14 +429,14 @@ describe("StatusScreen", () => {
   });
 
   describe("flight ticket download", () => {
-    it("shows no download action when the flight_details_uploaded stage hasn't been reached", async () => {
+    it("shows no download action before the Ready to Fly step has started", async () => {
       applicationProgressClient.getProgress.mockResolvedValue(progressPayload({ workflow: workflowPayload({ timeline: timelineThrough(3) }) }));
       candidateWorkflowClient.getWorkflowHistory.mockResolvedValue(historyPayload());
       candidateFlightDetailClient.getFlightDetail.mockResolvedValue(flightDetail());
       renderStatusScreen();
 
-      await screen.findAllByText("Flight Details Uploaded");
-      expect(within(stageRow("Flight Details Uploaded")).queryByRole("button", { name: "Download Ticket" })).toBeNull();
+      await screen.findAllByText("Ready to Fly");
+      expect(within(stageRow("Ready to Fly")).queryByRole("button", { name: "Download Ticket" })).toBeNull();
     });
 
     it("shows no download action once the stage is reached if no ticket file was actually attached", async () => {
@@ -454,7 +445,7 @@ describe("StatusScreen", () => {
       candidateFlightDetailClient.getFlightDetail.mockResolvedValue(flightDetail({ ticketAttached: false }));
       renderStatusScreen();
 
-      await screen.findAllByText("Flight Details Uploaded");
+      await screen.findAllByText("Ready to Fly");
       expect(screen.queryByRole("button", { name: "Download Ticket" })).toBeNull();
     });
 
@@ -464,8 +455,8 @@ describe("StatusScreen", () => {
       candidateFlightDetailClient.getFlightDetail.mockResolvedValue(flightDetail());
       renderStatusScreen();
 
-      await screen.findAllByText("Flight Details Uploaded");
-      expect(within(stageRow("Flight Details Uploaded")).getByRole("button", { name: "Download Ticket" })).toBeOnTheScreen();
+      await screen.findAllByText("Ready to Fly");
+      expect(within(stageRow("Ready to Fly")).getByRole("button", { name: "Download Ticket" })).toBeOnTheScreen();
     });
 
     it("requests a signed URL on press and hands it to the OS via Linking.openURL", async () => {
@@ -485,11 +476,11 @@ describe("StatusScreen", () => {
       const openURL = jest.spyOn(Linking, "openURL").mockResolvedValue();
       renderStatusScreen();
 
-      await screen.findAllByText("Flight Details Uploaded");
+      await screen.findAllByText("Ready to Fly");
       expect(candidateFlightDetailClient.requestTicketAccess).not.toHaveBeenCalled();
 
       await act(async () => {
-        fireEvent.press(within(stageRow("Flight Details Uploaded")).getByRole("button", { name: "Download Ticket" }));
+        fireEvent.press(within(stageRow("Ready to Fly")).getByRole("button", { name: "Download Ticket" }));
       });
 
       await waitFor(() => expect(openURL).toHaveBeenCalledTimes(1));
@@ -513,9 +504,9 @@ describe("StatusScreen", () => {
       const openURL = jest.spyOn(Linking, "openURL").mockResolvedValue();
       renderStatusScreen();
 
-      await screen.findAllByText("Flight Details Uploaded");
+      await screen.findAllByText("Ready to Fly");
       await act(async () => {
-        fireEvent.press(within(stageRow("Flight Details Uploaded")).getByRole("button", { name: "Download Ticket" }));
+        fireEvent.press(within(stageRow("Ready to Fly")).getByRole("button", { name: "Download Ticket" }));
       });
 
       expect(await screen.findByText("Something went wrong.")).toBeOnTheScreen();
@@ -534,9 +525,9 @@ describe("StatusScreen", () => {
       });
       renderStatusScreen();
 
-      await screen.findAllByText("Flight Details Uploaded");
+      await screen.findAllByText("Ready to Fly");
       await act(async () => {
-        fireEvent.press(within(stageRow("Flight Details Uploaded")).getByRole("button", { name: "Download Ticket" }));
+        fireEvent.press(within(stageRow("Ready to Fly")).getByRole("button", { name: "Download Ticket" }));
       });
 
       expect(await screen.findByText("Your flight ticket has not been uploaded yet.")).toBeOnTheScreen();
@@ -550,11 +541,11 @@ describe("StatusScreen", () => {
       candidateVisaDecisionsClient.listVisaDecisions.mockResolvedValue([visaDecision()]);
       renderStatusScreen();
 
-      await screen.findAllByText("Visa Issued / Visa Rejected");
+      await screen.findAllByText("Visa");
       // The stage title itself ("Visa Issued / Visa Rejected") also contains the word
       // "Issued", so match on the outcome badge specifically ("Visa Outcome: ..."),
       // not a bare /Issued/ regex against the whole row.
-      expect(within(stageRow("Visa Issued / Visa Rejected")).getByText(/Visa Outcome/).children.join("")).toContain("Issued");
+      expect(within(stageRow("Visa")).getByText(/Visa Outcome/).children.join("")).toContain("Issued");
     });
 
     it("shows no download action for a rejected decision, which never has a visa copy attached", async () => {
@@ -565,8 +556,8 @@ describe("StatusScreen", () => {
       ]);
       renderStatusScreen();
 
-      await screen.findAllByText("Visa Issued / Visa Rejected");
-      expect(within(stageRow("Visa Issued / Visa Rejected")).queryByRole("button", { name: "Download Visa Copy" })).toBeNull();
+      await screen.findAllByText("Visa");
+      expect(within(stageRow("Visa")).queryByRole("button", { name: "Download Visa Copy" })).toBeNull();
     });
 
     it("shows a Download Visa Copy action once an issued decision has an attached copy", async () => {
@@ -575,8 +566,8 @@ describe("StatusScreen", () => {
       candidateVisaDecisionsClient.listVisaDecisions.mockResolvedValue([visaDecision()]);
       renderStatusScreen();
 
-      await screen.findAllByText("Visa Issued / Visa Rejected");
-      expect(within(stageRow("Visa Issued / Visa Rejected")).getByRole("button", { name: "Download Visa Copy" })).toBeOnTheScreen();
+      await screen.findAllByText("Visa");
+      expect(within(stageRow("Visa")).getByRole("button", { name: "Download Visa Copy" })).toBeOnTheScreen();
     });
 
     it("requests a signed URL on press, for the correct decision id, and hands it to the OS via Linking.openURL", async () => {
@@ -593,11 +584,11 @@ describe("StatusScreen", () => {
       const openURL = jest.spyOn(Linking, "openURL").mockResolvedValue();
       renderStatusScreen();
 
-      await screen.findAllByText("Visa Issued / Visa Rejected");
+      await screen.findAllByText("Visa");
       expect(candidateVisaDecisionsClient.requestVisaCopyAccess).not.toHaveBeenCalled();
 
       await act(async () => {
-        fireEvent.press(within(stageRow("Visa Issued / Visa Rejected")).getByRole("button", { name: "Download Visa Copy" }));
+        fireEvent.press(within(stageRow("Visa")).getByRole("button", { name: "Download Visa Copy" }));
       });
 
       await waitFor(() => expect(openURL).toHaveBeenCalledTimes(1));
@@ -624,9 +615,9 @@ describe("StatusScreen", () => {
       const openURL = jest.spyOn(Linking, "openURL").mockResolvedValue();
       renderStatusScreen();
 
-      await screen.findAllByText("Visa Issued / Visa Rejected");
+      await screen.findAllByText("Visa");
       await act(async () => {
-        fireEvent.press(within(stageRow("Visa Issued / Visa Rejected")).getByRole("button", { name: "Download Visa Copy" }));
+        fireEvent.press(within(stageRow("Visa")).getByRole("button", { name: "Download Visa Copy" }));
       });
 
       expect(await screen.findByText("Something went wrong.")).toBeOnTheScreen();
@@ -645,9 +636,9 @@ describe("StatusScreen", () => {
       });
       renderStatusScreen();
 
-      await screen.findAllByText("Visa Issued / Visa Rejected");
+      await screen.findAllByText("Visa");
       await act(async () => {
-        fireEvent.press(within(stageRow("Visa Issued / Visa Rejected")).getByRole("button", { name: "Download Visa Copy" }));
+        fireEvent.press(within(stageRow("Visa")).getByRole("button", { name: "Download Visa Copy" }));
       });
 
       expect(await screen.findByText("Your visa copy has not been uploaded yet.")).toBeOnTheScreen();

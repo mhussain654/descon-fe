@@ -1,8 +1,8 @@
 import { useState } from 'react';
-import { ActivityIndicator, Pressable, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, Modal, Pressable, StyleSheet, View } from 'react-native';
 import { Text } from '../../../../design-system/Text';
 import { Image } from 'expo-image';
-import { Camera, ImageIcon, Trash2 } from 'lucide-react-native';
+import { Camera, ImageIcon, Trash2, X } from 'lucide-react-native';
 import { Button, ValidationMessage, getFontFamily } from '../../../../design-system';
 import { colors, spacing } from '../../../../design-system/tokens';
 import type { TranslationKey } from '../../../../../../shared/i18n/translations';
@@ -34,6 +34,7 @@ function problemMessage(problem: ProfilePhotoProblem, t: (key: TranslationKey) =
 /** The profile header's photo: shows it (or the initial), and lets the candidate take, choose or remove one. */
 export function ProfilePhotoEditor({ language, t, fullName, photoUri }: ProfilePhotoEditorProps) {
   const [isChoosing, setChoosing] = useState(false);
+  const [isViewing, setViewing] = useState(false);
   const photo = useProfilePhoto();
   const font = (weight: 'regular' | 'semibold') => ({ fontFamily: getFontFamily(language, weight) });
 
@@ -44,7 +45,13 @@ export function ProfilePhotoEditor({ language, t, fullName, photoUri }: ProfileP
 
   return (
     <View style={styles.container}>
-      <View style={styles.avatar} accessible accessibilityRole="image" accessibilityLabel={t('homeProfilePhoto')}>
+      <Pressable
+        style={styles.avatar}
+        onPress={photoUri ? () => setViewing(true) : undefined}
+        disabled={!photoUri}
+        accessibilityRole={photoUri ? 'button' : 'image'}
+        accessibilityLabel={photoUri ? t('profilePhotoViewFullSize') : t('homeProfilePhoto')}
+      >
         {photoUri ? (
           <Image source={{ uri: photoUri }} style={styles.avatarImage} contentFit="cover" />
         ) : (
@@ -55,7 +62,13 @@ export function ProfilePhotoEditor({ language, t, fullName, photoUri }: ProfileP
             <ActivityIndicator color={colors.text.inverse} />
           </View>
         ) : null}
-      </View>
+      </Pressable>
+
+      {photoUri ? (
+        <PhotoViewer uri={photoUri} visible={isViewing} onClose={() => setViewing(false)} closeLabel={t('profilePhotoCloseViewer')} />
+      ) : null}
+
+      <Text style={[styles.hint, language === 'ur' && styles.hintUrdu, font('regular')]}>{t('profilePhotoOwnFaceHint')}</Text>
 
       {photo.isSaving ? (
         <Text style={[styles.status, font('regular')]}>{t('profilePhotoUploading')}</Text>
@@ -99,6 +112,22 @@ export function ProfilePhotoEditor({ language, t, fullName, photoUri }: ProfileP
   );
 }
 
+/** The photo full size over a blurred copy of itself, so the face fills the screen without a hard frame. Tap anywhere to close. */
+function PhotoViewer({ uri, visible, onClose, closeLabel }: { uri: string; visible: boolean; onClose: () => void; closeLabel: string }) {
+  return (
+    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose} statusBarTranslucent>
+      <Pressable style={styles.viewer} onPress={onClose} accessibilityRole="button" accessibilityLabel={closeLabel}>
+        <Image source={{ uri }} style={StyleSheet.absoluteFill} contentFit="cover" blurRadius={40} accessible={false} />
+        <View style={styles.viewerShade} />
+        <Image source={{ uri }} style={styles.viewerPhoto} contentFit="contain" accessible={false} />
+        <View style={styles.viewerClose}>
+          <X size={22} color={colors.text.inverse} />
+        </View>
+      </Pressable>
+    </Modal>
+  );
+}
+
 const AVATAR_SIZE = 72;
 
 const styles = StyleSheet.create({
@@ -123,4 +152,10 @@ const styles = StyleSheet.create({
   link: { fontSize: 12, color: '#0759B8' },
   linkUrdu: { lineHeight: 30, textAlign: 'center', includeFontPadding: true },
   options: { alignSelf: 'stretch', gap: spacing[2] },
+  hint: { fontSize: 12, lineHeight: 17, color: colors.text.secondary, textAlign: 'center', paddingHorizontal: spacing[2] },
+  hintUrdu: { lineHeight: 26 },
+  viewer: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+  viewerShade: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0, 0, 0, 0.45)' },
+  viewerPhoto: { width: '92%', height: '75%' },
+  viewerClose: { position: 'absolute', top: 56, end: 20, width: 40, height: 40, borderRadius: 20, backgroundColor: 'rgba(0, 0, 0, 0.45)', alignItems: 'center', justifyContent: 'center' },
 });

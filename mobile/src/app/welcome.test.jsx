@@ -79,22 +79,30 @@ describe('WelcomeScreen', () => {
 
   it('renders the language/continue screen once restoration finds no session', async () => {
     renderWelcomeScreen();
-    expect(await screen.findByText('Continue')).toBeOnTheScreen();
+    expect(await screen.findByRole('button', { name: 'Continue, جاری رکھیں' })).toBeOnTheScreen();
   });
 
-  it('shows the hero copy, language choice and secure-footer text', async () => {
+  it('shows every piece of copy in both English and Urdu before a language is chosen', async () => {
     renderWelcomeScreen();
     expect(await screen.findByText('Choose your language')).toBeOnTheScreen();
-    expect(screen.getByText('Welcome!\nYour journey abroad\nstarts here.')).toBeOnTheScreen();
-    expect(
-      screen.getByText('Upload your documents, follow your visa and travel steps, and get help — all in one app.')
-    ).toBeOnTheScreen();
+    expect(screen.getByText('اپنی زبان منتخب کریں')).toBeOnTheScreen();
+    expect(screen.getByText('“Welcome to MPS Connect, your gateway to overseas employment”')).toBeOnTheScreen();
+    expect(screen.getByText('“ایم پی ایس کنیکٹ میں خوش آمدید،\nبیرونِ ملک روزگار کے لیے آپ کا راستہ”')).toBeOnTheScreen();
     expect(screen.getByText('You can change it later from your profile.')).toBeOnTheScreen();
     expect(screen.getByText('Securely managed by Descon Manpower Services')).toBeOnTheScreen();
+    expect(screen.getByText('ڈیسکون مین پاور سروسز کے زیرِ انتظام، محفوظ')).toBeOnTheScreen();
     expect(screen.getByLabelText('MPS Connect')).toBeOnTheScreen();
   });
 
-  it('marks the chosen language card selected and renders the screen in Urdu', async () => {
+  it('shows no caption under the English and Urdu language boxes', async () => {
+    renderWelcomeScreen();
+    await screen.findByText('Choose your language');
+
+    expect(screen.queryByText('Continue in English')).toBeNull();
+    expect(screen.queryByText('اردو میں جاری رکھیں')).toBeNull();
+  });
+
+  it('marks the chosen language card selected', async () => {
     renderWelcomeScreen();
     await screen.findByText('Choose your language');
 
@@ -103,10 +111,10 @@ describe('WelcomeScreen', () => {
 
     fireEvent.press(urduCard);
 
-    expect(await screen.findByText('اپنی زبان منتخب کریں')).toBeOnTheScreen();
-    expect(screen.getByRole('button', { name: /اردو/ })).toBeSelected();
+    await waitFor(() => expect(screen.getByRole('button', { name: /اردو/ })).toBeSelected());
     expect(screen.getByRole('button', { name: /English/ })).not.toBeSelected();
-    expect(screen.getByLabelText('ایم پی ایس کنیکٹ')).toBeOnTheScreen();
+    // The app name stays "MPS Connect" on this bilingual screen.
+    expect(screen.getByLabelText('MPS Connect')).toBeOnTheScreen();
   });
 
   it('redirects an already-authenticated candidate to the dashboard instead of showing Welcome', async () => {
@@ -126,6 +134,6 @@ describe('WelcomeScreen', () => {
     renderWelcomeScreen();
 
     await waitFor(() => expect(screen.getByText('redirect:/(tabs)/dashboard')).toBeOnTheScreen());
-    expect(screen.queryByText('Continue')).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Continue, جاری رکھیں' })).toBeNull();
   });
 });

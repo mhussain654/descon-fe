@@ -11,6 +11,7 @@ import { ProfileHeader, ProfileDetails, ProfileSettings, profileStyles } from ".
 import { LoadingState, ErrorState, OfflineState, SessionExpiredState, ForbiddenState } from "../../../design-system";
 import { ButtonHeightContext } from "../../../design-system/Button";
 import { CANDIDATE_PROFILE_ERROR_KEYS } from "../../../../../shared/candidateProfile/errorMessages";
+import { mobilizationJourney } from "../../../../../shared/applicationProgress/mobilizationJourney";
 
 export default function ProfileScreen() {
   const insets = useSafeAreaInsets();
@@ -33,7 +34,15 @@ export default function ProfileScreen() {
   };
 
   const profile = profileQuery.data;
-  const documents = progressQuery.data?.documents;
+  const workflow = progressQuery.data?.workflow;
+  const journey = workflow
+    ? mobilizationJourney({
+        countryCode: workflow.mobilizationProcess?.countryCode,
+        timeline: workflow.timeline,
+        outcomes: workflow.outcomes,
+        documents: progressQuery.data?.documents,
+      })
+    : null;
 
   const renderBody = () => {
     // isPending, not isLoading -- see documents/index.jsx for why a disabled
@@ -96,7 +105,7 @@ export default function ProfileScreen() {
       );
     }
 
-    return <ProfileDetails profile={profile} documents={documents} language={language} t={t} />;
+    return <ProfileDetails profile={profile} journey={journey} language={language} t={t} />;
   };
 
   return (

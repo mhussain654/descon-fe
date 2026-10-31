@@ -147,9 +147,10 @@ describe("ProfileScreen", () => {
     expect(screen.getAllByText("DES-001001")).toHaveLength(1);
     expect(screen.getByText("Assignment & progress")).toBeOnTheScreen();
     expect(screen.getByText("Preferences & account")).toBeOnTheScreen();
-    // Now rendered twice -- Status and Current stage both source the same
-    // localized workflow-stage name (candidateStatusLabel) once their codes match.
-    expect(screen.getAllByText("Documents pending").length).toBe(2);
+    expect(screen.getByText("File No.")).toBeOnTheScreen();
+    // Only the current status: no separate current-stage or document-verification rows.
+    expect(screen.queryByText("Current stage")).toBeNull();
+    expect(screen.queryByText("Document verification")).toBeNull();
 
     expect(screen.queryByText("42101-1234567-1")).toBeNull();
   });
@@ -177,60 +178,73 @@ describe("ProfileScreen", () => {
     expect(screen.getAllByText("A", { includeHiddenElements: true })).toHaveLength(2);
   });
 
-  it("shows the document-verification row reflecting the backend's submissionState", async () => {
-    candidateProfileClient.getProfile.mockResolvedValue(profilePayload());
-    applicationProgressClient.getProgress.mockResolvedValue(progressPayload({ documents: { ...progressPayload().documents, submissionState: "verified" } }));
-    renderProfileScreen();
-
-    const section = hostViewAncestor(await screen.findByText("Document verification"), 2);
-    expect(within(section).getByText("Verified")).toBeOnTheScreen();
-  });
-
-  it("shows the partially-verified label while documents are only partially verified", async () => {
+  it("shows the current status as the mobilization step and its status, e.g. Visa approved", async () => {
     candidateProfileClient.getProfile.mockResolvedValue(profilePayload());
     applicationProgressClient.getProgress.mockResolvedValue(
       progressPayload({
-        documents: {
-          ...progressPayload().documents,
-          verified: 1,
-          pendingReview: 2,
-          submittedTotal: 3,
-          submissionState: "partially_verified",
+        workflow: {
+          mobilizationProcess: { code: "qatar_mobilization", version: 1, provisional: false, countryCode: "qatar" },
+          outcomes: { medical: "fit", visa: null },
+          timeline: ["registered", "documents_pending", "verified", "fee_paid", "qvc_completed_outcome_received", "visa_issued_or_rejected", "mobilized"].map(
+            (code, index) => ({
+              code,
+              name: code,
+              position: index + 1,
+              actionType: "none",
+              required: true,
+              status: index < 5 ? "completed" : index === 5 ? "current" : "pending",
+              startedAt: index === 5 ? "2026-10-01T00:00:00Z" : null,
+              completedAt: index < 5 ? "2026-09-01T00:00:00Z" : null,
+            })
+          ),
+          completedCount: 5,
+          totalCount: 7,
+          progressPercentage: 71,
+          updatedAt: "2026-10-01T00:00:00Z",
         },
       })
     );
     renderProfileScreen();
 
-    const section = hostViewAncestor(await screen.findByText("Document verification"), 2);
-    expect(within(section).getByText("Partially verified")).toBeOnTheScreen();
+    const row = hostViewAncestor(await screen.findByText("Current status"), 2);
+    expect(within(row).getByText("Visa approved")).toBeOnTheScreen();
   });
 
-  it("does not render the document-verification row until progress has loaded", async () => {
+  it("falls back to the candidate status until progress has loaded", async () => {
     candidateProfileClient.getProfile.mockResolvedValue(profilePayload());
     applicationProgressClient.getProgress.mockReturnValue(new Promise(() => {}));
     renderProfileScreen();
 
-    await screen.findByText("Ahmed Ali");
-    expect(screen.queryByText("Document verification")).toBeNull();
+    const row = hostViewAncestor(await screen.findByText("Current status"), 2);
+    expect(within(row).getByText("Documents pending")).toBeOnTheScreen();
   });
 
-  it("shows the destination country (Business Unit) of the current assignment", async () => {
+  it("asks for a clear photo of the candidate's own face, and opens the photo full size when tapped", async () => {
+    const originalApiBase = process.env.EXPO_PUBLIC_API_BASE_URL;
+    process.env.EXPO_PUBLIC_API_BASE_URL = "https://example.com/api/v1";
+    try {
+      candidateProfileClient.getProfile.mockResolvedValue(profilePayload({ photoUrl: "https://example.com/profile.jpg" }));
+      renderProfileScreen();
+
+      expect(await screen.findByText("Upload a clear photo of your own face. Other pictures are not allowed.")).toBeOnTheScreen();
+      fireEvent.press(screen.getByRole("button", { name: "View photo full size" }));
+      fireEvent.press(await screen.findByRole("button", { name: "Close photo" }));
+    } finally {
+      if (originalApiBase === undefined) delete process.env.EXPO_PUBLIC_API_BASE_URL;
+      else process.env.EXPO_PUBLIC_API_BASE_URL = originalApiBase;
+    }
+  });
+
+  it("shows which country the application is in process for", async () => {
     candidateProfileClient.getProfile.mockResolvedValue(profilePayload());
     renderProfileScreen();
 
-    expect(await screen.findByText("Destination (Business Unit)")).toBeOnTheScreen();
+    expect(await screen.findByText("In process for")).toBeOnTheScreen();
     expect(screen.getByText("Qatar")).toBeOnTheScreen();
   });
 
   it("shows the empty-assignment label for the destination when there is no assignment yet", async () => {
     candidateProfileClient.getProfile.mockResolvedValue(profilePayload({ country: null }));
-    renderProfileScreen();
-
-    expect(await screen.findByText("Not assigned yet")).toBeOnTheScreen();
-  });
-
-  it("shows the empty-assignment label when there is no current workflow stage", async () => {
-    candidateProfileClient.getProfile.mockResolvedValue(profilePayload({ currentWorkflowStage: null }));
     renderProfileScreen();
 
     expect(await screen.findByText("Not assigned yet")).toBeOnTheScreen();

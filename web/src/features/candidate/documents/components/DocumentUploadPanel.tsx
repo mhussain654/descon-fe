@@ -10,8 +10,10 @@ import {
   Label,
   LoadingState,
   OfflineState,
+  Select,
   ValidationMessage,
 } from '../../../../design-system';
+import { NEXT_OF_KIN_RELATION_KEYS, NEXT_OF_KIN_RELATIONS, isNextOfKinRelation } from '../../../../../../shared/candidateDocuments/nextOfKin';
 import { CANDIDATE_DOCUMENTS_ERROR_KEYS } from '../../../../../../shared/candidateDocuments/errorMessages';
 import { describeFileType, isPreviewableImageType } from '../../../../../../shared/candidateDocuments/fileDescription';
 import {
@@ -38,6 +40,7 @@ const PCC_ISSUE_DATE_ERROR_KEYS: Record<PccIssueDateError, TranslationKey> = {
   REQUIRED: 'candidateDocumentsPccIssueDateRequiredError',
   INVALID_FORMAT: 'candidateDocumentsPccIssueDateInvalidError',
   IN_FUTURE: 'candidateDocumentsPccIssueDateInFutureError',
+  TOO_OLD: 'candidateDocumentsPccIssueDateTooOldError',
 };
 
 type Translate = (key: TranslationKey) => string;
@@ -87,6 +90,25 @@ export function DocumentUploadPanel({ labelText, instructions, upload, t, langua
     <div className="mt-3 rounded-xl border border-border bg-surface-sunken p-4">
       <Label>{labelText}</Label>
       {instructions ? <p className="mb-3 text-sm text-text-secondary">{instructions}</p> : null}
+
+      {upload.isNextOfKinRequirement ? (
+        <div className="mb-3">
+          <Select
+            label={t('candidateDocumentsNextOfKinRelationLabel')}
+            value={upload.nextOfKinRelation ?? ''}
+            onChange={(event) => {
+              const value = event.currentTarget.value;
+              if (isNextOfKinRelation(value)) upload.setNextOfKinRelation(value);
+            }}
+            options={[
+              { value: '', label: t('candidateDocumentsNextOfKinRelationPlaceholder') },
+              ...NEXT_OF_KIN_RELATIONS.map((relation) => ({ value: relation, label: t(NEXT_OF_KIN_RELATION_KEYS[relation]) })),
+            ]}
+            helperText={upload.nextOfKinRelation === 'wife' ? t('candidateDocumentsNextOfKinWifeHint') : undefined}
+            errorMessage={upload.nextOfKinRelationMissing ? t('candidateDocumentsNextOfKinRelationRequiredError') : undefined}
+          />
+        </div>
+      ) : null}
 
       {upload.isPccRequirement ? (
         <div className="mb-3">

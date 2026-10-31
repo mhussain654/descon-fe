@@ -19,6 +19,7 @@ import type {
   SubmitDocumentsParams,
   WorkflowStage,
   WorkflowTimelineStage,
+  WorkflowOutcomes,
   WorkflowTimelineStageStatus,
 } from './types';
 
@@ -45,6 +46,7 @@ interface ApplicationProgressWorkflowResponse {
   total_count: number;
   progress_percentage: number;
   updated_at: string | null;
+  outcomes?: unknown;
 }
 
 interface BlockingRequirementResponse {
@@ -207,6 +209,15 @@ function toApplicationProgressWorkflow(raw: unknown): ApplicationProgressWorkflo
     totalCount: toNumber(value.total_count),
     progressPercentage: toNumber(value.progress_percentage),
     updatedAt: toIsoStringOrNull(value.updated_at),
+    outcomes: toOutcomes(value.outcomes),
+  };
+}
+
+function toOutcomes(raw: unknown): WorkflowOutcomes {
+  const value = (raw && typeof raw === 'object' ? raw : {}) as { medical?: unknown; visa?: unknown };
+  return {
+    medical: value.medical === 'fit' || value.medical === 'unfit' ? value.medical : null,
+    visa: value.visa === 'issued' || value.visa === 'rejected' ? value.visa : null,
   };
 }
 

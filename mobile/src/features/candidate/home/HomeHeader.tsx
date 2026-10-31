@@ -27,6 +27,8 @@ interface HomeHeaderProps {
   photoUri: string | null;
   photoLabel: string;
   country: { code: string; name: string } | null;
+  /** Already-formatted "Application in Process for <country>" line. */
+  countryLine: string | null;
 }
 
 function initialsOf(fullName: string): string {
@@ -35,7 +37,7 @@ function initialsOf(fullName: string): string {
   return letters.map((part) => part.charAt(0).toUpperCase()).join('');
 }
 
-/** Gradient welcome header: greeting, name, reference, and the candidate's photo (or initials) above their Business Unit. */
+/** Gradient welcome header: greeting (by time of day), name, file number, "Application in Process for <country>", and the candidate's photo (or initials). */
 export function HomeHeader({
   language,
   topInset,
@@ -45,6 +47,7 @@ export function HomeHeader({
   photoUri,
   photoLabel,
   country,
+  countryLine,
 }: HomeHeaderProps) {
   const isUrdu = language === 'ur';
   // Explicit so a Latin-script name or reference still lines up with the
@@ -80,6 +83,14 @@ export function HomeHeader({
           <Text style={[styles.reference, isUrdu && styles.referenceUrdu, textAlignment, { fontFamily: getFontFamily(language, 'regular') }]}>
             {referenceLine}
           </Text>
+          {country && countryLine ? (
+            <View style={[styles.countryRow, { flexDirection: rowDirectionTowards(isUrdu ? 'right' : 'left') }]}>
+              <View style={[styles.countryDot, { backgroundColor: COUNTRY_DOT_COLORS[country.code] ?? colors.brand.default }]} />
+              <Text style={[styles.countryName, isUrdu && styles.countryNameUrdu, textAlignment, { fontFamily: getFontFamily(language, 'semibold') }]}>
+                {countryLine}
+              </Text>
+            </View>
+          ) : null}
         </View>
 
         <View style={styles.avatarColumn}>
@@ -90,12 +101,6 @@ export function HomeHeader({
               <Text style={styles.initials}>{initialsOf(fullName)}</Text>
             )}
           </View>
-          {country ? (
-            <View style={styles.countryRow}>
-              <View style={[styles.countryDot, { backgroundColor: COUNTRY_DOT_COLORS[country.code] ?? colors.brand.default }]} />
-              <Text style={[styles.countryName, { fontFamily: getFontFamily(language, 'bold') }]}>{country.name}</Text>
-            </View>
-          ) : null}
         </View>
       </View>
     </View>
@@ -135,7 +140,8 @@ const styles = StyleSheet.create({
   },
   avatarImage: { width: '100%', height: '100%' },
   initials: { fontSize: 20, color: colors.text.inverse, fontFamily: getFontFamily('en', 'bold') },
-  countryRow: { flexDirection: 'row', alignItems: 'center', gap: spacing[1] },
-  countryDot: { width: 8, height: 8, borderRadius: 4, borderWidth: 1.5, borderColor: '#FFFFFF' },
-  countryName: { fontSize: 11, color: colors.text.inverse },
+  countryRow: { marginTop: spacing[2], alignItems: 'center', gap: spacing[2] },
+  countryDot: { width: 9, height: 9, borderRadius: 5, borderWidth: 1.5, borderColor: '#FFFFFF' },
+  countryName: { flexShrink: 1, fontSize: 13, color: colors.text.inverse },
+  countryNameUrdu: { lineHeight: 26 },
 });
