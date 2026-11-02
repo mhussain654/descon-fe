@@ -30,6 +30,24 @@ interface AuthContextValue {
   acknowledgeSessionExpired: () => void;
   /** Updates the current session's consent status in place (MPS-204), e.g. after the candidate accepts on the consent screen. No-op if called with no session. */
   setConsentStatus: (status: ConsentStatus) => void;
+  /**
+   * The access token every candidate API call must use. Renews it first when
+   * it has expired or is about to (the app was in the background, so the
+   * renewal timer was paused), so a request never goes out with a stale token
+   * and gets mistaken for an ended session. Rejects with `SESSION_EXPIRED`
+   * (after signing out) only when the server rejects the refresh token, and
+   * with `OFFLINE`/`NETWORK_ERROR` when the renewal could not reach it.
+   */
+  getAccessToken: () => Promise<string>;
+}
+
+type AccessTokenError = { code: "SESSION_EXPIRED" | "OFFLINE" | "NETWORK_ERROR" };
+
+/** Narrows a renewal failure to the codes every candidate feature's error model already handles. */
+function toAccessTokenError(error: unknown): AccessTokenError {
+  const code = (error as { code?: string })?.code;
+  if (code === "SESSION_EXPIRED" || code === "OFFLINE") return { code };
+  return { code: "NETWORK_ERROR" };
 }
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
@@ -127,63 +145,22 @@ export function AuthProvider({
   // Bumped by login/logout so a refresh that was in flight when the session
   // changed can't resurrect (or overwrite) the new state when it resolves.
   const generationRef = useRef(0);
-  const refreshInFlightRef = useRef(false);
+  // The latest session, readable synchronously by getAccessToken (which is
+  // called from query functions, outside React's render cycle).
+  const sessionRef = useRef<AuthSession | null>(null);
+  // One renewal at a time: the refresh token rotates on every use, so two
+  // parallel renewals with the same token would make the server treat the
+  // second as reuse and revoke the whole session.
+  const renewalRef = useRef<Promise<AuthSession> | null>(null);
   const [status, setStatus] = useState<AuthStatus>("restoring");
   const [session, setSession] = useState<AuthSession | null>(null);
   const [sessionExpired, setSessionExpired] = useState(false);
   const queryClient = useQueryClient();
 
-  useEffect(() => {
-    let cancelled = false;
-    const generation = generationRef.current;
-    const finish = (restored: AuthSession | null) => {
-      if (cancelled || generationRef.current !== generation) return;
-      setSession(restored);
-      setStatus(restored ? "authenticated" : "unauthenticated");
-    };
-
-    readPersistedSession().then(async (stored) => {
-      if (!stored || isSessionValid(stored)) return finish(stored);
-      if (!client) {
-        await deleteStoredSessionSafely();
-        return finish(null);
-      }
-
-      // The access token lapsed while the app was closed -- renew it from
-      // the refresh token rather than making the candidate request a new
-      // OTP (each one is a paid SMS). Only a server-confirmed rejection
-      // discards the stored session and signs out. A transient failure
-      // (offline, weak network) keeps the candidate signed in on the stored
-      // session; the renewal timer below retries until the network is back.
-      try {
-        const refreshed = await client.refreshSession(stored.refreshToken);
-        await persistSession(refreshed);
-        finish(refreshed);
-      } catch (error) {
-        if ((error as { code?: string })?.code === "SESSION_EXPIRED") {
-          await deleteStoredSessionSafely();
-          finish(null);
-          return;
-        }
-        finish(stored);
-      }
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, [client]);
-
-  const login = useCallback(async (next: AuthSession) => {
-    generationRef.current += 1;
-    await SecureStore.setItemAsync(SESSION_STORE_KEY, JSON.stringify(next));
-    setSession(next);
-    setStatus("authenticated");
-    setSessionExpired(false);
-  }, []);
-
   const logout = useCallback(
     async (reason: LogoutReason = "manual") => {
       generationRef.current += 1;
+      sessionRef.current = null;
       setSession(null);
       setStatus("unauthenticated");
       setSessionExpired(reason === "expired");
@@ -214,12 +191,93 @@ export function AuthProvider({
     [queryClient]
   );
 
+  /**
+   * Exchanges `current`'s refresh token for a new session, sharing one
+   * in-flight renewal between every caller. Signs out only when the server
+   * rejects the refresh token; a transient failure rejects with its error
+   * and leaves the session as it was.
+   */
+  const renewSession = useCallback(
+    (current: AuthSession): Promise<AuthSession> => {
+      if (!client) return Promise.reject({ code: "SESSION_EXPIRED" } satisfies AccessTokenError);
+      if (renewalRef.current) return renewalRef.current;
+
+      const generation = generationRef.current;
+      const renewal = (async () => {
+        try {
+          const refreshed = await client.refreshSession(current.refreshToken);
+          // Signed out or in as someone else meanwhile: never let this
+          // result overwrite the session that replaced it.
+          if (generationRef.current !== generation) {
+            if (sessionRef.current) return sessionRef.current;
+            throw { code: "SESSION_EXPIRED" } satisfies AccessTokenError;
+          }
+          sessionRef.current = refreshed;
+          setSession(refreshed);
+          await persistSession(refreshed);
+          return refreshed;
+        } catch (error) {
+          if (generationRef.current === generation && (error as { code?: string })?.code === "SESSION_EXPIRED") {
+            await logout("expired");
+          }
+          throw error;
+        } finally {
+          renewalRef.current = null;
+        }
+      })();
+      renewalRef.current = renewal;
+      return renewal;
+    },
+    [client, logout]
+  );
+
+  useEffect(() => {
+    let cancelled = false;
+    const generation = generationRef.current;
+    const finish = (restored: AuthSession | null) => {
+      if (cancelled || generationRef.current !== generation) return false;
+      sessionRef.current = restored;
+      setSession(restored);
+      setStatus(restored ? "authenticated" : "unauthenticated");
+      return true;
+    };
+
+    readPersistedSession().then(async (stored) => {
+      if (!stored || isSessionValid(stored)) return finish(stored);
+      if (!client) {
+        await deleteStoredSessionSafely();
+        return finish(null);
+      }
+
+      // The access token lapsed while the app was closed. Open the app on
+      // the stored session straight away instead of holding the launch on a
+      // network round trip, and renew it from the refresh token in the
+      // background rather than asking for a new OTP (each one is a paid
+      // SMS). Screens wait for that renewal through getAccessToken; only a
+      // server-confirmed rejection signs the candidate out.
+      if (finish(stored)) renewSession(stored).catch(() => {});
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [client, renewSession]);
+
+  const login = useCallback(async (next: AuthSession) => {
+    generationRef.current += 1;
+    await SecureStore.setItemAsync(SESSION_STORE_KEY, JSON.stringify(next));
+    sessionRef.current = next;
+    setSession(next);
+    setStatus("authenticated");
+    setSessionExpired(false);
+  }, []);
+
   const acknowledgeSessionExpired = useCallback(() => setSessionExpired(false), []);
 
   const setConsentStatus = useCallback((status: ConsentStatus) => {
     setSession((current) => {
       if (!current) return current;
       const next = { ...current, consent: status };
+      sessionRef.current = next;
       SecureStore.setItemAsync(SESSION_STORE_KEY, JSON.stringify(next)).catch(() => {
         // Best effort -- the in-memory session is already updated; a failed
         // persist just means a restart could re-show the consent gate once
@@ -229,37 +287,40 @@ export function AuthProvider({
     });
   }, []);
 
-  // Renews the access token shortly before it expires (and right away if it
-  // lapsed while the app was backgrounded) so an active candidate isn't sent
-  // back to the OTP screen every few minutes. Only a server-confirmed
-  // rejection of the refresh token ends the session; a transient failure
-  // (offline, network, rate limit) keeps it and retries on the next tick.
+  const getAccessToken = useCallback(async () => {
+    const current = sessionRef.current;
+    if (!current) throw { code: "SESSION_EXPIRED" } satisfies AccessTokenError;
+    if (!client || !isSessionDueForRefresh(current)) return current.accessToken;
+
+    try {
+      return (await renewSession(current)).accessToken;
+    } catch (error) {
+      // Still inside its lifetime (renewal starts a minute early): a failed
+      // renewal shouldn't block a request the current token can still make.
+      if (isSessionValid(current) && (error as { code?: string })?.code !== "SESSION_EXPIRED") return current.accessToken;
+      throw toAccessTokenError(error);
+    }
+  }, [client, renewSession]);
+
+  // Renews the access token shortly before it expires so an active candidate
+  // isn't sent back to the OTP screen every few minutes. The timer is paused
+  // while the app is in the background; on return, any screen that reloads
+  // goes through getAccessToken and waits for the same renewal.
   useEffect(() => {
     if (!client || status !== "authenticated" || !session) return undefined;
-    const interval = setInterval(async () => {
-      if (refreshInFlightRef.current || !isSessionDueForRefresh(session)) return;
-
-      const generation = generationRef.current;
-      refreshInFlightRef.current = true;
-      try {
-        const refreshed = await client.refreshSession(session.refreshToken);
-        if (generationRef.current !== generation) return;
-        setSession(refreshed);
-        await persistSession(refreshed);
-      } catch (error) {
-        if (generationRef.current === generation && (error as { code?: string })?.code === "SESSION_EXPIRED") {
-          await logout("expired");
-        }
-      } finally {
-        refreshInFlightRef.current = false;
-      }
+    const interval = setInterval(() => {
+      if (!isSessionDueForRefresh(session)) return;
+      renewSession(session).catch(() => {
+        // A server rejection already signed out inside renewSession; a
+        // transient failure keeps the session and retries on the next tick.
+      });
     }, EXPIRY_CHECK_INTERVAL_MS);
     return () => clearInterval(interval);
-  }, [status, session, client, logout]);
+  }, [status, session, client, renewSession]);
 
   const value = useMemo(
-    () => ({ status, session, login, logout, sessionExpired, acknowledgeSessionExpired, setConsentStatus }),
-    [status, session, login, logout, sessionExpired, acknowledgeSessionExpired, setConsentStatus]
+    () => ({ status, session, login, logout, sessionExpired, acknowledgeSessionExpired, setConsentStatus, getAccessToken }),
+    [status, session, login, logout, sessionExpired, acknowledgeSessionExpired, setConsentStatus, getAccessToken]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

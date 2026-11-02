@@ -27,12 +27,12 @@ const TERMINAL_ERROR_CODES = new Set<ApplicationProgressError['code']>([
 
 interface SubmitVariables {
   idempotencyKey: string;
-  accessTokenAtCallTime: string;
+  candidateIdAtCallTime: string;
 }
 
 /** Mirrors web's useSubmitDocuments.ts exactly -- see its comments for rationale. */
 export function useSubmitDocuments() {
-  const { session } = useAuth();
+  const { session, getAccessToken } = useAuth();
   const { t, language } = useLanguage();
   const queryClient = useQueryClient();
   const candidateId = session?.candidateId ?? 'anonymous';
@@ -40,10 +40,10 @@ export function useSubmitDocuments() {
   const [idempotencyState, setIdempotencyState] = useState<SubmissionIdempotencyKeyState>(EMPTY_SUBMISSION_IDEMPOTENCY_KEY_STATE);
 
   const mutation = useMutation<DocumentSubmissionResult, ApplicationProgressError, SubmitVariables>({
-    mutationFn: ({ idempotencyKey, accessTokenAtCallTime }) =>
-      applicationProgressClient.submitDocuments({ accessToken: accessTokenAtCallTime, idempotencyKey }),
+    mutationFn: async ({ idempotencyKey }) =>
+      applicationProgressClient.submitDocuments({ accessToken: await getAccessToken(), idempotencyKey }),
     onSuccess: (result, variables) => {
-      if (session?.accessToken !== variables.accessTokenAtCallTime) return;
+      if (session?.candidateId !== variables.candidateIdAtCallTime) return;
 
       queryClient.invalidateQueries({ queryKey: documentQueries.applicationProgress(candidateId, language) });
       queryClient.invalidateQueries({ queryKey: documentQueries.candidateChecklist(candidateId, language) });
@@ -82,7 +82,7 @@ export function useSubmitDocuments() {
       ? retrySubmissionAttempt(idempotencyState, randomSubmissionIdempotencyKey)
       : beginNewSubmissionAttempt(randomSubmissionIdempotencyKey);
     setIdempotencyState(resolved);
-    mutation.mutate({ idempotencyKey: resolved.key as string, accessTokenAtCallTime: session.accessToken });
+    mutation.mutate({ idempotencyKey: resolved.key as string, candidateIdAtCallTime: session.candidateId });
   }, [session, mutation, idempotencyState]);
 
   return { confirmOpen, openConfirm, closeConfirm, confirm, retry: confirm, mutation };

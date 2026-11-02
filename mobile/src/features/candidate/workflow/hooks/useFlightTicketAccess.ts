@@ -16,7 +16,7 @@ import { resolveDocumentAccessUrl } from '../../../../lib/resolveDocumentAccessU
  * off to the OS) is a separate future decision, not part of this item.
  */
 export function useFlightTicketAccess() {
-  const { session } = useAuth();
+  const { session, getAccessToken } = useAuth();
   const [isRequesting, setIsRequesting] = useState(false);
   const [error, setError] = useState<CandidateFlightDetailError | null>(null);
 
@@ -25,7 +25,7 @@ export function useFlightTicketAccess() {
     setIsRequesting(true);
     setError(null);
     try {
-      const access = await candidateFlightDetailClient.requestTicketAccess(session.accessToken);
+      const access = await candidateFlightDetailClient.requestTicketAccess(await getAccessToken());
       // Fails closed: null when the signed URL doesn't resolve to our own
       // API origin (a malformed backend response, an unexpected absolute
       // URL, a dangerous scheme) -- never hand that to Linking.openURL.
@@ -40,7 +40,7 @@ export function useFlightTicketAccess() {
     } finally {
       setIsRequesting(false);
     }
-  }, [session, isRequesting]);
+  }, [session, getAccessToken, isRequesting]);
 
   return { downloadTicket, isRequesting, error, clearError: () => setError(null) };
 }

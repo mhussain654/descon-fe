@@ -6,11 +6,11 @@ import type { TrainingVideo } from '../../../../lib/training-videos-client';
 import type { ApiError } from '../../../../lib/api-client';
 
 export function useTrainingVideos() {
-  const { session, status } = useAuth();
+  const { session, status, getAccessToken } = useAuth();
   const { language } = useLanguage();
   return useQuery<TrainingVideo[], ApiError>({
     queryKey: ['candidate', 'training-videos', language],
-    queryFn: () => getTrainingVideos((session as { accessToken: string }).accessToken, language),
+    queryFn: async () => getTrainingVideos(await getAccessToken(), language),
     enabled: status === 'authenticated' && !!session,
     staleTime: 60_000,
   });

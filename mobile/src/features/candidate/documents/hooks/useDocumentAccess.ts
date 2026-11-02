@@ -19,7 +19,7 @@ import { resolveDocumentAccessUrl } from '../../../../lib/resolveDocumentAccessU
  * the same underlying request either way, just a different intent.
  */
 export function useDocumentAccess() {
-  const { session } = useAuth();
+  const { session, getAccessToken } = useAuth();
   const [targetDocumentId, setTargetDocumentId] = useState<string | null>(null);
   const [targetFileId, setTargetFileId] = useState<string | null>(null);
   const [isRequesting, setIsRequesting] = useState(false);
@@ -33,7 +33,7 @@ export function useDocumentAccess() {
       setIsRequesting(true);
       setError(null);
       try {
-        const access = await candidateDocumentsClient.requestDocumentAccess(session.accessToken, documentId, disposition, fileId);
+        const access = await candidateDocumentsClient.requestDocumentAccess(await getAccessToken(), documentId, disposition, fileId);
         // Fails closed: null when the signed URL doesn't resolve to our own
         // API origin (a malformed backend response, an unexpected absolute
         // URL, a dangerous scheme) -- never hand that to Linking.openURL.
@@ -49,7 +49,7 @@ export function useDocumentAccess() {
         setIsRequesting(false);
       }
     },
-    [session, isRequesting]
+    [session, getAccessToken, isRequesting]
   );
 
   /** `fileId` picks one file of a multi-file document; without it the backend serves the representative file. */

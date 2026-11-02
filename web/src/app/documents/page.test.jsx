@@ -923,6 +923,8 @@ describe("DocumentsPage", () => {
       fireEvent.click(submitButton);
 
       await screen.findByText("Uploading…");
+      // The request goes out once the access token is confirmed fresh, a tick after the pending state shows.
+      await waitFor(() => expect(candidateDocumentsClient.uploadDocument).toHaveBeenCalled());
       expect(candidateDocumentsClient.uploadDocument).toHaveBeenCalledTimes(1);
     });
 
@@ -942,6 +944,8 @@ describe("DocumentsPage", () => {
 
       await screen.findByText("Uploading…");
       expect(screen.getAllByRole("button", { name: "Upload" })[1]).toBeDisabled();
+      // Let the request actually go out (it waits a tick for the access token) so it can't land in the next test.
+      await waitFor(() => expect(candidateDocumentsClient.uploadDocument).toHaveBeenCalled());
     });
 
     it("allows removing the selected file and canceling before submission", async () => {

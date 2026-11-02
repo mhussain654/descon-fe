@@ -13,13 +13,13 @@ import { workflowQueries } from '../../../../../../shared/queryKeys/workflowQuer
  * flight_details_uploaded/mobilized workflow stage alone.
  */
 export function useCandidateFlightDetail() {
-  const { session, status } = useAuth();
+  const { session, status, getAccessToken } = useAuth();
   const { language } = useLanguage();
   const candidateId = session?.candidateId ?? 'anonymous';
 
   return useQuery({
     queryKey: workflowQueries.flightDetail(candidateId, language),
-    queryFn: () => candidateFlightDetailClient.getFlightDetail((session as { accessToken: string }).accessToken),
+    queryFn: async () => candidateFlightDetailClient.getFlightDetail(await getAccessToken()),
     enabled: status === 'authenticated' && !!session,
     retry: false,
   });

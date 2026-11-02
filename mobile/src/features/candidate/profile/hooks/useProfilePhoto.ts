@@ -38,10 +38,9 @@ export function buildProfilePhotoFormData(asset: ImagePicker.ImagePickerAsset): 
  * up front for a fast, clear message; the backend re-checks both.
  */
 export function useProfilePhoto() {
-  const { session } = useAuth();
+  const { session, getAccessToken } = useAuth();
   const queryClient = useQueryClient();
   const [problem, setProblem] = useState<ProfilePhotoProblem | null>(null);
-  const accessToken = (session as { accessToken: string } | null)?.accessToken ?? '';
   const candidateId = (session as { candidateId: string } | null)?.candidateId ?? 'anonymous';
 
   const refreshProfile = useCallback(
@@ -50,14 +49,14 @@ export function useProfilePhoto() {
   );
 
   const upload = useMutation({
-    mutationFn: (asset: ImagePicker.ImagePickerAsset) =>
-      candidateProfileClient.uploadPhoto({ accessToken, formData: buildProfilePhotoFormData(asset) }),
+    mutationFn: async (asset: ImagePicker.ImagePickerAsset) =>
+      candidateProfileClient.uploadPhoto({ accessToken: await getAccessToken(), formData: buildProfilePhotoFormData(asset) }),
     onSuccess: refreshProfile,
     onError: (error: ProfilePhotoError) => setProblem({ kind: 'failed', error }),
   });
 
   const remove = useMutation({
-    mutationFn: () => candidateProfileClient.removePhoto(accessToken),
+    mutationFn: async () => candidateProfileClient.removePhoto(await getAccessToken()),
     onSuccess: refreshProfile,
     onError: (error: ProfilePhotoError) => setProblem({ kind: 'failed', error }),
   });

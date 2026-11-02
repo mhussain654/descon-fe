@@ -15,13 +15,13 @@ import { hasPendingRequiredDocument, PENDING_REVIEW_POLL_INTERVAL_MS } from '../
  * separate concern handled by the screen via `useFocusEffect`.
  */
 export function useCandidateDocuments() {
-  const { session, status } = useAuth();
+  const { session, status, getAccessToken } = useAuth();
   const { language } = useLanguage();
   const candidateId = session?.candidateId ?? 'anonymous';
 
   return useQuery({
     queryKey: documentQueries.candidateChecklist(candidateId, language),
-    queryFn: () => candidateDocumentsClient.getChecklist((session as { accessToken: string }).accessToken),
+    queryFn: async () => candidateDocumentsClient.getChecklist(await getAccessToken()),
     enabled: status === 'authenticated' && !!session,
     retry: false,
     refetchOnWindowFocus: true,

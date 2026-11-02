@@ -12,13 +12,13 @@ import { workflowQueries } from '../../../../../../shared/queryKeys/workflowQuer
  * handled by the screen via `useFocusEffect`, same as useCandidateProfile.ts.
  */
 export function useCandidateWorkflowHistory() {
-  const { session, status } = useAuth();
+  const { session, status, getAccessToken } = useAuth();
   const { language } = useLanguage();
   const candidateId = session?.candidateId ?? 'anonymous';
 
   return useQuery({
     queryKey: workflowQueries.history(candidateId, language),
-    queryFn: () => candidateWorkflowClient.getWorkflowHistory((session as { accessToken: string }).accessToken),
+    queryFn: async () => candidateWorkflowClient.getWorkflowHistory(await getAccessToken()),
     enabled: status === 'authenticated' && !!session,
     retry: false,
     refetchOnWindowFocus: true,

@@ -2,6 +2,7 @@ import { QueryClientProvider } from "@tanstack/react-query";
 import { Linking, RefreshControl } from "react-native";
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react-native";
 import { SafeAreaProvider } from "react-native-safe-area-context";
+import * as SecureStore from "expo-secure-store";
 import { AuthProvider } from "../../../contexts/AuthContext";
 import { LanguageProvider } from "../../../contexts/LanguageContext";
 import { candidateProfileClient } from "../../../lib/candidate-profile-client";
@@ -195,14 +196,14 @@ afterEach(async () => {
   mockPush.mockReset();
 });
 
-function renderDashboardScreen() {
+function renderDashboardScreen(authClient) {
   const queryClient = createTestQueryClient();
   return trackRender(
     render(
       <SafeAreaProvider initialMetrics={TEST_SAFE_AREA_METRICS}>
         <QueryClientProvider client={queryClient}>
           <LanguageProvider>
-            <AuthProvider>
+            <AuthProvider client={authClient}>
               <DashboardScreen />
             </AuthProvider>
           </LanguageProvider>
@@ -213,6 +214,38 @@ function renderDashboardScreen() {
 }
 
 describe("DashboardScreen", () => {
+  it("renews a token that expired while the app was in the background before loading, instead of showing Session expired", async () => {
+    jest.mocked(SecureStore.getItemAsync).mockResolvedValueOnce(
+      JSON.stringify({
+        accessToken: "stale-access-token",
+        refreshToken: "refresh",
+        candidateId: "candidate-public-id-1",
+        candidateName: "Ahmed Ali",
+        preferredLocale: "en",
+        expiresAt: new Date(Date.now() - 60_000).toISOString(),
+        consent: { currentPolicyVersion: "v1", accepted: true, acceptedAt: "2026-09-06T12:00:00Z" },
+      })
+    );
+    const refreshSession = jest.fn().mockResolvedValue({
+      accessToken: "renewed-access-token",
+      refreshToken: "refresh-2",
+      candidateId: "candidate-public-id-1",
+      candidateName: "Ahmed Ali",
+      preferredLocale: "en",
+      expiresAt: new Date(Date.now() + 15 * 60_000).toISOString(),
+      consent: { currentPolicyVersion: "v1", accepted: true, acceptedAt: "2026-09-06T12:00:00Z" },
+    });
+    candidateProfileClient.getProfile.mockResolvedValue(profilePayload());
+    candidateDocumentsClient.getChecklist.mockResolvedValue([checklistItem()]);
+    applicationProgressClient.getProgress.mockResolvedValue(progress());
+    renderDashboardScreen({ requestOtp: jest.fn(), resendOtp: jest.fn(), verifyOtp: jest.fn(), refreshSession });
+
+    expect(await screen.findByText("File No. DES-001001")).toBeOnTheScreen();
+    expect(refreshSession).toHaveBeenCalledTimes(1);
+    expect(candidateProfileClient.getProfile).toHaveBeenCalledWith("renewed-access-token");
+    expect(candidateProfileClient.getProfile).not.toHaveBeenCalledWith("stale-access-token");
+    expect(screen.queryByText("Session expired")).toBeNull();
+  });
   it("shows the candidate's real name, reference number, real workflow stage and real workflow progress percentage", async () => {
     candidateProfileClient.getProfile.mockResolvedValue(profilePayload());
     candidateDocumentsClient.getChecklist.mockResolvedValue([checklistItem()]);

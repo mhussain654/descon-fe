@@ -19,7 +19,7 @@ const TERMINAL_ERROR_CODES = new Set<PaymentError['code']>(['NOT_ELIGIBLE', 'CHE
 
 interface CreateVoucherVariables {
   idempotencyKey: string;
-  accessTokenAtCallTime: string;
+  candidateIdAtCallTime: string;
 }
 
 /**
@@ -29,16 +29,16 @@ interface CreateVoucherVariables {
  * retry of the current attempt or a fresh one.
  */
 export function useCreateVoucher() {
-  const { session } = useAuth();
+  const { session, getAccessToken } = useAuth();
   const { language } = useLanguage();
   const queryClient = useQueryClient();
   const candidateId = session?.candidateId ?? 'anonymous';
   const [idempotencyState, setIdempotencyState] = useState<CheckoutIdempotencyKeyState>(EMPTY_CHECKOUT_IDEMPOTENCY_KEY_STATE);
 
   const mutation = useMutation<InitiateCheckoutResult, PaymentError, CreateVoucherVariables>({
-    mutationFn: ({ idempotencyKey, accessTokenAtCallTime }) => paymentsClient.createVoucher(accessTokenAtCallTime, idempotencyKey),
+    mutationFn: async ({ idempotencyKey }) => paymentsClient.createVoucher(await getAccessToken(), idempotencyKey),
     onSuccess: (result, variables) => {
-      if (session?.accessToken !== variables.accessTokenAtCallTime) return;
+      if (session?.candidateId !== variables.candidateIdAtCallTime) return;
 
       queryClient.setQueryData(paymentQueries.eligibility(candidateId, language), result.eligibility);
       setIdempotencyState(clearCheckoutIdempotencyKey());
@@ -60,7 +60,7 @@ export function useCreateVoucher() {
       ? retryCheckoutAttempt(idempotencyState, randomCheckoutIdempotencyKey)
       : beginNewCheckoutAttempt(randomCheckoutIdempotencyKey);
     setIdempotencyState(resolved);
-    mutation.mutate({ idempotencyKey: resolved.key as string, accessTokenAtCallTime: session.accessToken });
+    mutation.mutate({ idempotencyKey: resolved.key as string, candidateIdAtCallTime: session.candidateId });
   }, [session, mutation, idempotencyState]);
 
   return { getCode, mutation };

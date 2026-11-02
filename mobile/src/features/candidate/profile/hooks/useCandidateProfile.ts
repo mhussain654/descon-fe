@@ -14,13 +14,13 @@ import { profileQueries } from '../../../../../../shared/queryKeys/profileQuerie
  * by the screen via `useFocusEffect`).
  */
 export function useCandidateProfile() {
-  const { session, status } = useAuth();
+  const { session, status, getAccessToken } = useAuth();
   const { language } = useLanguage();
   const candidateId = session?.candidateId ?? 'anonymous';
 
   return useQuery({
     queryKey: profileQueries.candidate(candidateId, language),
-    queryFn: () => candidateProfileClient.getProfile((session as { accessToken: string }).accessToken),
+    queryFn: async () => candidateProfileClient.getProfile(await getAccessToken()),
     enabled: status === 'authenticated' && !!session,
     retry: false,
     refetchOnWindowFocus: true,

@@ -27,13 +27,13 @@ import { PENDING_REVIEW_POLL_INTERVAL_MS } from '../../../../../../shared/candid
  * `.jsx` page boundary.
  */
 export function useApplicationProgress() {
-  const { session, status } = useAuth();
+  const { session, status, getAccessToken } = useAuth();
   const { language } = useLanguage();
   const candidateId = session?.candidateId ?? 'anonymous';
 
   return useQuery<ApplicationProgress, ApplicationProgressError>({
     queryKey: documentQueries.applicationProgress(candidateId, language),
-    queryFn: () => applicationProgressClient.getProgress((session as { accessToken: string }).accessToken),
+    queryFn: async () => applicationProgressClient.getProgress(await getAccessToken()),
     enabled: status === 'authenticated' && !!session,
     retry: false,
     refetchOnWindowFocus: true,

@@ -13,13 +13,13 @@ import { workflowQueries } from '../../../../../../shared/queryKeys/workflowQuer
  * reads `.code` off it (see useCandidateFlightDetail.ts's identical rationale).
  */
 export function useCandidateVisaDecisions() {
-  const { session, status } = useAuth();
+  const { session, status, getAccessToken } = useAuth();
   const { language } = useLanguage();
   const candidateId = session?.candidateId ?? 'anonymous';
 
   return useQuery<CandidateVisaDecision[], CandidateVisaDecisionsError>({
     queryKey: workflowQueries.visaDecisions(candidateId, language),
-    queryFn: () => candidateVisaDecisionsClient.listVisaDecisions((session as { accessToken: string }).accessToken),
+    queryFn: async () => candidateVisaDecisionsClient.listVisaDecisions(await getAccessToken()),
     enabled: status === 'authenticated' && !!session,
     retry: false,
   });

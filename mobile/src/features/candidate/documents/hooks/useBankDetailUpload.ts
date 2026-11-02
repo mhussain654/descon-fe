@@ -75,7 +75,7 @@ interface SubmitVariables {
   bankName: string;
   proof: PickedProof;
   idempotencyKey: string;
-  accessTokenAtCallTime: string;
+  candidateIdAtCallTime: string;
 }
 
 /**
@@ -86,7 +86,7 @@ interface SubmitVariables {
  * image-picker asset.
  */
 export function useBankDetailUpload() {
-  const { session } = useAuth();
+  const { session, getAccessToken } = useAuth();
   const { t, language } = useLanguage();
   const queryClient = useQueryClient();
   const candidateId = session?.candidateId ?? 'anonymous';
@@ -101,7 +101,7 @@ export function useBankDetailUpload() {
   const [permissionNotice, setPermissionNotice] = useState<CapturePermissionNotice | null>(null);
 
   const mutation = useMutation<CandidateBankDetailSummary, CandidateBankDetailsError, SubmitVariables>({
-    mutationFn: async ({ accountTitle, accountNumber, bankName, proof, idempotencyKey, accessTokenAtCallTime }) => {
+    mutationFn: async ({ accountTitle, accountNumber, bankName, proof, idempotencyKey }) => {
       let formData: FormData;
       try {
         formData = buildFormData(accountTitle, accountNumber, bankName, proof);
@@ -111,10 +111,10 @@ export function useBankDetailUpload() {
         // useDocumentUpload.ts's identical guard.
         throw { code: 'UNKNOWN' } satisfies CandidateBankDetailsError;
       }
-      return candidateBankDetailsClient.submitBankDetail({ accessToken: accessTokenAtCallTime, formData, idempotencyKey });
+      return candidateBankDetailsClient.submitBankDetail({ accessToken: await getAccessToken(), formData, idempotencyKey });
     },
     onSuccess: (result, variables) => {
-      if (session?.accessToken !== variables.accessTokenAtCallTime) return;
+      if (session?.candidateId !== variables.candidateIdAtCallTime) return;
 
       queryClient.setQueryData(documentQueries.bankDetail(candidateId, language), result);
       toast.success(t('candidateBankDetailsSubmitSuccessToast'));
@@ -202,7 +202,7 @@ export function useBankDetailUpload() {
       bankName,
       proof,
       idempotencyKey: resolved.key as string,
-      accessTokenAtCallTime: session.accessToken,
+      candidateIdAtCallTime: session.candidateId,
     });
   }, [session, mutation, accountTitle, accountNumber, bankName, proof, idempotencyState]);
 

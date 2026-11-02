@@ -7,12 +7,12 @@ import { supportSettingQueries } from '../../../../../../shared/queryKeys/suppor
 
 /** Fetches the one shared support number -- follows the candidate settings query pattern. Explicit generics type the error as SupportSettingError rather than TanStack Query's default `Error`, since the screen reads `.code` off it. */
 export function useSupportSetting() {
-  const { session, status } = useAuth();
+  const { session, status, getAccessToken } = useAuth();
   const { language } = useLanguage();
 
   return useQuery<SupportSetting, SupportSettingError>({
     queryKey: supportSettingQueries.get(language),
-    queryFn: () => supportSettingClient.getSupportSetting((session as { accessToken: string }).accessToken),
+    queryFn: async () => supportSettingClient.getSupportSetting(await getAccessToken()),
     enabled: status === 'authenticated' && !!session,
     retry: false,
   });

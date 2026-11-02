@@ -12,13 +12,13 @@ import { workflowQueries } from '../../../../../../shared/queryKeys/workflowQuer
  * inferred from the visa_issued_or_rejected workflow stage alone.
  */
 export function useCandidateVisaDecisions() {
-  const { session, status } = useAuth();
+  const { session, status, getAccessToken } = useAuth();
   const { language } = useLanguage();
   const candidateId = session?.candidateId ?? 'anonymous';
 
   return useQuery({
     queryKey: workflowQueries.visaDecisions(candidateId, language),
-    queryFn: () => candidateVisaDecisionsClient.listVisaDecisions((session as { accessToken: string }).accessToken),
+    queryFn: async () => candidateVisaDecisionsClient.listVisaDecisions(await getAccessToken()),
     enabled: status === 'authenticated' && !!session,
     retry: false,
   });

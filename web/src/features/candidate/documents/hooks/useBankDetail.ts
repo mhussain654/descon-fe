@@ -12,13 +12,13 @@ import { documentQueries } from '../../../../../../shared/queryKeys/documentQuer
  * explicit "Retry" action.
  */
 export function useBankDetail() {
-  const { session, status } = useAuth();
+  const { session, status, getAccessToken } = useAuth();
   const { language } = useLanguage();
   const candidateId = session?.candidateId ?? 'anonymous';
 
   return useQuery({
     queryKey: documentQueries.bankDetail(candidateId, language),
-    queryFn: () => candidateBankDetailsClient.getBankDetail((session as { accessToken: string }).accessToken),
+    queryFn: async () => candidateBankDetailsClient.getBankDetail(await getAccessToken()),
     enabled: status === 'authenticated' && !!session,
     retry: false,
   });

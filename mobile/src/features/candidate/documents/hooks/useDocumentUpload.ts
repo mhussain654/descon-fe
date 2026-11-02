@@ -47,7 +47,7 @@ interface UploadVariables {
   issuedOn: string;
   nextOfKinRelation: NextOfKinRelation | null;
   idempotencyKey: string;
-  accessTokenAtCallTime: string;
+  candidateIdAtCallTime: string;
 }
 
 /**
@@ -144,7 +144,7 @@ interface ActiveRequirement {
  * swapping the browser File for picker assets (file, camera or gallery).
  */
 export function useDocumentUpload() {
-  const { session } = useAuth();
+  const { session, getAccessToken } = useAuth();
   const { t, language } = useLanguage();
   const queryClient = useQueryClient();
   const candidateId = session?.candidateId ?? 'anonymous';
@@ -182,7 +182,7 @@ export function useDocumentUpload() {
   }, []);
 
   const mutation = useMutation<CandidateDocumentChecklistItem, CandidateDocumentsError, UploadVariables>({
-    mutationFn: async ({ requirementCode, entries: files, issuedOn: date, nextOfKinRelation: relation, idempotencyKey, accessTokenAtCallTime }) => {
+    mutationFn: async ({ requirementCode, entries: files, issuedOn: date, nextOfKinRelation: relation, idempotencyKey }) => {
       let formData: FormData;
       try {
         formData = buildFormData(requirementCode, files, date, relation);
@@ -190,10 +190,10 @@ export function useDocumentUpload() {
         // A picked file (or its cached copy) is no longer accessible on disk.
         throw { code: 'UNKNOWN' } satisfies CandidateDocumentsError;
       }
-      return candidateDocumentsClient.uploadDocument({ accessToken: accessTokenAtCallTime, requirementCode, formData, idempotencyKey });
+      return candidateDocumentsClient.uploadDocument({ accessToken: await getAccessToken(), requirementCode, formData, idempotencyKey });
     },
     onSuccess: (result, variables) => {
-      if (session?.accessToken !== variables.accessTokenAtCallTime) return;
+      if (session?.candidateId !== variables.candidateIdAtCallTime) return;
 
       queryClient.setQueryData<CandidateDocumentChecklistItem[]>(documentQueries.candidateChecklist(candidateId, language), (old) =>
         old ? old.map((item) => (item.requirementCode === result.requirementCode ? result : item)) : old
@@ -373,7 +373,7 @@ export function useDocumentUpload() {
       issuedOn,
       nextOfKinRelation: isNextOfKinRequirement ? nextOfKinRelation : null,
       idempotencyKey: resolved.key as string,
-      accessTokenAtCallTime: session.accessToken,
+      candidateIdAtCallTime: session.candidateId,
     });
   }, [active, layout, session, mutation, validation, isPccRequirement, issuedOn, isNextOfKinRequirement, nextOfKinRelation, entries, idempotencyState]);
 

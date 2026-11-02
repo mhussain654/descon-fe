@@ -35,7 +35,7 @@ interface UploadVariables {
   nextOfKinRelation: NextOfKinRelation | null;
   idempotencyKey: string;
   /** Captured at the moment `mutate()` is called -- lets onSuccess skip touching the cache if the candidate logged out (or another candidate signed in) since this request started. */
-  accessTokenAtCallTime: string;
+  candidateIdAtCallTime: string;
 }
 
 /**
@@ -89,7 +89,7 @@ interface ActiveRequirement {
  * actions while `mutation.isPending`.
  */
 export function useDocumentUpload() {
-  const { session } = useAuth();
+  const { session, getAccessToken } = useAuth();
   const { t, language } = useLanguage();
   const queryClient = useQueryClient();
   const candidateId = session?.candidateId ?? 'anonymous';
@@ -129,15 +129,15 @@ export function useDocumentUpload() {
   }, []);
 
   const mutation = useMutation<CandidateDocumentChecklistItem, CandidateDocumentsError, UploadVariables>({
-    mutationFn: ({ requirementCode, entries: files, issuedOn: date, nextOfKinRelation: relation, idempotencyKey, accessTokenAtCallTime }) =>
+    mutationFn: async ({ requirementCode, entries: files, issuedOn: date, nextOfKinRelation: relation, idempotencyKey }) =>
       candidateDocumentsClient.uploadDocument({
-        accessToken: accessTokenAtCallTime,
+        accessToken: await getAccessToken(),
         requirementCode,
         formData: buildFormData(requirementCode, files, date, relation),
         idempotencyKey,
       }),
     onSuccess: (result, variables) => {
-      if (session?.accessToken !== variables.accessTokenAtCallTime) return;
+      if (session?.candidateId !== variables.candidateIdAtCallTime) return;
 
       queryClient.setQueryData<CandidateDocumentChecklistItem[]>(documentQueries.candidateChecklist(candidateId, language), (old) =>
         old ? old.map((item) => (item.requirementCode === result.requirementCode ? result : item)) : old
@@ -267,7 +267,7 @@ export function useDocumentUpload() {
       issuedOn,
       nextOfKinRelation: isNextOfKinRequirement ? nextOfKinRelation : null,
       idempotencyKey: resolved.key as string,
-      accessTokenAtCallTime: session.accessToken,
+      candidateIdAtCallTime: session.candidateId,
     });
   }, [active, layout, session, mutation, validation, isPccRequirement, issuedOn, isNextOfKinRequirement, nextOfKinRelation, entries, idempotencyState]);
 

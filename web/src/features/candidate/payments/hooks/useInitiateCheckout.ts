@@ -42,7 +42,7 @@ function openProtectedBlankTab(): Window | null {
 
 interface InitiateVariables {
   idempotencyKey: string;
-  accessTokenAtCallTime: string;
+  candidateIdAtCallTime: string;
   /** The blank tab opened synchronously from the click, or null if the browser blocked it outright. Carried on the mutation variables (not a ref) so a stale/superseded attempt's result can never act on a newer attempt's tab. */
   checkoutTab: Window | null;
 }
@@ -56,7 +56,7 @@ interface InitiateVariables {
  * current attempt, or a fresh intentional one?"
  */
 export function useInitiateCheckout() {
-  const { session } = useAuth();
+  const { session, getAccessToken } = useAuth();
   const { language } = useLanguage();
   const queryClient = useQueryClient();
   const candidateId = session?.candidateId ?? 'anonymous';
@@ -69,9 +69,9 @@ export function useInitiateCheckout() {
   const [manualCheckoutUrl, setManualCheckoutUrl] = useState<string | null>(null);
 
   const mutation = useMutation<InitiateCheckoutResult, PaymentError, InitiateVariables>({
-    mutationFn: ({ idempotencyKey, accessTokenAtCallTime }) => paymentsClient.initiateCheckout(accessTokenAtCallTime, idempotencyKey),
+    mutationFn: async ({ idempotencyKey }) => paymentsClient.initiateCheckout(await getAccessToken(), idempotencyKey),
     onSuccess: (result, variables) => {
-      if (session?.accessToken !== variables.accessTokenAtCallTime) {
+      if (session?.candidateId !== variables.candidateIdAtCallTime) {
         variables.checkoutTab?.close();
         return;
       }
@@ -124,7 +124,7 @@ export function useInitiateCheckout() {
       ? retryCheckoutAttempt(idempotencyState, randomCheckoutIdempotencyKey)
       : beginNewCheckoutAttempt(randomCheckoutIdempotencyKey);
     setIdempotencyState(resolved);
-    mutation.mutate({ idempotencyKey: resolved.key as string, accessTokenAtCallTime: session.accessToken, checkoutTab });
+    mutation.mutate({ idempotencyKey: resolved.key as string, candidateIdAtCallTime: session.candidateId, checkoutTab });
   }, [session, mutation, idempotencyState]);
 
   const openCheckoutManually = useCallback(() => {

@@ -19,7 +19,7 @@ import { useShortLivedAccess } from '../../workflow/hooks/useShortLivedAccess';
  * `visaDecisionId`.
  */
 export function useDocumentAccess() {
-  const { session } = useAuth();
+  const { session, getAccessToken } = useAuth();
   const access = useShortLivedAccess<DocumentAccess, DocumentAccessError>();
   const [lastRequestedDocumentId, setLastRequestedDocumentId] = useState<string | null>(null);
   const [lastRequestedFileId, setLastRequestedFileId] = useState<string | null>(null);
@@ -30,12 +30,12 @@ export function useDocumentAccess() {
       if (!session) return Promise.resolve();
       setLastRequestedDocumentId(documentId);
       setLastRequestedFileId(fileId ?? null);
-      return access.requestAccess(() =>
-        candidateDocumentsClient.requestDocumentAccess(session.accessToken, documentId, undefined, fileId)
+      return access.requestAccess(async () =>
+        candidateDocumentsClient.requestDocumentAccess(await getAccessToken(), documentId, undefined, fileId)
       );
       // eslint-disable-next-line react-hooks/exhaustive-deps
     },
-    [session, access.requestAccess]
+    [session, getAccessToken, access.requestAccess]
   );
 
   return { ...access, requestDocumentAccess, lastRequestedDocumentId, lastRequestedFileId };

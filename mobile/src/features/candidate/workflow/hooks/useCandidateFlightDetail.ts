@@ -13,13 +13,13 @@ import { workflowQueries } from '../../../../../../shared/queryKeys/workflowQuer
  * reads `.code` off it.
  */
 export function useCandidateFlightDetail() {
-  const { session, status } = useAuth();
+  const { session, status, getAccessToken } = useAuth();
   const { language } = useLanguage();
   const candidateId = session?.candidateId ?? 'anonymous';
 
   return useQuery<CandidateFlightDetail | null, CandidateFlightDetailError>({
     queryKey: workflowQueries.flightDetail(candidateId, language),
-    queryFn: () => candidateFlightDetailClient.getFlightDetail((session as { accessToken: string }).accessToken),
+    queryFn: async () => candidateFlightDetailClient.getFlightDetail(await getAccessToken()),
     enabled: status === 'authenticated' && !!session,
     retry: false,
   });

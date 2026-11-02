@@ -35,7 +35,7 @@ import {
  * refresh after payment confirmation").
  */
 export function usePaymentEligibility() {
-  const { session, status } = useAuth();
+  const { session, status, getAccessToken } = useAuth();
   const { language } = useLanguage();
   const queryClient = useQueryClient();
   const candidateId = session?.candidateId ?? 'anonymous';
@@ -45,7 +45,7 @@ export function usePaymentEligibility() {
 
   const query = useQuery<PaymentEligibility, PaymentError>({
     queryKey: paymentQueries.eligibility(candidateId, language),
-    queryFn: () => paymentsClient.getEligibility((session as { accessToken: string }).accessToken),
+    queryFn: async () => paymentsClient.getEligibility(await getAccessToken()),
     enabled: status === 'authenticated' && !!session,
     retry: false,
     refetchOnWindowFocus: true,

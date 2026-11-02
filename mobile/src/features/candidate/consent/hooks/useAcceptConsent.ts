@@ -11,10 +11,10 @@ import type { ConsentStatus } from '../../../../../../shared/auth/types';
  * needed. Mirrors web/src/features/candidate/consent/hooks/useAcceptConsent.ts.
  */
 export function useAcceptConsent() {
-  const { session, setConsentStatus } = useAuth();
+  const { getAccessToken, setConsentStatus } = useAuth();
 
   const mutation = useMutation<ConsentStatus, CandidateConsentError>({
-    mutationFn: () => candidateConsentClient.accept(session?.accessToken ?? ''),
+    mutationFn: async () => candidateConsentClient.accept(await getAccessToken()),
     onSuccess: (status) => setConsentStatus(status),
   });
 

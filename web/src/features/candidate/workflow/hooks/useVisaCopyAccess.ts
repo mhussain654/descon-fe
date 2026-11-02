@@ -13,18 +13,18 @@ import { useShortLivedAccess } from './useShortLivedAccess';
  * decision's id must be supplied per request rather than assumed.
  */
 export function useVisaCopyAccess() {
-  const { session } = useAuth();
+  const { session, getAccessToken } = useAuth();
   const access = useShortLivedAccess<VisaCopyAccess, CandidateVisaDecisionsError>();
 
   const requestVisaCopyAccess = useCallback(
     (visaDecisionId: string) => {
       if (!session) return Promise.resolve();
-      return access.requestAccess(() =>
-        candidateVisaDecisionsClient.requestVisaCopyAccess(session.accessToken, visaDecisionId)
+      return access.requestAccess(async () =>
+        candidateVisaDecisionsClient.requestVisaCopyAccess(await getAccessToken(), visaDecisionId)
       );
       // eslint-disable-next-line react-hooks/exhaustive-deps
     },
-    [session, access.requestAccess]
+    [session, getAccessToken, access.requestAccess]
   );
 
   return { ...access, requestVisaCopyAccess };

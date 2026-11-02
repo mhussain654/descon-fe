@@ -43,7 +43,7 @@ function template(overrides: Partial<SmsTemplate> = {}): SmsTemplate {
   };
 }
 
-const OTP = template({ messageCode: "otp", templateIdEn: "10790", canDisable: false, variables: ["code", "minutes"] });
+const OTP = template({ messageCode: "otp", templateIdEn: "11062", canDisable: false, variables: ["code", "minutes"] });
 
 function card(heading: string) {
   return screen.getByRole("heading", { name: heading }).closest("div.h-full") as HTMLElement;
@@ -109,7 +109,7 @@ describe("SmsTemplateList", () => {
     expect(screen.getByText(/Always on: candidates need it to log in/)).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Save" }));
     await waitFor(() =>
-      expect(adminAppSettingsClient.updateSmsTemplate).toHaveBeenCalledWith("otp", { templateIdEn: "10790", templateIdUr: "" })
+      expect(adminAppSettingsClient.updateSmsTemplate).toHaveBeenCalledWith("otp", { templateIdEn: "11062", templateIdUr: "" })
     );
   });
 

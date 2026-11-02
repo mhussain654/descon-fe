@@ -13,7 +13,7 @@ import { resolveDocumentAccessUrl } from '../../../../lib/resolveDocumentAccessU
  * have multiple visa decisions, so the decision's id is supplied per call.
  */
 export function useVisaCopyAccess() {
-  const { session } = useAuth();
+  const { session, getAccessToken } = useAuth();
   const [isRequesting, setIsRequesting] = useState(false);
   const [error, setError] = useState<CandidateVisaDecisionsError | null>(null);
 
@@ -23,7 +23,7 @@ export function useVisaCopyAccess() {
       setIsRequesting(true);
       setError(null);
       try {
-        const access = await candidateVisaDecisionsClient.requestVisaCopyAccess(session.accessToken, visaDecisionId);
+        const access = await candidateVisaDecisionsClient.requestVisaCopyAccess(await getAccessToken(), visaDecisionId);
         // Fails closed: null when the signed URL doesn't resolve to our own
         // API origin (a malformed backend response, an unexpected absolute
         // URL, a dangerous scheme) -- never hand that to Linking.openURL.
@@ -39,7 +39,7 @@ export function useVisaCopyAccess() {
         setIsRequesting(false);
       }
     },
-    [session, isRequesting]
+    [session, getAccessToken, isRequesting]
   );
 
   return { downloadVisaCopy, isRequesting, error, clearError: () => setError(null) };

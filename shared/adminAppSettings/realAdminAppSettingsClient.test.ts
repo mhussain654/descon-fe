@@ -39,7 +39,7 @@ function settingPayload() {
 function smsTemplatePayload() {
   return {
     message_code: 'otp',
-    template_id_en: '10790',
+    template_id_en: '11062',
     template_id_ur: null,
     enabled: true,
     can_disable: false,
@@ -121,7 +121,7 @@ describe('createAdminAppSettingsClient (real)', () => {
     expect(templates).toEqual([
       {
         messageCode: 'otp',
-        templateIdEn: '10790',
+        templateIdEn: '11062',
         templateIdUr: null,
         enabled: true,
         canDisable: false,

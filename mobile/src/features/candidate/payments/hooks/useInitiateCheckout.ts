@@ -19,7 +19,7 @@ const TERMINAL_ERROR_CODES = new Set<PaymentError['code']>(['NOT_ELIGIBLE', 'CHE
 
 interface InitiateVariables {
   idempotencyKey: string;
-  accessTokenAtCallTime: string;
+  candidateIdAtCallTime: string;
 }
 
 /**
@@ -36,7 +36,7 @@ interface InitiateVariables {
  * the payment provider sets.
  */
 export function useInitiateCheckout() {
-  const { session } = useAuth();
+  const { session, getAccessToken } = useAuth();
   const { language } = useLanguage();
   const queryClient = useQueryClient();
   const candidateId = session?.candidateId ?? 'anonymous';
@@ -44,9 +44,9 @@ export function useInitiateCheckout() {
   const [checkoutUrl, setCheckoutUrl] = useState<string | null>(null);
 
   const mutation = useMutation<InitiateCheckoutResult, PaymentError, InitiateVariables>({
-    mutationFn: ({ idempotencyKey, accessTokenAtCallTime }) => paymentsClient.initiateCheckout(accessTokenAtCallTime, idempotencyKey),
+    mutationFn: async ({ idempotencyKey }) => paymentsClient.initiateCheckout(await getAccessToken(), idempotencyKey),
     onSuccess: (result, variables) => {
-      if (session?.accessToken !== variables.accessTokenAtCallTime) return;
+      if (session?.candidateId !== variables.candidateIdAtCallTime) return;
 
       queryClient.setQueryData(paymentQueries.eligibility(candidateId, language), result.eligibility);
       setIdempotencyState(clearCheckoutIdempotencyKey());
@@ -71,7 +71,7 @@ export function useInitiateCheckout() {
       ? retryCheckoutAttempt(idempotencyState, randomCheckoutIdempotencyKey)
       : beginNewCheckoutAttempt(randomCheckoutIdempotencyKey);
     setIdempotencyState(resolved);
-    mutation.mutate({ idempotencyKey: resolved.key as string, accessTokenAtCallTime: session.accessToken });
+    mutation.mutate({ idempotencyKey: resolved.key as string, candidateIdAtCallTime: session.candidateId });
   }, [session, mutation, idempotencyState]);
 
   // Called once the embedded checkout is dismissed, whichever way that

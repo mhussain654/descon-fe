@@ -11,14 +11,14 @@ import { useShortLivedAccess } from './useShortLivedAccess';
  * credential must not sit around unused).
  */
 export function useFlightTicketAccess() {
-  const { session } = useAuth();
+  const { session, getAccessToken } = useAuth();
   const access = useShortLivedAccess<FlightTicketAccess>();
 
   const requestTicketAccess = useCallback(() => {
     if (!session) return Promise.resolve();
-    return access.requestAccess(() => candidateFlightDetailClient.requestTicketAccess(session.accessToken));
+    return access.requestAccess(async () => candidateFlightDetailClient.requestTicketAccess(await getAccessToken()));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [session, access.requestAccess]);
+  }, [session, getAccessToken, access.requestAccess]);
 
   return { ...access, requestTicketAccess };
 }

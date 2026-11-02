@@ -1,3 +1,4 @@
+import React from 'react';
 import { QueryClientProvider } from '@tanstack/react-query';
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react-native';
 import { Pressable, Text } from 'react-native';
@@ -100,6 +101,24 @@ function Probe() {
       </Pressable>
       <Pressable testID="logout" onPress={() => logout()}>
         <Text>logout</Text>
+      </Pressable>
+    </>
+  );
+}
+
+function TokenProbe() {
+  const { getAccessToken } = useAuth();
+  const [result, setResult] = React.useState('idle');
+  const fetchTwice = () =>
+    Promise.all([getAccessToken(), getAccessToken()])
+      .then((tokens) => setResult(tokens.join(',')))
+      .catch((error) => setResult(`error:${error.code}`));
+  return (
+    <>
+      <Probe />
+      <Text testID="token-result">{result}</Text>
+      <Pressable testID="fetch" onPress={fetchTwice}>
+        <Text>fetch</Text>
       </Pressable>
     </>
   );
@@ -374,6 +393,72 @@ describe('AuthProvider', () => {
 
       await waitFor(() => expect(screen.getByTestId('status')).toHaveTextContent('authenticated'));
       expect(refreshSession).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('getAccessToken', () => {
+    const expiredStored = () =>
+      jest.requireMock('expo-secure-store').__setRaw(
+        'descon.candidateSession',
+        storedSession({ expiresAt: new Date(Date.now() - 60_000).toISOString() })
+      );
+
+    it('opens the app on an expired stored session without waiting for the network', async () => {
+      expiredStored();
+      const refreshSession = jest.fn(() => new Promise(() => {}));
+
+      renderWithProviders(<Probe />, stubClient(refreshSession));
+
+      await waitFor(() => expect(screen.getByTestId('status')).toHaveTextContent('authenticated'));
+      expect(screen.getByTestId('candidate')).toHaveTextContent('candidate_old');
+    });
+
+    it('renews an expired token before handing it out, sharing one refresh between parallel requests', async () => {
+      expiredStored();
+      const refreshSession = jest.fn().mockResolvedValue(REFRESHED);
+
+      renderWithProviders(<TokenProbe />, stubClient(refreshSession));
+      await waitFor(() => expect(screen.getByTestId('status')).toHaveTextContent('authenticated'));
+      fireEvent.press(screen.getByTestId('fetch'));
+
+      await waitFor(() => expect(screen.getByTestId('token-result')).toHaveTextContent('token-2,token-2'));
+      expect(refreshSession).toHaveBeenCalledTimes(1);
+      expect(refreshSession).toHaveBeenCalledWith('old-refresh');
+    });
+
+    it('returns a still-valid token without refreshing', async () => {
+      jest.requireMock('expo-secure-store').__setRaw('descon.candidateSession', storedSession());
+      const refreshSession = jest.fn();
+
+      renderWithProviders(<TokenProbe />, stubClient(refreshSession));
+      await waitFor(() => expect(screen.getByTestId('status')).toHaveTextContent('authenticated'));
+      fireEvent.press(screen.getByTestId('fetch'));
+
+      await waitFor(() => expect(screen.getByTestId('token-result')).toHaveTextContent('old,old'));
+      expect(refreshSession).not.toHaveBeenCalled();
+    });
+
+    it('signs out as expired only when the server rejects the refresh token', async () => {
+      expiredStored();
+      const refreshSession = jest.fn().mockRejectedValue({ code: 'SESSION_EXPIRED' });
+
+      renderWithProviders(<TokenProbe />, stubClient(refreshSession));
+
+      await waitFor(() => expect(screen.getByTestId('status')).toHaveTextContent('unauthenticated'));
+      expect(screen.getByTestId('expired')).toHaveTextContent('true');
+      expect(await jest.requireMock('expo-secure-store').getItemAsync('descon.candidateSession')).toBeNull();
+    });
+
+    it('rejects with OFFLINE and keeps the candidate signed in when the renewal cannot reach the server', async () => {
+      expiredStored();
+      const refreshSession = jest.fn().mockRejectedValue({ code: 'OFFLINE' });
+
+      renderWithProviders(<TokenProbe />, stubClient(refreshSession));
+      await waitFor(() => expect(screen.getByTestId('status')).toHaveTextContent('authenticated'));
+      fireEvent.press(screen.getByTestId('fetch'));
+
+      await waitFor(() => expect(screen.getByTestId('token-result')).toHaveTextContent('error:OFFLINE'));
+      expect(screen.getByTestId('status')).toHaveTextContent('authenticated');
     });
   });
 });

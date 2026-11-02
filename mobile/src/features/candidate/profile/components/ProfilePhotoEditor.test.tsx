@@ -15,7 +15,11 @@ jest.mock('expo-image-picker', () => ({
 }));
 
 jest.mock('../../../../contexts/AuthContext', () => ({
-  useAuth: () => ({ session: { accessToken: 'candidate-token', candidateId: 'candidate-1' }, status: 'authenticated' }),
+  useAuth: () => ({
+    session: { accessToken: 'candidate-token', candidateId: 'candidate-1' },
+    status: 'authenticated',
+    getAccessToken: () => Promise.resolve('candidate-token'),
+  }),
 }));
 
 jest.mock('../../../../lib/candidate-profile-client', () => ({
