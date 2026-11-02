@@ -991,7 +991,9 @@ describe("DocumentsScreen", () => {
 
     fireEvent.press(await screen.findByRole("button", { name: "Upload" }));
     fireEvent.press(screen.getByLabelText("Police Character Certificate issue date"));
-    fireEvent.press(screen.getByRole("button", { name: "15" }));
+    // The 1st of January last year: always more than 5 months ago. Day 1 is
+    // used because the picker only renders the days near today's date.
+    fireEvent.press(screen.getByRole("button", { name: "1" }));
     fireEvent.press(screen.getByRole("button", { name: "January" }));
     fireEvent.press(screen.getByRole("button", { name: String(new Date().getFullYear() - 1) }));
     fireEvent.press(screen.getByRole("button", { name: "Done" }));

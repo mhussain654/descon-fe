@@ -120,7 +120,7 @@ export default function ProfileScreen() {
           refreshControl={<RefreshControl refreshing={profileQuery.isRefetching || progressQuery.isRefetching} onRefresh={() => { profileQuery.refetch(); progressQuery.refetch(); }} title={t("pullToRefresh")} />}
         >
           {renderBody()}
-          <ProfileSettings language={language} t={t} onLanguageChange={toggleLanguage} onLogout={handleLogout} />
+          <ProfileSettings language={language} t={t} onLanguageChange={() => toggleLanguage("/(tabs)/profile")} onLogout={handleLogout} />
         </ScrollView>
       </View>
     </ButtonHeightContext.Provider>

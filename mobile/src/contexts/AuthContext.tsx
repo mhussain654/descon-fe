@@ -151,15 +151,21 @@ export function AuthProvider({
 
       // The access token lapsed while the app was closed -- renew it from
       // the refresh token rather than making the candidate request a new
-      // OTP. Only a server-confirmed rejection discards the stored session;
-      // a transient failure (offline) leaves it for the next launch.
+      // OTP (each one is a paid SMS). Only a server-confirmed rejection
+      // discards the stored session and signs out. A transient failure
+      // (offline, weak network) keeps the candidate signed in on the stored
+      // session; the renewal timer below retries until the network is back.
       try {
         const refreshed = await client.refreshSession(stored.refreshToken);
         await persistSession(refreshed);
         finish(refreshed);
       } catch (error) {
-        if ((error as { code?: string })?.code === "SESSION_EXPIRED") await deleteStoredSessionSafely();
-        finish(null);
+        if ((error as { code?: string })?.code === "SESSION_EXPIRED") {
+          await deleteStoredSessionSafely();
+          finish(null);
+          return;
+        }
+        finish(stored);
       }
     });
     return () => {

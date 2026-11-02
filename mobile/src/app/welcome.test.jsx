@@ -79,42 +79,55 @@ describe('WelcomeScreen', () => {
 
   it('renders the language/continue screen once restoration finds no session', async () => {
     renderWelcomeScreen();
-    expect(await screen.findByRole('button', { name: 'Continue, جاری رکھیں' })).toBeOnTheScreen();
+    expect(await screen.findByRole('button', { name: 'Continue' })).toBeOnTheScreen();
   });
 
-  it('shows every piece of copy in both English and Urdu before a language is chosen', async () => {
+  it("shows the client's design in English: logo row, welcome, tag line and the language choice", async () => {
     renderWelcomeScreen();
+
     expect(await screen.findByText('Choose your language')).toBeOnTheScreen();
-    expect(screen.getByText('اپنی زبان منتخب کریں')).toBeOnTheScreen();
-    expect(screen.getByText('“Welcome to MPS Connect, your gateway to overseas employment”')).toBeOnTheScreen();
-    expect(screen.getByText('“ایم پی ایس کنیکٹ میں خوش آمدید،\nبیرونِ ملک روزگار کے لیے آپ کا راستہ”')).toBeOnTheScreen();
+    expect(screen.getByLabelText('MPS Connect')).toBeOnTheScreen();
+    expect(screen.getByRole('header', { name: 'Welcome to MPS Connect' })).toBeOnTheScreen();
+    expect(screen.getByText('Your Gateway to Overseas Employment.')).toBeOnTheScreen();
     expect(screen.getByText('You can change it later from your profile.')).toBeOnTheScreen();
+    expect(screen.getByText('Continue in English')).toBeOnTheScreen();
+    expect(screen.getByText('اردو میں جاری رکھیں')).toBeOnTheScreen();
     expect(screen.getByText('Securely managed by Descon Manpower Services')).toBeOnTheScreen();
-    expect(screen.getByText('ڈیسکون مین پاور سروسز کے زیرِ انتظام، محفوظ')).toBeOnTheScreen();
-    expect(screen.getByLabelText('MPS Connect')).toBeOnTheScreen();
   });
 
-  it('shows no caption under the English and Urdu language boxes', async () => {
+  it('shows the welcome only in the chosen language -- no Urdu welcome while English is selected', async () => {
     renderWelcomeScreen();
     await screen.findByText('Choose your language');
 
-    expect(screen.queryByText('Continue in English')).toBeNull();
-    expect(screen.queryByText('اردو میں جاری رکھیں')).toBeNull();
+    expect(screen.queryByText('ایم پی ایس کنیکٹ میں خوش آمدید')).toBeNull();
+    expect(screen.queryByText('اپنی زبان منتخب کریں')).toBeNull();
   });
 
-  it('marks the chosen language card selected', async () => {
+  it('shows the whole page, welcome included, in Urdu once Urdu is chosen', async () => {
     renderWelcomeScreen();
-    await screen.findByText('Choose your language');
+    fireEvent.press(await screen.findByRole('button', { name: /اردو/ }));
 
-    const urduCard = screen.getByRole('button', { name: /اردو/ });
-    expect(urduCard).not.toBeSelected();
-
-    fireEvent.press(urduCard);
-
-    await waitFor(() => expect(screen.getByRole('button', { name: /اردو/ })).toBeSelected());
+    expect(await screen.findByText('ایم پی ایس کنیکٹ میں خوش آمدید')).toBeOnTheScreen();
+    expect(screen.getByText('بیرونِ ملک روزگار کے لیے آپ کا راستہ')).toBeOnTheScreen();
+    expect(screen.getByText('اپنی زبان منتخب کریں')).toBeOnTheScreen();
+    expect(screen.getByLabelText('ایم پی ایس کنیکٹ')).toBeOnTheScreen();
+    expect(screen.queryByText('Welcome to MPS Connect')).toBeNull();
+    expect(screen.getByRole('button', { name: /اردو/ })).toBeSelected();
     expect(screen.getByRole('button', { name: /English/ })).not.toBeSelected();
-    // The app name stays "MPS Connect" on this bilingual screen.
-    expect(screen.getByLabelText('MPS Connect')).toBeOnTheScreen();
+  });
+
+  it('puts the English box on the left and the Urdu box on the right', async () => {
+    renderWelcomeScreen();
+    await screen.findByText('Choose your language');
+
+    const english = screen.getByRole('button', { name: /English/ });
+    const urdu = screen.getByRole('button', { name: /اردو/ });
+    const contains = (node, target) => node === target || (node.children ?? []).some((child) => typeof child !== 'string' && contains(child, target));
+    let row = english.parent;
+    while (row && !contains(row, urdu)) row = row.parent;
+    const flexDirections = [row.props.style].flat(Infinity).filter(Boolean).map((style) => style.flexDirection);
+    const childIndex = (target) => row.children.findIndex((child) => typeof child !== 'string' && contains(child, target));
+    expect(flexDirections.includes('row') && childIndex(english) < childIndex(urdu)).toBe(true);
   });
 
   it('redirects an already-authenticated candidate to the dashboard instead of showing Welcome', async () => {

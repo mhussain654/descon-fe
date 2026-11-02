@@ -255,7 +255,7 @@ describe("DashboardScreen", () => {
     expect(screen.getByText("20% complete")).toBeOnTheScreen();
   });
 
-  it("shows a simple Upload Documents box with a Proceed button while documents are needed, with no Next step label", async () => {
+  it("shows a simple Upload Documents box under a Next step label, with a Proceed button, while documents are needed", async () => {
     candidateProfileClient.getProfile.mockResolvedValue(profilePayload());
     candidateDocumentsClient.getChecklist.mockResolvedValue([
       checklistItem({ status: "uploaded" }),
@@ -266,7 +266,7 @@ describe("DashboardScreen", () => {
 
     expect(await screen.findByText("Upload Documents")).toBeOnTheScreen();
     expect(screen.getByRole("button", { name: "Proceed" })).toBeOnTheScreen();
-    expect(screen.queryByText("Next step")).toBeNull();
+    expect(screen.getByText("NEXT STEP")).toBeOnTheScreen();
     expect(screen.queryByText(/Upload your missing document/)).toBeNull();
   });
 

@@ -10,7 +10,7 @@ import { useAuth } from "../contexts/AuthContext";
 import { useLanguage } from "../contexts/LanguageContext";
 import { RequireGuest } from "../features/auth/RequireGuest";
 import { RegistrationGuidance } from "../features/onboarding/RegistrationGuidance";
-import { BrandHeader } from "../features/onboarding/BrandHeader";
+import { BRAND_ROW_HEIGHT, BrandRow } from "../features/onboarding/BrandRow";
 import { SecureFooter } from "../features/onboarding/SecureFooter";
 import { BackArrow, forwardArrowSlots } from "../features/onboarding/directionalArrows";
 import { isStartSide, physicalTextAlign } from "../lib/layoutDirection";
@@ -43,12 +43,16 @@ const HERO_ART = {
 };
 // The sheet's rounded top slides up over the plain ground at the art's base.
 const SHEET_OVERLAP = 28;
+const HERO_ASPECT_RATIO = 675 / 694;
 // A soft dark halo keeps the white copy readable where it crosses lighter sky and clouds.
 const HERO_TEXT_SHADOW = {
   textShadowColor: "rgba(0, 28, 84, 0.7)",
   textShadowOffset: { width: 0, height: 1 },
   textShadowRadius: 8,
 };
+
+// The number every OTP SMS arrives from, shown so candidates know which message to open.
+const OTP_SENDER_NUMBER = "8062050";
 
 // A row whose first child sits on the given physical side in the live layout.
 function rowTowards(side) {
@@ -58,10 +62,11 @@ function rowTowards(side) {
 export default function LoginScreen() {
   const insets = useSafeAreaInsets();
 
-  // The hero photo is tall, so the CNIC/OTP field and its button sit below the
-  // fold. KeyboardAvoidingAnimatedView shrinks the viewport when the keyboard
-  // opens; this then scrolls the sheet into that smaller viewport so the field
-  // being typed in is never left behind the keyboard.
+  // The hero art stays pinned at the top; only the white sheet scrolls.
+  // KeyboardAvoidingAnimatedView shrinks the viewport when the keyboard opens,
+  // and this then slides the sheet up over the art's lower part, so the field
+  // being typed in is never left behind the keyboard while the logo, Back and
+  // heading stay in view.
   const scrollRef = useRef(null);
   useEffect(() => {
     const showEvent = Platform.OS === "ios" ? "keyboardWillShow" : "keyboardDidShow";
@@ -84,6 +89,9 @@ export default function LoginScreen() {
   }, []);
   const router = useRouter();
   const { width } = useWindowDimensions();
+  // Exactly the art's own height at full width (less a little plain sky), on
+  // both steps: a taller box would make "cover" scale it up and crop its sides.
+  const heroHeight = insets.top + (width / HERO_ASPECT_RATIO) * 0.9;
   const { t, language, toggleLanguage } = useLanguage();
   const isUrdu = language === "ur";
   const copySide = isUrdu ? "right" : "left";
@@ -197,6 +205,7 @@ export default function LoginScreen() {
             : t(AUTH_ERROR_KEYS[otpError.code])
       : null;
 
+  const [sentFromBefore, sentFromAfter = ""] = t("otpCodeSentFromSender").split("%{sender}");
   const showExpiryPill = !isExpired && !isLockedOut && !isOtpOffline;
   const expiryCountdown = formatCountdown(secondsUntilExpiry ?? 0);
 
@@ -207,73 +216,87 @@ export default function LoginScreen() {
         <StatusBar style="light" />
 
         {/* Keep navigation visible while the keyboard scrolls the CNIC field
-            into view; the hero itself can move beneath Android's status bar. */}
+            into view; the hero itself can move beneath Android's status bar.
+            The logo row starts on the reading side, so Back sits on the other
+            side of the same line. A language switch reloads the app onto this
+            screen with no history, so Back then opens the language page. */}
         <Pressable
-          onPress={() => (step === "otp" ? backToCnic() : router.back())}
+          onPress={() => {
+            if (step === "otp") backToCnic();
+            else if (router.canGoBack()) router.back();
+            else router.replace("/welcome");
+          }}
           accessibilityRole="button"
           accessibilityLabel={t("back")}
           style={[styles.backPill, styles.fixedBack, rowTowards(copySide),
-            isUrdu ? { right: spacing[6] } : { left: spacing[6] },
-            // 10 = half the difference between the brand tile (64) and this pill (44), so the pill centres on the logo.
-            { top: insets.top + spacing[3] + 10 }]}
+            isUrdu ? { left: spacing[6] } : { right: spacing[6] },
+            // Centred on the logo tile: half the difference between the tile and this pill (44).
+            { top: insets.top + spacing[3] + (BRAND_ROW_HEIGHT - 44) / 2 }]}
           hitSlop={8}
         >
           <BackArrow language={language} color={colors.text.inverse} />
           <Text style={[styles.backText, isUrdu ? styles.backTextUrdu : null, font("semibold")]}>{t("back")}</Text>
         </Pressable>
 
+        {/* Pinned behind the scrolling sheet, so opening the keyboard never
+            scrolls the art away. */}
+        <View style={[styles.hero, { height: heroHeight, paddingTop: insets.top + spacing[3] + BRAND_ROW_HEIGHT + spacing[3] }]}>
+          <Image
+            source={HERO_ART[isUrdu ? "ur" : "en"]}
+            style={StyleSheet.absoluteFill}
+            contentFit="cover"
+            // Keep the landmarks and helmet in view; any crop comes off the plain sky.
+            contentPosition="bottom"
+            accessible={false}
+          />
+
+          <View style={[styles.brandSlot, { top: insets.top + spacing[3] }]}>
+            <BrandRow language={language} primary={t("brandNamePrimary")} secondary={t("brandNameSecondary")} side={copySide} />
+          </View>
+
+          <View style={[styles.heroCopy, anchorStyle, { maxWidth: width * (isUrdu ? 0.7 : 0.6) }]}>
+            <Text
+              accessibilityRole="header"
+              style={[styles.heroTitle, isUrdu ? styles.heroTitleUrdu : null, copyTextStyle, font("bold")]}
+            >
+              {step === "cnic" ? t("loginHeroTitle") : t("otpHeroTitle")}
+            </Text>
+            {step === "cnic" ? (
+              <Text style={[styles.heroLead, isUrdu ? styles.heroLeadUrdu : null, copyTextStyle, font("medium")]}>
+                {t("loginHeroSubtitle")}
+              </Text>
+            ) : null}
+          </View>
+        </View>
+
         {/* Small phones, landscape orientation and larger font scales can push
             this content taller than the viewport -- a ScrollView keeps the
             field and its action reachable instead of clipping them off-screen. */}
         <ScrollView ref={scrollRef} contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled" bounces={false}>
-          <View style={[styles.hero, { paddingTop: insets.top + spacing[3] + 106 + spacing[3], minHeight: insets.top + width * 0.78 }]}>
-            <Image
-              source={HERO_ART[isUrdu ? "ur" : "en"]}
-              style={StyleSheet.absoluteFill}
-              contentFit="cover"
-              // Keep the landmarks and helmet in view; any crop comes off the plain sky.
-              contentPosition="bottom"
-              accessible={false}
-            />
-
-            <View style={[styles.brandSlot, { top: insets.top + spacing[3] }]}>
-              <BrandHeader language={language} primary={t("brandNamePrimary")} secondary={t("brandNameSecondary")} />
-            </View>
-
-            <View style={[styles.heroCopy, anchorStyle, { maxWidth: width * (isUrdu ? 0.7 : 0.6) }]}>
-              <Text
-                accessibilityRole="header"
-                style={[styles.heroTitle, isUrdu ? styles.heroTitleUrdu : null, copyTextStyle, font("bold")]}
-              >
-                {step === "cnic" ? t("loginHeroTitle") : t("otpHeroTitle")}
-              </Text>
-              <Text style={[styles.heroLead, isUrdu ? styles.heroLeadUrdu : null, copyTextStyle, font("medium")]}>
-                {step === "cnic" ? t("loginHeroSubtitle") : t("otpHeroSubtitle")}
-              </Text>
-            </View>
-          </View>
+          <View style={{ height: heroHeight }} />
 
           <View style={[styles.sheet, { paddingBottom: insets.bottom + spacing[3] }]}>
+            {step === "otp" ? (
+              // On the white sheet, not over the art, so it stays easy to read.
+              <Text style={[styles.sentFrom, isUrdu ? styles.sentFromUrdu : null, copyTextStyle, font("regular")]}>
+                {sentFromBefore}
+                <Text style={styles.sentFromSender}>{OTP_SENDER_NUMBER}</Text>
+                {sentFromAfter}
+              </Text>
+            ) : null}
+
+            {/* The heading shares its line with the language button (or the
+                code's countdown), so the guidance below gets the full width. */}
             <View style={[styles.sheetHeading, rowTowards(copySide)]}>
-              <View style={[styles.sheetHeadingText, isUrdu ? styles.alignEndUrdu : null]}>
-                <Text style={[styles.sheetTitle, isUrdu ? styles.sheetTitleUrdu : null, copyTextStyle, font("bold")]}>
-                  {step === "cnic" ? t("login") : t("otpSheetTitle")}
-                </Text>
-                <Text style={[styles.sheetSubtitle, isUrdu ? styles.secondaryUrdu : null, copyTextStyle, font("regular")]}>
-                  {step === "cnic" ? t("loginSheetSubtitle") : t("otpSheetSubtitle")}
-                </Text>
-                {step === "cnic" ? (
-                  <Text style={[styles.sheetSubtitle, isUrdu ? styles.secondaryUrdu : null, copyTextStyle, font("regular")]}>
-                    {t("loginOtpNotice")}
-                  </Text>
-                ) : null}
-              </View>
+              <Text style={[styles.sheetTitle, styles.sheetHeadingText, isUrdu ? styles.sheetTitleUrdu : null, copyTextStyle, font("bold")]}>
+                {step === "cnic" ? t("login") : t("otpSheetTitle")}
+              </Text>
 
               {step === "cnic" ? (
                 // Each language names itself in its own script, so a candidate
                 // who can't read the active language can still find theirs.
                 <Pressable
-                  onPress={toggleLanguage}
+                  onPress={() => toggleLanguage("/login")}
                   accessibilityRole="button"
                   accessibilityLabel={t("switchLanguage")}
                   style={styles.pill}
@@ -293,6 +316,18 @@ export default function LoginScreen() {
                 </View>
               ) : null}
             </View>
+            {step === "cnic" ? (
+              <View style={styles.sheetGuidance}>
+                <Text style={[styles.sheetSubtitle, isUrdu ? styles.secondaryUrdu : null, copyTextStyle, font("regular")]}>
+                  {t("loginSheetSubtitle")}
+                </Text>
+                <Text style={[styles.sheetSubtitle, isUrdu ? styles.secondaryUrdu : null, copyTextStyle, font("regular")]}>
+                  {t("loginOtpNotice")}
+                </Text>
+              </View>
+            ) : (
+              <View style={styles.sheetGuidanceOtp} />
+            )}
 
             {step === "cnic" ? (
               <View style={styles.fieldStack}>
@@ -462,12 +497,15 @@ const styles = StyleSheet.create({
   rowReversed: { flexDirection: "row-reverse", alignItems: "center" },
 
   hero: {
+    position: "absolute",
+    top: 0,
+    start: 0,
+    end: 0,
     paddingHorizontal: spacing[6],
-    paddingBottom: SHEET_OVERLAP + spacing[6],
     backgroundColor: "#0065B3",
     overflow: "hidden",
   },
-  brandSlot: { position: "absolute", start: 0, end: 0, alignItems: "center" },
+  brandSlot: { position: "absolute", start: spacing[6], end: spacing[6] },
   heroCopy: { gap: spacing[4] },
   anchorStart: { alignSelf: "flex-start", alignItems: "flex-start" },
   anchorEnd: { alignSelf: "flex-end", alignItems: "flex-end" },
@@ -492,8 +530,10 @@ const styles = StyleSheet.create({
   },
   // Nastaliq needs ~2x line height so stacked descenders and dots never touch.
   heroTitleUrdu: { fontSize: 24, lineHeight: 48, letterSpacing: 0, paddingHorizontal: spacing[1] },
-  heroLead: { marginTop: -spacing[2], fontSize: 15, lineHeight: 22, color: colors.text.inverse, ...HERO_TEXT_SHADOW },
-  heroLeadUrdu: { marginTop: -spacing[1], fontSize: 14, lineHeight: 28, paddingHorizontal: spacing[1] },
+  // The width cap breaks the English tagline into two even lines
+  // ("Your Gateway to" / "Overseas Employment") on every phone width.
+  heroLead: { marginTop: -spacing[2], maxWidth: 210, fontSize: 17, lineHeight: 24, color: colors.text.inverse, ...HERO_TEXT_SHADOW },
+  heroLeadUrdu: { marginTop: -spacing[1], maxWidth: "100%", fontSize: 14, lineHeight: 28, paddingHorizontal: spacing[1] },
 
   sheet: {
     flex: 1,
@@ -504,9 +544,14 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing[6],
     paddingTop: spacing[6],
   },
-  sheetHeading: { alignItems: "flex-start", justifyContent: "space-between", gap: spacing[3], marginBottom: spacing[3] },
+  sheetHeading: { alignItems: "center", justifyContent: "space-between", gap: spacing[3] },
   sheetHeadingText: { flex: 1 },
-  alignEndUrdu: { alignItems: "stretch" },
+  sheetGuidance: { marginBottom: spacing[3] },
+  sheetGuidanceOtp: { height: spacing[3] },
+  sentFrom: { marginBottom: spacing[3], fontSize: 14, lineHeight: 21, color: colors.text.primary },
+  sentFromUrdu: { lineHeight: 30 },
+  // The digits stay in the Latin face even inside Urdu text.
+  sentFromSender: { fontFamily: getFontFamily("en", "bold") },
   sheetTitle: { fontSize: 24, lineHeight: 30, color: colors.text.primary },
   // Nastaliq's tall line box carries its own top air.
   sheetTitleUrdu: { fontSize: 21, lineHeight: 42, marginTop: -spacing[2] },

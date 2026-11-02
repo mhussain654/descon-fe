@@ -7,6 +7,7 @@ import { LanguageProvider } from '../contexts/LanguageContext';
 import { Toaster } from '../design-system/toast';
 import { createQueryClientTestLifecycle } from '../testSupport/queryClientTestLifecycle';
 import LoginScreen from './login';
+import { takeLanguageResumeRoute } from '../contexts/LanguageContext';
 
 // `initialWindowMetrics` is null under Jest (it's populated by a native
 // module), which otherwise leaves useSafeAreaInsets() permanently
@@ -181,7 +182,16 @@ describe('LoginScreen', () => {
     expect(screen.getByText('Your Gateway to Overseas Employment')).toBeOnTheScreen();
     expect(screen.getByText('Use the CNIC provided with your application')).toBeOnTheScreen();
     expect(screen.getByText('An OTP will be sent to your registered mobile number.')).toBeOnTheScreen();
-    expect(screen.getByText('Example: 35202-1234567-1 or 3520212345671 (with or without dashes)')).toBeOnTheScreen();
+    expect(screen.getByText('Example: 35202-1234567-1')).toBeOnTheScreen();
+  });
+
+  it('comes back to sign-in, not the language page, after the language switch reloads the app', async () => {
+    renderLoginScreen();
+    await screen.findByLabelText('CNIC Number');
+
+    fireEvent.press(screen.getByRole('button', { name: 'Switch language' }));
+
+    await waitFor(async () => expect(await takeLanguageResumeRoute()).toBe('/login'));
   });
 
   it('on the OTP step, tells the candidate to check their inbox, offers only Continue and no Change CNIC', async () => {
@@ -190,10 +200,13 @@ describe('LoginScreen', () => {
     fireEvent.press(screen.getByRole('button', { name: 'Send OTP' }));
 
     await waitFor(() => expect(screen.getByLabelText('One-Time Password')).toBeOnTheScreen());
-    expect(screen.getByText('Check your messages inbox')).toBeOnTheScreen();
+    expect(screen.getByText('Check your messages')).toBeOnTheScreen();
     expect(
-      screen.getByText('A six-digit verification code has been sent from Descon - MPS Connect to your registered mobile number.')
+      screen.getByText('A six-digit verification code has been sent from 8062050 to your registered mobile number.')
     ).toBeOnTheScreen();
+    // The sender number is its own bold run, so it stands out in the sentence.
+    expect(screen.getByText('8062050')).toHaveStyle({ fontFamily: expect.stringMatching(/bold/i) });
+    expect(screen.queryByText('Enter the code to continue securely')).toBeNull();
     expect(screen.getByRole('button', { name: 'Continue' })).toBeOnTheScreen();
     expect(screen.queryByRole('button', { name: 'Verify and continue' })).toBeNull();
     expect(screen.queryByRole('button', { name: 'Change CNIC' })).toBeNull();
@@ -205,7 +218,7 @@ describe('LoginScreen', () => {
 
     const input = await screen.findByLabelText('شناختی کارڈ نمبر');
     expect(input.props.placeholder).toBe('00000-0000000-0');
-    expect(screen.getByText('مثال: 35202-1234567-1 یا 3520212345671 (ڈیش کے ساتھ یا اس کے بغیر)')).toBeOnTheScreen();
+    expect(screen.getByText('مثال: 35202-1234567-1')).toBeOnTheScreen();
     const back = screen.getByRole('button', { name: 'واپس' });
     expect(back.props.style).toEqual(expect.arrayContaining([expect.objectContaining({ position: 'absolute', zIndex: 10 })]));
 

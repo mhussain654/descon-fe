@@ -18,6 +18,8 @@ const VARIANTS: Record<NextStepVariant, { tone: IconTone; icon: typeof CreditCar
 interface NextStepCardProps {
   language: string;
   variant: NextStepVariant;
+  /** The small "Next step" label stacked above the title. */
+  label: string;
   title: string;
   description?: string;
   /** Payment only: the backend-configured fee, already formatted. */
@@ -33,6 +35,7 @@ interface NextStepCardProps {
 export function NextStepCard({
   language,
   variant,
+  label,
   title,
   description,
   amountText,
@@ -52,6 +55,9 @@ export function NextStepCard({
       <View style={[styles.row, { flexDirection: rowDirection }]}>
         <GradientIconBox tone={config.tone} icon={config.icon} size={38} />
         <View style={styles.copy}>
+          <Text style={[styles.label, isUrdu && styles.labelUrdu, { fontFamily: getFontFamily(language, 'bold') }]}>
+            {isUrdu ? label : label.toUpperCase()}
+          </Text>
           <Text style={[styles.title, isUrdu && styles.titleUrdu, { fontFamily: getFontFamily(language, 'bold') }]}>
             {title}
           </Text>
@@ -89,7 +95,10 @@ const styles = StyleSheet.create({
   card: { borderWidth: 1 },
   row: { alignItems: 'center', gap: spacing[3] },
   copy: { flex: 1 },
-  title: { fontSize: 16, lineHeight: 21, color: colors.text.primary },
+  label: { fontSize: 11, lineHeight: 15, letterSpacing: 0.8, color: colors.brand.default },
+  // Nastaliq has no capitals and breaks apart with letter spacing.
+  labelUrdu: { fontSize: 11, lineHeight: 22, letterSpacing: 0 },
+  title: { fontSize: 17, lineHeight: 22, color: colors.text.primary },
   titleUrdu: { fontSize: 14, lineHeight: 28 },
   description: { marginTop: 2, fontSize: 11.5, lineHeight: 15, color: '#4F5D72' },
   descriptionUrdu: { fontSize: 11, lineHeight: 22 },

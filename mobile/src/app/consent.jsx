@@ -48,7 +48,7 @@ export default function ConsentScreen() {
         bottomInset={insets.bottom}
         isPending={isPending}
         isError={isError}
-        onToggleLanguage={toggleLanguage}
+        onToggleLanguage={() => toggleLanguage("/consent")}
         onAccept={() => { reset(); accept(); }}
         onLogout={() => logout()}
       />

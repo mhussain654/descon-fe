@@ -6,6 +6,22 @@ import { isRTL } from "../../../shared/i18n/locale";
 import { translate } from "../../../shared/i18n/translate";
 
 const STORAGE_KEY = "descon.language";
+// The screen to reopen after the reload a direction change needs -- otherwise
+// the restarted app opens on its first screen (the language page for a guest).
+const RESUME_ROUTE_KEY = "descon.languageResumeRoute";
+// Only screens that switch language themselves; anything else is ignored.
+const RESUMABLE_ROUTES = new Set(["/login", "/consent", "/(tabs)/profile"]);
+
+/** The screen a language switch asked to return to (once): read and cleared on startup. */
+export async function takeLanguageResumeRoute() {
+  try {
+    const route = await AsyncStorage.getItem(RESUME_ROUTE_KEY);
+    if (route !== null) await AsyncStorage.removeItem(RESUME_ROUTE_KEY);
+    return RESUMABLE_ROUTES.has(route) ? route : null;
+  } catch {
+    return null;
+  }
+}
 const LanguageContext = createContext();
 
 // Mirrors the provider's language outside React, synchronously, for the
@@ -80,7 +96,7 @@ export function LanguageProvider({ children }) {
     };
   }, []);
 
-  const changeLanguage = useCallback(async (next) => {
+  const changeLanguage = useCallback(async (next, resumeRoute) => {
     setLanguageState(next);
     cachedLanguage = next;
     try {
@@ -90,20 +106,31 @@ export function LanguageProvider({ children }) {
       // below; only a future cold start could lose the preference.
     }
     if (applyRTL(next)) {
+      if (resumeRoute) {
+        try {
+          await AsyncStorage.setItem(RESUME_ROUTE_KEY, resumeRoute);
+        } catch {
+          // The restarted app then opens on its first screen, as before.
+        }
+      }
       await reloadApp();
     }
   }, []);
 
   const setLanguage = useCallback(
-    (next) => {
-      changeLanguage(next);
+    (next, resumeRoute) => {
+      changeLanguage(next, resumeRoute);
     },
     [changeLanguage]
   );
 
-  const toggleLanguage = useCallback(() => {
-    changeLanguage(language === "en" ? "ur" : "en");
-  }, [language, changeLanguage]);
+  /** `resumeRoute`: the screen to come back to after the reload, e.g. "/login". */
+  const toggleLanguage = useCallback(
+    (resumeRoute) => {
+      changeLanguage(language === "en" ? "ur" : "en", typeof resumeRoute === "string" ? resumeRoute : undefined);
+    },
+    [language, changeLanguage]
+  );
 
   const t = useCallback((key) => translate(language, key), [language]);
 

@@ -353,14 +353,15 @@ describe('AuthProvider', () => {
       expect(await store.getItemAsync('descon.candidateSession')).toBeNull();
     });
 
-    it('keeps the stored session for the next launch when the refresh fails transiently', async () => {
+    it('stays signed in on the stored session when the launch refresh fails transiently, so no new OTP is needed', async () => {
       const store = jest.requireMock('expo-secure-store');
       store.__setRaw('descon.candidateSession', storedSession({ expiresAt: new Date(Date.now() - 60_000).toISOString() }));
       const refreshSession = jest.fn().mockRejectedValue({ code: 'OFFLINE' });
 
       renderWithProviders(<Probe />, stubClient(refreshSession));
 
-      await waitFor(() => expect(screen.getByTestId('status')).toHaveTextContent('unauthenticated'));
+      await waitFor(() => expect(screen.getByTestId('status')).toHaveTextContent('authenticated'));
+      expect(refreshSession).toHaveBeenCalledWith('old-refresh');
       expect(await store.getItemAsync('descon.candidateSession')).not.toBeNull();
     });
 

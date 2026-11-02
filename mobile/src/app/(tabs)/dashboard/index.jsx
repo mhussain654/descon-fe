@@ -328,6 +328,7 @@ export default function DashboardScreen() {
             <NextStepCard
               language={language}
               variant={variant}
+              label={t("journeyNextStepLabel")}
               title={nextStep.title}
               description={nextStep.description}
               amountText={nextStep.amountText}

@@ -3,7 +3,7 @@ import React from 'react';
 import { DevSettings, I18nManager } from 'react-native';
 import * as Updates from 'expo-updates';
 import { act, create } from 'react-test-renderer';
-import { LanguageProvider, useLanguage } from './LanguageContext';
+import { LanguageProvider, takeLanguageResumeRoute, useLanguage } from './LanguageContext';
 
 jest.mock('@react-native-async-storage/async-storage', () =>
   require('@react-native-async-storage/async-storage/jest/async-storage-mock')
@@ -118,6 +118,29 @@ describe('LanguageContext', () => {
 
     reloadSpy.mockRestore();
     I18nManager.isRTL = false;
+  });
+
+  it('remembers the screen that switched language, so the reloaded app reopens it once', async () => {
+    I18nManager.isRTL = false;
+    const reloadSpy = jest.spyOn(DevSettings, 'reload').mockImplementation(() => {});
+    const probe = await renderProbe();
+
+    await act(async () => {
+      await probe.value.toggleLanguage('/login');
+    });
+
+    expect(reloadSpy).toHaveBeenCalledTimes(1);
+    expect(await takeLanguageResumeRoute()).toBe('/login');
+    expect(await takeLanguageResumeRoute()).toBeNull();
+
+    reloadSpy.mockRestore();
+    I18nManager.isRTL = false;
+  });
+
+  it('ignores a remembered screen that is not one of the screens that switch language', async () => {
+    await AsyncStorage.setItem('descon.languageResumeRoute', '/payment');
+
+    expect(await takeLanguageResumeRoute()).toBeNull();
   });
 
   it('persists the new language before reloading, so the choice survives the reload', async () => {

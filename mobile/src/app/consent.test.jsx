@@ -1,6 +1,6 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { QueryClientProvider } from "@tanstack/react-query";
-import { fireEvent, render, screen, waitFor } from "@testing-library/react-native";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react-native";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { AuthProvider } from "../contexts/AuthContext";
 import { LanguageProvider } from "../contexts/LanguageContext";
@@ -90,6 +90,14 @@ describe("ConsentScreen", () => {
     fireEvent.press(screen.getByRole("button", { name: "I Agree & Continue" }));
     expect(candidateConsentClient.accept).not.toHaveBeenCalled();
     expect(screen.getByText(/Where necessary, the information may be shared/)).toBeOnTheScreen();
+  });
+
+  it("uses the same logo row as the sign-in pages, with the language switch on the same line", async () => {
+    renderConsentScreen();
+
+    const headerRow = await screen.findByTestId("consent-header-row");
+    expect(within(headerRow).getByLabelText("MPS Connect")).toBeOnTheScreen();
+    expect(within(headerRow).getByRole("button", { name: "Switch to Urdu" })).toBeOnTheScreen();
   });
 
   it("records acceptance and navigates to the dashboard on success", async () => {

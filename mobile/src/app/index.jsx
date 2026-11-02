@@ -1,5 +1,7 @@
+import { useEffect, useState } from "react";
 import { Redirect } from "expo-router";
 import { useAuth } from "../contexts/AuthContext";
+import { takeLanguageResumeRoute } from "../contexts/LanguageContext";
 import { RestoringScreen } from "../features/auth/RestoringScreen";
 
 /**
@@ -11,14 +13,28 @@ import { RestoringScreen } from "../features/auth/RestoringScreen";
  */
 export default function Index() {
   const { status } = useAuth();
+  // Switching between English and Urdu reloads the app; the screen that asked
+  // for the switch (sign-in, consent, profile) is reopened instead of the start.
+  const [resumeRoute, setResumeRoute] = useState(undefined);
 
-  if (status === "restoring") {
+  useEffect(() => {
+    let cancelled = false;
+    takeLanguageResumeRoute().then((route) => {
+      if (!cancelled) setResumeRoute(route);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  if (status === "restoring" || resumeRoute === undefined) {
     return <RestoringScreen />;
   }
 
   if (status === "authenticated") {
-    return <Redirect href="/(tabs)/dashboard" />;
+    const signedInRoute = resumeRoute && resumeRoute !== "/login" ? resumeRoute : null;
+    return <Redirect href={signedInRoute ?? "/(tabs)/dashboard"} />;
   }
 
-  return <Redirect href="/welcome" />;
+  return <Redirect href={resumeRoute === "/login" ? "/login" : "/welcome"} />;
 }

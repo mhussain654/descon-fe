@@ -6,33 +6,36 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
 import { useRouter } from "expo-router";
 import { useLanguage } from "../contexts/LanguageContext";
-import { getFontFamily } from "../design-system";
-import { colors, elevation, fontWeights, radii, spacing } from "../design-system/tokens";
+import { Button, getFontFamily } from "../design-system";
+import { colors, elevation, radii, spacing } from "../design-system/tokens";
 import { RequireGuest } from "../features/auth/RequireGuest";
-import { BrandHeader } from "../features/onboarding/BrandHeader";
+import { BrandRow } from "../features/onboarding/BrandRow";
 import { SecureFooter } from "../features/onboarding/SecureFooter";
+import { forwardArrowSlots } from "../features/onboarding/directionalArrows";
 import { isStartSide, physicalTextAlign, rowDirectionTowards } from "../lib/layoutDirection";
-import { translate } from "../../../shared/i18n/translate";
 
-// The hero artwork (one landmark per destination country -- Oman, KSA, UAE,
-// Qatar -- with the globe, plane, briefcase and the Descon-branded helmet)
-// carries no translatable text. Its open sky is on the left, where the copy sits.
-const HERO_ART = require("../../assets/images/welcome-hero.webp");
+// The client's design: the hero artwork (landmarks of the destination
+// countries, globe, plane, briefcase and the Descon-branded helmet) with the
+// logo row and the welcome over its open sky. English keeps the sky on the
+// left; Urdu uses the mirrored copy, so its welcome sits at the top right.
+const HERO_ART = {
+  en: require("../../assets/images/welcome-hero.webp"),
+  ur: require("../../assets/images/welcome-hero-rtl.webp"),
+};
 const HERO_ASPECT_RATIO = 675 / 694;
 // The sheet slides up over the plain ground strip at the artwork's base,
 // leaving the helmet and briefcase fully visible above it.
 const SHEET_OVERLAP = 20;
-
-// The candidate has not chosen a language yet, so every piece of copy on this
-// screen shows in both English and Urdu, whichever is selected.
-function bilingual(key) {
-  return { en: translate("en", key), ur: translate("ur", key) };
-}
+// Room the language sheet needs below the hero, so the whole page fits on
+// one screen: on a short phone the hero gives up some of its plain top sky.
+// Nastaliq's taller lines need more of it.
+const SHEET_MIN_HEIGHT = { en: 330, ur: 380 };
 
 // Each option's label always renders in its own script, so a candidate who
-// can't read the other language can still recognize and pick their own.
+// can't read the active language can still recognize and pick their own.
 // The checkmark mirrors per card: top-right for English, top-left for Urdu.
-function LanguageOptionCard({ active, label, labelLanguage, onPress }) {
+function LanguageOptionCard({ active, label, hint, labelLanguage, onPress }) {
+  const isUrduLabel = labelLanguage === "ur";
   return (
     <Pressable
       onPress={onPress}
@@ -44,85 +47,69 @@ function LanguageOptionCard({ active, label, labelLanguage, onPress }) {
         <View
           style={[
             styles.languageCheck,
-            isStartSide(labelLanguage === "ur" ? "left" : "right") ? styles.languageCheckStart : styles.languageCheckEnd,
+            isStartSide(isUrduLabel ? "left" : "right") ? styles.languageCheckStart : styles.languageCheckEnd,
           ]}
         >
           <Check size={14} color={colors.brand.on} strokeWidth={3} />
         </View>
       ) : null}
-      <Text
-        style={[
-          styles.languageLabel,
-          labelLanguage === "ur" ? styles.languageLabelUrdu : null,
-          { fontFamily: getFontFamily(labelLanguage, "bold") },
-        ]}
-      >
+      <Text style={[styles.languageLabel, isUrduLabel && styles.languageLabelUrdu, { fontFamily: getFontFamily(labelLanguage, "bold") }]}>
         {label}
+      </Text>
+      <Text style={[styles.languageHint, isUrduLabel && styles.languageHintUrdu, { fontFamily: getFontFamily(labelLanguage, "regular") }]}>
+        {hint}
       </Text>
     </Pressable>
   );
 }
 
-/** One line of copy in both languages, English on the left and Urdu on the right. */
-function BilingualRow({ copy, englishStyle, urduStyle, weight = "regular" }) {
-  return (
-    <View style={[styles.bilingualRow, { flexDirection: rowDirectionTowards("right") }]}>
-      <Text style={[englishStyle, styles.englishCell, { fontFamily: getFontFamily("en", weight) }]}>{copy.en}</Text>
-      <Text style={[urduStyle, styles.urduCell, { fontFamily: getFontFamily("ur", weight) }]}>{copy.ur}</Text>
-    </View>
-  );
-}
-
-/** Continue, labelled in both languages, each in its own script's font. */
-function ContinueButton({ copy, onPress }) {
-  return (
-    <Pressable
-      onPress={onPress}
-      accessibilityRole="button"
-      accessibilityLabel={`${copy.en}, ${copy.ur}`}
-      style={({ pressed }) => [styles.continueButton, pressed ? styles.continueButtonPressed : null]}
-    >
-      <View style={[styles.continueRow, { flexDirection: rowDirectionTowards("right") }]}>
-        <Text style={[styles.continueLabel, { fontFamily: getFontFamily("en", "semibold") }]}>{copy.en}</Text>
-        <View style={styles.continueDivider} />
-        <Text style={[styles.continueLabel, styles.continueLabelUrdu, { fontFamily: getFontFamily("ur", "semibold") }]}>{copy.ur}</Text>
-      </View>
-    </Pressable>
-  );
-}
-
-function WelcomeHero({ width, topInset }) {
-  const heroHeight = width / HERO_ASPECT_RATIO;
-  const tagline = bilingual("welcomeTagline");
-  const isCompact = width < 380;
-  const copySide = isStartSide("left") ? styles.anchorStart : styles.anchorEnd;
+/** The logo row and the welcome in the chosen language, over the artwork's open sky. */
+function WelcomeHero({ width, windowHeight, topInset, language, t }) {
+  const isUrdu = language === "ur";
+  const copySide = isUrdu ? "right" : "left";
+  const artHeight = width / HERO_ASPECT_RATIO;
+  // Never taller than the art at full width (status bar included): a taller
+  // box makes "cover" scale the art up and crop its sides, as on sign-in it doesn't.
+  const heroHeight = Math.min(artHeight, windowHeight - SHEET_MIN_HEIGHT[isUrdu ? "ur" : "en"]);
+  // Narrow phones, and short ones where the sky is cropped, get the smaller heading.
+  const isCompact = width < 380 || heroHeight < artHeight - spacing[10];
+  const copyText = { textAlign: physicalTextAlign(copySide), writingDirection: isUrdu ? "rtl" : "ltr" };
 
   return (
-    <View style={{ width, height: heroHeight + topInset, backgroundColor: "#0065B3" }}>
-      <Image source={HERO_ART} style={StyleSheet.absoluteFill} contentFit="cover" accessibilityIgnoresInvertColors accessible={false} />
-      <View style={[styles.brandSlot, { top: topInset + spacing[2] }]}>
-        <BrandHeader language="en" primary={translate("en", "brandNamePrimary")} secondary={translate("en", "brandNameSecondary")} />
-      </View>
-      <View style={[styles.heroCopy, copySide, { top: topInset + heroHeight * 0.24, width: width * 0.6 }]}>
-        <Text
-          accessibilityRole="header"
-          style={[
-            styles.tagline,
-            isCompact ? styles.taglineCompact : null,
-            { textAlign: physicalTextAlign("left"), writingDirection: "ltr", fontFamily: getFontFamily("en", "bold") },
-          ]}
-        >
-          {tagline.en}
-        </Text>
-        <Text
-          style={[
-            styles.taglineUrdu,
-            isCompact ? styles.taglineUrduCompact : null,
-            { textAlign: physicalTextAlign("left"), writingDirection: "rtl", fontFamily: getFontFamily("ur", "bold") },
-          ]}
-        >
-          {tagline.ur}
-        </Text>
+    <View style={[styles.hero, { height: heroHeight }]}>
+      <Image
+        source={HERO_ART[isUrdu ? "ur" : "en"]}
+        style={StyleSheet.absoluteFill}
+        contentFit="cover"
+        // Keep the landmarks, globe and helmet; any crop comes off the plain sky.
+        contentPosition="bottom"
+        accessibilityIgnoresInvertColors
+        accessible={false}
+      />
+      <View style={[styles.heroCopy, { paddingTop: topInset + spacing[3] }]}>
+        <BrandRow language={language} primary={t("brandNamePrimary")} secondary={t("brandNameSecondary")} side={copySide} />
+        <View style={[styles.welcome, isStartSide(copySide) ? styles.alignStart : styles.alignEnd, { maxWidth: width * 0.62 }]}>
+          <Text
+            accessibilityRole="header"
+            style={[
+              isUrdu ? styles.headingUrdu : styles.heading,
+              isCompact && (isUrdu ? styles.headingUrduCompact : styles.headingCompact),
+              copyText,
+              { fontFamily: getFontFamily(language, "bold") },
+            ]}
+          >
+            {t("welcomeHeading")}
+          </Text>
+          <Text
+            style={[
+              isUrdu ? styles.taglineUrdu : styles.tagline,
+              copyText,
+              { fontFamily: getFontFamily(language, "semibold") },
+            ]}
+          >
+            {t("welcomeTagline")}
+          </Text>
+        </View>
       </View>
     </View>
   );
@@ -131,8 +118,10 @@ function WelcomeHero({ width, topInset }) {
 export default function WelcomeScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const { width } = useWindowDimensions();
-  const { language, setLanguage } = useLanguage();
+  const { width, height } = useWindowDimensions();
+  const { t, language, setLanguage } = useLanguage();
+  const isUrdu = language === "ur";
+  const sheetText = { textAlign: physicalTextAlign(isUrdu ? "right" : "left"), writingDirection: isUrdu ? "rtl" : "ltr" };
 
   const handleContinue = () => {
     // `push`, not `replace` -- login's own Back control needs a history
@@ -140,43 +129,61 @@ export default function WelcomeScreen() {
     router.push("/login");
   };
 
-  const continueLabel = bilingual("continue");
-  const footer = bilingual("welcomeSecureFooter");
+  const continueArrow = forwardArrowSlots(language, colors.brand.on);
 
   return (
     <RequireGuest>
       <View style={styles.screen}>
         <StatusBar style="light" />
 
-        {/* Small phones, landscape orientation and larger font scales can push
-            this content taller than the viewport -- a ScrollView keeps the
-            language options and Continue button reachable instead of
-            clipping them off-screen. */}
+        {/* Fits one screen on supported phones; the ScrollView only matters
+            for large font scales or landscape, where clipping the language
+            options and Continue would be worse than scrolling. */}
         <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled" bounces={false}>
-          <WelcomeHero width={width} topInset={insets.top} />
+          <WelcomeHero width={width} windowHeight={height} topInset={insets.top} language={language} t={t} />
 
           <View style={[styles.sheet, { paddingBottom: insets.bottom + spacing[4] }]}>
-            <BilingualRow
-              copy={bilingual("welcomeChooseLanguage")}
-              englishStyle={styles.sheetTitle}
-              urduStyle={styles.sheetTitleUrdu}
-              weight="bold"
-            />
-            <BilingualRow copy={bilingual("welcomeChooseLanguageHint")} englishStyle={styles.sheetHint} urduStyle={styles.sheetHintUrdu} />
+            <Text style={[styles.sheetTitle, isUrdu && styles.sheetTitleUrdu, sheetText, { fontFamily: getFontFamily(language, "bold") }]}>
+              {t("welcomeChooseLanguage")}
+            </Text>
+            <Text style={[styles.sheetHint, isUrdu && styles.sheetHintUrdu, sheetText, { fontFamily: getFontFamily(language, "regular") }]}>
+              {t("welcomeChooseLanguageHint")}
+            </Text>
 
-            <View style={[styles.languageRow, { flexDirection: rowDirectionTowards("right") }]}>
-              <LanguageOptionCard active={language === "en"} labelLanguage="en" label="English" onPress={() => setLanguage("en")} />
-              <LanguageOptionCard active={language === "ur"} labelLanguage="ur" label="اردو" onPress={() => setLanguage("ur")} />
+            {/* English on the left and Urdu on the right, as in the client's design. */}
+            <View style={[styles.languageRow, { flexDirection: rowDirectionTowards("left") }]}>
+              <LanguageOptionCard
+                active={language === "en"}
+                labelLanguage="en"
+                label="English"
+                hint="Continue in English"
+                onPress={() => setLanguage("en")}
+              />
+              <LanguageOptionCard
+                active={language === "ur"}
+                labelLanguage="ur"
+                label="اردو"
+                hint="اردو میں جاری رکھیں"
+                onPress={() => setLanguage("ur")}
+              />
             </View>
+
+            <Button
+              variant="primary"
+              size="lg"
+              fullWidth
+              language={language}
+              onPress={handleContinue}
+              style={styles.continueButton}
+              labelStyle={isUrdu ? styles.continueLabelUrdu : null}
+              leadingIcon={continueArrow.leadingIcon}
+              trailingIcon={continueArrow.trailingIcon}
+            >
+              {t("continue")}
+            </Button>
 
             <View style={styles.spacer} />
-
-            <ContinueButton copy={continueLabel} onPress={handleContinue} />
-
-            <View style={styles.footer}>
-              <SecureFooter language="en">{footer.en}</SecureFooter>
-              <SecureFooter language="ur">{footer.ur}</SecureFooter>
-            </View>
+            <SecureFooter language={language}>{t("welcomeSecureFooter")}</SecureFooter>
           </View>
         </ScrollView>
       </View>
@@ -184,37 +191,31 @@ export default function WelcomeScreen() {
   );
 }
 
+const TEXT_SHADOW = {
+  textShadowColor: "rgba(0, 32, 96, 0.4)",
+  textShadowOffset: { width: 0, height: 1 },
+  textShadowRadius: 6,
+};
+
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.surface.raised },
   scrollContent: { flexGrow: 1 },
 
-  brandSlot: { position: "absolute", start: 0, end: 0, alignItems: "center" },
-  heroCopy: { position: "absolute", gap: spacing[2] },
-  anchorStart: { start: spacing[6] },
-  anchorEnd: { end: spacing[6] },
-  tagline: {
-    fontSize: 24,
-    lineHeight: 31,
-    fontStyle: "italic",
-    color: colors.text.inverse,
-    letterSpacing: -0.3,
-    textShadowColor: "rgba(0, 32, 96, 0.45)",
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 6,
-  },
-  taglineCompact: { fontSize: 21, lineHeight: 27 },
+  hero: { overflow: "hidden", backgroundColor: "#006AF1" },
+  heroCopy: { paddingHorizontal: spacing[6] },
+  welcome: { marginTop: spacing[5] },
+  alignStart: { alignSelf: "flex-start" },
+  alignEnd: { alignSelf: "flex-end" },
+  heading: { fontSize: 32, lineHeight: 38, letterSpacing: -0.6, color: colors.text.inverse, ...TEXT_SHADOW },
+  headingCompact: { fontSize: 28, lineHeight: 34 },
+  // Same size and width cap as sign-in's, so it breaks the same way on
+  // every phone: "Your Gateway to" / "Overseas Employment."
+  tagline: { marginTop: spacing[2], maxWidth: 210, fontSize: 17, lineHeight: 24, color: colors.text.inverse, ...TEXT_SHADOW },
   // Nastaliq needs ~2x line height so stacked descenders and dots never touch,
   // and side padding so its overhanging strokes are not clipped.
-  taglineUrdu: {
-    fontSize: 17,
-    lineHeight: 36,
-    paddingHorizontal: spacing[1],
-    color: colors.text.inverse,
-    textShadowColor: "rgba(0, 28, 84, 0.8)",
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 8,
-  },
-  taglineUrduCompact: { fontSize: 15, lineHeight: 32 },
+  headingUrdu: { fontSize: 24, lineHeight: 50, paddingHorizontal: spacing[1], color: colors.text.inverse, ...TEXT_SHADOW },
+  headingUrduCompact: { fontSize: 21, lineHeight: 44 },
+  taglineUrdu: { fontSize: 16, lineHeight: 34, paddingHorizontal: spacing[1], color: colors.text.inverse, ...TEXT_SHADOW },
 
   sheet: {
     flex: 1,
@@ -229,60 +230,48 @@ const styles = StyleSheet.create({
     shadowRadius: 12,
     elevation: 4,
     paddingHorizontal: spacing[6],
-    paddingTop: spacing[6],
+    paddingTop: spacing[5],
   },
-  bilingualRow: { alignItems: "center", justifyContent: "space-between", gap: spacing[3] },
-  englishCell: { flexShrink: 1, textAlign: physicalTextAlign("left"), writingDirection: "ltr" },
-  urduCell: { flexShrink: 1, textAlign: physicalTextAlign("right"), writingDirection: "rtl", paddingHorizontal: spacing[1] },
-  sheetTitle: { fontSize: 19, lineHeight: 26, color: colors.text.primary },
-  sheetTitleUrdu: { fontSize: 17, lineHeight: 36, color: colors.text.primary },
-  sheetHint: { fontSize: 13, lineHeight: 18, color: colors.text.secondary },
-  // Nastaliq's thin strokes wash out in the standard secondary grey, so Urdu
-  // secondary copy uses a deeper tone of the same text color.
-  sheetHintUrdu: { fontSize: 12, lineHeight: 26, color: colors.text.primary, opacity: 0.74 },
+  sheetTitle: { fontSize: 22, lineHeight: 28, color: colors.text.primary },
+  // Nastaliq's tall line box already carries its own top air.
+  sheetTitleUrdu: { fontSize: 20, lineHeight: 40, marginTop: -spacing[2] },
+  sheetHint: { marginTop: spacing[1], fontSize: 14, lineHeight: 20, color: colors.text.secondary },
+  // Nastaliq's thin strokes wash out in the standard secondary grey.
+  sheetHintUrdu: { fontSize: 13, lineHeight: 28, color: colors.text.primary, opacity: 0.74 },
 
   languageRow: { gap: spacing[3], marginTop: spacing[4] },
   languageCard: {
     flex: 1,
-    minHeight: 110,
+    minHeight: 96,
     alignItems: "center",
     justifyContent: "center",
     borderRadius: radii.xl,
     borderWidth: 2,
     paddingHorizontal: spacing[3],
-    paddingVertical: spacing[4],
+    paddingVertical: spacing[3],
   },
   languageCardActive: { backgroundColor: colors.brand.subtle, borderColor: colors.brand.default },
   languageCardInactive: { backgroundColor: colors.surface.raised, borderColor: colors.border.default, ...elevation.sm },
-  languageLabel: { fontSize: 22, color: colors.text.primary, textAlign: "center" },
+  languageLabel: { fontSize: 19, color: colors.text.primary, textAlign: "center" },
+  languageHint: { marginTop: spacing[1], fontSize: 13, color: colors.text.secondary, textAlign: "center" },
   // Nastaliq stacks its marks well below the baseline; without an explicit
   // line height the lower strokes are clipped inside the card.
-  languageLabelUrdu: { fontSize: 22, lineHeight: 50 },
+  languageLabelUrdu: { fontSize: 19, lineHeight: 42 },
+  languageHintUrdu: { marginTop: 0, fontSize: 13, lineHeight: 28, color: colors.text.primary, opacity: 0.74 },
   languageCheck: {
     position: "absolute",
     top: spacing[2],
-    width: 26,
-    height: 26,
-    borderRadius: 13,
+    width: 24,
+    height: 24,
+    borderRadius: 12,
     backgroundColor: colors.brand.default,
     alignItems: "center",
     justifyContent: "center",
   },
   languageCheckStart: { start: spacing[2] },
   languageCheckEnd: { end: spacing[2] },
-  spacer: { flexGrow: 1, minHeight: spacing[5], maxHeight: spacing[12] },
-  continueButton: {
-    minHeight: 56,
-    borderRadius: radii.lg,
-    backgroundColor: colors.brand.default,
-    alignItems: "center",
-    justifyContent: "center",
-    paddingHorizontal: spacing[6],
-  },
-  continueButtonPressed: { opacity: 0.85 },
-  continueRow: { alignItems: "center", gap: spacing[3] },
-  continueLabel: { fontSize: 18, fontWeight: fontWeights.semibold, color: colors.brand.on },
-  continueLabelUrdu: { fontSize: 16, lineHeight: 34 },
-  continueDivider: { width: 1, height: 20, backgroundColor: colors.brand.on, opacity: 0.5 },
-  footer: { marginTop: spacing[4], gap: spacing[1] },
+
+  continueButton: { marginTop: spacing[4] },
+  continueLabelUrdu: { fontSize: 16 },
+  spacer: { flexGrow: 1, minHeight: spacing[3] },
 });
