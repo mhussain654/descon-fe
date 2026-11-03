@@ -3,7 +3,7 @@ import { Text } from "../../../design-system/Text";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
 import { Download } from "lucide-react-native";
-import { StatusHeader, JourneySummary, JourneyStepCard, statusStyles, statusCopyStyle } from "../../../features/candidate/progress/components/StatusPresentation";
+import { StatusHeader, JourneySummary, JourneyStepCard, statusStyles, statusCopyStyle, BUSINESS_UNIT_KEYS } from "../../../features/candidate/progress/components/StatusPresentation";
 import { ButtonHeightContext } from "../../../design-system/Button";
 import { isStartSide } from "../../../lib/layoutDirection";
 import { useRouter } from "expo-router";
@@ -20,6 +20,7 @@ import { LoadingState, ErrorState, OfflineState, SessionExpiredState, ForbiddenS
 import { APPLICATION_PROGRESS_ERROR_KEYS } from "../../../../../shared/applicationProgress/errorMessages";
 import { findLatestQvcOutcome, QVC_OUTCOME_KEYS, QVC_OUTCOME_TONES } from "../../../../../shared/candidateWorkflow/qvcOutcome";
 import { mobilizationJourney } from "../../../../../shared/applicationProgress/mobilizationJourney";
+import { interpolate } from "../../../../../shared/i18n/interpolate";
 import { VISA_OUTCOME_KEYS, VISA_OUTCOME_TONES } from "../../../../../shared/candidateVisaDecisions/outcomeLabels";
 import { CANDIDATE_FLIGHT_DETAIL_ERROR_KEYS } from "../../../../../shared/candidateFlightDetail/errorMessages";
 import { CANDIDATE_VISA_DECISIONS_ERROR_KEYS } from "../../../../../shared/candidateVisaDecisions/errorMessages";
@@ -76,6 +77,11 @@ export default function StatusScreen() {
   // never assumed to be the only one) -- the backend returns the list in chronological order.
   const latestVisaDecision = visaDecisionsQuery.data?.at(-1) ?? null;
   const lastUpdatedLabel = workflow ? formatStageDate(workflow.updatedAt, language) : null;
+  // "Mobilization process for Qatar": the steps shown are that country's own flow.
+  const countryKey = BUSINESS_UNIT_KEYS[workflow?.mobilizationProcess?.countryCode];
+  const journeyTitle = countryKey
+    ? interpolate(t("journeyMobilizationProcessForCountry"), { country: t(countryKey) })
+    : t("journeyMobilizationProcessTitle");
 
   return (
     <ButtonHeightContext.Provider value={34}>
@@ -153,7 +159,7 @@ export default function StatusScreen() {
         {/* Timeline */}
         {!progressQuery.isPending && !progressQuery.error && timeline.length > 0 ? (
           <View>
-            <Text accessibilityRole="header" style={[statusStyles.sectionTitle, statusCopyStyle(language, 16), { fontFamily: getFontFamily(language, "bold") }]}>{t("journeyMobilizationProcessTitle")}</Text>
+            <Text accessibilityRole="header" style={[statusStyles.sectionTitle, statusCopyStyle(language, 16), { fontFamily: getFontFamily(language, "bold") }]}>{journeyTitle}</Text>
             {journey.steps.map((step, index) => {
               const isLast = index === journey.steps.length - 1;
               const startedLabel = formatStageDate(step.startedAt, language);

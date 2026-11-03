@@ -28,7 +28,7 @@ export function statusCopyStyle(language: Language, fontSize = 15) {
   return { fontFamily: getFontFamily(language), textAlign: physicalTextAlign(language === 'ur' ? 'right' : 'left'), writingDirection: language === 'ur' ? 'rtl' as const : 'ltr' as const, ...(language === 'ur' ? { lineHeight: Math.round(fontSize * 2) } : {}) };
 }
 
-const BUSINESS_UNIT_KEYS: Record<string, TranslationKey> = { qatar: 'buQatar', saudi_arabia: 'buSaudiArabia', uae: 'buUae', oman: 'buOman', kuwait: 'buKuwait', azerbaijan: 'buAzerbaijan', south_africa: 'buSouthAfrica' };
+export const BUSINESS_UNIT_KEYS: Record<string, TranslationKey> = { qatar: 'buQatar', saudi_arabia: 'buSaudiArabia', uae: 'buUae', oman: 'buOman', kuwait: 'buKuwait', azerbaijan: 'buAzerbaijan', south_africa: 'buSouthAfrica' };
 
 export function StatusHeader({ language, t, topInset, countryCode }: LocaleProps & { topInset: number; countryCode?: string }) {
   const rtl = language === 'ur';

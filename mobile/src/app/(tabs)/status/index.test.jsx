@@ -228,9 +228,9 @@ describe("StatusScreen", () => {
     candidateWorkflowClient.getWorkflowHistory.mockResolvedValue(historyPayload());
     renderStatusScreen();
     expect(await screen.findByText("40%")).toBeOnTheScreen();
-    expect(screen.getByText("4 of 10 steps approved")).toBeOnTheScreen();
+    expect(screen.getByText("4 of 10 steps completed")).toBeOnTheScreen();
     expect(screen.getByRole("progressbar")).toHaveAccessibilityValue({ min: 0, max: 100, now: 40 });
-    expect(screen.getByText("Mobilization process")).toBeOnTheScreen();
+    expect(screen.getByText("Mobilization process for Qatar")).toBeOnTheScreen();
   });
 
   it("shows an assignment empty state without invented stages or downloads", async () => {
@@ -238,7 +238,7 @@ describe("StatusScreen", () => {
     candidateWorkflowClient.getWorkflowHistory.mockResolvedValue(historyPayload());
     renderStatusScreen();
     expect(await screen.findByText("Your mobilization timeline will appear here once your assignment is ready.")).toBeOnTheScreen();
-    expect(screen.queryByText("Mobilization process")).toBeNull();
+    expect(screen.queryByText(/^Mobilization process/)).toBeNull();
     expect(screen.queryByText("Download Ticket")).toBeNull();
     expect(screen.queryByText("Download Visa Copy")).toBeNull();
   });
@@ -411,6 +411,23 @@ describe("StatusScreen", () => {
     renderStatusScreen();
 
     expect(await screen.findByText("اندراج")).toBeOnTheScreen();
+    expect(screen.getByText("قطر کے لیے روانگی کا عمل")).toBeOnTheScreen();
+  });
+
+  it("names the candidate's own country in the mobilization process heading", async () => {
+    applicationProgressClient.getProgress.mockResolvedValue(progressPayload({ workflow: workflowPayload({ mobilizationProcess: { code: "uae_mobilization", version: 1, provisional: false, countryCode: "uae" } }) }));
+    candidateWorkflowClient.getWorkflowHistory.mockResolvedValue(historyPayload());
+    renderStatusScreen();
+
+    expect(await screen.findByText("Mobilization process for United Arab Emirates")).toBeOnTheScreen();
+  });
+
+  it("keeps the plain mobilization process heading when the country is unknown", async () => {
+    applicationProgressClient.getProgress.mockResolvedValue(progressPayload({ workflow: workflowPayload({ mobilizationProcess: { code: "common_mobilization", version: 2, provisional: true, countryCode: null } }) }));
+    candidateWorkflowClient.getWorkflowHistory.mockResolvedValue(historyPayload());
+    renderStatusScreen();
+
+    expect(await screen.findByText("Mobilization process")).toBeOnTheScreen();
   });
 
   it("refreshes both the workflow timeline and the workflow history on pull-to-refresh, so QVC outcomes cannot go stale", async () => {

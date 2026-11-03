@@ -257,7 +257,7 @@ describe("DashboardScreen", () => {
     // The current step of the client's Qatar mobilization process, with its status, is the badge on "My Journey".
     expect(screen.getByText("Document Submission in process")).toBeOnTheScreen();
     // Enrolled is approved among the 10 Qatar steps.
-    expect(screen.getByText("1 of 10 steps approved")).toBeOnTheScreen();
+    expect(screen.getByText("1 of 10 steps completed")).toBeOnTheScreen();
     expect(screen.getByText("10% complete")).toBeOnTheScreen();
   });
 
@@ -284,7 +284,7 @@ describe("DashboardScreen", () => {
     renderDashboardScreen();
 
     // Enrolled and Document Submission (verified) are approved.
-    expect(await screen.findByText("2 of 10 steps approved")).toBeOnTheScreen();
+    expect(await screen.findByText("2 of 10 steps completed")).toBeOnTheScreen();
     expect(screen.getByText("20% complete")).toBeOnTheScreen();
   });
 
