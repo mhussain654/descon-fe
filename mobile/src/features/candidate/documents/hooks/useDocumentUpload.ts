@@ -30,6 +30,7 @@ import { PCC_REQUIREMENT_CODE, validatePccIssueDate, type PccIssueDateError } fr
 import { NEXT_OF_KIN_REQUIREMENT_CODE, type NextOfKinRelation } from '../../../../../../shared/candidateDocuments/nextOfKin';
 import type { DocumentSideCode, DocumentUploadRules } from '../../../../../../shared/candidateDocuments/types';
 import { documentQueries } from '../../../../../../shared/queryKeys/documentQueries';
+import { offeredContentTypes, offeredPairModes } from '../uploadOptions';
 
 /** iOS/Android both report `size`/`mimeType` on a picked asset, but neither is guaranteed on every device/provider -- validation and the idempotency signature both tolerate either being absent. */
 export type PickedDocument = DocumentPicker.DocumentPickerAsset;
@@ -229,7 +230,9 @@ export function useDocumentUpload() {
       // A replacement starts from the relation given last time.
       setNextOfKinRelationState(item.document?.nextOfKinRelation ?? null);
       const nextLayout = layoutFor(item.uploadRules);
-      setModeState(item.requirementCode === 'passport' && nextLayout.kind === 'pair' && nextLayout.combinedAllowed ? 'combined' : 'parts');
+      const pairModes = offeredPairModes(nextLayout);
+      const startsCombined = pairModes.length > 0 && (item.requirementCode === 'passport' || !pairModes.includes('parts'));
+      setModeState(startsCombined ? 'combined' : 'parts');
       resetSelection();
       mutation.reset();
     },
@@ -282,7 +285,7 @@ export function useDocumentUpload() {
 
       if (source === 'file') {
         const result = await DocumentPicker.getDocumentAsync({
-          type: sideCode === 'combined' ? ['application/pdf'] : [...active.rules.acceptedContentTypes],
+          type: sideCode === 'combined' ? ['application/pdf'] : offeredContentTypes(active.rules),
           copyToCacheDirectory: true,
           multiple: allowsMultiple,
         });

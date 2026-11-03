@@ -18,7 +18,6 @@ import { getFontFamily } from '../../../../design-system/fonts';
 import { CANDIDATE_DOCUMENTS_ERROR_KEYS } from '../../../../../../shared/candidateDocuments/errorMessages';
 import { describeFileType, isPreviewableImageType } from '../../../../../../shared/candidateDocuments/fileDescription';
 import {
-  acceptsImages,
   FILE_SET_REASON_KEYS,
   SIDE_CODE_LABEL_KEYS,
   slotFile,
@@ -31,6 +30,7 @@ import { interpolate } from '../../../../../../shared/i18n/interpolate';
 import type { CandidateDocumentsError } from '../../../../lib/candidate-documents-client';
 import type { Language, TranslationKey } from '../../../../../../shared/i18n/translations';
 import type { DocumentUploadController, PickedFile } from '../hooks/useDocumentUpload';
+import { offeredContentTypes, offeredPairModes, offersPhotoCapture } from '../uploadOptions';
 
 const PERMISSION_NOTICE_KEYS: Record<string, TranslationKey> = {
   'camera:denied': 'candidateDocumentsCameraPermissionDeniedError',
@@ -67,7 +67,8 @@ export interface DocumentUploadPanelProps {
  * Inline upload/replace panel for one checklist requirement -- mirrors web's
  * DocumentUploadPanel.tsx, shaped entirely by the requirement's backend upload
  * rules: one file, a pair of parts (optionally one combined PDF instead), or
- * several files. Photo capture is offered only where the requirement accepts images.
+ * several files. Photo capture is offered only where the requirement accepts images,
+ * and is currently hidden altogether (PDF only -- see uploadOptions.ts).
  */
 export function DocumentUploadPanel({ labelText, instructions, upload, t, language }: DocumentUploadPanelProps) {
   const { layout, rules, entries, validation, showSetError, mutation, permissionNotice } = upload;
@@ -78,7 +79,8 @@ export function DocumentUploadPanel({ labelText, instructions, upload, t, langua
   }
 
   const combinedMode = layout.kind === 'pair' && layout.combinedAllowed && upload.mode === 'combined';
-  const canCapture = acceptsImages(rules);
+  const canCapture = offersPhotoCapture(rules);
+  const pairModes = offeredPairModes(layout);
   const isPassportPair = layout.kind === 'pair' && upload.activeRequirementCode === 'passport';
   const isCnicPair = layout.kind === 'pair' && ['cnic', 'next_of_kin_cnic'].includes(upload.activeRequirementCode ?? '');
   const guidanceKey = isCnicPair
@@ -86,7 +88,7 @@ export function DocumentUploadPanel({ labelText, instructions, upload, t, langua
     : isPassportPair
     ? combinedMode ? 'candidateDocumentsPassportPdfGuidance' : 'candidateDocumentsPassportPartsGuidance'
     : combinedMode ? 'candidateDocumentsCombinedGuidance' : 'candidateDocumentsPartsGuidance';
-  const acceptedTypes = combinedMode ? ['application/pdf'] : rules.acceptedContentTypes;
+  const acceptedTypes = combinedMode ? ['application/pdf'] : offeredContentTypes(rules);
   const typeNames = acceptedTypes.map(type => type === 'application/pdf' ? 'PDF' : type === 'image/jpeg' ? 'JPEG' : type === 'image/png' ? 'PNG' : type).join(', ');
   const fileErrorFor = (file: PickedFile | null) => {
     if (!file || validation?.kind !== 'file' || entries[validation.index]?.file !== file) return null;
@@ -114,9 +116,9 @@ export function DocumentUploadPanel({ labelText, instructions, upload, t, langua
 
   return (
     <View style={styles.container}>
-      {layout.kind === 'pair' && layout.combinedAllowed ? (
+      {pairModes.length > 0 ? (
         <View style={styles.modeRow} accessibilityLabel={t('candidateDocumentsUploadModeLabel')}>
-          {(['parts', 'combined'] as const).map(mode => (
+          {pairModes.map(mode => (
             <Pressable key={mode} accessibilityRole="button" accessibilityLabel={t(mode === 'parts' ? 'candidateDocumentsUploadModeParts' : isCnicPair ? 'candidateDocumentsOnePdf' : 'candidateDocumentsUploadModeCombined')} accessibilityState={{ selected: upload.mode === mode }} onPress={() => upload.setMode(mode)} style={[styles.modeButton, upload.mode === mode && styles.modeSelected]}>
               <Text style={[styles.modeText, { fontFamily: getFontFamily(language, 'medium') }, upload.mode === mode && styles.modeTextSelected, language === 'ur' && styles.modeTextUrdu]}>{t(mode === 'parts' ? 'candidateDocumentsUploadModeParts' : 'candidateDocumentsOnePdf')}</Text>
             </Pressable>

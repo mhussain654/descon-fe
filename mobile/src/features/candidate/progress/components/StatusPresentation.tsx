@@ -56,26 +56,14 @@ export function journeyStepLine(step: JourneyStep, t: (key: TranslationKey) => s
   return interpolate(t('journeyCurrentStepLine'), { step: t(JOURNEY_STEP_KEYS[step.code]), status: t(JOURNEY_STATUS_KEYS[step.status]).toLowerCase() });
 }
 
-/** The candidate's current status and next step (all they need, per the client), with overall progress. */
+/**
+ * Overall progress through the mobilization process. The current and next
+ * step are not repeated here: the step list below already marks them.
+ */
 export function JourneySummary({ journey, updatedLabel, language, t }: LocaleProps & { journey: MobilizationJourney; updatedLabel: string | null }) {
   const percentage = Math.max(0, Math.min(100, journey.percentage));
-  const current = journey.current;
   return (
     <View style={statusStyles.summary}>
-      {current ? (
-        <View style={statusStyles.currentStatus}>
-          <Text style={[statusStyles.summaryLabel, statusCopyStyle(language)]}>{t('journeyCurrentStatusLabel')}</Text>
-          <Text style={[statusStyles.currentStatusName, statusCopyStyle(language, 18), { fontFamily: getFontFamily(language, 'bold'), color: STATUS_COLORS[current.status].text }]}>
-            {journeyStepLine(current, t)}
-          </Text>
-        </View>
-      ) : null}
-      <View style={statusStyles.currentStatus}>
-        <Text style={[statusStyles.summaryLabel, statusCopyStyle(language)]}>{t('journeyNextStepLabel')}</Text>
-        <Text style={[statusStyles.nextStepName, statusCopyStyle(language, 16), { fontFamily: getFontFamily(language, 'semibold') }]}>
-          {journey.next ? t(JOURNEY_STEP_KEYS[journey.next.code]) : t('journeyAllStepsApproved')}
-        </Text>
-      </View>
       <View style={[statusStyles.summaryRow, { flexDirection: rowDirectionTowards(language === 'ur' ? 'right' : 'left') }]}>
         <GradientIconBox icon={Route} tone="purple" size={36} />
         <View style={statusStyles.flex}>
@@ -146,11 +134,7 @@ export const statusStyles = StyleSheet.create({
   scroll: { flex: 1, marginTop: -20, borderTopLeftRadius: 28, borderTopRightRadius: 28, backgroundColor: '#F0F7FF' },
   content: { paddingHorizontal: spacing[4], paddingTop: spacing[4], width: '100%', maxWidth: 600, alignSelf: 'center' },
   summary: { borderRadius: 20, backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#DFEAF8', padding: spacing[4], marginBottom: spacing[5], ...elevation.sm },
-  currentStatus: { marginBottom: spacing[3], paddingBottom: spacing[3], borderBottomWidth: 1, borderBottomColor: '#DFEAF8' },
-  currentStatusName: { fontSize: 18, color: '#0862BC' },
-  nextStepName: { fontSize: 16, color: '#172B4D' },
   summaryRow: { gap: spacing[3], alignItems: 'center' },
-  summaryLabel: { fontSize: 12, lineHeight: 19, color: '#687A95' },
   summaryCount: { fontSize: 21, lineHeight: 29, color: '#172B4D' },
   percent: { fontSize: 26, color: '#0862BC' },
   track: { height: 8, borderRadius: 4, backgroundColor: '#E7F0FC', overflow: 'hidden', marginTop: spacing[3] },

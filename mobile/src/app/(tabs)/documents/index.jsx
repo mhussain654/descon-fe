@@ -34,15 +34,16 @@ import { APPLICATION_PROGRESS_ERROR_KEYS } from "../../../../../shared/applicati
 import { DocumentsHeader, DocumentsSummary, DocumentCardHeading, documentsStyles } from "../../../features/candidate/documents/components/DocumentsPresentation";
 import { physicalTextAlign, rowDirectionTowards } from "../../../lib/layoutDirection";
 import { PCC_COMPLIANCE_STATUS_KEYS } from "../../../../../shared/candidateDocuments/statusLabels";
-import { countDocumentStatusGroups, documentStatusGroup, DOCUMENT_STATUS_GROUP_KEYS } from "../../../../../shared/candidateDocuments/statusGroups";
+import { documentStatusGroup, documentSummaryTiles, hasSubmittedForReview, DOCUMENT_STATUS_GROUP_KEYS } from "../../../../../shared/candidateDocuments/statusGroups";
 
 import { ButtonHeightContext } from "../../../design-system/Button";
 
-// The four statuses the candidate sees (see shared/candidateDocuments/statusGroups.ts).
+// The five statuses the candidate sees (see shared/candidateDocuments/statusGroups.ts).
 const STATUS_COLORS = {
-  complete: "#087C46",
-  under_review: "#9A5700",
   required: "#6B7280",
+  uploaded: "#6941C6",
+  under_approval: "#9A5700",
+  approved: "#087C46",
   rejected: "#B42318",
 };
 
@@ -94,7 +95,8 @@ export default function DocumentsScreen() {
   }, [upload.mutation.error, submit.mutation.error, documentAccess.error]);
 
   const documents = progressQuery.data?.documents;
-  const stats = countDocumentStatusGroups(checklistQuery.data ?? [], bankDetailQuery.data?.status ?? null);
+  const summaryTiles = documentSummaryTiles(checklistQuery.data ?? [], bankDetailQuery.data?.status ?? null);
+  const submittedForReview = hasSubmittedForReview(checklistQuery.data ?? []);
 
   const renderBody = () => {
     // `isPending`, not `isLoading` -- a disabled query (auth not yet
@@ -161,7 +163,7 @@ export default function DocumentsScreen() {
     if (checklist.length === 0) {
       return (
         <>
-          <BankDetailsPanel isDark={isDark} t={t} language={language} onSessionEnd={returnToSignIn} />
+          <BankDetailsPanel isDark={isDark} t={t} language={language} submittedForReview={submittedForReview} onSessionEnd={returnToSignIn} />
           <EmptyState
             title={t("candidateDocumentsEmptyTitle")}
             description={t("candidateDocumentsEmptyDescription")}
@@ -173,7 +175,7 @@ export default function DocumentsScreen() {
 
     return (
       <>
-        <DocumentsSummary stats={stats} language={language} t={t} />
+        <DocumentsSummary tiles={summaryTiles} language={language} t={t} />
 
         <Text accessibilityRole="header" style={[documentsStyles.sectionHeading, { fontFamily: getFontFamily(language, "bold"), textAlign: physicalTextAlign(language === "ur" ? "right" : "left") }, language === "ur" && documentsStyles.urduBody]}>{t("candidateDocumentsChecklistTitle")}</Text>
         <View>
@@ -196,7 +198,7 @@ export default function DocumentsScreen() {
           ))}
         </View>
 
-        <BankDetailsPanel isDark={isDark} t={t} language={language} onSessionEnd={returnToSignIn} />
+        <BankDetailsPanel isDark={isDark} t={t} language={language} submittedForReview={submittedForReview} onSessionEnd={returnToSignIn} />
       </>
     );
   };

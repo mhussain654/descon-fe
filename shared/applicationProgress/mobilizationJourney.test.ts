@@ -27,6 +27,17 @@ const KSA = [
   'e_number_requested', 'e_number_received', 'biometric_completed', 'visa_stamping_case_prepared', 'fee_pending', 'fee_paid',
   'visa_stamping_case_sent', 'visa_issued_or_rejected', 'appeared_for_protection', 'ticket_handover',
 ];
+// The finalized flows (Nov 2026): fee before Tasheer for KSA, and every flow ends at Ready to Fly.
+const DEPARTURE = ['appeared_for_protection', 'ticket_handover', 'flight_details_uploaded', 'mobilized'];
+const KSA_FINAL = [
+  ...DOCUMENTS, 'campaign_nomination', 'gamca_medical_pending', 'gamca_medical_completed', 'fee_pending', 'fee_paid',
+  'e_number_processing', 'e_number_requested', 'e_number_received', 'biometric_completed', 'visa_stamping_case_prepared',
+  'visa_stamping_case_sent', 'visa_issued_or_rejected', ...DEPARTURE,
+];
+const STANDARD_FINAL = [
+  ...DOCUMENTS, 'campaign_nomination', 'medical_pending', 'medical_completed', 'fee_pending', 'fee_paid',
+  'visa_processing', 'visa_issued_or_rejected', ...DEPARTURE,
+];
 const COMMON = [
   ...DOCUMENTS, 'campaign_nomination', 'medical_pending', 'medical_completed', 'fee_pending', 'fee_paid',
   'visa_processing', 'visa_issued_or_rejected', 'appeared_for_protection', 'ticket_handover',
@@ -50,6 +61,32 @@ describe('mobilizationJourney', () => {
     ]);
     expect(codes('uae', COMMON)).toEqual(codes('oman', COMMON));
     expect(codes('uae', COMMON)).toEqual([
+      'enrolled', 'document_submission', 'medical', 'mobilization_fee', 'visa', 'protection', 'pre_flight_brief', 'ready_to_fly',
+    ]);
+  });
+
+  it('shows the finalized KSA flow with the fee approved before Tasheer registration', () => {
+    const journey = mobilizationJourney({ countryCode: 'saudi_arabia', timeline: timeline(KSA_FINAL, 'e_number_requested') });
+
+    expect(statuses(journey)).toMatchObject({
+      medical: 'approved', mobilization_fee: 'approved', tasheer_registration: 'in_process', visa: 'upcoming',
+    });
+    expect(journey.current?.code).toBe('tasheer_registration');
+    expect(journey.next?.code).toBe('visa');
+  });
+
+  it.each(['uae', 'oman'])('keeps %s on Pre Flight Brief until the flight stages run, then Ready to Fly from its own stages', (countryCode) => {
+    const briefed = mobilizationJourney({ countryCode, timeline: timeline(STANDARD_FINAL, 'flight_details_uploaded') });
+    expect(statuses(briefed)).toMatchObject({ pre_flight_brief: 'approved', ready_to_fly: 'in_process' });
+
+    const flown = mobilizationJourney({ countryCode, timeline: timeline(STANDARD_FINAL, null) });
+    expect(flown).toMatchObject({ approvedCount: 8, totalCount: 8, percentage: 100 });
+  });
+
+  it('shows the shared standard flow for a country the client has not given its own flow', () => {
+    const journey = mobilizationJourney({ countryCode: 'kuwait', timeline: timeline(STANDARD_FINAL, 'registered') });
+
+    expect(journey.steps.map((step) => step.code)).toEqual([
       'enrolled', 'document_submission', 'medical', 'mobilization_fee', 'visa', 'protection', 'pre_flight_brief', 'ready_to_fly',
     ]);
   });

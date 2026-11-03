@@ -1,10 +1,10 @@
 import { StyleSheet, View } from 'react-native';
 import { Text } from '../../../../design-system/Text';
-import { BadgeCheck, BriefcaseBusiness, Camera, CheckCircle, Clock, FileText, IdCard, Landmark, Upload, XCircle } from 'lucide-react-native';
+import { BadgeCheck, BriefcaseBusiness, Camera, CheckCircle, Clock, FileCheck, FileText, IdCard, Landmark, Upload, XCircle } from 'lucide-react-native';
 import { Circle, Defs, LinearGradient, Rect, Stop } from 'react-native-svg';
 import { MeasuredSvg } from '../../../../design-system/MeasuredSvg';
 import type { CandidateDocumentChecklistItem } from '../../../../../../shared/candidateDocuments/types';
-import { DOCUMENT_STATUS_GROUP_KEYS, type DocumentStatusGroup } from '../../../../../../shared/candidateDocuments/statusGroups';
+import { DOCUMENT_STATUS_GROUP_KEYS, type DocumentStatusGroup, type DocumentSummaryTile } from '../../../../../../shared/candidateDocuments/statusGroups';
 import type { Language, TranslationKey } from '../../../../../../shared/i18n/translations';
 import { getFontFamily } from '../../../../design-system';
 import { elevation, spacing } from '../../../../design-system/tokens';
@@ -37,19 +37,22 @@ export function DocumentsHeader({ language, t, topInset }: LocaleProps & { topIn
   );
 }
 
-export function DocumentsSummary({ language, t, stats }: LocaleProps & { stats: Record<DocumentStatusGroup, number> }) {
-  const tiles = [
-    { group: 'complete', tone: 'green', icon: CheckCircle, bg: '#E9FAF1', color: '#087C46' },
-    { group: 'under_review', tone: 'orange', icon: Clock, bg: '#FFF5E6', color: '#9A5700' },
-    { group: 'required', tone: 'blue', icon: Upload, bg: '#E9F3FF', color: '#0862BC' },
-    { group: 'rejected', tone: 'coral', icon: XCircle, bg: '#FDECEC', color: '#B42318' },
-  ] as const;
+const TILE_LOOKS: Record<DocumentStatusGroup, { tone: IconTone; icon: typeof FileText; bg: string; color: string }> = {
+  approved: { tone: 'green', icon: CheckCircle, bg: '#E9FAF1', color: '#087C46' },
+  uploaded: { tone: 'purple', icon: FileCheck, bg: '#F3EEFF', color: '#6941C6' },
+  required: { tone: 'blue', icon: Upload, bg: '#E9F3FF', color: '#0862BC' },
+  under_approval: { tone: 'orange', icon: Clock, bg: '#FFF5E6', color: '#9A5700' },
+  rejected: { tone: 'coral', icon: XCircle, bg: '#FDECEC', color: '#B42318' },
+};
+
+/** Three cards: Approved, Uploaded, Required before the documents are submitted; Approved, Under Approval, Rejected after. */
+export function DocumentsSummary({ language, t, tiles }: LocaleProps & { tiles: readonly DocumentSummaryTile[] }) {
   return (
     <View style={[documentsStyles.summary, { flexDirection: rowDirectionTowards(language === 'ur' ? 'right' : 'left') }]}>
-      {tiles.map(tile => (
-        <View key={tile.group} style={[documentsStyles.stat, { backgroundColor: tile.bg }]}>
+      {tiles.map(({ group, count }) => ({ group, count, ...TILE_LOOKS[group] })).map(tile => (
+        <View key={tile.group} testID={`documents-summary-${tile.group}`} style={[documentsStyles.stat, { backgroundColor: tile.bg }]}>
           <GradientIconBox tone={tile.tone} icon={tile.icon} size={26} />
-          <Text style={[documentsStyles.statNumber, { color: tile.color, fontFamily: getFontFamily(language, 'bold') }]}>{stats[tile.group]}</Text>
+          <Text style={[documentsStyles.statNumber, { color: tile.color, fontFamily: getFontFamily(language, 'bold') }]}>{tile.count}</Text>
           <Text numberOfLines={2} style={[documentsStyles.statLabel, { color: tile.color, fontFamily: getFontFamily(language) }, language === 'ur' && documentsStyles.urduBody]}>{t(DOCUMENT_STATUS_GROUP_KEYS[tile.group])}</Text>
         </View>
       ))}

@@ -264,14 +264,15 @@ describe("StatusScreen", () => {
     expect(screen.queryByText("15")).toBeNull();
   });
 
-  it("shows only the current status and the next step above the list", async () => {
+  it("marks the current step in the list itself, without repeating the current status and next step above it", async () => {
     applicationProgressClient.getProgress.mockResolvedValue(progressPayload({ workflow: workflowPayload({ timeline: timelineThrough(4) }) }));
     candidateWorkflowClient.getWorkflowHistory.mockResolvedValue(historyPayload());
     renderStatusScreen();
 
-    expect(await screen.findByText("Current status")).toBeOnTheScreen();
-    expect(screen.getByText("Document Submission in process")).toBeOnTheScreen();
-    expect(screen.getByText("Next step")).toBeOnTheScreen();
+    await screen.findByTestId("status-step-document_submission");
+    expect(screen.queryByText("Current status")).toBeNull();
+    expect(screen.queryByText("Document Submission in process")).toBeNull();
+    expect(screen.queryByText("Next step")).toBeNull();
     expect(within(stageRow("Document Submission")).getByText("In process")).toBeOnTheScreen();
     expect(within(stageRow("Enrolled")).getByText("Approved")).toBeOnTheScreen();
   });
@@ -281,7 +282,7 @@ describe("StatusScreen", () => {
     candidateWorkflowClient.getWorkflowHistory.mockResolvedValue(historyPayload());
     renderStatusScreen();
 
-    expect(await screen.findByText("Mobilization Fee approved")).toBeOnTheScreen();
+    await screen.findByTestId("status-step-mobilization_fee");
     expect(within(stageRow("Mobilization Fee")).getByText("Approved")).toBeOnTheScreen();
     expect(within(stageRow("QVC Appointment")).queryByText("In process")).toBeNull();
     expect(within(stageRow("QVC Appointment")).queryByText("Approved")).toBeNull();
@@ -295,7 +296,7 @@ describe("StatusScreen", () => {
     candidateWorkflowClient.getWorkflowHistory.mockResolvedValue(historyPayload());
     renderStatusScreen();
 
-    expect(await screen.findByText("Visa rejected")).toBeOnTheScreen();
+    await screen.findByTestId("status-step-visa");
     expect(within(stageRow("Visa")).getByText("Rejected")).toBeOnTheScreen();
   });
 
@@ -322,7 +323,9 @@ describe("StatusScreen", () => {
     candidateWorkflowClient.getWorkflowHistory.mockResolvedValue(historyPayload());
     renderStatusScreen();
 
-    expect(await screen.findByText("All steps approved. Have a safe journey!")).toBeOnTheScreen();
+    await screen.findByTestId("status-step-ready_to_fly");
+    expect(within(stageRow("Ready to Fly")).getByText("Approved")).toBeOnTheScreen();
+    expect(screen.getByText("100%")).toBeOnTheScreen();
     expect(screen.queryByText("In process")).toBeNull();
   });
 

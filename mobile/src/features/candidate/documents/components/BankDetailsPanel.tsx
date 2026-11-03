@@ -58,6 +58,8 @@ interface BankDetailsPanelProps {
   isDark: boolean;
   t: (key: TranslationKey) => string;
   language: Language;
+  /** Once the candidate has submitted their documents for review, an added bank account reads Under Approval instead of Uploaded. */
+  submittedForReview: boolean;
   onSessionEnd: () => void;
 }
 
@@ -77,7 +79,7 @@ interface BankDetailsFormProps {
  * for the native document-picker/camera/gallery flow, same as
  * DocumentUploadPanel does for the regular checklist.
  */
-export function BankDetailsPanel({ isDark, t, language, onSessionEnd }: BankDetailsPanelProps) {
+export function BankDetailsPanel({ isDark, t, language, submittedForReview, onSessionEnd }: BankDetailsPanelProps) {
   const query = useBankDetail();
   const upload = useBankDetailUpload();
   const [isOpen, setIsOpen] = useState(false);
@@ -131,9 +133,9 @@ export function BankDetailsPanel({ isDark, t, language, onSessionEnd }: BankDeta
               {t("candidateBankDetailsTitle")}
             </Text>
             <Text
-              style={[styles.subtitle, { color: isComplete ? "#087C46" : "#6B7280", fontFamily: getFontFamily(language, "regular"), textAlign: physicalTextAlign(language === "ur" ? "right" : "left"), lineHeight: language === "ur" ? 30 : 20 }]}
+              style={[styles.subtitle, { color: !isComplete ? "#6B7280" : submittedForReview ? "#9A5700" : "#6941C6", fontFamily: getFontFamily(language, "regular"), textAlign: physicalTextAlign(language === "ur" ? "right" : "left"), lineHeight: language === "ur" ? 30 : 20 }]}
             >
-              {t(isComplete ? "candidateDocumentsStatusUnderReview" : "candidateDocumentsStatusRequired")}
+              {t(!isComplete ? "candidateDocumentsStatusRequired" : submittedForReview ? "candidateDocumentsStatusUnderApproval" : "candidateDocumentsStatusUploaded")}
             </Text>
           </View>
           <Chevron size={20} color={isDark ? "#6B7280" : "#9CA3AF"} />

@@ -53,8 +53,18 @@ const STEPS: Record<JourneyStepCode, StepDefinition> = {
   ready_to_fly: { stages: ['flight_details_uploaded', 'mobilized'], doneStages: ['mobilized'] },
 };
 
-/** Each Business Unit's steps, in the client's order. UAE and Oman (and any other country) share one flow. */
-const FLOWS: Record<'saudi_arabia' | 'qatar' | 'standard', readonly JourneyStepCode[]> = {
+/** UAE and Oman's flow; also shown for countries the client hasn't given a flow for (Kuwait, Azerbaijan, South Africa). */
+const STANDARD_FLOW: readonly JourneyStepCode[] = [
+  'enrolled', 'document_submission', 'medical', 'mobilization_fee', 'visa', 'protection', 'pre_flight_brief', 'ready_to_fly',
+];
+
+/**
+ * Each Business Unit's steps, in the client's finalized order (Nov 2026). The
+ * backend publishes a matching process per country (descon-be
+ * MobilizationProcesses::Definitions), so a candidate only ever sees their
+ * own country's flow.
+ */
+const FLOWS: Record<'saudi_arabia' | 'qatar' | 'uae' | 'oman', readonly JourneyStepCode[]> = {
   saudi_arabia: [
     'enrolled', 'document_submission', 'medical', 'mobilization_fee', 'tasheer_registration',
     'visa', 'protection', 'pre_flight_brief', 'ready_to_fly',
@@ -63,7 +73,8 @@ const FLOWS: Record<'saudi_arabia' | 'qatar' | 'standard', readonly JourneyStepC
     'enrolled', 'document_submission', 'medical', 'mobilization_fee', 'qvc_appointment', 'qvc_status',
     'visa', 'protection', 'pre_flight_brief', 'ready_to_fly',
   ],
-  standard: ['enrolled', 'document_submission', 'medical', 'mobilization_fee', 'visa', 'protection', 'pre_flight_brief', 'ready_to_fly'],
+  uae: STANDARD_FLOW,
+  oman: STANDARD_FLOW,
 };
 
 export const JOURNEY_STEP_KEYS = {
@@ -118,8 +129,7 @@ export interface JourneyInput {
 }
 
 function flowFor(countryCode: string | null | undefined): readonly JourneyStepCode[] {
-  if (countryCode === 'saudi_arabia' || countryCode === 'qatar') return FLOWS[countryCode];
-  return FLOWS.standard;
+  return countryCode && countryCode in FLOWS ? FLOWS[countryCode as keyof typeof FLOWS] : STANDARD_FLOW;
 }
 
 const isReached = (stage: WorkflowTimelineStage) => stage.status === 'completed' || stage.status === 'current';
@@ -144,7 +154,7 @@ function stepStatus(
     covered.some((stage) => definition.doneStages.includes(stage.code) && isReached(stage)) ||
     (covered.length > 0 && covered.every((stage) => stage.status === 'completed')) ||
     (lastIndex !== -1 && timeline.slice(lastIndex + 1).some(isReached)) ||
-    // A step with no stage of its own in this flow (KSA/UAE/Oman have no "ready to fly" stage) is done at the end of the journey.
+    // A step with no stage of its own (candidates still on an earlier KSA or common process version, which ended at ticket handover) is done at the end of the journey.
     (covered.length === 0 && finalStageReached);
   const started = covered.some(isReached);
   const startedAt = covered.find((stage) => stage.startedAt)?.startedAt ?? null;
@@ -177,9 +187,9 @@ export function mobilizationJourney(input: JourneyInput): MobilizationJourney {
   const lastApprovedIndex = steps.map((step) => step.status).lastIndexOf('approved');
   const currentIndex = activeIndex !== -1 ? activeIndex : lastApprovedIndex;
   const current = currentIndex === -1 ? null : steps[currentIndex];
-  // The first step not started yet. In the KSA flow the client lists the fee
-  // before Tasheer registration while the workflow does Tasheer first, so a
-  // candidate in Tasheer sees the fee as next, not the visa.
+  // The first step not started yet. Candidates still on the first KSA process
+  // version do Tasheer before the fee, so one in Tasheer sees the fee as next,
+  // not the visa.
   const next = steps.find((step) => step.status === 'upcoming') ?? null;
   const approvedCount = steps.filter((step) => step.status === 'approved').length;
   const totalCount = steps.length;

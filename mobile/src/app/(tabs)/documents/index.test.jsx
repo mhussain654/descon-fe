@@ -1,5 +1,5 @@
 import { QueryClientProvider } from "@tanstack/react-query";
-import { act, fireEvent, render, screen, waitFor } from "@testing-library/react-native";
+import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react-native";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { Image, Keyboard, Linking, Text } from "react-native";
 import * as DocumentPicker from "expo-document-picker";
@@ -62,6 +62,22 @@ jest.mock("expo-image-picker", () => ({
   launchCameraAsync: jest.fn(),
   launchImageLibraryAsync: jest.fn(),
 }));
+
+// Candidates currently see PDF uploads only (uploadOptions.ts). The photo and
+// separate-sides options are hidden, not removed, so most of this file runs
+// with them switched back on to keep that code covered; the "PDF-only
+// uploads" block below runs with the production setting.
+let mockPdfOnlyUploads = false;
+jest.mock("../../../features/candidate/documents/uploadOptions", () => {
+  const actual = jest.requireActual("../../../features/candidate/documents/uploadOptions");
+  const current = () => actual.createUploadOptions(mockPdfOnlyUploads);
+  return {
+    ...actual,
+    offeredContentTypes: (rules) => current().offeredContentTypes(rules),
+    offersPhotoCapture: (rules) => current().offersPhotoCapture(rules),
+    offeredPairModes: (layout) => current().offeredPairModes(layout),
+  };
+});
 
 jest.mock("../../../lib/candidate-documents-client", () => ({
   candidateDocumentsClient: { getChecklist: jest.fn(), uploadDocument: jest.fn(), requestDocumentAccess: jest.fn() },
@@ -277,24 +293,53 @@ describe("DocumentsScreen", () => {
     expect(screen.queryByRole("button", { name: "Upload" })).toBeNull();
   });
 
-  it("counts documents under the four statuses -- Complete, Under Review, Required, Rejected -- including the bank account", async () => {
+  function summaryCount(group) {
+    return within(screen.getByTestId(`documents-summary-${group}`));
+  }
+
+  it("shows Approved, Uploaded and the fixed Required total before submitting, counting the bank account", async () => {
     candidateDocumentsClient.getChecklist.mockResolvedValue([
-      item({ requirementCode: "passport", status: "verified", document: uploadedDocument() }),
-      item({ requirementCode: "cnic", name: "CNIC", status: "verified", document: uploadedDocument() }),
-      item({ requirementCode: "photograph", name: "Photo", status: "pending_review", document: uploadedDocument() }),
+      item({ requirementCode: "passport", status: "uploaded", document: uploadedDocument() }),
+      item({ requirementCode: "cnic", name: "CNIC", status: "uploaded", document: uploadedDocument() }),
       item({ requirementCode: "cv", name: "CV", status: "missing" }),
-      item({ requirementCode: "polio_certificate", name: "Polio", status: "missing" }),
-      item({ requirementCode: "cheque_copy", name: "Cheque", status: "rejected", document: uploadedDocument() }),
+      item({ requirementCode: "polio_certificate", name: "Polio", status: "missing", required: false }),
     ]);
     applicationProgressClient.getProgress.mockResolvedValue(progress());
     candidateBankDetailsClient.getBankDetail.mockResolvedValue(bankDetailSummary({ status: "missing", bankDetail: null }));
     renderDocumentsScreen();
 
     await screen.findByText("Passport");
-    // 2 complete, 1 under review, 3 required (CV, polio and the bank account), 1 rejected.
-    await waitFor(() => expect(screen.getByText("3")).toBeOnTheScreen());
-    expect(screen.getByText("2")).toBeOnTheScreen();
-    expect(screen.getAllByText("1")).toHaveLength(2);
+    // Required is every required item (passport, CNIC, CV and the bank account), however many are uploaded.
+    await waitFor(() => expect(summaryCount("required").getByText("4")).toBeOnTheScreen());
+    expect(summaryCount("required").getByText("Required")).toBeOnTheScreen();
+    expect(summaryCount("uploaded").getByText("2")).toBeOnTheScreen();
+    expect(summaryCount("approved").getByText("0")).toBeOnTheScreen();
+    expect(screen.queryByTestId("documents-summary-under_approval")).toBeNull();
+    expect(screen.queryByTestId("documents-summary-rejected")).toBeNull();
+  });
+
+  it("switches to Approved, Under Approval and Rejected once the documents are submitted for review", async () => {
+    candidateDocumentsClient.getChecklist.mockResolvedValue([
+      item({ requirementCode: "passport", status: "verified", document: uploadedDocument() }),
+      item({ requirementCode: "cnic", name: "CNIC", status: "verified", document: uploadedDocument() }),
+      item({ requirementCode: "photograph", name: "Photo", status: "pending_review", document: uploadedDocument() }),
+      item({ requirementCode: "cheque_copy", name: "Cheque", status: "rejected", document: uploadedDocument() }),
+    ]);
+    applicationProgressClient.getProgress.mockResolvedValue(progress());
+    candidateBankDetailsClient.getBankDetail.mockResolvedValue(bankDetailSummary({ status: "submitted", bankDetail: bankDetail() }));
+    renderDocumentsScreen();
+
+    await screen.findByText("Passport");
+    // The photo and the bank account are under approval.
+    await waitFor(() => expect(summaryCount("under_approval").getByText("2")).toBeOnTheScreen());
+    expect(summaryCount("approved").getByText("2")).toBeOnTheScreen();
+    expect(summaryCount("rejected").getByText("1")).toBeOnTheScreen();
+    expect(screen.queryByTestId("documents-summary-required")).toBeNull();
+    expect(screen.queryByTestId("documents-summary-uploaded")).toBeNull();
+    // Each row shows its own step: Approved, Under Approval or Rejected.
+    expect(screen.getAllByText(/^Approved • /)).toHaveLength(2);
+    expect(screen.getByText(/^Under Approval • /)).toBeOnTheScreen();
+    expect(screen.getByText(/^Rejected • /)).toBeOnTheScreen();
     expect(screen.queryByText("Missing")).toBeNull();
     expect(screen.queryByText("Pending review")).toBeNull();
   });
@@ -648,7 +693,8 @@ describe("DocumentsScreen", () => {
     expect(await screen.findByText("Uploading…")).toBeOnTheScreen();
 
     resolveUpload(item({ status: "uploaded", document: uploadedDocument() }));
-    await waitFor(() => expect(screen.getByText(/Under Review/)).toBeOnTheScreen());
+    // The row reads Uploaded until the documents are submitted for review.
+    await waitFor(() => expect(screen.getByText(/^Uploaded • /)).toBeOnTheScreen());
     expect(screen.queryByText("Submit")).toBeNull();
   });
 
@@ -1142,14 +1188,14 @@ describe("DocumentsScreen", () => {
       expect((await screen.findAllByText("Required")).length).toBeGreaterThan(0);
     });
 
-    it("shows Complete when a bank detail already exists", async () => {
+    it("shows Uploaded when a bank detail already exists and nothing is submitted for review yet", async () => {
       candidateDocumentsClient.getChecklist.mockResolvedValue([item({ status: "missing" })]);
       applicationProgressClient.getProgress.mockResolvedValue(progress());
       candidateBankDetailsClient.getBankDetail.mockResolvedValue(bankDetailSummary({ status: "submitted", bankDetail: bankDetail() }));
       renderDocumentsScreen();
 
-      // The bank account reads Under Review once submitted, matching the documents' own statuses.
-      expect(await screen.findAllByText("Under Review")).toHaveLength(2);
+      // The bank account row and the Uploaded summary card.
+      expect(await screen.findAllByText("Uploaded")).toHaveLength(2);
     });
 
     it("validates required fields client-side before calling the API", async () => {
@@ -1182,7 +1228,7 @@ describe("DocumentsScreen", () => {
       expect(candidateBankDetailsClient.submitBankDetail).not.toHaveBeenCalled();
     });
 
-    it("picks a proof file, submits and shows Complete after success", async () => {
+    it("picks a proof file, submits and shows Uploaded after success", async () => {
       candidateDocumentsClient.getChecklist.mockResolvedValue([item({ status: "missing" })]);
       applicationProgressClient.getProgress.mockResolvedValue(progress());
       DocumentPicker.getDocumentAsync.mockResolvedValue({ canceled: false, assets: [pdfAsset("cheque.pdf")] });
@@ -1208,8 +1254,8 @@ describe("DocumentsScreen", () => {
       expect(params.formData.get("bank_detail[account_number]")).toBe("PK36SCBL0000001123456702");
       expect(params.formData.get("bank_detail[bank_name]")).toBe("Meezan Bank Limited");
 
-      // The bank account reads Under Review once submitted, matching the documents' own statuses.
-      expect(await screen.findAllByText("Under Review")).toHaveLength(2);
+      // The bank account row and the Uploaded summary card.
+      expect(await screen.findAllByText("Uploaded")).toHaveLength(2);
     });
 
     it("ends the session and returns to sign-in when the bank-detail submission fails because the session expired", async () => {
@@ -1381,7 +1427,7 @@ describe("DocumentsScreen", () => {
       renderDocumentsScreen();
 
       fireEvent.press(await screen.findByRole("button", { name: "Upload" }));
-      fireEvent.press(screen.getByRole("button", { name: "One PDF" }));
+      fireEvent.press(screen.getByRole("button", { name: "Scan PDF" }));
 
       expect(screen.getByText("Combined PDF")).toBeOnTheScreen();
       expect(screen.getByText("Upload one PDF containing scanned images or clear photos of both the front and back of the CNIC. Both sides must be clear and readable.")).toBeOnTheScreen();
@@ -1429,6 +1475,59 @@ describe("DocumentsScreen", () => {
       );
       openURL.mockRestore();
       process.env.EXPO_PUBLIC_API_BASE_URL = originalApiBaseUrl;
+    });
+  });
+
+  describe("PDF-only uploads (current client setting)", () => {
+    const PAIR_RULES = {
+      minimumFiles: 1,
+      maximumFiles: 2,
+      combinedPdfAllowed: true,
+      allowedSideCodes: ["front", "back", "combined"],
+      acceptedContentTypes: ["application/pdf", "image/jpeg", "image/png"],
+      maximumFileSize: 5 * 1024 * 1024,
+    };
+
+    beforeEach(() => {
+      mockPdfOnlyUploads = true;
+    });
+
+    afterEach(() => {
+      mockPdfOnlyUploads = false;
+    });
+
+    it("offers only a PDF file, with no camera or gallery option, even where the backend still accepts images", async () => {
+      candidateDocumentsClient.getChecklist.mockResolvedValue([item({ requirementCode: "cv", name: "CV" })]);
+      applicationProgressClient.getProgress.mockResolvedValue(progress());
+      DocumentPicker.getDocumentAsync.mockResolvedValue({ canceled: true, assets: null });
+      renderDocumentsScreen();
+
+      fireEvent.press(await screen.findByRole("button", { name: "Upload" }));
+
+      expect(screen.queryByRole("button", { name: "Take photo" })).toBeNull();
+      expect(screen.queryByRole("button", { name: "Choose from gallery" })).toBeNull();
+      expect(screen.getByText(/^PDF, up to/)).toBeOnTheScreen();
+
+      await act(async () => {
+        fireEvent.press(screen.getByRole("button", { name: "Choose file" }));
+      });
+      expect(DocumentPicker.getDocumentAsync).toHaveBeenCalledWith(expect.objectContaining({ type: ["application/pdf"] }));
+    });
+
+    it("gives a two-sided document only the Scan PDF option, already selected, with no separate-photos choice", async () => {
+      candidateDocumentsClient.getChecklist.mockResolvedValue([
+        item({ requirementCode: "cnic", name: "CNIC", uploadRules: PAIR_RULES }),
+      ]);
+      applicationProgressClient.getProgress.mockResolvedValue(progress());
+      renderDocumentsScreen();
+
+      fireEvent.press(await screen.findByRole("button", { name: "Upload" }));
+
+      expect(screen.getByRole("button", { name: "Scan PDF", selected: true })).toBeOnTheScreen();
+      expect(screen.queryByRole("button", { name: "Separate photos" })).toBeNull();
+      expect(screen.getByText("Combined PDF")).toBeOnTheScreen();
+      expect(screen.getAllByRole("button", { name: "Choose file" })).toHaveLength(1);
+      expect(screen.queryByRole("button", { name: "Take photo" })).toBeNull();
     });
   });
 });
