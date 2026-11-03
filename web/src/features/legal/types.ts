@@ -18,6 +18,5 @@ export interface LegalSection {
 export interface LegalDocument {
   title: string;
   effectiveDate: string;
-  intro: LegalBlock[];
   sections: LegalSection[];
 }

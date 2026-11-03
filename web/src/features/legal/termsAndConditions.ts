@@ -8,10 +8,6 @@ const PRIVACY_POLICY_LINK = { link: 'MPS Connect Privacy Policy', href: '/privac
 export const termsAndConditions: LegalDocument = {
   title: 'MPS Connect Terms and Conditions',
   effectiveDate: '30 October 2026',
-  intro: [
-    { kind: 'paragraph', content: [{ bold: 'Operator:' }, ` ${POSTAL_ADDRESS}`] },
-    { kind: 'paragraph', content: [{ bold: 'Contact:' }, ` ${CONTACT_EMAIL}`] },
-  ],
   sections: [
     {
       heading: '1. Introduction',

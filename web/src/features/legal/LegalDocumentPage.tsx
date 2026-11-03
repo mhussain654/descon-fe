@@ -103,14 +103,9 @@ export function LegalDocumentPage({ document: legalDocument }: { document: Legal
             <span className="text-lg font-semibold text-text-primary">MPS Connect</span>
           </div>
           <h1 className="mb-3 text-3xl font-semibold text-text-primary">{legalDocument.title}</h1>
-          <p className="mb-4">
+          <p>
             <strong className="font-semibold text-text-primary">Effective date:</strong> {legalDocument.effectiveDate}
           </p>
-          <div className="space-y-1">
-            {legalDocument.intro.map((block, index) => (
-              <Block key={index} block={block} />
-            ))}
-          </div>
         </header>
 
         <div className="space-y-10">

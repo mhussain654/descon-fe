@@ -7,10 +7,6 @@ const POSTAL_ADDRESS =
 export const privacyPolicy: LegalDocument = {
   title: 'MPS Connect Privacy Policy',
   effectiveDate: '30 October 2026',
-  intro: [
-    { kind: 'paragraph', content: [{ bold: 'Data controller:' }, ` ${POSTAL_ADDRESS}`] },
-    { kind: 'paragraph', content: [{ bold: 'Privacy contact:' }, ` ${CONTACT_EMAIL}`] },
-  ],
   sections: [
     {
       heading: '1. Who we are',
