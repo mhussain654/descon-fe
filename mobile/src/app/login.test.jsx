@@ -202,7 +202,7 @@ describe('LoginScreen', () => {
     await waitFor(() => expect(screen.getByLabelText('One-Time Password')).toBeOnTheScreen());
     expect(screen.getByText('Check your messages')).toBeOnTheScreen();
     expect(
-      screen.getByText('A six-digit verification code has been sent from 8062050 to your registered mobile number.')
+      screen.getByText('A six digit verification code has been sent from 8062050 to your registered mobile number.')
     ).toBeOnTheScreen();
     // The sender number is its own bold run, so it stands out in the sentence.
     expect(screen.getByText('8062050')).toHaveStyle({ fontFamily: expect.stringMatching(/bold/i) });

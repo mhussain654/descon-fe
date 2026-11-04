@@ -6,6 +6,7 @@ import { MeasuredSvg } from '../../../design-system/MeasuredSvg';
 import { getFontFamily } from '../../../design-system';
 import { colors, spacing } from '../../../design-system/tokens';
 import { physicalTextAlign, rowDirectionTowards } from '../../../lib/layoutDirection';
+import { interpolateSegments } from '../../../../../shared/i18n/interpolate';
 
 // Accent dot per Business Unit country (its flag's signature colour); any
 // other country falls back to the brand blue.
@@ -27,8 +28,8 @@ interface HomeHeaderProps {
   photoUri: string | null;
   photoLabel: string;
   country: { code: string; name: string } | null;
-  /** Already-formatted "Application in Process for <country>" line. */
-  countryLine: string | null;
+  /** Translated "Application in Process for %{country}" sentence; the country name is filled in, in bold. */
+  countryLineTemplate: string;
 }
 
 function initialsOf(fullName: string): string {
@@ -47,7 +48,7 @@ export function HomeHeader({
   photoUri,
   photoLabel,
   country,
-  countryLine,
+  countryLineTemplate,
 }: HomeHeaderProps) {
   const isUrdu = language === 'ur';
   // Explicit so a Latin-script name or reference still lines up with the
@@ -83,14 +84,6 @@ export function HomeHeader({
           <Text style={[styles.reference, isUrdu && styles.referenceUrdu, textAlignment, { fontFamily: getFontFamily(language, 'regular') }]}>
             {referenceLine}
           </Text>
-          {country && countryLine ? (
-            <View style={[styles.countryRow, { flexDirection: rowDirectionTowards(isUrdu ? 'right' : 'left') }]}>
-              <View style={[styles.countryDot, { backgroundColor: COUNTRY_DOT_COLORS[country.code] ?? colors.brand.default }]} />
-              <Text style={[styles.countryName, isUrdu && styles.countryNameUrdu, textAlignment, { fontFamily: getFontFamily(language, 'semibold') }]}>
-                {countryLine}
-              </Text>
-            </View>
-          ) : null}
         </View>
 
         <View style={styles.avatarColumn}>
@@ -103,6 +96,27 @@ export function HomeHeader({
           </View>
         </View>
       </View>
+
+      {/* Its own full-width row below the photo, so the sentence is not squeezed beside it and stays on one line. */}
+      {country ? (
+        <View style={[styles.countryRow, { flexDirection: rowDirectionTowards(isUrdu ? 'right' : 'left') }]}>
+          <View style={[styles.countryDot, { backgroundColor: COUNTRY_DOT_COLORS[country.code] ?? colors.brand.default }]} />
+          <Text
+            numberOfLines={1}
+            adjustsFontSizeToFit
+            minimumFontScale={0.75}
+            style={[styles.countryName, isUrdu && styles.countryNameUrdu, textAlignment, { fontFamily: getFontFamily(language, 'semibold') }]}
+          >
+            {interpolateSegments(countryLineTemplate, { country: country.name }).map((segment, position) =>
+              segment.slot === 'country' ? (
+                <Text key={position} style={{ fontFamily: getFontFamily(language, 'bold') }}>{segment.text}</Text>
+              ) : (
+                segment.text
+              )
+            )}
+          </Text>
+        </View>
+      ) : null}
     </View>
   );
 }

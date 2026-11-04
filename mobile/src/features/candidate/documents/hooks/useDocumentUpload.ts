@@ -336,9 +336,10 @@ export function useDocumentUpload() {
     [mutation]
   );
 
+  /** Checks a chosen date at once, so a stale PCC is flagged (and Submit stays disabled) before anything is uploaded. */
   const setIssuedOn = useCallback((value: string) => {
     setIssuedOnState(value);
-    setIssuedOnError(null);
+    setIssuedOnError(value.trim() ? validatePccIssueDate(value) : null);
   }, []);
 
   const setNextOfKinRelation = useCallback((value: NextOfKinRelation) => {

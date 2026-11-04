@@ -16,6 +16,7 @@ import { CandidateProfileCard } from "./CandidateProfileCard";
 import { CandidateDocumentsSummaryCard } from "./CandidateDocumentsSummaryCard";
 import { CandidatePaymentStatusCard } from "./CandidatePaymentStatusCard";
 import { CandidateAiCallsCard } from "../../candidateAiCalls/components/CandidateAiCallsCard";
+import { CandidateSmsCard } from "../../candidateSms/components/CandidateSmsCard";
 import { WorkflowPanel } from "../../workflow/components/WorkflowPanel";
 import { FeeSettingsCard } from "../../payments/components/FeeSettingsCard";
 
@@ -26,6 +27,7 @@ const SECTIONS = [
   ["payments", "adminCandidatePaymentsTab"],
   ["records", "adminCandidateRecordsTab"],
   ["aiCalls", "adminCandidateAiCallsTab"],
+  ["sms", "adminCandidateSmsTab"],
   ["activity", "adminCandidateActivityTab"],
 ] as const;
 type Section = (typeof SECTIONS)[number][0];
@@ -74,9 +76,12 @@ export function CandidateWorkspace({ candidateId }: { candidateId: string }) {
   const assignment = candidate.assignment;
   const canReadFees =
     hasPermission("view_payments") || hasPermission("manage_payments");
-  // Only staff who can place calls get the AI calls tab.
+  // Only staff who can place calls get the AI calls tab, and only staff who
+  // can send SMS get the SMS tab.
   const sections = SECTIONS.filter(
-    ([id]) => id !== "aiCalls" || hasPermission("trigger_ai_calls"),
+    ([id]) =>
+      (id !== "aiCalls" || hasPermission("trigger_ai_calls")) &&
+      (id !== "sms" || hasPermission("send_candidate_sms")),
   );
   return (
     <div
@@ -210,6 +215,7 @@ export function CandidateWorkspace({ candidateId }: { candidateId: string }) {
         {section === "aiCalls" ? (
           <CandidateAiCallsCard candidateId={candidateId} />
         ) : null}
+        {section === "sms" ? <CandidateSmsCard candidateId={candidateId} /> : null}
         {section === "activity" ? (
           <WorkflowPanel candidateId={candidateId} section="activity" />
         ) : null}

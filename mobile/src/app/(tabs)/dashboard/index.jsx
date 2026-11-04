@@ -308,7 +308,7 @@ export default function DashboardScreen() {
           photoUri={photoUri}
           photoLabel={t("homeProfilePhoto")}
           country={profile.country}
-          countryLine={profile.country ? interpolate(t("homeApplicationInProcessFor"), { country: profile.country.name }) : null}
+          countryLineTemplate={t("homeApplicationInProcessFor")}
         />
 
         <View style={styles.content}>

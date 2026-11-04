@@ -23,6 +23,7 @@ import {
   slotFile,
 } from '../../../../../../shared/candidateDocuments/fileSet';
 import { formatFileSize } from '../../../../../../shared/candidateDocuments/formatting';
+import { instructionSegments } from '../../../../../../shared/candidateDocuments/instructionEmphasis';
 import type { PccIssueDateError } from '../../../../../../shared/candidateDocuments/pccIssueDate';
 import { NEXT_OF_KIN_RELATION_KEYS, NEXT_OF_KIN_RELATIONS, isNextOfKinRelation } from '../../../../../../shared/candidateDocuments/nextOfKin';
 import type { DocumentSideCode } from '../../../../../../shared/candidateDocuments/types';
@@ -128,7 +129,13 @@ export function DocumentUploadPanel({ labelText, instructions, upload, t, langua
       {layout.kind === 'pair' ? <HelperText language={language}>{t(guidanceKey)}</HelperText> : null}
       {!isCnicPair && !isPassportPair ? <Label language={language}>{labelText}</Label> : null}
       {instructions && !isPassportPair && !isCnicPair ? (
-        <Text style={[styles.instructions, { fontFamily: getFontFamily(language, 'regular') }]}>{instructions}</Text>
+        <Text style={[styles.instructions, { fontFamily: getFontFamily(language, 'regular') }]}>
+          {instructionSegments(upload.activeRequirementCode ?? null, instructions).map((segment, position) => (
+            segment.emphasized
+              ? <Text key={position} style={[styles.instructionsEmphasis, { fontFamily: getFontFamily(language, 'bold') }]}>{segment.text}</Text>
+              : segment.text
+          ))}
+        </Text>
       ) : null}
 
       {upload.isNextOfKinRequirement ? (
@@ -229,7 +236,7 @@ export function DocumentUploadPanel({ labelText, instructions, upload, t, langua
           variant="primary"
           size="sm"
           onPress={upload.submit}
-          disabled={entries.length === 0 || validation?.kind === 'file'}
+          disabled={entries.length === 0 || validation?.kind === 'file' || (upload.isPccRequirement && upload.issuedOnError !== null)}
           language={language}
         >
           {mutation.error ? t('retry') : t('candidateDocumentsSubmitUpload')}
@@ -354,6 +361,7 @@ const styles = StyleSheet.create({
     padding: spacing[4],
   },
   instructions: { fontSize: 13, color: colors.text.secondary, marginBottom: spacing[3] },
+  instructionsEmphasis: { color: colors.text.primary },
   section: { marginTop: spacing[2] },
   modeRow: { flexDirection: 'row', gap: spacing[2], marginBottom: spacing[3] },
   modeButton: { flex: 1, minWidth: 0, height: 34, paddingVertical: 0, paddingHorizontal: spacing[1], borderWidth: 1, borderColor: '#A8CCFF', borderRadius: 12, alignItems: 'center', justifyContent: 'center', backgroundColor: '#E7F1FF' },

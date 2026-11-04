@@ -272,6 +272,18 @@ describe("DashboardScreen", () => {
     expect(screen.getByLabelText("Profile photo")).toBeOnTheScreen();
   });
 
+  it("keeps the country line on one line, with the country name in bold", async () => {
+    candidateProfileClient.getProfile.mockResolvedValue(profilePayload({ country: { code: "saudi_arabia", name: "Saudi Arabia" }, photoUrl: null }));
+    candidateDocumentsClient.getChecklist.mockResolvedValue([]);
+    applicationProgressClient.getProgress.mockResolvedValue(progress());
+    renderDashboardScreen();
+
+    const line = await screen.findByText("Application in Process for Saudi Arabia");
+    expect(line).toHaveProp("numberOfLines", 1);
+    expect(line).toHaveStyle({ fontFamily: "Inter_600SemiBold" });
+    expect(screen.getByText("Saudi Arabia")).toHaveStyle({ fontFamily: "Inter_700Bold" });
+  });
+
   it("counts approved steps out of the client's mobilization process for the candidate's Business Unit", async () => {
     candidateProfileClient.getProfile.mockResolvedValue(profilePayload());
     candidateDocumentsClient.getChecklist.mockResolvedValue([]);

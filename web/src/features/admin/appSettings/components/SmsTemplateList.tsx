@@ -1,10 +1,10 @@
 import { useEffect, useState } from 'react';
-import { MessageSquare, Pencil } from 'lucide-react';
+import { Info, MessageSquare, Pencil } from 'lucide-react';
 import { useLanguage } from '../../../../contexts/LanguageContext';
 import { useStaffAuth } from '../../../../contexts/StaffAuthContext';
 import { Badge, Button, Card, EmptyState, ErrorState, ForbiddenState, Input, LoadingState, OfflineState, Select } from '../../../../design-system';
 import { formatDate } from '../../../../../../shared/i18n/locale';
-import type { TranslationKey } from '../../../../../../shared/i18n/translations';
+import { smsMessageLabelKey as messageLabelKey } from '../../../../../../shared/adminCandidateSms/messageLabels';
 import type { SmsTemplate } from '../../../../lib/admin-app-settings-client';
 import { useSmsTemplates } from '../hooks/useSmsTemplates';
 import { useUpdateSmsTemplate } from '../hooks/useUpdateSmsTemplate';
@@ -40,6 +40,10 @@ export function SmsTemplateList() {
   return (
     <>
       <p className="mb-4 text-sm text-text-secondary">{t('adminSmsTemplatesIntro')}</p>
+      <div role="note" className="mb-4 flex items-start gap-2 rounded-xl border border-info bg-info-subtle px-4 py-3 text-sm text-info-emphasis">
+        <Info className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
+        <p>{t('adminSmsTemplatesManualNote')}</p>
+      </div>
       <div className="grid gap-4 xl:grid-cols-2">
         {templates.map((template) => <SmsTemplateRow key={template.messageCode} template={template} />)}
       </div>
@@ -59,8 +63,8 @@ function ViewMode({ template, onEdit }: { template: SmsTemplate; onEdit: () => v
   const status = !template.templateIdEn
     ? { tone: 'warning' as const, label: t('adminSmsTemplatesStatusNoTemplate') }
     : template.enabled
-      ? { tone: 'success' as const, label: t('adminAppSettingsOn') }
-      : { tone: 'neutral' as const, label: t('adminAppSettingsOff') };
+      ? { tone: 'success' as const, label: t('adminSmsTemplatesStatusAutomatic') }
+      : { tone: 'neutral' as const, label: t('adminSmsTemplatesStatusManual') };
 
   return (
     <Card className="h-full border-t-4 border-t-brand p-5">
@@ -182,16 +186,15 @@ function Variables({ variables }: { variables: string[] }) {
   return (
     <div className="mt-3">
       <p className="mb-1.5 text-xs font-medium text-text-tertiary">{t('adminSmsTemplatesVariables')}</p>
-      <div dir="ltr" className="flex flex-wrap gap-1.5">
-        {variables.map((variable) => (
-          <code key={variable} className="rounded-md bg-surface-sunken px-1.5 py-0.5 text-xs text-text-secondary">#{variable}#</code>
-        ))}
-      </div>
+      {variables.length === 0 ? (
+        <p className="text-xs text-text-tertiary">{t('adminSmsTemplatesNoVariables')}</p>
+      ) : (
+        <div dir="ltr" className="flex flex-wrap gap-1.5">
+          {variables.map((variable) => (
+            <code key={variable} className="rounded-md bg-surface-sunken px-1.5 py-0.5 text-xs text-text-secondary">#{variable}#</code>
+          ))}
+        </div>
+      )}
     </div>
   );
-}
-
-function messageLabelKey(code: string): TranslationKey {
-  const camel = code.replace(/_([a-z])/g, (_, letter: string) => letter.toUpperCase());
-  return `adminAppSettingsSms${camel.charAt(0).toUpperCase()}${camel.slice(1)}` as TranslationKey;
 }

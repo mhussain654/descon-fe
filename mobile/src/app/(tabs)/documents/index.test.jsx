@@ -1007,9 +1007,7 @@ describe("DocumentsScreen", () => {
     const year = String(now.getFullYear());
     const monthNumber = String(now.getMonth() + 1).padStart(2, "0");
     fireEvent.press(screen.getByLabelText("Police Character Certificate issue date"));
-    fireEvent.press(screen.getByRole("button", { name: "1" }));
-    fireEvent.press(screen.getByRole("button", { name: month }));
-    fireEvent.press(screen.getByRole("button", { name: year }));
+    fireEvent.press(screen.getByRole("button", { name: `1 ${month} ${year}` }));
     fireEvent.press(screen.getByRole("button", { name: "Done" }));
     fireEvent.press(await screen.findByRole("button", { name: "Choose file" }));
     await screen.findByText(/Selected file: passport\.pdf/);
@@ -1027,7 +1025,7 @@ describe("DocumentsScreen", () => {
     expect(call.formData.get("candidate_document[issued_on]")).toBe(`${year}-${monthNumber}-01`);
   });
 
-  it("refuses a PCC issued more than 5 months ago before uploading anything", async () => {
+  it("flags a PCC issued more than 5 months ago as soon as the date is chosen, and keeps Submit disabled", async () => {
     candidateDocumentsClient.getChecklist.mockResolvedValue([
       item({ requirementCode: "police_character", name: "Police Character Certificate", status: "missing" }),
     ]);
@@ -1037,18 +1035,49 @@ describe("DocumentsScreen", () => {
 
     fireEvent.press(await screen.findByRole("button", { name: "Upload" }));
     fireEvent.press(screen.getByLabelText("Police Character Certificate issue date"));
-    // The 1st of January last year: always more than 5 months ago. Day 1 is
-    // used because the picker only renders the days near today's date.
-    fireEvent.press(screen.getByRole("button", { name: "1" }));
+    // The 1st of January last year: always more than 5 months ago.
+    const lastYear = String(new Date().getFullYear() - 1);
+    fireEvent.press(screen.getByRole("button", { name: /^Year, / }));
+    fireEvent.press(screen.getByRole("button", { name: lastYear }));
     fireEvent.press(screen.getByRole("button", { name: "January" }));
-    fireEvent.press(screen.getByRole("button", { name: String(new Date().getFullYear() - 1) }));
+    fireEvent.press(screen.getByRole("button", { name: `1 January ${lastYear}` }));
     fireEvent.press(screen.getByRole("button", { name: "Done" }));
-    fireEvent.press(await screen.findByRole("button", { name: "Choose file" }));
-    await screen.findByText(/Selected file: passport\.pdf/);
-    fireEvent.press(screen.getByRole("button", { name: "Submit" }));
 
     expect(await screen.findByText("This PCC was issued more than 5 months ago. Please get a new one and upload it.")).toBeOnTheScreen();
+    fireEvent.press(await screen.findByRole("button", { name: "Choose file" }));
+    await screen.findByText(/Selected file: passport\.pdf/);
+    expect(screen.getByRole("button", { name: "Submit" })).toBeDisabled();
+    fireEvent.press(screen.getByRole("button", { name: "Submit" }));
     expect(candidateDocumentsClient.uploadDocument).not.toHaveBeenCalled();
+
+    // Choosing a recent date clears the error and enables Submit again.
+    const now = new Date();
+    fireEvent.press(screen.getByLabelText("Police Character Certificate issue date"));
+    fireEvent.press(screen.getByRole("button", { name: /^Year, / }));
+    fireEvent.press(screen.getByRole("button", { name: String(now.getFullYear()) }));
+    fireEvent.press(screen.getByRole("button", { name: now.toLocaleString("en-US", { month: "long" }) }));
+    fireEvent.press(screen.getByRole("button", { name: `1 ${now.toLocaleString("en-US", { month: "long" })} ${now.getFullYear()}` }));
+    fireEvent.press(screen.getByRole("button", { name: "Done" }));
+    expect(screen.queryByText("This PCC was issued more than 5 months ago. Please get a new one and upload it.")).toBeNull();
+    expect(screen.getByRole("button", { name: "Submit" })).toBeEnabled();
+  });
+
+  it("shows \"Next of Kin\" in bold in the next of kin's CNIC instructions", async () => {
+    candidateDocumentsClient.getChecklist.mockResolvedValue([
+      item({
+        requirementCode: "next_of_kin_cnic",
+        name: "Next of Kin CNIC",
+        status: "missing",
+        instructions: "Only your father, mother, brother, wife, son, or unmarried sister or daughter can be your Next of Kin.",
+      }),
+    ]);
+    applicationProgressClient.getProgress.mockResolvedValue(progress());
+    renderDocumentsScreen();
+
+    fireEvent.press(await screen.findByRole("button", { name: "Upload" }));
+
+    expect(await screen.findByText("Next of Kin")).toHaveStyle({ fontFamily: "Inter_700Bold" });
+    expect(screen.getByText(/unmarried sister or daughter can be your/)).toHaveStyle({ fontFamily: "Inter_400Regular" });
   });
 
   it("asks how the Next of Kin is related before uploading their CNIC, and sends the relation", async () => {

@@ -71,10 +71,21 @@ describe("SmsTemplateList", () => {
     expect(within(fee).getByText("20010")).toBeInTheDocument();
     expect(within(fee).getByText("Not set")).toBeInTheDocument();
     expect(within(fee).getByText("#amount#")).toBeInTheDocument();
-    expect(within(fee).getByText("On")).toBeInTheDocument();
+    expect(within(fee).getByText("Automatic")).toBeInTheDocument();
     expect(within(card("Login code (OTP)")).getByText("#code#")).toBeInTheDocument();
     expect(within(card("Visa issued")).getByText("No template: not sent")).toBeInTheDocument();
-    expect(within(card("Visa not approved")).getByText("Off")).toBeInTheDocument();
+    expect(within(card("Visa not approved")).getByText("Manual only")).toBeInTheDocument();
+  });
+
+  it("explains that only automatic SMS go out on their own and the rest are sent from the candidate page", async () => {
+    vi.mocked(adminAppSettingsClient.listSmsTemplates).mockResolvedValue([
+      template({ messageCode: "documents_submitted", variables: [] }),
+    ]);
+
+    await renderList();
+
+    expect(await screen.findByRole("note")).toHaveTextContent(/sent by hand from the candidate page, on the SMS tab/);
+    expect(within(card("All documents submitted for review")).getByText("None")).toBeInTheDocument();
   });
 
   it("saves new template ids and the switch for a message", async () => {
@@ -85,7 +96,7 @@ describe("SmsTemplateList", () => {
     fireEvent.click(await screen.findByRole("button", { name: "Edit: Please pay the fee" }));
     fireEvent.change(screen.getByLabelText("English template id"), { target: { value: "20020" } });
     fireEvent.change(screen.getByLabelText("Urdu template id"), { target: { value: "20021" } });
-    fireEvent.change(screen.getByLabelText("Send this SMS"), { target: { value: "off" } });
+    fireEvent.change(screen.getByLabelText("Send automatically"), { target: { value: "off" } });
     fireEvent.click(screen.getByRole("button", { name: "Save" }));
 
     await waitFor(() =>
@@ -105,7 +116,7 @@ describe("SmsTemplateList", () => {
     await renderList();
     fireEvent.click(await screen.findByRole("button", { name: "Edit: Login code (OTP)" }));
 
-    expect(screen.queryByLabelText("Send this SMS")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("Send automatically")).not.toBeInTheDocument();
     expect(screen.getByText(/Always on: candidates need it to log in/)).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Save" }));
     await waitFor(() =>
