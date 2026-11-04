@@ -221,10 +221,11 @@ const QATAR_STEPS = [
 ];
 
 describe("StatusScreen", () => {
-  it("shows the Business Unit from the backend mobilization process", async () => {
+  it("names the country only in the steps heading, not in the header", async () => {
     applicationProgressClient.getProgress.mockResolvedValue(progressPayload({ workflow: workflowPayload({ mobilizationProcess: { code: 'qatar-v1', version: 1, provisional: false, countryCode: 'qatar' } }) }));
     renderStatusScreen();
-    expect(await screen.findByText('In process for: Qatar')).toBeOnTheScreen();
+    expect(await screen.findByText('Mobilization process for Qatar')).toBeOnTheScreen();
+    expect(screen.queryByText(/In process for/)).toBeNull();
   });
 
   it("counts progress over the client's mobilization steps for the Business Unit", async () => {
@@ -434,7 +435,6 @@ describe("StatusScreen", () => {
     renderStatusScreen();
 
     expect(await screen.findByText("Mobilization process for Kuwait")).toBeOnTheScreen();
-    expect(screen.getByText("In process for: Kuwait")).toBeOnTheScreen();
   });
 
   it("keeps the plain mobilization process heading when the country is unknown", async () => {

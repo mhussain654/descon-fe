@@ -92,7 +92,7 @@ export default function StatusScreen() {
     <ButtonHeightContext.Provider value={34}>
     <View style={statusStyles.screen}>
       <StatusBar style="light" />
-      <StatusHeader countryName={countryName} topInset={insets.top} language={language} t={t} />
+      <StatusHeader topInset={insets.top} language={language} t={t} />
       <ScrollView
         style={statusStyles.scroll}
         contentContainerStyle={[statusStyles.content, { paddingBottom: insets.bottom + 80 }]}
