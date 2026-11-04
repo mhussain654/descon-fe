@@ -11,6 +11,7 @@ import { useAuth } from "../../../contexts/AuthContext";
 import { useLanguage } from "../../../contexts/LanguageContext";
 import { useRefetchOnFocus } from "../../../hooks/useRefetchOnFocus";
 import { useApplicationProgress } from "../../../features/candidate/progress/hooks/useApplicationProgress";
+import { useCandidateProfile } from "../../../features/candidate/profile/hooks/useCandidateProfile";
 import { useCandidateWorkflowHistory } from "../../../features/candidate/workflow/hooks/useCandidateWorkflowHistory";
 import { useCandidateFlightDetail } from "../../../features/candidate/workflow/hooks/useCandidateFlightDetail";
 import { useFlightTicketAccess } from "../../../features/candidate/workflow/hooks/useFlightTicketAccess";
@@ -47,6 +48,7 @@ export default function StatusScreen() {
   const { t, language } = useLanguage();
   const { logout } = useAuth();
   const progressQuery = useApplicationProgress();
+  const profileQuery = useCandidateProfile();
   const historyQuery = useCandidateWorkflowHistory();
   const flightDetailQuery = useCandidateFlightDetail();
   const ticketAccess = useFlightTicketAccess();
@@ -77,17 +79,20 @@ export default function StatusScreen() {
   // never assumed to be the only one) -- the backend returns the list in chronological order.
   const latestVisaDecision = visaDecisionsQuery.data?.at(-1) ?? null;
   const lastUpdatedLabel = workflow ? formatStageDate(workflow.updatedAt, language) : null;
-  // "Mobilization process for Qatar": the steps shown are that country's own flow.
-  const countryKey = BUSINESS_UNIT_KEYS[workflow?.mobilizationProcess?.countryCode];
-  const journeyTitle = countryKey
-    ? interpolate(t("journeyMobilizationProcessForCountry"), { country: t(countryKey) })
+  // The candidate's destination country, e.g. "Mobilization process for Qatar".
+  // It comes from the mobilization process; a candidate on the common process
+  // (no country of its own) still has their assignment's country on the profile.
+  const processCountryKey = BUSINESS_UNIT_KEYS[workflow?.mobilizationProcess?.countryCode];
+  const countryName = processCountryKey ? t(processCountryKey) : profileQuery.data?.country?.name ?? null;
+  const journeyTitle = countryName
+    ? interpolate(t("journeyMobilizationProcessForCountry"), { country: countryName })
     : t("journeyMobilizationProcessTitle");
 
   return (
     <ButtonHeightContext.Provider value={34}>
     <View style={statusStyles.screen}>
       <StatusBar style="light" />
-      <StatusHeader countryCode={workflow?.mobilizationProcess?.countryCode} topInset={insets.top} language={language} t={t} />
+      <StatusHeader countryName={countryName} topInset={insets.top} language={language} t={t} />
       <ScrollView
         style={statusStyles.scroll}
         contentContainerStyle={[statusStyles.content, { paddingBottom: insets.bottom + 80 }]}

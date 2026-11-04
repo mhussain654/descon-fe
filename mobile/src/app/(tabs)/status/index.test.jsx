@@ -6,6 +6,7 @@ import { AuthProvider } from "../../../contexts/AuthContext";
 import { LanguageProvider } from "../../../contexts/LanguageContext";
 import { applicationProgressClient } from "../../../lib/application-progress-client";
 import { candidateWorkflowClient } from "../../../lib/candidate-workflow-client";
+import { candidateProfileClient } from "../../../lib/candidate-profile-client";
 import { candidateFlightDetailClient } from "../../../lib/candidate-flight-detail-client";
 import { candidateVisaDecisionsClient } from "../../../lib/candidate-visa-decisions-client";
 import { createQueryClientTestLifecycle } from "../../../testSupport/queryClientTestLifecycle";
@@ -47,6 +48,9 @@ jest.mock("@react-navigation/native", () => ({ useFocusEffect: () => {} }));
 
 jest.mock("../../../lib/application-progress-client", () => ({
   applicationProgressClient: { getProgress: jest.fn(), submitDocuments: jest.fn() },
+}));
+jest.mock("../../../lib/candidate-profile-client", () => ({
+  candidateProfileClient: { getProfile: jest.fn() },
 }));
 jest.mock("../../../lib/candidate-workflow-client", () => ({
   candidateWorkflowClient: { getWorkflowHistory: jest.fn() },
@@ -161,6 +165,7 @@ const { createTestQueryClient, trackRender, cleanup } = createQueryClientTestLif
 // don't each need their own mock, mirroring documents/index.test.jsx's
 // identical established convention.
 beforeEach(() => {
+  candidateProfileClient.getProfile.mockResolvedValue({ country: null });
   candidateFlightDetailClient.getFlightDetail.mockResolvedValue(null);
   candidateVisaDecisionsClient.listVisaDecisions.mockResolvedValue([]);
 });
@@ -420,6 +425,16 @@ describe("StatusScreen", () => {
     renderStatusScreen();
 
     expect(await screen.findByText("Mobilization process for United Arab Emirates")).toBeOnTheScreen();
+  });
+
+  it("falls back to the candidate's assignment country when they are on the common process", async () => {
+    applicationProgressClient.getProgress.mockResolvedValue(progressPayload({ workflow: workflowPayload({ mobilizationProcess: { code: "common_mobilization", version: 2, provisional: true, countryCode: null } }) }));
+    candidateProfileClient.getProfile.mockResolvedValue({ country: { code: "kuwait", name: "Kuwait" } });
+    candidateWorkflowClient.getWorkflowHistory.mockResolvedValue(historyPayload());
+    renderStatusScreen();
+
+    expect(await screen.findByText("Mobilization process for Kuwait")).toBeOnTheScreen();
+    expect(screen.getByText("In process for: Kuwait")).toBeOnTheScreen();
   });
 
   it("keeps the plain mobilization process heading when the country is unknown", async () => {

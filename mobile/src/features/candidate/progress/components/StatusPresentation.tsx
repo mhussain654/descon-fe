@@ -30,7 +30,7 @@ export function statusCopyStyle(language: Language, fontSize = 15) {
 
 export const BUSINESS_UNIT_KEYS: Record<string, TranslationKey> = { qatar: 'buQatar', saudi_arabia: 'buSaudiArabia', uae: 'buUae', oman: 'buOman', kuwait: 'buKuwait', azerbaijan: 'buAzerbaijan', south_africa: 'buSouthAfrica' };
 
-export function StatusHeader({ language, t, topInset, countryCode }: LocaleProps & { topInset: number; countryCode?: string }) {
+export function StatusHeader({ language, t, topInset, countryName }: LocaleProps & { topInset: number; countryName?: string | null }) {
   const rtl = language === 'ur';
   return (
     <View style={[statusStyles.hero, { paddingTop: topInset + spacing[3] }]}>
@@ -46,7 +46,7 @@ export function StatusHeader({ language, t, topInset, countryCode }: LocaleProps
         </View>
         <View style={statusStyles.heroIcon} accessible={false}><Plane size={29} color="#0065B3" /></View>
       </View>
-      {countryCode && BUSINESS_UNIT_KEYS[countryCode] ? <Text style={[statusStyles.businessUnit, statusCopyStyle(language)]}>{t('candidateProfileBusinessUnitLabel')}: {t(BUSINESS_UNIT_KEYS[countryCode])}</Text> : null}
+      {countryName ? <Text style={[statusStyles.businessUnit, statusCopyStyle(language)]}>{t('candidateProfileBusinessUnitLabel')}: {countryName}</Text> : null}
     </View>
   );
 }
