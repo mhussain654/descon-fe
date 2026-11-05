@@ -40,6 +40,22 @@
 				"releaseStatus": "draft",
 				"changesNotSentForReview": false
 			}
+		},
+		"internal": {
+			"android": {
+				"serviceAccountKeyPath": "./google-service-account.json",
+				"track": "internal",
+				"releaseStatus": "completed",
+				"changesNotSentForReview": false
+			}
+		},
+		"release": {
+			"android": {
+				"serviceAccountKeyPath": "./google-service-account.json",
+				"track": "production",
+				"releaseStatus": "completed",
+				"changesNotSentForReview": false
+			}
 		}
 	}
 }

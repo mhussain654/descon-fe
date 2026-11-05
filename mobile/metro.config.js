@@ -72,7 +72,6 @@ config.cacheStores = () => [
   }),
 ];
 config.resetCache = false;
-config.fileMapCacheDirectory = cacheDir;
 
 const originalGetTransformOptions = config.transformer.getTransformOptions;
 
