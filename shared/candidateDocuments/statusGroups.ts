@@ -53,7 +53,8 @@ export interface DocumentSummaryTile {
  * submitting: Approved, Under Approval and Rejected, which change as Descon
  * reviews. Optional documents aren't counted. The bank account, though added
  * on its own form, is one of the items the candidate must provide: it counts
- * as Uploaded once added, then Under Approval after submitting.
+ * as Uploaded once added, then Under Approval, Approved or Rejected as staff
+ * review it.
  */
 export function documentSummaryTiles(
   items: readonly ChecklistEntry[],
@@ -61,13 +62,14 @@ export function documentSummaryTiles(
 ): DocumentSummaryTile[] {
   const required = items.filter((item) => item.required);
   const count = (group: DocumentStatusGroup) => required.filter((item) => documentStatusGroup(item.status) === group).length;
-  const bankAdded = bankDetailStatus === 'submitted' ? 1 : 0;
+  const bankAdded = bankDetailStatus !== null && bankDetailStatus !== 'missing' ? 1 : 0;
+  const bankIs = (status: CandidateBankDetailState) => (bankDetailStatus === status ? 1 : 0);
 
   if (hasSubmittedForReview(items)) {
     return [
-      { group: 'approved', count: count('approved') },
-      { group: 'under_approval', count: count('under_approval') + bankAdded },
-      { group: 'rejected', count: count('rejected') },
+      { group: 'approved', count: count('approved') + bankIs('verified') },
+      { group: 'under_approval', count: count('under_approval') + bankIs('submitted') },
+      { group: 'rejected', count: count('rejected') + bankIs('rejected') },
     ];
   }
   return [

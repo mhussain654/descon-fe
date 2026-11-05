@@ -14,6 +14,10 @@ import DocumentReviewDetailPage from "./page";
 import { SubmissionDetail } from "../../../../features/admin/documentReviews/components/SubmissionDetail";
 import { adminDocumentReviewsClient } from "../../../../lib/admin-document-reviews-client";
 
+// The bank details card on this page has its own tests (BankDetailReviewCard.test.tsx).
+vi.mock("../../../../lib/admin-bank-details-client", () => ({
+  adminBankDetailsClient: { get: vi.fn().mockResolvedValue(null), requestProofAccess: vi.fn(), verify: vi.fn(), reject: vi.fn() },
+}));
 vi.mock("../../../../lib/admin-document-reviews-client", () => ({
   adminDocumentReviewsClient: {
     getQueue: vi.fn(),
@@ -142,7 +146,8 @@ describe("DocumentReviewDetailPage", () => {
       renderAt("/admin/document-reviews/submission-1", client);
 
       expect(await screen.findByText("Passport")).toBeInTheDocument();
-      expect(screen.getByText("Required")).toBeInTheDocument();
+      // The document's own badge (the bank details card below has one too).
+      expect(screen.getAllByText("Required")[0]).toBeInTheDocument();
       expect(screen.getByText("passport.pdf")).toBeInTheDocument();
       expect(screen.getByText("application/pdf")).toBeInTheDocument();
       expect(screen.getByText("120.6 KB")).toBeInTheDocument();

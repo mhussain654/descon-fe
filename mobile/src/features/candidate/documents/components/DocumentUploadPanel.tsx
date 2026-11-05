@@ -180,7 +180,7 @@ export function DocumentUploadPanel({ labelText, instructions, upload, t, langua
       {/* Capture guidance, not automated validation -- plain instruction text only. */}
       {canCapture && !(layout.kind === 'pair' && upload.mode === 'combined' && layout.combinedAllowed) ? <HelperText language={language}>{t('candidateDocumentsCaptureGuidance')}</HelperText> : null}
 
-      {layout.kind === 'single' ? slot(null, null) : null}
+      {layout.kind === 'single' ? slot(layout.sideCode, null) : null}
 
       {layout.kind === 'pair' ? (
         <>

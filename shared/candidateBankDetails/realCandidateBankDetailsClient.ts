@@ -33,6 +33,7 @@ interface BankDetailResponse {
   proof: BankDetailProofResponse;
   submitted_at: string;
   updated_at: string;
+  rejection_reason?: string | null;
 }
 
 interface BankDetailSummaryResponse {
@@ -46,7 +47,7 @@ export interface RealCandidateBankDetailsClientOptions {
   getLocale: () => 'en' | 'ur';
 }
 
-const KNOWN_STATES = new Set<string>(['missing', 'submitted']);
+const KNOWN_STATES = new Set<string>(['missing', 'submitted', 'verified', 'rejected']);
 
 function toState(raw: string): CandidateBankDetailState {
   return (KNOWN_STATES.has(raw) ? raw : 'missing') as CandidateBankDetailState;
@@ -67,6 +68,7 @@ function toBankDetail(data: BankDetailResponse): CandidateBankDetail {
     },
     submittedAt: data.submitted_at,
     updatedAt: data.updated_at,
+    rejectionReason: data.rejection_reason ?? undefined,
   };
 }
 

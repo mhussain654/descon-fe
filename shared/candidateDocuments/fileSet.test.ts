@@ -36,8 +36,15 @@ describe('layoutFor', () => {
     expect(layoutFor(RULES.passport)).toEqual({ kind: 'pair', parts: ['page_1', 'page_2'], combinedAllowed: true });
     expect(layoutFor(RULES.cnic)).toEqual({ kind: 'pair', parts: ['front', 'back'], combinedAllowed: true });
     expect(layoutFor(RULES.certificates)).toEqual({ kind: 'multiple', sideCode: 'certificate', maximumFiles: 10 });
-    expect(layoutFor(RULES.cv)).toEqual({ kind: 'single' });
+    expect(layoutFor(RULES.cv)).toEqual({ kind: 'single', sideCode: null });
     expect(layoutFor({ ...RULES.cv, maximumFiles: 3 })).toEqual({ kind: 'multiple', sideCode: null, maximumFiles: 3 });
+  });
+
+  it('labels the one file "combined" when that is the only part the rules allow', () => {
+    const combinedOnly = { ...RULES.cnic, maximumFiles: 1, allowedSideCodes: ['combined'] as DocumentUploadRules['allowedSideCodes'] };
+
+    expect(layoutFor(combinedOnly)).toEqual({ kind: 'single', sideCode: 'combined' });
+    expect(validateFileSet(combinedOnly, [entry('combined', pdf())])).toBeNull();
   });
 
   it('only offers a combined PDF when the rules allow it', () => {

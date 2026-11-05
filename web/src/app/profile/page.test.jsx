@@ -226,7 +226,7 @@ describe("ProfilePage", () => {
     await signInAndNavigateToProfile();
 
     expect(await screen.findByText("Account inactive")).toBeInTheDocument();
-    expect(screen.getByText("Your account is inactive. Contact Descon for help.")).toBeInTheDocument();
+    expect(screen.getByText("Your account is inactive. Contact Descon MPS for help.")).toBeInTheDocument();
   });
 
   it("shows an offline state with a retry action for a network failure", async () => {

@@ -1227,6 +1227,34 @@ describe("DocumentsScreen", () => {
       expect(await screen.findAllByText("Uploaded")).toHaveLength(2);
     });
 
+    it("shows rejected bank details with the reason, and lets the candidate correct them", async () => {
+      candidateDocumentsClient.getChecklist.mockResolvedValue([item({ status: "missing" })]);
+      applicationProgressClient.getProgress.mockResolvedValue(progress());
+      candidateBankDetailsClient.getBankDetail.mockResolvedValue(
+        bankDetailSummary({ status: "rejected", bankDetail: bankDetail({ status: "rejected", rejectionReason: "The IBAN does not match the cheque." }) })
+      );
+      renderDocumentsScreen();
+
+      fireEvent.press(await screen.findByRole("button", { name: "Update bank details" }));
+
+      expect(screen.getAllByText("Rejected").length).toBeGreaterThan(0);
+      expect(screen.getByText("Rejected because: The IBAN does not match the cheque.")).toBeOnTheScreen();
+      expect(screen.getByRole("button", { name: "Submit" })).toBeOnTheScreen();
+    });
+
+    it("shows verified bank details as approved and no longer editable", async () => {
+      candidateDocumentsClient.getChecklist.mockResolvedValue([item({ status: "missing" })]);
+      applicationProgressClient.getProgress.mockResolvedValue(progress());
+      candidateBankDetailsClient.getBankDetail.mockResolvedValue(bankDetailSummary({ status: "verified", bankDetail: bankDetail({ status: "verified" }) }));
+      renderDocumentsScreen();
+
+      fireEvent.press(await screen.findByRole("button", { name: "Update bank details" }));
+
+      expect(screen.getAllByText("Approved").length).toBeGreaterThan(0);
+      expect(screen.getByText(/verified and can no longer be changed/)).toBeOnTheScreen();
+      expect(screen.queryByRole("button", { name: "Submit" })).toBeNull();
+    });
+
     it("validates required fields client-side before calling the API", async () => {
       candidateDocumentsClient.getChecklist.mockResolvedValue([item({ status: "missing" })]);
       applicationProgressClient.getProgress.mockResolvedValue(progress());
@@ -1253,7 +1281,7 @@ describe("DocumentsScreen", () => {
       fireEvent.press(screen.getByRole("button", { name: "Meezan Bank Limited" }));
       fireEvent.press(screen.getByRole("button", { name: "Submit" }));
 
-      expect(await screen.findByText("Enter your full IBAN: 24 characters starting with PK. Otherwise your bank details will be rejected.")).toBeOnTheScreen();
+      expect(await screen.findByText("This is not a valid IBAN. Copy it exactly as your bank gives it: PK, 2 digits, your bank’s 4-letter code, then 16 digits (for example PK36 SCBL 0000 0011 2345 6702).")).toBeOnTheScreen();
       expect(candidateBankDetailsClient.submitBankDetail).not.toHaveBeenCalled();
     });
 
@@ -1406,6 +1434,25 @@ describe("DocumentsScreen", () => {
       fireEvent.press(screen.getAllByRole("button", { name: "Choose file" })[0]);
       await screen.findByText(new RegExp(`Selected file: ${asset.name.replace(".", "\\.")}`));
     }
+
+    it("uploads a CNIC that must be one scanned PDF, labelling the file as combined", async () => {
+      const combinedOnly = cnicItem({ uploadRules: { ...CNIC_RULES, maximumFiles: 1, allowedSideCodes: ["combined"] } });
+      candidateDocumentsClient.getChecklist.mockResolvedValue([combinedOnly]);
+      applicationProgressClient.getProgress.mockResolvedValue(progress());
+      candidateDocumentsClient.uploadDocument.mockResolvedValue(cnicItem({ status: "uploaded", document: uploadedDocument() }));
+      renderDocumentsScreen();
+
+      fireEvent.press(await screen.findByRole("button", { name: "Upload" }));
+      await chooseFileForNextEmptySlot(pdfAsset());
+      expect(screen.queryByText("Choose which part of the document each file is.")).toBeNull();
+      await act(async () => {
+        fireEvent.press(screen.getByRole("button", { name: "Submit" }));
+      });
+
+      await waitFor(() => expect(candidateDocumentsClient.uploadDocument).toHaveBeenCalledTimes(1));
+      const [call] = candidateDocumentsClient.uploadDocument.mock.calls[0];
+      expect(call.formData.get("candidate_document[files][][side_code]")).toBe("combined");
+    });
 
     it("shows mode-specific CNIC guidance and labelled front/back slots, sending both parts with their labels", async () => {
       candidateDocumentsClient.getChecklist.mockResolvedValue([cnicItem()]);

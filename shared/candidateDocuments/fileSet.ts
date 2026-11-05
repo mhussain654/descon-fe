@@ -19,13 +19,14 @@ const REPEATABLE_SIDE_CODES = new Set<DocumentSideCode>(['certificate']);
 
 /**
  * How the upload form for a requirement is shaped:
- * - `single`: one unlabelled file.
+ * - `single`: one file, labelled with `sideCode` when the rules allow exactly
+ *   one label (e.g. a CNIC that must be one combined PDF), else unlabelled.
  * - `pair`: two labelled parts (front/back or page 1/page 2), or -- when
  *   `combinedAllowed` -- alternatively one combined PDF.
  * - `multiple`: one or more files sharing one label (or none), up to `maximumFiles`.
  */
 export type FileSetLayout =
-  | { kind: 'single' }
+  | { kind: 'single'; sideCode: DocumentSideCode | null }
   | { kind: 'pair'; parts: readonly [DocumentSideCode, DocumentSideCode]; combinedAllowed: boolean }
   | { kind: 'multiple'; sideCode: DocumentSideCode | null; maximumFiles: number };
 
@@ -39,7 +40,8 @@ export function layoutFor(rules: DocumentUploadRules): FileSetLayout {
   if (repeatable || (codes.length === 0 && rules.maximumFiles > 1)) {
     return { kind: 'multiple', sideCode: repeatable, maximumFiles: rules.maximumFiles };
   }
-  return { kind: 'single' };
+  // A single non-repeatable label (e.g. only `combined`) is required on the one file.
+  return { kind: 'single', sideCode: codes.length === 1 ? codes[0] : null };
 }
 
 /** One selected file and the part it represents (null when the requirement uses no labels). */

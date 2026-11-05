@@ -110,6 +110,27 @@ export function BankDetailsPanel({ isDark, t, language, submittedForReview, onSe
 
   const bankDetail = query.data?.bankDetail ?? null;
   const isComplete = bankDetail !== null;
+  const reviewStatus = bankDetail?.status;
+  // Verified details can no longer be changed; rejected ones are corrected and sent again.
+  const isLocked = reviewStatus === "verified";
+  const statusKey: TranslationKey = !isComplete
+    ? "candidateDocumentsStatusRequired"
+    : reviewStatus === "verified"
+      ? "candidateDocumentsStatusApproved"
+      : reviewStatus === "rejected"
+        ? "candidateDocumentsStatusRejected"
+        : submittedForReview
+          ? "candidateDocumentsStatusUnderApproval"
+          : "candidateDocumentsStatusUploaded";
+  const statusColor = !isComplete
+    ? "#6B7280"
+    : reviewStatus === "verified"
+      ? "#087C46"
+      : reviewStatus === "rejected"
+        ? "#B42318"
+        : submittedForReview
+          ? "#9A5700"
+          : "#6941C6";
 
   const handleToggle = () => {
     if (upload.mutation.isPending) return;
@@ -133,16 +154,24 @@ export function BankDetailsPanel({ isDark, t, language, submittedForReview, onSe
               {t("candidateBankDetailsTitle")}
             </Text>
             <Text
-              style={[styles.subtitle, { color: !isComplete ? "#6B7280" : submittedForReview ? "#9A5700" : "#6941C6", fontFamily: getFontFamily(language, "regular"), textAlign: physicalTextAlign(language === "ur" ? "right" : "left"), lineHeight: language === "ur" ? 30 : 20 }]}
+              style={[styles.subtitle, { color: statusColor, fontFamily: getFontFamily(language, "regular"), textAlign: physicalTextAlign(language === "ur" ? "right" : "left"), lineHeight: language === "ur" ? 30 : 20 }]}
             >
-              {t(!isComplete ? "candidateDocumentsStatusRequired" : submittedForReview ? "candidateDocumentsStatusUnderApproval" : "candidateDocumentsStatusUploaded")}
+              {t(statusKey)}
             </Text>
           </View>
           <Chevron size={20} color={isDark ? "#6B7280" : "#9CA3AF"} />
         </View>
       </Pressable>
 
-      {isOpen ? <BankDetailsForm t={t} language={language} upload={upload} onDone={handleDone} /> : null}
+      {isOpen && reviewStatus === "rejected" && bankDetail?.rejectionReason ? (
+        <ValidationMessage tone="error" language={language}>
+          {`${t("candidateBankDetailsRejectedReasonLabel")}: ${bankDetail.rejectionReason}`}
+        </ValidationMessage>
+      ) : null}
+      {isOpen && isLocked ? (
+        <HelperText language={language}>{t("candidateBankDetailsVerifiedLocked")}</HelperText>
+      ) : null}
+      {isOpen && !isLocked ? <BankDetailsForm t={t} language={language} upload={upload} onDone={handleDone} /> : null}
     </View>
   );
 }

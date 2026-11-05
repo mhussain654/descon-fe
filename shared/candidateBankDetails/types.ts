@@ -11,7 +11,8 @@
 // document_requirements.rb): candidates now submit bank information only
 // through this resource.
 
-export type CandidateBankDetailState = 'missing' | 'submitted';
+/** `submitted` is awaiting staff review; staff then verify it or reject it with a reason. */
+export type CandidateBankDetailState = 'missing' | 'submitted' | 'verified' | 'rejected';
 
 export interface CandidateBankDetailProof {
   fileName: string;
@@ -30,6 +31,8 @@ export interface CandidateBankDetail {
   proof: CandidateBankDetailProof;
   submittedAt: string;
   updatedAt: string;
+  /** Why staff rejected these details, shown to the candidate. */
+  rejectionReason?: string;
 }
 
 export interface CandidateBankDetailSummary {

@@ -124,7 +124,7 @@ export function DocumentUploadPanel({ labelText, instructions, upload, t, langua
         </div>
       ) : null}
 
-      {layout.kind === 'single' ? slot(null, t('candidateDocumentsChooseFile')) : null}
+      {layout.kind === 'single' ? slot(layout.sideCode, t('candidateDocumentsChooseFile')) : null}
 
       {layout.kind === 'pair' ? (
         <>

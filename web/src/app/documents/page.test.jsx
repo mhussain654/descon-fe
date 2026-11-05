@@ -1111,7 +1111,7 @@ describe("DocumentsPage", () => {
       fireEvent.change(screen.getByLabelText("Bank name"), { target: { value: "Meezan Bank Limited" } });
       fireEvent.click(screen.getByRole("button", { name: "Submit" }));
 
-      expect(await screen.findByText("Enter your full IBAN: 24 characters starting with PK. Otherwise your bank details will be rejected.")).toBeInTheDocument();
+      expect(await screen.findByText("This is not a valid IBAN. Copy it exactly as your bank gives it: PK, 2 digits, your bank’s 4-letter code, then 16 digits (for example PK36 SCBL 0000 0011 2345 6702).")).toBeInTheDocument();
       expect(candidateBankDetailsClient.submitBankDetail).not.toHaveBeenCalled();
     });
 

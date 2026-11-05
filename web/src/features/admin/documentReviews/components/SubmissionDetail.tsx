@@ -30,6 +30,7 @@ import { useDocumentExtraction } from '../hooks/useDocumentExtraction';
 import { useDocumentSubmission } from '../hooks/useDocumentSubmission';
 import { useReviewDecision } from '../hooks/useReviewDecision';
 import { DocumentPreview } from './DocumentPreview';
+import { BankDetailReviewCard } from './BankDetailReviewCard';
 
 export interface SubmissionDetailProps {
   submissionId: string;
@@ -193,6 +194,11 @@ export function SubmissionDetail({ submissionId }: SubmissionDetailProps) {
           ))}
         </div>
       )}
+
+      {/* The bank account is one of the items the candidate provides, reviewed here with the documents. */}
+      <div className="mt-4">
+        <BankDetailReviewCard candidateId={detail.candidate.id} />
+      </div>
 
       <ConfirmDialog
         open={decision.confirmTarget?.action === 'verified'}

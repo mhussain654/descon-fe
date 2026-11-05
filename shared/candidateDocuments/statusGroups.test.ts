@@ -61,4 +61,16 @@ describe('documentSummaryTiles', () => {
       { group: 'rejected', count: 1 },
     ]);
   });
+
+  it('moves the bank account to Approved or Rejected once staff review it', () => {
+    const items = [{ status: 'pending_review', required: true }] as const;
+
+    expect(documentSummaryTiles(items, 'verified')).toEqual([
+      { group: 'approved', count: 1 },
+      { group: 'under_approval', count: 1 },
+      { group: 'rejected', count: 0 },
+    ]);
+    expect(documentSummaryTiles(items, 'rejected')[2]).toEqual({ group: 'rejected', count: 1 });
+    expect(documentSummaryTiles([{ status: 'uploaded', required: true }], 'rejected')[1]).toEqual({ group: 'uploaded', count: 2 });
+  });
 });
