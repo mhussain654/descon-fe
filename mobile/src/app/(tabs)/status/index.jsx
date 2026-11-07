@@ -25,17 +25,18 @@ import { interpolate } from "../../../../../shared/i18n/interpolate";
 import { VISA_OUTCOME_KEYS, VISA_OUTCOME_TONES } from "../../../../../shared/candidateVisaDecisions/outcomeLabels";
 import { CANDIDATE_FLIGHT_DETAIL_ERROR_KEYS } from "../../../../../shared/candidateFlightDetail/errorMessages";
 import { CANDIDATE_VISA_DECISIONS_ERROR_KEYS } from "../../../../../shared/candidateVisaDecisions/errorMessages";
+import { themed, themedValues } from '../../../design-system/theme';
 
 // The steps that carry an outcome or a download of their own.
 const QVC_OUTCOME_STEP = "qvc_status";
 const VISA_OUTCOME_STEP = "visa";
 const FLIGHT_TICKET_STEP = "ready_to_fly";
 
-const QVC_TONE_COLORS = {
-  success: { bg: "#E6F9F0", text: "#087C46" },
-  warning: { bg: "#FFF7E6", text: "#9A5700" },
-  danger: { bg: "#FEF2F2", text: "#B42318" },
-};
+const QVC_TONE_COLORS = themedValues(() => ({
+  success: { bg: themed("#E6F9F0", "#133224"), text: themed("#087C46", "#82F7C1") },
+  warning: { bg: themed("#FFF7E6", "#302612"), text: themed("#9A5700", "#FFC57A") },
+  danger: { bg: themed("#FEF2F2", "#1E293B"), text: themed("#B42318", "#F2A29C") },
+}));
 
 function formatStageDate(iso, language) {
   if (!iso) return null;
@@ -217,7 +218,7 @@ export default function StatusScreen() {
                               size="sm"
                               style={[statusStyles.download, { alignSelf: isStartSide(language === "ur" ? "right" : "left") ? "flex-start" : "flex-end" }]}
                               labelStyle={[statusStyles.downloadText, language === "ur" && statusStyles.downloadTextUrdu]}
-                              leadingIcon={<Download size={14} color="#087443" />}
+                              leadingIcon={<Download size={14} color={themed("#087443", "#83F6C2")} />}
                               onPress={() => visaCopyAccess.downloadVisaCopy(latestVisaDecision.id)}
                               disabled={visaCopyAccess.isRequesting}
                               language={language}
@@ -242,7 +243,7 @@ export default function StatusScreen() {
                           size="sm"
                           style={[statusStyles.download, { alignSelf: isStartSide(language === "ur" ? "right" : "left") ? "flex-start" : "flex-end" }]}
                           labelStyle={[statusStyles.downloadText, language === "ur" && statusStyles.downloadTextUrdu]}
-                          leadingIcon={<Download size={14} color="#087443" />}
+                          leadingIcon={<Download size={14} color={themed("#087443", "#83F6C2")} />}
                           onPress={ticketAccess.downloadTicket}
                           disabled={ticketAccess.isRequesting}
                           language={language}

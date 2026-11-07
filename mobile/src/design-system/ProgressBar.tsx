@@ -1,6 +1,7 @@
-import { StyleSheet, View } from 'react-native';
+import { View } from 'react-native';
 import { Text } from './Text';
 import { colors, radii, spacing } from './tokens';
+import { themedStyles } from './theme';
 
 export interface ProgressBarProps {
   /** 0-100. Values outside that range are clamped. */
@@ -31,7 +32,7 @@ export function ProgressBar({ value, label, displayText }: ProgressBarProps) {
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themedStyles(() => ({
   track: {
     height: 8,
     borderRadius: radii.full,
@@ -40,4 +41,4 @@ const styles = StyleSheet.create({
   },
   fill: { height: '100%', borderRadius: radii.full, backgroundColor: colors.brand.default },
   text: { marginTop: spacing[2], fontSize: 14, color: colors.text.secondary },
-});
+}));

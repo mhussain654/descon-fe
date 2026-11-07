@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { View, ScrollView, Pressable, StyleSheet, RefreshControl } from 'react-native';
+import { View, ScrollView, Pressable, RefreshControl } from 'react-native';
 import { Text } from '../design-system/Text';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -11,6 +11,7 @@ import { useTrainingVideos } from '../features/candidate/training/hooks/useTrain
 import { getFontFamily } from '../design-system';
 import { TrainingVideoPlayer } from '../features/candidate/training/components/TrainingVideoPlayer';
 import type { TrainingVideo } from '../lib/training-videos-client';
+import { themed, themedStyles } from '../design-system/theme';
 
 export default function TrainingRoute() {
   return <RequireAuth><TrainingScreen /></RequireAuth>;
@@ -47,13 +48,13 @@ function TrainingScreen() {
     {selected ? <View style={styles.playerContainer}>
       <Text style={[styles.title, { fontFamily: font }]}>{isUrdu ? selected.title_ur : selected.title_en}</Text>
       <TrainingVideoPlayer key={selected.id} url={selected.playback_url} language={language} errorMessage={t('trainingPlayError')} />
-      <Pressable style={styles.close} onPress={() => setSelected(null)} accessibilityRole="button"><X size={18} color={'#0871DF'} /><Text style={{ fontFamily: font }}>{t('trainingAllVideos')}</Text></Pressable>
+      <Pressable style={styles.close} onPress={() => setSelected(null)} accessibilityRole="button"><X size={18} color={themed('#0871DF', '#7FBBFA')} /><Text style={{ fontFamily: font }}>{t('trainingAllVideos')}</Text></Pressable>
     </View> : <ScrollView contentContainerStyle={[styles.list, { paddingBottom: insets.bottom + 24 }]} refreshControl={<RefreshControl refreshing={query.isRefetching} onRefresh={() => query.refetch()} />}>
       {query.isPending && <Text style={[styles.message, { fontFamily: font }]}>{t('loading')}</Text>}
       {query.isError && <Pressable onPress={() => query.refetch()} accessibilityRole="button"><Text style={[styles.message, { fontFamily: font }]}>{t('trainingLoadError')} {t('retry')}</Text></Pressable>}
       {query.data?.length === 0 && <Text style={[styles.message, { fontFamily: font }]}>{t('trainingEmpty')}</Text>}
       {query.data?.map(video => <Pressable key={video.id} style={styles.card} onPress={() => openVideo(video)} disabled={openingId !== null} accessibilityRole="button" accessibilityLabel={isUrdu ? video.title_ur : video.title_en}>
-        <View style={styles.icon}><Play size={23} color="#0871DF" /></View>
+        <View style={styles.icon}><Play size={23} color={themed("#0871DF", "#7FBBFA")} /></View>
         <View style={styles.cardText}><Text style={[styles.title, { fontFamily: font, lineHeight: isUrdu ? 34 : 24 }]}>{isUrdu ? video.title_ur : video.title_en}</Text>
           {!!(isUrdu ? video.description_ur : video.description_en) && <Text style={[styles.description, { fontFamily: font, lineHeight: isUrdu ? 30 : 21 }]}>{isUrdu ? video.description_ur : video.description_en}</Text>}
         </View>
@@ -62,18 +63,18 @@ function TrainingScreen() {
   </View>;
 }
 
-const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: '#F5F8FD' },
+const styles = themedStyles(() => ({
+  screen: { flex: 1, backgroundColor: themed('#F5F8FD', '#0F172A') },
   hero: { backgroundColor: '#164984', paddingHorizontal: 22, paddingBottom: 25, borderBottomLeftRadius: 24, borderBottomRightRadius: 24 },
   back: { width: 48, height: 48, justifyContent: 'center', marginBottom: 10 },
   heroTitle: { color: '#fff', fontSize: 24 },
   heroSubtitle: { color: '#DCE9FA', fontSize: 14, marginTop: 4 },
   list: { padding: 20, gap: 14 },
-  card: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#fff', borderRadius: 18, padding: 18, gap: 14, minHeight: 92, elevation: 2 },
-  icon: { width: 48, height: 48, borderRadius: 14, backgroundColor: '#EAF3FF', alignItems: 'center', justifyContent: 'center' },
-  cardText: { flex: 1 }, title: { fontSize: 17, color: '#1A3150', fontWeight: '600' },
-  description: { color: '#69778C', fontSize: 13, marginTop: 4 },
-  message: { color: '#435674', fontSize: 15, padding: 20 },
+  card: { flexDirection: 'row', alignItems: 'center', backgroundColor: themed('#fff', '#1E293B'), borderRadius: 18, padding: 18, gap: 14, minHeight: 92, elevation: 2 },
+  icon: { width: 48, height: 48, borderRadius: 14, backgroundColor: themed('#EAF3FF', '#142234'), alignItems: 'center', justifyContent: 'center' },
+  cardText: { flex: 1 }, title: { fontSize: 17, color: themed('#1A3150', '#AAC3E3'), fontWeight: '600' },
+  description: { color: themed('#69778C', '#94A3B8'), fontSize: 13, marginTop: 4 },
+  message: { color: themed('#435674', '#F1F5F9'), fontSize: 15, padding: 20 },
   playerContainer: { flex: 1, padding: 16, gap: 16 },
   close: { minHeight: 48, flexDirection: 'row', alignItems: 'center', gap: 8 },
-});
+}));

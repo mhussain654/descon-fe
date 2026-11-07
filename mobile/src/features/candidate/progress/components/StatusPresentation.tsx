@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { View } from 'react-native';
 import { Text } from '../../../../design-system/Text';
 import { Check, Clock, Plane, Route, X } from 'lucide-react-native';
 import { Circle, Defs, LinearGradient, Rect, Stop } from 'react-native-svg';
@@ -17,6 +17,7 @@ import { getFontFamily } from '../../../../design-system';
 import { elevation, spacing } from '../../../../design-system/tokens';
 import { isStartSide, physicalTextAlign, rowDirectionTowards } from '../../../../lib/layoutDirection';
 import { GradientIconBox } from '../../home/GradientIconBox';
+import { themed, themedStyles, themedValues } from '../../../../design-system/theme';
 
 type LocaleProps = { language: Language; t: (key: TranslationKey) => string };
 /**
@@ -37,14 +38,14 @@ export function StatusHeader({ language, t, topInset }: LocaleProps & { topInset
       <MeasuredSvg>
         <Defs><LinearGradient id="statusHero" x1="0" y1="0" x2="1" y2="1"><Stop offset="0" stopColor="#2B8CD4" /><Stop offset="0.5" stopColor="#0065B3" /><Stop offset="1" stopColor="#004C87" /></LinearGradient></Defs>
         <Rect width="100%" height="100%" fill="url(#statusHero)" />
-        <Circle cx="96%" cy="90%" r="78" stroke="#FFFFFF" strokeOpacity={0.12} strokeWidth={22} fill="none" />
+        <Circle cx="96%" cy="90%" r="78" stroke={themed("#FFFFFF", "#1E293B")} strokeOpacity={0.12} strokeWidth={22} fill="none" />
       </MeasuredSvg>
       <View style={[statusStyles.heroRow, { flexDirection: rowDirectionTowards(rtl ? 'right' : 'left') }]}>
         <View style={statusStyles.flex}>
           <Text accessibilityRole="header" style={[statusStyles.title, statusCopyStyle(language, 25), { fontFamily: getFontFamily(language, 'bold') }]}>{t('status')}</Text>
           <Text style={[statusStyles.subtitle, statusCopyStyle(language)]}>{t('mobilizationProgress')}</Text>
         </View>
-        <View style={statusStyles.heroIcon} accessible={false}><Plane size={29} color="#0065B3" /></View>
+        <View style={statusStyles.heroIcon} accessible={false}><Plane size={29} color={themed("#0065B3", "#8FCEFF")} /></View>
       </View>
     </View>
   );
@@ -80,12 +81,12 @@ export function JourneySummary({ journey, updatedLabel, language, t }: LocalePro
   );
 }
 
-const STATUS_COLORS = {
-  approved: { marker: '#10AD70', badge: '#DFF5E9', text: '#087C46' },
-  in_process: { marker: '#0862BC', badge: '#DBECFF', text: '#0862BC' },
-  rejected: { marker: '#D92D20', badge: '#FDE8E7', text: '#B42318' },
-  upcoming: { marker: '#E5EDF8', badge: '#E8EEF7', text: '#687A95' },
-} as const;
+const STATUS_COLORS = themedValues(() => ({
+  approved: { marker: '#10AD70', badge: themed('#DFF5E9', '#153624'), text: themed('#087C46', '#82F7C1') },
+  in_process: { marker: '#0862BC', badge: themed('#DBECFF', '#16283B'), text: themed('#0862BC', '#93C7FA') },
+  rejected: { marker: '#D92D20', badge: themed('#FDE8E7', '#391716'), text: themed('#B42318', '#F2A29C') },
+  upcoming: { marker: themed('#E5EDF8', '#162539'), badge: themed('#E8EEF7', '#152338'), text: themed('#687A95', '#94A3B8') },
+}));
 
 const STATUS_ICONS = { approved: Check, in_process: Clock, rejected: X, upcoming: null } as const;
 
@@ -121,47 +122,47 @@ export function JourneyStepCard({ step, isLast, dateLabel, language, t, children
   );
 }
 
-export const statusStyles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: '#F0F7FF' },
+export const statusStyles = themedStyles(() => ({
+  screen: { flex: 1, backgroundColor: themed('#F0F7FF', '#0F172A') },
   hero: { paddingHorizontal: spacing[5], paddingBottom: spacing[8], overflow: 'hidden', backgroundColor: '#0065B3' },
   heroRow: { alignItems: 'center', gap: spacing[3], marginTop: 0 },
   flex: { flex: 1, minWidth: 0 },
   title: { fontSize: 25, lineHeight: 34, color: '#FFFFFF' },
   subtitle: { fontSize: 13, lineHeight: 21, color: '#E5F4FF', marginTop: spacing[1] },
-  heroIcon: { width: 52, height: 52, borderRadius: 17, backgroundColor: '#EAFBFF', alignItems: 'center', justifyContent: 'center', transform: [{ rotate: '-8deg' }] },
-  scroll: { flex: 1, marginTop: -20, borderTopLeftRadius: 28, borderTopRightRadius: 28, backgroundColor: '#F0F7FF' },
+  heroIcon: { width: 52, height: 52, borderRadius: 17, backgroundColor: themed('#EAFBFF', '#122A30'), alignItems: 'center', justifyContent: 'center', transform: [{ rotate: '-8deg' }] },
+  scroll: { flex: 1, marginTop: -20, borderTopLeftRadius: 28, borderTopRightRadius: 28, backgroundColor: themed('#F0F7FF', '#0F172A') },
   content: { paddingHorizontal: spacing[4], paddingTop: spacing[4], width: '100%', maxWidth: 600, alignSelf: 'center' },
-  summary: { borderRadius: 20, backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#DFEAF8', padding: spacing[4], marginBottom: spacing[5], ...elevation.sm },
+  summary: { borderRadius: 20, backgroundColor: themed('#FFFFFF', '#1E293B'), borderWidth: 1, borderColor: themed('#DFEAF8', '#334155'), padding: spacing[4], marginBottom: spacing[5], ...elevation.sm },
   summaryRow: { gap: spacing[3], alignItems: 'center' },
-  summaryCount: { fontSize: 21, lineHeight: 29, color: '#172B4D' },
-  percent: { fontSize: 26, color: '#0862BC' },
-  track: { height: 8, borderRadius: 4, backgroundColor: '#E7F0FC', overflow: 'hidden', marginTop: spacing[3] },
+  summaryCount: { fontSize: 21, lineHeight: 29, color: themed('#172B4D', '#A9BFE5') },
+  percent: { fontSize: 26, color: themed('#0862BC', '#93C7FA') },
+  track: { height: 8, borderRadius: 4, backgroundColor: themed('#E7F0FC', '#334155'), overflow: 'hidden', marginTop: spacing[3] },
   fill: { height: 8, borderRadius: 4, backgroundColor: '#2B8CD4' },
-  updated: { fontSize: 11, color: '#687A95', marginTop: spacing[2] },
-  sectionTitle: { fontSize: 16, lineHeight: 24, color: '#172B4D', marginBottom: spacing[3] },
+  updated: { fontSize: 11, color: themed('#687A95', '#94A3B8'), marginTop: spacing[2] },
+  sectionTitle: { fontSize: 16, lineHeight: 24, color: themed('#172B4D', '#A9BFE5'), marginBottom: spacing[3] },
   stageRow: { gap: spacing[3] },
   rail: { width: 32, alignItems: 'center' },
   marker: { width: 32, height: 32, borderRadius: 12, alignItems: 'center', justifyContent: 'center', marginTop: spacing[3] },
-  position: { fontSize: 12, color: '#687A95' },
-  connector: { width: 2, flex: 1, backgroundColor: '#D9E5F5', marginTop: spacing[1], minHeight: 18 },
+  position: { fontSize: 12, color: themed('#687A95', '#94A3B8') },
+  connector: { width: 2, flex: 1, backgroundColor: themed('#D9E5F5', '#334155'), marginTop: spacing[1], minHeight: 18 },
   connectorCompleted: { backgroundColor: '#89D9B3' },
   stageCard: { flex: 1, minWidth: 0, borderRadius: 18, borderWidth: 1, padding: spacing[3], marginBottom: spacing[3] },
-  completed: { backgroundColor: '#F0FBF5', borderColor: '#C7EAD9' },
-  current: { backgroundColor: '#FFFFFF', borderColor: '#6DAEF5', ...elevation.sm },
-  upcoming: { backgroundColor: '#F8FAFE', borderColor: '#DFE8F5' },
-  rejected: { backgroundColor: '#FFF5F4', borderColor: '#F5C2BD' },
+  completed: { backgroundColor: themed('#F0FBF5', '#1E293B'), borderColor: themed('#C7EAD9', '#334155') },
+  current: { backgroundColor: themed('#FFFFFF', '#1E293B'), borderColor: '#6DAEF5', ...elevation.sm },
+  upcoming: { backgroundColor: themed('#F8FAFE', '#1E293B'), borderColor: themed('#DFE8F5', '#334155') },
+  rejected: { backgroundColor: themed('#FFF5F4', '#1E293B'), borderColor: themed('#F5C2BD', '#334155') },
   stageHeading: { alignItems: 'flex-start', gap: spacing[2] },
-  stageName: { flex: 1, minWidth: 0, fontSize: 14, lineHeight: 22, color: '#172B4D' },
-  date: { fontSize: 11, lineHeight: 18, color: '#687A95', marginTop: spacing[1] },
+  stageName: { flex: 1, minWidth: 0, fontSize: 14, lineHeight: 22, color: themed('#172B4D', '#A9BFE5') },
+  date: { fontSize: 11, lineHeight: 18, color: themed('#687A95', '#94A3B8'), marginTop: spacing[1] },
   badge: { borderRadius: 7, paddingHorizontal: spacing[2], paddingVertical: spacing[1], flexShrink: 0, maxWidth: '48%' },
   badgeText: { fontSize: 10, lineHeight: 16 },
-  download: { height: 34, backgroundColor: '#E6F8EE', borderColor: '#A1DCBD', borderRadius: 10, alignSelf: 'flex-start' },
+  download: { height: 34, backgroundColor: themed('#E6F8EE', '#133322'), borderColor: themed('#A1DCBD', '#334155'), borderRadius: 10, alignSelf: 'flex-start' },
   outcomeText: { fontSize: 12, lineHeight: 20 },
   downloadTextUrdu: { fontSize: 10, lineHeight: 26 },
-  downloadText: { fontSize: 12, color: '#087443' },
-  history: { marginTop: 0, backgroundColor: '#FFFFFF', borderRadius: 20, padding: spacing[4], borderWidth: 1, borderColor: '#DFEAF8' },
-  historyRow: { gap: spacing[2], borderTopWidth: 1, borderTopColor: '#EDF2FA', paddingVertical: spacing[3], alignItems: 'flex-start' },
-  historyName: { flex: 1, minWidth: 0, fontSize: 13, color: '#172B4D' },
-  historyDate: { fontSize: 11, color: '#687A95', maxWidth: '40%' },
-  empty: { padding: spacing[4], borderRadius: 18, backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#DFEAF8' },
-});
+  downloadText: { fontSize: 12, color: themed('#087443', '#83F6C2') },
+  history: { marginTop: 0, backgroundColor: themed('#FFFFFF', '#1E293B'), borderRadius: 20, padding: spacing[4], borderWidth: 1, borderColor: themed('#DFEAF8', '#334155') },
+  historyRow: { gap: spacing[2], borderTopWidth: 1, borderTopColor: themed('#EDF2FA', '#334155'), paddingVertical: spacing[3], alignItems: 'flex-start' },
+  historyName: { flex: 1, minWidth: 0, fontSize: 13, color: themed('#172B4D', '#A9BFE5') },
+  historyDate: { fontSize: 11, color: themed('#687A95', '#94A3B8'), maxWidth: '40%' },
+  empty: { padding: spacing[4], borderRadius: 18, backgroundColor: themed('#FFFFFF', '#1E293B'), borderWidth: 1, borderColor: themed('#DFEAF8', '#334155') },
+}));

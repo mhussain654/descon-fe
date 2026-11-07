@@ -1,11 +1,12 @@
 import { useMemo, useState } from 'react';
-import { Modal, StyleSheet, View } from 'react-native';
+import { Modal, View } from 'react-native';
 import { Text } from '../../../../design-system/Text';
 import { WebView, type WebViewNavigation } from 'react-native-webview';
 import { X } from 'lucide-react-native';
 import { Button, IconButton, Spinner, getFontFamily } from '../../../../design-system';
 import { colors, spacing, typeScale } from '../../../../design-system/tokens';
 import { isHostedCheckoutReturnUrl } from '../../../../../../shared/payments/hostedCheckoutReturn';
+import { themedStyles } from '../../../../design-system/theme';
 
 export interface HostedCheckoutWebViewProps {
   /** The provider's hosted checkout URL, or `null` when nothing is in progress. */
@@ -141,7 +142,7 @@ export function HostedCheckoutWebView({ url, onClose, closeLabel, loadingLabel, 
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themedStyles(() => ({
   header: {
     flexDirection: 'row',
     justifyContent: 'flex-end',
@@ -152,4 +153,4 @@ const styles = StyleSheet.create({
   loading: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   blocked: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: spacing[4], padding: spacing[6] },
   blockedText: { ...typeScale.body, color: colors.text.primary, textAlign: 'center' },
-});
+}));

@@ -11,8 +11,11 @@ import { colors, elevation, radii, spacing } from "../design-system/tokens";
 import { RequireGuest } from "../features/auth/RequireGuest";
 import { BrandRow } from "../features/onboarding/BrandRow";
 import { SecureFooter } from "../features/onboarding/SecureFooter";
+import { HeroDarkFade } from "../features/onboarding/HeroDarkFade";
+import { ThemeToggleButton } from "../features/onboarding/ThemeToggleButton";
 import { forwardArrowSlots } from "../features/onboarding/directionalArrows";
 import { isStartSide, physicalTextAlign, rowDirectionTowards } from "../lib/layoutDirection";
+import { themedStyles } from '../design-system/theme';
 
 // The client's design: the hero artwork (landmarks of the destination
 // countries, globe, plane, briefcase and the Descon-branded helmet) with the
@@ -86,6 +89,11 @@ function WelcomeHero({ width, windowHeight, topInset, language, t }) {
         accessibilityIgnoresInvertColors
         accessible={false}
       />
+      <HeroDarkFade />
+      {/* Opposite the logo: top right in English, top left in Urdu. */}
+      <View style={[styles.themeToggle, { top: topInset + spacing[3] }, isUrdu ? { left: spacing[6] } : { right: spacing[6] }]}>
+        <ThemeToggleButton t={t} />
+      </View>
       <View style={[styles.heroCopy, { paddingTop: topInset + spacing[3] }]}>
         <BrandRow language={language} primary={t("brandNamePrimary")} secondary={t("brandNameSecondary")} side={copySide} />
         <View style={[styles.welcome, isStartSide(copySide) ? styles.alignStart : styles.alignEnd, { maxWidth: width * 0.62 }]}>
@@ -197,12 +205,13 @@ const TEXT_SHADOW = {
   textShadowRadius: 6,
 };
 
-const styles = StyleSheet.create({
+const styles = themedStyles(() => ({
   screen: { flex: 1, backgroundColor: colors.surface.raised },
   scrollContent: { flexGrow: 1 },
 
   hero: { overflow: "hidden", backgroundColor: "#006AF1" },
   heroCopy: { paddingHorizontal: spacing[6] },
+  themeToggle: { position: "absolute", zIndex: 1 },
   welcome: { marginTop: spacing[5] },
   alignStart: { alignSelf: "flex-start" },
   alignEnd: { alignSelf: "flex-end" },
@@ -274,4 +283,4 @@ const styles = StyleSheet.create({
   continueButton: { marginTop: spacing[4] },
   continueLabelUrdu: { fontSize: 16 },
   spacer: { flexGrow: 1, minHeight: spacing[3] },
-});
+}));

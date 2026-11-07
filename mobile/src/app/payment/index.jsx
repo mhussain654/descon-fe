@@ -157,7 +157,10 @@ export default function PaymentScreen() {
                     {t("paymentManualRefreshAction")}
                   </Button>
                 </PaymentNotice>
-                <PaymentNotice language={language} message={t("paymentPayOnlyOneNotice")} />
+                {/* Only worth saying when the card is on offer too. */}
+                {methods.includes("card") ? (
+                  <PaymentNotice language={language} message={t("paymentPayOnlyOneNotice")} />
+                ) : null}
               </>
             ) : (
               <>

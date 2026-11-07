@@ -1,10 +1,11 @@
 import { useEffect, useRef, useState } from 'react';
-import { StyleSheet, TextInput, View } from 'react-native';
+import { TextInput, View } from 'react-native';
 import { Text } from './Text';
 import { HelperText } from './HelperText';
 import { colors, radii, spacing } from './tokens';
 import { getFontFamily } from './fonts';
 import { ValidationMessage } from './ValidationMessage';
+import { themedStyles } from './theme';
 
 const DEFAULT_LENGTH = 6;
 
@@ -111,7 +112,7 @@ export function OtpField({
 
 const BOX_HEIGHT = 50;
 
-const styles = StyleSheet.create({
+const styles = themedStyles(() => ({
   boxRow: { position: 'relative', flexDirection: 'row', gap: spacing[1.5] },
   // Boxes share the row's width (rather than a fixed size) so six of them fit
   // any phone width with even gaps.
@@ -129,4 +130,4 @@ const styles = StyleSheet.create({
   // custom family makes Android fall back to the system font (see fontWeightGuard.test.ts).
   char: { fontSize: 20, color: colors.text.primary, fontFamily: getFontFamily('en', 'bold') },
   hiddenInput: { position: 'absolute', top: 0, bottom: 0, left: 0, right: 0, opacity: 0 },
-});
+}));

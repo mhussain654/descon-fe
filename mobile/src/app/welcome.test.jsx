@@ -14,6 +14,10 @@ const TEST_SAFE_AREA_METRICS = {
   insets: { top: 47, left: 0, right: 0, bottom: 34 },
 };
 
+const mockSetScheme = jest.fn(() => Promise.resolve());
+jest.mock('../contexts/ThemeContext', () => ({
+  useTheme: () => ({ scheme: 'light', setScheme: mockSetScheme }),
+}));
 jest.mock('expo-router', () => ({
   useRouter: () => ({ replace: jest.fn(), push: jest.fn() }),
   Redirect: ({ href }) => {
@@ -93,6 +97,14 @@ describe('WelcomeScreen', () => {
     expect(screen.getByText('Continue in English')).toBeOnTheScreen();
     expect(screen.getByText('اردو میں جاری رکھیں')).toBeOnTheScreen();
     expect(screen.getByText('Securely managed by Descon Manpower Services')).toBeOnTheScreen();
+  });
+
+  it('lets a signed-out candidate switch to dark mode from the language page', async () => {
+    renderWelcomeScreen();
+
+    fireEvent.press(await screen.findByRole('button', { name: 'Switch to dark mode' }));
+
+    expect(mockSetScheme).toHaveBeenCalledWith('dark', undefined);
   });
 
   it('shows the welcome only in the chosen language -- no Urdu welcome while English is selected', async () => {

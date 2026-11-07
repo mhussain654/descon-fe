@@ -11,6 +11,7 @@ import { useLanguage } from "../contexts/LanguageContext";
 import { RequireGuest } from "../features/auth/RequireGuest";
 import { RegistrationGuidance } from "../features/onboarding/RegistrationGuidance";
 import { BRAND_ROW_HEIGHT, BrandRow } from "../features/onboarding/BrandRow";
+import { HeroDarkFade } from "../features/onboarding/HeroDarkFade";
 import { SecureFooter } from "../features/onboarding/SecureFooter";
 import { BackArrow, forwardArrowSlots } from "../features/onboarding/directionalArrows";
 import { isStartSide, physicalTextAlign } from "../lib/layoutDirection";
@@ -32,6 +33,7 @@ import { formatCnic } from "../../../shared/cnic";
 import { OTP_LENGTH } from "../../../shared/auth/types";
 import { useCnicOtpFlow } from "../../../shared/auth/useCnicOtpFlow";
 import { candidateAuthClient } from "../lib/auth-client";
+import { themedStyles } from '../design-system/theme';
 
 // The same artwork as the language page (no person): the landmarks, globe and
 // Descon-branded helmet, with open sky on one side for the copy -- left in
@@ -249,6 +251,7 @@ export default function LoginScreen() {
             contentPosition="bottom"
             accessible={false}
           />
+          <HeroDarkFade />
 
           <View style={[styles.brandSlot, { top: insets.top + spacing[3] }]}>
             <BrandRow language={language} primary={t("brandNamePrimary")} secondary={t("brandNameSecondary")} side={copySide} />
@@ -490,7 +493,7 @@ export default function LoginScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themedStyles(() => ({
   screen: { flex: 1, backgroundColor: colors.surface.raised },
   scrollContent: { flexGrow: 1 },
   row: { flexDirection: "row", alignItems: "center" },
@@ -589,4 +592,4 @@ const styles = StyleSheet.create({
 
   spacer: { flexGrow: 1, minHeight: spacing[2], maxHeight: spacing[10] },
   footer: { paddingTop: spacing[3], borderTopWidth: 1, borderTopColor: colors.border.default },
-});
+}));

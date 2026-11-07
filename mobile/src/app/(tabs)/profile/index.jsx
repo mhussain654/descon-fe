@@ -4,8 +4,10 @@ import { StatusBar } from "expo-status-bar";
 import { useRouter } from "expo-router";
 import { useAuth } from "../../../contexts/AuthContext";
 import { useLanguage } from "../../../contexts/LanguageContext";
+import { useTheme } from "../../../contexts/ThemeContext";
 import { useRefetchOnFocus } from "../../../hooks/useRefetchOnFocus";
 import { useCandidateProfile } from "../../../features/candidate/profile/hooks/useCandidateProfile";
+import { usePhotoRejectedNotice } from "../../../features/candidate/profile/hooks/usePhotoRejectedNotice";
 import { useApplicationProgress } from "../../../features/candidate/progress/hooks/useApplicationProgress";
 import { ProfileHeader, ProfileDetails, ProfileSettings, profileStyles } from "../../../features/candidate/profile/components/ProfilePresentation";
 import { LoadingState, ErrorState, OfflineState, SessionExpiredState, ForbiddenState } from "../../../design-system";
@@ -17,8 +19,10 @@ export default function ProfileScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const { t, toggleLanguage, language } = useLanguage();
+  const { scheme, setScheme } = useTheme();
   const { logout } = useAuth();
   const profileQuery = useCandidateProfile();
+  usePhotoRejectedNotice(profileQuery.data, t);
   const progressQuery = useApplicationProgress();
   useRefetchOnFocus(profileQuery.refetch, profileQuery.isFetching);
   useRefetchOnFocus(progressQuery.refetch, progressQuery.isFetching);
@@ -120,7 +124,14 @@ export default function ProfileScreen() {
           refreshControl={<RefreshControl refreshing={profileQuery.isRefetching || progressQuery.isRefetching} onRefresh={() => { profileQuery.refetch(); progressQuery.refetch(); }} title={t("pullToRefresh")} />}
         >
           {renderBody()}
-          <ProfileSettings language={language} t={t} onLanguageChange={() => toggleLanguage("/(tabs)/profile")} onLogout={handleLogout} />
+          <ProfileSettings
+            language={language}
+            t={t}
+            onLanguageChange={() => toggleLanguage("/(tabs)/profile")}
+            darkMode={scheme === "dark"}
+            onDarkModeChange={(on) => setScheme(on ? "dark" : "light", "/(tabs)/profile")}
+            onLogout={handleLogout}
+          />
         </ScrollView>
       </View>
     </ButtonHeightContext.Provider>

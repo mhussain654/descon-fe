@@ -1,4 +1,4 @@
-import { StyleSheet, View } from 'react-native';
+import { View } from 'react-native';
 import { Text } from '../../../design-system/Text';
 import { Image } from 'expo-image';
 import { Circle, Defs, LinearGradient, Rect, Stop } from 'react-native-svg';
@@ -7,6 +7,7 @@ import { getFontFamily } from '../../../design-system';
 import { colors, spacing } from '../../../design-system/tokens';
 import { physicalTextAlign, rowDirectionTowards } from '../../../lib/layoutDirection';
 import { interpolateSegments } from '../../../../../shared/i18n/interpolate';
+import { themedStyles } from '../../../design-system/theme';
 
 // Accent dot per Business Unit country (its flag's signature colour); any
 // other country falls back to the brand blue.
@@ -123,7 +124,7 @@ export function HomeHeader({
 
 const AVATAR_SIZE = 58;
 
-const styles = StyleSheet.create({
+const styles = themedStyles(() => ({
   header: {
     overflow: 'hidden',
     paddingHorizontal: 18,
@@ -158,4 +159,4 @@ const styles = StyleSheet.create({
   countryDot: { width: 9, height: 9, borderRadius: 5, borderWidth: 1.5, borderColor: '#FFFFFF' },
   countryName: { flexShrink: 1, fontSize: 13, color: colors.text.inverse },
   countryNameUrdu: { lineHeight: 26 },
-});
+}));

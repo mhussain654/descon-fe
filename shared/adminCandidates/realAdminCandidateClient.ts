@@ -26,6 +26,8 @@ import type {
   AdminCandidateListResult,
   AdminCandidateListSort,
   AdminCandidatePagination,
+  AdminCandidateProfilePhoto,
+  AdminCandidateProfilePhotoStatus,
   CreateCandidateInput,
   NextOfKinDetail,
   NextOfKinInput,
@@ -64,6 +66,13 @@ interface CandidateDetailResponse {
   created_at: string;
   updated_at: string | null;
   assignment: AssignmentSummaryResponse | null;
+  profile_photo?: ProfilePhotoResponse | null;
+}
+
+interface ProfilePhotoResponse {
+  status: string | null;
+  url: string | null;
+  reviewed_at: string | null;
 }
 
 export interface RealAdminCandidateClientOptions {
@@ -168,6 +177,19 @@ function toCandidateDetail(raw: unknown): AdminCandidateDetail {
     createdAt: typeof value.created_at === 'string' ? value.created_at : '',
     updatedAt: typeof value.updated_at === 'string' ? value.updated_at : null,
     assignment: toAssignmentSummary(value.assignment),
+    profilePhoto: value.profile_photo ? toProfilePhoto(value.profile_photo) : null,
+  };
+}
+
+const PROFILE_PHOTO_STATUSES: readonly AdminCandidateProfilePhotoStatus[] = ['pending', 'approved', 'rejected'];
+
+function toProfilePhoto(raw: unknown): AdminCandidateProfilePhoto {
+  const value = (raw && typeof raw === 'object' ? raw : {}) as Partial<ProfilePhotoResponse>;
+  const status = PROFILE_PHOTO_STATUSES.find((known) => known === value.status) ?? null;
+  return {
+    status,
+    url: typeof value.url === 'string' ? value.url : null,
+    reviewedAt: typeof value.reviewed_at === 'string' ? value.reviewed_at : null,
   };
 }
 
@@ -356,6 +378,21 @@ export function createAdminCandidateClient(options: RealAdminCandidateClientOpti
           )
         );
         return toCandidateDetail(data);
+      } catch (error) {
+        throw toCandidateError(error);
+      }
+    },
+
+    async decideProfilePhoto(candidateId, decision): Promise<AdminCandidateProfilePhoto> {
+      const segment = decision === 'approved' ? 'approval' : 'rejection';
+      try {
+        const data = await staffAuthClient.authenticatedDataRequest((token) =>
+          apiClient.post<ProfilePhotoResponse>(`/admin/candidates/${encodeURIComponent(candidateId)}/profile_photo/${segment}`, {}, {
+            headers: { Authorization: `Bearer ${token}`, 'X-Locale': getLocale() },
+          })
+        );
+        if (!data) throw { code: 'UNKNOWN' } satisfies AdminCandidateError;
+        return toProfilePhoto(data);
       } catch (error) {
         throw toCandidateError(error);
       }

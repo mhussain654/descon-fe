@@ -1,10 +1,11 @@
 import { useEffect, useState } from 'react';
-import { Keyboard, StyleSheet, View } from 'react-native';
+import { Keyboard, View } from 'react-native';
 import { Text } from '../../../../design-system/Text';
 import { Button, getFontFamily } from '../../../../design-system';
 import { elevation, spacing } from '../../../../design-system/tokens';
 import { physicalTextAlign } from '../../../../lib/layoutDirection';
 import type { Language, TranslationKey } from '../../../../../../shared/i18n/translations';
+import { themed, themedStyles } from '../../../../design-system/theme';
 
 type SubmitForReviewBarProps = {
   onSubmit: () => void;
@@ -55,17 +56,17 @@ function useKeyboardVisible() {
   return visible;
 }
 
-const styles = StyleSheet.create({
+const styles = themedStyles(() => ({
   bar: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: themed('#FFFFFF', '#1E293B'),
     paddingHorizontal: spacing[4],
     paddingTop: spacing[3],
     paddingBottom: spacing[3],
     gap: spacing[2],
     borderTopWidth: 1,
-    borderTopColor: '#D6E6F7',
+    borderTopColor: themed('#D6E6F7', '#334155'),
     ...elevation.sm,
   },
-  message: { fontSize: 13, lineHeight: 19, color: '#1A4178' },
+  message: { fontSize: 13, lineHeight: 19, color: themed('#1A4178', '#A3C1EB') },
   messageUrdu: { lineHeight: 28 },
-});
+}));

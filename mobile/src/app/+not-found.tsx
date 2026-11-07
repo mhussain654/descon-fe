@@ -2,10 +2,11 @@ import { Ionicons } from '@expo/vector-icons';
 import { Stack, useRouter } from 'expo-router';
 import React from 'react';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { StyleSheet, TouchableOpacity, View } from 'react-native';
+import { TouchableOpacity, View } from 'react-native';
 import { Text } from '../design-system/Text';
 import { ErrorBoundaryWrapper } from '../../__create/SharedErrorBoundary';
 import { useLanguage } from '../contexts/LanguageContext';
+import { themed, themedStyles } from '../design-system/theme';
 
 function NotFoundScreen() {
   const router = useRouter();
@@ -25,7 +26,7 @@ function NotFoundScreen() {
       <SafeAreaView style={styles.safeArea}>
         <View style={styles.header}>
           <TouchableOpacity onPress={handleBack} style={styles.backButton}>
-            <Ionicons name="arrow-back" size={18} color="#666" />
+            <Ionicons name="arrow-back" size={18} color={themed("#666", "#94A3B8")} />
           </TouchableOpacity>
         </View>
 
@@ -41,10 +42,10 @@ function NotFoundScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themedStyles(() => ({
   safeArea: {
     flex: 1,
-    backgroundColor: '#fff',
+    backgroundColor: themed('#fff', '#1E293B'),
   },
   header: {
     flexDirection: 'row',
@@ -68,11 +69,11 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 24,
     fontWeight: '600',
-    color: '#111',
+    color: themed('#111', '#F1F5F9'),
     textAlign: 'center',
   },
   subtitle: {
-    color: '#666',
+    color: themed('#666', '#94A3B8'),
     textAlign: 'center',
     fontSize: 16,
     lineHeight: 24,
@@ -88,7 +89,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
   },
-});
+}));
 
 export default () => {
   return (

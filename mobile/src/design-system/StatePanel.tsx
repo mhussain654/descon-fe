@@ -1,9 +1,10 @@
 import type { ReactNode } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { View } from 'react-native';
 import { Text } from './Text';
 import { Button } from './Button';
 import { colors, fontWeights, spacing } from './tokens';
 import { getFontFamily } from './fonts';
+import { themedStyles } from './theme';
 
 export interface StatePanelProps {
   icon?: ReactNode;
@@ -40,9 +41,9 @@ export function StatePanel({ icon, title, description, actionLabel, onAction, la
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themedStyles(() => ({
   container: { alignItems: 'center', gap: spacing[3], paddingHorizontal: spacing[6], paddingVertical: spacing[12] },
   title: { fontSize: 16, fontWeight: fontWeights.semibold, color: colors.text.primary, textAlign: 'center' },
   description: { fontSize: 14, color: colors.text.secondary, textAlign: 'center', maxWidth: 320 },
   action: { marginTop: spacing[1] },
-});
+}));

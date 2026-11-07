@@ -338,7 +338,8 @@ describe("DocumentsScreen", () => {
     expect(screen.queryByTestId("documents-summary-uploaded")).toBeNull();
     // Each row shows its own step: Approved, Under Approval or Rejected.
     expect(screen.getAllByText(/^Approved • /)).toHaveLength(2);
-    expect(screen.getByText(/^Under Approval • /)).toBeOnTheScreen();
+    // The photo and the bank account (each with its date).
+    expect(screen.getAllByText(/^Under Approval • /)).toHaveLength(2);
     expect(screen.getByText(/^Rejected • /)).toBeOnTheScreen();
     expect(screen.queryByText("Missing")).toBeNull();
     expect(screen.queryByText("Pending review")).toBeNull();
@@ -1223,8 +1224,9 @@ describe("DocumentsScreen", () => {
       candidateBankDetailsClient.getBankDetail.mockResolvedValue(bankDetailSummary({ status: "submitted", bankDetail: bankDetail() }));
       renderDocumentsScreen();
 
-      // The bank account row and the Uploaded summary card.
-      expect(await screen.findAllByText("Uploaded")).toHaveLength(2);
+      // The bank account row (with the date it was sent) and the Uploaded summary card.
+      expect(await screen.findByText(/^Uploaded • /)).toBeOnTheScreen();
+      expect(screen.getByText("Uploaded")).toBeOnTheScreen();
     });
 
     it("shows rejected bank details with the reason, and lets the candidate correct them", async () => {
@@ -1237,7 +1239,7 @@ describe("DocumentsScreen", () => {
 
       fireEvent.press(await screen.findByRole("button", { name: "Update bank details" }));
 
-      expect(screen.getAllByText("Rejected").length).toBeGreaterThan(0);
+      expect(screen.getAllByText(/^Rejected/).length).toBeGreaterThan(0);
       expect(screen.getByText("Rejected because: The IBAN does not match the cheque.")).toBeOnTheScreen();
       expect(screen.getByRole("button", { name: "Submit" })).toBeOnTheScreen();
     });
@@ -1311,8 +1313,9 @@ describe("DocumentsScreen", () => {
       expect(params.formData.get("bank_detail[account_number]")).toBe("PK36SCBL0000001123456702");
       expect(params.formData.get("bank_detail[bank_name]")).toBe("Meezan Bank Limited");
 
-      // The bank account row and the Uploaded summary card.
-      expect(await screen.findAllByText("Uploaded")).toHaveLength(2);
+      // The bank account row (with the date it was sent) and the Uploaded summary card.
+      expect(await screen.findByText(/^Uploaded • /)).toBeOnTheScreen();
+      expect(screen.getByText("Uploaded")).toBeOnTheScreen();
     });
 
     it("ends the session and returns to sign-in when the bank-detail submission fails because the session expired", async () => {

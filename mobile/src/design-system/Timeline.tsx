@@ -1,9 +1,10 @@
 import { Check } from 'lucide-react-native';
 import type { ReactNode } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { View } from 'react-native';
 import { Text } from './Text';
 import { colors, fontWeights, spacing } from './tokens';
 import { getFontFamily } from './fonts';
+import { themedStyles } from './theme';
 
 export type TimelineItemStatus = 'completed' | 'current' | 'pending';
 
@@ -79,7 +80,7 @@ export function Timeline({ items, language = 'en' }: TimelineProps) {
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themedStyles(() => ({
   row: { flexDirection: 'row', gap: spacing[4] },
   markerColumn: { alignItems: 'center' },
   marker: {
@@ -96,4 +97,4 @@ const styles = StyleSheet.create({
   labelCurrent: { fontWeight: fontWeights.semibold },
   description: { marginTop: spacing[1], fontSize: 14, color: colors.text.secondary },
   trailing: { marginTop: spacing[3] },
-});
+}));

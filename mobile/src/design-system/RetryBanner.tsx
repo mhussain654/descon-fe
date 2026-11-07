@@ -1,9 +1,10 @@
 import { AlertTriangle } from 'lucide-react-native';
-import { StyleSheet, View } from 'react-native';
+import { View } from 'react-native';
 import { Text } from './Text';
 import { Button } from './Button';
 import { colors, radii, spacing } from './tokens';
 import { getFontFamily } from './fonts';
+import { themedStyles } from './theme';
 
 export interface RetryBannerProps {
   /** Already-translated message, e.g. "Showing saved data -- couldn't refresh." */
@@ -34,7 +35,7 @@ export function RetryBanner({ message, retryLabel, onRetry, language = 'en' }: R
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themedStyles(() => ({
   container: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -47,4 +48,4 @@ const styles = StyleSheet.create({
   },
   messageRow: { flexDirection: 'row', alignItems: 'center', gap: spacing[2], flexShrink: 1 },
   message: { flexShrink: 1, fontSize: 14, color: colors.warning.emphasis },
-});
+}));

@@ -36,6 +36,10 @@ export interface CandidateProfile {
   country: CandidateCountry | null;
   /** Short-lived, signed *relative* path to the candidate's own photo (resolve against the API origin before use); null when none is set. Refetch the profile for a fresh one rather than caching it. */
   photoUrl: string | null;
+  /** Staff's review of the photo: `pending` after an upload, `approved`, or `rejected` (the photo was removed because it did not clearly show the candidate's own face). Null when no photo was added. */
+  photoStatus: 'pending' | 'approved' | 'rejected' | null;
+  /** When staff last decided on the photo -- tells one rejection apart from the next. */
+  photoReviewedAt: string | null;
   active: boolean;
   /** Same eligibility/latest-payment shape as GET /candidate/payment (MPS-F601) -- kept in sync here purely so other screens can read it without a second fetch; the dedicated payment page/journey is still the source of truth for acting on it. */
   payment: PaymentEligibility;

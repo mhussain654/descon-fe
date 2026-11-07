@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { View } from 'react-native';
 import { Text } from '../../../../design-system/Text';
 import { Button, OfflineState, ValidationMessage, getFontFamily } from '../../../../design-system';
 import { colors, spacing } from '../../../../design-system/tokens';
@@ -7,6 +7,7 @@ import { DOCUMENT_ACCESS_ERROR_KEYS } from '../../../../../../shared/candidateDo
 import { SIDE_CODE_LABEL_KEYS } from '../../../../../../shared/candidateDocuments/fileSet';
 import type { CandidateDocumentFile, DocumentAccessError } from '../../../../lib/candidate-documents-client';
 import type { Language, TranslationKey } from '../../../../../../shared/i18n/translations';
+import { themed, themedStyles } from '../../../../design-system/theme';
 
 export interface DocumentViewPanelProps {
   /** The document's files; with more than one, each gets its own View/Download actions. */
@@ -82,7 +83,7 @@ function DocumentViewErrorNotice({
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themedStyles(() => ({
   container: {
     marginTop: spacing[3],
     borderRadius: 12,
@@ -90,16 +91,16 @@ const styles = StyleSheet.create({
     padding: spacing[4],
   },
   row: { flexDirection: 'row', gap: spacing[2], flexWrap: 'wrap' },
-  viewButton: { backgroundColor: '#E7F1FF', borderColor: '#A8CCFF', borderRadius: 12 },
-  viewLabel: { color: '#0759B8' },
-  replaceButton: { backgroundColor: '#FFF3DF', borderColor: '#EFC789', borderRadius: 12 },
-  replaceLabel: { color: '#8F4B00' },
-  downloadButton: { backgroundColor: '#E6F8EE', borderColor: '#A1DCBD', borderRadius: 12 },
-  downloadLabel: { color: '#087443' },
+  viewButton: { backgroundColor: themed('#E7F1FF', '#142236'), borderColor: themed('#A8CCFF', '#4A5D77'), borderRadius: 12 },
+  viewLabel: { color: themed('#0759B8', '#93C3FB') },
+  replaceButton: { backgroundColor: themed('#FFF3DF', '#332713'), borderColor: themed('#EFC789', '#595C5F'), borderRadius: 12 },
+  replaceLabel: { color: themed('#8F4B00', '#FFCA8F') },
+  downloadButton: { backgroundColor: themed('#E6F8EE', '#133322'), borderColor: themed('#A1DCBD', '#334155'), borderRadius: 12 },
+  downloadLabel: { color: themed('#087443', '#83F6C2') },
   fileRow: { marginTop: spacing[3], flexDirection: 'row', alignItems: 'center', gap: spacing[2] },
   fileRowRtl: { flexDirection: 'row-reverse' },
   fileButton: { height: 30, alignSelf: 'center', paddingHorizontal: spacing[2], borderRadius: 10, flexShrink: 0 },
   fileButtonLabel: { fontSize: 12 },
   fileName: { flex: 1, minWidth: 0, fontSize: 13, color: colors.text.primary },
   errorNotice: { marginTop: spacing[3] },
-});
+}));

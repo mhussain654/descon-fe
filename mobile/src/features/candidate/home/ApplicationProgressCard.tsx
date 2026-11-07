@@ -6,6 +6,7 @@ import { getFontFamily } from '../../../design-system';
 import { colors, spacing } from '../../../design-system/tokens';
 import { rowDirectionTowards } from '../../../lib/layoutDirection';
 import { homeCardStyles } from './homeCardStyles';
+import { themed, themedStyles } from '../../../design-system/theme';
 
 interface ApplicationProgressCardProps {
   language: string;
@@ -34,7 +35,7 @@ export function ApplicationProgressCard({
       <View style={[styles.row, { flexDirection: rowDirection }]}>
         <View style={[styles.titleGroup, { flexDirection: rowDirection }]}>
           <View style={styles.iconBox} accessible={false}>
-            <ClipboardList size={22} color="#1E6FE8" strokeWidth={2.2} />
+            <ClipboardList size={22} color={themed("#1E6FE8", "#87B2F3")} strokeWidth={2.2} />
           </View>
           <Text style={[styles.title, isUrdu && styles.titleUrdu, { fontFamily: getFontFamily(language, 'bold') }]}>
             {title}
@@ -80,22 +81,22 @@ export function ApplicationProgressCard({
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themedStyles(() => ({
   card: { borderTopWidth: 4, borderTopColor: '#19C6E8' },
   row: { alignItems: 'center', justifyContent: 'space-between', gap: spacing[3] },
   // The title keeps its natural width; a long stage label wraps inside the badge
   // instead of squeezing "My Journey" into a broken column.
   titleGroup: { flexShrink: 0, alignItems: 'center', gap: spacing[3] },
-  iconBox: { width: 40, height: 40, borderRadius: 12, alignItems: 'center', justifyContent: 'center', backgroundColor: '#E8F1FF' },
+  iconBox: { width: 40, height: 40, borderRadius: 12, alignItems: 'center', justifyContent: 'center', backgroundColor: themed('#E8F1FF', '#142236') },
   title: { fontSize: 18, color: colors.text.primary },
   titleUrdu: { fontSize: 17, lineHeight: 34 },
-  badge: { flexShrink: 1, borderRadius: 14, paddingHorizontal: 10, paddingVertical: 4, backgroundColor: '#FFF1D8' },
-  badgeText: { fontSize: 11, color: '#C36A00', textAlign: 'center' },
+  badge: { flexShrink: 1, borderRadius: 14, paddingHorizontal: 10, paddingVertical: 4, backgroundColor: themed('#FFF1D8', '#342914') },
+  badgeText: { fontSize: 11, color: themed('#C36A00', '#FFC27A'), textAlign: 'center' },
   badgeTextUrdu: { lineHeight: 24 },
   metaRow: { marginTop: spacing[3] },
   meta: { flexShrink: 1, fontSize: 13, color: colors.text.primary },
-  percent: { fontSize: 13, color: '#0871DA' },
+  percent: { fontSize: 13, color: themed('#0871DA', '#7FBDFA') },
   metaUrdu: { lineHeight: 26 },
-  track: { height: 8, marginTop: spacing[2], borderRadius: 999, overflow: 'hidden', backgroundColor: '#E9EEF5' },
+  track: { height: 8, marginTop: spacing[2], borderRadius: 999, overflow: 'hidden', backgroundColor: themed('#E9EEF5', '#334155') },
   fill: { height: '100%', borderRadius: 999, overflow: 'hidden' },
-});
+}));

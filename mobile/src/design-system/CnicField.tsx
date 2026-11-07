@@ -1,11 +1,12 @@
 import { useState, type ReactNode } from 'react';
-import { StyleSheet, TextInput, View } from 'react-native';
+import { TextInput, View } from 'react-native';
 import { formatCnic, toCnicDigits } from '../../../shared/cnic';
 import { HelperText } from './HelperText';
 import { Label } from './Label';
 import { colors, radii, spacing } from './tokens';
 import { ValidationMessage } from './ValidationMessage';
 import { getFontFamily } from './fonts';
+import { themedStyles } from './theme';
 
 export interface CnicFieldProps {
   /** Already-translated label, e.g. `t('cnic')`. */
@@ -101,7 +102,7 @@ export function CnicField({
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themedStyles(() => ({
   field: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -121,4 +122,4 @@ const styles = StyleSheet.create({
     fontVariant: ['tabular-nums'],
     color: colors.text.primary,
   },
-});
+}));

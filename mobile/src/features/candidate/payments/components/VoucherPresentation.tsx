@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Pressable, StyleSheet, View } from 'react-native';
+import { Pressable, View } from 'react-native';
 import * as Clipboard from 'expo-clipboard';
 import { Text } from '../../../../design-system/Text';
 import { Banknote, Copy } from 'lucide-react-native';
@@ -10,6 +10,7 @@ import { spacing } from '../../../../design-system/tokens';
 import { rowDirectionTowards } from '../../../../lib/layoutDirection';
 import { GradientIconBox } from '../../home/GradientIconBox';
 import { paymentCopyStyle, paymentStyles } from './PaymentPresentation';
+import { themed, themedStyles } from '../../../../design-system/theme';
 
 type LocaleProps = { language: Language; t: (key: TranslationKey) => string };
 
@@ -61,7 +62,7 @@ export function VoucherCodeCard({ voucher, language, t }: LocaleProps & { vouche
           </View>
         </View>
         <View style={voucherStyles.copyRow}>
-          <Button variant="outline" size="sm" onPress={copy} leadingIcon={<Copy size={16} color="#172B4D" />} language={language}>
+          <Button variant="outline" size="sm" onPress={copy} leadingIcon={<Copy size={16} color={themed("#172B4D", "#A9BFE5")} />} language={language}>
             {t('paymentVoucherCopyAction')}
           </Button>
         </View>
@@ -74,23 +75,23 @@ export function VoucherCodeCard({ voucher, language, t }: LocaleProps & { vouche
         {([['paymentVoucherWayPhoneTitle', 'paymentVoucherWayPhoneBody'], ['paymentVoucherWayShopTitle', 'paymentVoucherWayShopBody']] as const).map(([titleKey, bodyKey]) => (
           <View key={titleKey} style={voucherStyles.way}>
             <Text style={[voucherStyles.wayTitle, paymentCopyStyle(language), { fontFamily: getFontFamily(language, 'semibold') }]}>{t(titleKey)}</Text>
-            <Text style={[paymentStyles.noticeText, paymentCopyStyle(language), { color: '#172B4D' }]}>{t(bodyKey)}</Text>
+            <Text style={[paymentStyles.noticeText, paymentCopyStyle(language), { color: themed('#172B4D', '#A9BFE5') }]}>{t(bodyKey)}</Text>
           </View>
         ))}
-        <Text style={[paymentStyles.noticeText, paymentCopyStyle(language), { color: '#172B4D', fontFamily: getFontFamily(language, 'semibold') }]}>{t('paymentVoucherPaySoon')}</Text>
+        <Text style={[paymentStyles.noticeText, paymentCopyStyle(language), { color: themed('#172B4D', '#A9BFE5'), fontFamily: getFontFamily(language, 'semibold') }]}>{t('paymentVoucherPaySoon')}</Text>
       </View>
     </>
   );
 }
 
-const voucherStyles = StyleSheet.create({
-  tabs: { gap: spacing[1], padding: spacing[1], marginBottom: spacing[4], borderRadius: 14, backgroundColor: '#E4EEFA' },
+const voucherStyles = themedStyles(() => ({
+  tabs: { gap: spacing[1], padding: spacing[1], marginBottom: spacing[4], borderRadius: 14, backgroundColor: themed('#E4EEFA', '#152539') },
   tab: { flex: 1, minHeight: 40, justifyContent: 'center', paddingHorizontal: spacing[2], borderRadius: 11 },
-  tabSelected: { backgroundColor: '#FFFFFF' },
-  tabText: { fontSize: 13, lineHeight: 20, color: '#172B4D' },
-  code: { fontSize: 26, lineHeight: 36, letterSpacing: 1, color: '#172B4D', marginTop: spacing[1] },
+  tabSelected: { backgroundColor: themed('#FFFFFF', '#1E293B') },
+  tabText: { fontSize: 13, lineHeight: 20, color: themed('#172B4D', '#A9BFE5') },
+  code: { fontSize: 26, lineHeight: 36, letterSpacing: 1, color: themed('#172B4D', '#A9BFE5'), marginTop: spacing[1] },
   copyRow: { marginTop: spacing[3], alignSelf: 'flex-start' },
-  copied: { minHeight: 20, fontSize: 12, lineHeight: 20, color: '#1C7A45', marginTop: spacing[1] },
+  copied: { minHeight: 20, fontSize: 12, lineHeight: 20, color: themed('#1C7A45', '#93E6B7'), marginTop: spacing[1] },
   way: { marginBottom: spacing[3] },
-  wayTitle: { fontSize: 14, lineHeight: 22, color: '#172B4D', marginBottom: spacing[1] },
-});
+  wayTitle: { fontSize: 14, lineHeight: 22, color: themed('#172B4D', '#A9BFE5'), marginBottom: spacing[1] },
+}));

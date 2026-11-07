@@ -1,8 +1,9 @@
 import type { ReactNode } from 'react';
-import { StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
+import { View, type StyleProp, type ViewStyle } from 'react-native';
 import { Text } from './Text';
 import { colors, fontWeights, radii, spacing } from './tokens';
 import { getFontFamily } from './fonts';
+import { themedStyles } from './theme';
 
 export interface CardProps {
   children: ReactNode;
@@ -31,7 +32,7 @@ export function CardDescription({ children, language = 'en' }: { children: strin
   return <Text style={[styles.description, { fontFamily: getFontFamily(language, 'regular') }]}>{children}</Text>;
 }
 
-const styles = StyleSheet.create({
+const styles = themedStyles(() => ({
   card: {
     borderRadius: radii.xl,
     borderWidth: 1,
@@ -42,4 +43,4 @@ const styles = StyleSheet.create({
   header: { marginBottom: spacing[4] },
   title: { fontSize: 18, fontWeight: fontWeights.semibold, color: colors.text.primary },
   description: { marginTop: spacing[1], fontSize: 14, color: colors.text.secondary },
-});
+}));

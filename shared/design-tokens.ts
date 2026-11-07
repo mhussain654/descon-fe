@@ -11,8 +11,9 @@
 // (see StaffShell's theme toggle) by re-declaring these same token names as
 // CSS variables in web/src/app/global.css (`:root` for light, `.dark` for
 // dark) -- the literal values here and in tailwind.config.js are the `:root`
-// (light) definitions. Mobile has no dark theme yet and stays on these literal
-// light values unchanged.
+// (light) definitions. Mobile's dark theme lives in
+// mobile/src/design-system/theme.ts, which pairs these light values with a
+// dark palette taken from the same web dark theme.
 //
 // Values mirror the approved prototype's existing visual language (see the
 // dashboard/status pages' `#0065B3` brand blue, `#10B981` success green,

@@ -1,7 +1,8 @@
 import { Search, X } from 'lucide-react-native';
-import { StyleSheet, TextInput, View } from 'react-native';
+import { TextInput, View } from 'react-native';
 import { IconButton } from './IconButton';
 import { colors, radii, spacing } from './tokens';
+import { themedStyles } from './theme';
 
 export interface SearchFieldProps {
   value: string;
@@ -42,7 +43,7 @@ export function SearchField({ value, onValueChange, placeholder, label, clearLab
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themedStyles(() => ({
   container: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -56,4 +57,4 @@ const styles = StyleSheet.create({
   },
   leadingIcon: { marginEnd: spacing[2] },
   input: { flex: 1, fontSize: 16, color: colors.text.primary, paddingVertical: spacing[2] },
-});
+}));

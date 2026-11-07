@@ -1,5 +1,5 @@
 import type { ComponentType } from 'react';
-import { Pressable, StyleSheet, View } from 'react-native';
+import { Pressable, View } from 'react-native';
 import { Text } from '../../../design-system/Text';
 import { ChevronLeft, ChevronRight } from 'lucide-react-native';
 import { Defs, LinearGradient, Rect, Stop } from 'react-native-svg';
@@ -8,16 +8,17 @@ import { getFontFamily } from '../../../design-system';
 import { colors } from '../../../design-system/tokens';
 import { rowDirectionTowards } from '../../../lib/layoutDirection';
 import { GradientIconBox, type IconTone } from './GradientIconBox';
+import { themed, themedStyles, themedValues } from '../../../design-system/theme';
 
 // Soft two-tone diagonal wash per tile (light → a touch deeper), plus the
 // matching chevron colour -- from the approved home design.
-const TONE_SURFACES: Record<IconTone, { from: string; to: string; border: string; chevron: string }> = {
-  blue: { from: '#EAF6FF', to: '#C9E8FF', border: '#BFE0FB', chevron: '#086CD8' },
-  green: { from: '#EAFBF1', to: '#C6F0D7', border: '#B7E8CA', chevron: '#087C50' },
-  purple: { from: '#F5F0FF', to: '#E0D3FF', border: '#D6C7FA', chevron: '#6430CE' },
-  coral: { from: '#FFF3EE', to: '#FFD7CA', border: '#F9C7B7', chevron: '#D94331' },
-  orange: { from: '#FFF7E8', to: '#FFE3B8', border: '#F8D49A', chevron: '#C36A00' },
-};
+const TONE_SURFACES: Record<IconTone, { from: string; to: string; border: string; chevron: string }> = themedValues(() => ({
+  blue: { from: themed('#EAF6FF', '#132533'), to: themed('#C9E8FF', '#182F40'), border: themed('#BFE0FB', '#334155'), chevron: themed('#086CD8', '#7FBAFA') },
+  green: { from: themed('#EAFBF1', '#12311F'), to: themed('#C6F0D7', '#183E27'), border: themed('#B7E8CA', '#334155'), chevron: themed('#087C50', '#82F7CB') },
+  purple: { from: themed('#F5F0FF', '#1F1434'), to: themed('#E0D3FF', '#291B48'), border: themed('#D6C7FA', '#334155'), chevron: themed('#6430CE', '#BBA4EA') },
+  coral: { from: themed('#FFF3EE', '#321C13'), to: themed('#FFD7CA', '#44241A'), border: themed('#F9C7B7', '#334155'), chevron: themed('#D94331', '#EA998F') },
+  orange: { from: themed('#FFF7E8', '#302612'), to: themed('#FFE3B8', '#3E2F18'), border: themed('#F8D49A', '#334155'), chevron: themed('#C36A00', '#FFC27A') },
+}));
 
 interface QuickActionTileProps {
   language: string;
@@ -77,7 +78,7 @@ export function QuickActionTile({ language, tone, icon, title, subtitle, onPress
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themedStyles(() => ({
   tile: {
     flex: 1,
     minHeight: 82,
@@ -99,7 +100,7 @@ const styles = StyleSheet.create({
   copy: { flex: 1 },
   title: { fontSize: 12.5, lineHeight: 16, fontWeight: '600', color: colors.text.primary },
   titleUrdu: { fontSize: 14, lineHeight: 28 },
-  subtitle: { marginTop: 2, fontSize: 10.5, lineHeight: 13, color: '#536177' },
+  subtitle: { marginTop: 2, fontSize: 10.5, lineHeight: 13, color: themed('#536177', '#94A3B8') },
   subtitleUrdu: { fontSize: 11, lineHeight: 22 },
   chevron: { position: 'relative', zIndex: 1 },
-});
+}));

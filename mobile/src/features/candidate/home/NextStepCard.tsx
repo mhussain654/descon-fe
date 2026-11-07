@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { View } from 'react-native';
 import { Text } from '../../../design-system/Text';
 import { CreditCard, FileText } from 'lucide-react-native';
 import { Button, getFontFamily } from '../../../design-system';
@@ -7,13 +7,14 @@ import { colors, spacing } from '../../../design-system/tokens';
 import { rowDirectionTowards } from '../../../lib/layoutDirection';
 import { GradientIconBox, type IconTone } from './GradientIconBox';
 import { homeCardStyles } from './homeCardStyles';
+import { themed, themedStyles, themedValues } from '../../../design-system/theme';
 
 export type NextStepVariant = 'payment' | 'documents';
 
-const VARIANTS: Record<NextStepVariant, { tone: IconTone; icon: typeof CreditCard; background: string; border: string }> = {
-  payment: { tone: 'orange', icon: CreditCard, background: '#FFF6E4', border: '#FFD77E' },
-  documents: { tone: 'blue', icon: FileText, background: '#EAF5FF', border: '#BFE2FF' },
-};
+const VARIANTS: Record<NextStepVariant, { tone: IconTone; icon: typeof CreditCard; background: string; border: string }> = themedValues(() => ({
+  payment: { tone: 'orange', icon: CreditCard, background: themed('#FFF6E4', '#312712'), border: themed('#FFD77E', '#334155') },
+  documents: { tone: 'blue', icon: FileText, background: themed('#EAF5FF', '#132433'), border: themed('#BFE2FF', '#334155') },
+}));
 
 interface NextStepCardProps {
   language: string;
@@ -91,7 +92,7 @@ export function NextStepCard({
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themedStyles(() => ({
   card: { borderWidth: 1 },
   row: { alignItems: 'center', gap: spacing[3] },
   copy: { flex: 1 },
@@ -100,7 +101,7 @@ const styles = StyleSheet.create({
   labelUrdu: { fontSize: 11, lineHeight: 22, letterSpacing: 0 },
   title: { fontSize: 17, lineHeight: 22, color: colors.text.primary },
   titleUrdu: { fontSize: 14, lineHeight: 28 },
-  description: { marginTop: 2, fontSize: 11.5, lineHeight: 15, color: '#4F5D72' },
+  description: { marginTop: 2, fontSize: 11.5, lineHeight: 15, color: themed('#4F5D72', '#94A3B8') },
   descriptionUrdu: { fontSize: 11, lineHeight: 22 },
   actionRow: { marginTop: 10, alignItems: 'center', justifyContent: 'space-between', gap: spacing[3] },
   actionRowEnd: { justifyContent: 'flex-end' },
@@ -108,4 +109,4 @@ const styles = StyleSheet.create({
   button: { height: 36, paddingHorizontal: 16, borderRadius: 10 },
   buttonLabel: { fontSize: 13 },
   buttonLabelUrdu: { fontSize: 13 },
-});
+}));

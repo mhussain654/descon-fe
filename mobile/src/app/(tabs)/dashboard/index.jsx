@@ -1,5 +1,5 @@
 import { useCallback, useRef, useState } from "react";
-import { View, ScrollView, RefreshControl, Linking, StyleSheet, useColorScheme } from "react-native";
+import { View, ScrollView, RefreshControl, Linking } from "react-native";
 import { Text } from "../../../design-system/Text";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
@@ -11,6 +11,7 @@ import { useAuth } from "../../../contexts/AuthContext";
 import { useLanguage } from "../../../contexts/LanguageContext";
 import { useRefetchOnFocus } from "../../../hooks/useRefetchOnFocus";
 import { useCandidateProfile } from "../../../features/candidate/profile/hooks/useCandidateProfile";
+import { usePhotoRejectedNotice } from "../../../features/candidate/profile/hooks/usePhotoRejectedNotice";
 import { useCandidateDocuments } from "../../../features/candidate/documents/hooks/useCandidateDocuments";
 import { useApplicationProgress } from "../../../features/candidate/progress/hooks/useApplicationProgress";
 import { useSupportSetting } from "../../../features/candidate/support/hooks/useSupportSetting";
@@ -76,15 +77,16 @@ function greetingKey(date = new Date()) {
 import { CANDIDATE_PROFILE_ERROR_KEYS } from "../../../../../shared/candidateProfile/errorMessages";
 import { CANDIDATE_DOCUMENTS_ERROR_KEYS } from "../../../../../shared/candidateDocuments/errorMessages";
 import { APPLICATION_PROGRESS_ERROR_KEYS } from "../../../../../shared/applicationProgress/errorMessages";
+import { isDarkTheme, themed, themedStyles } from '../../../design-system/theme';
 
 export default function DashboardScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const colorScheme = useColorScheme();
-  const isDark = colorScheme === "dark";
+  const isDark = isDarkTheme();
   const { t, language } = useLanguage();
   const { logout } = useAuth();
   const profileQuery = useCandidateProfile();
+  usePhotoRejectedNotice(profileQuery.data, t);
   const checklistQuery = useCandidateDocuments();
   const progressQuery = useApplicationProgress();
   // Like Training, neither blocks the screen: a missing support number just
@@ -157,7 +159,7 @@ export default function DashboardScreen() {
 
   if (isLoading) {
     return (
-      <View style={{ flex: 1, backgroundColor: isDark ? "#121212" : "#F8F9FA" }}>
+      <View style={{ flex: 1, backgroundColor: isDark ? "#0F172A" : "#F8F9FA" }}>
         <StatusBar style={isDark ? "light" : "dark"} />
         <LoadingState message={t("loading")} language={language} />
       </View>
@@ -165,7 +167,7 @@ export default function DashboardScreen() {
   }
   if (primaryError?.code === "SESSION_EXPIRED") {
     return (
-      <View style={{ flex: 1, backgroundColor: isDark ? "#121212" : "#F8F9FA" }}>
+      <View style={{ flex: 1, backgroundColor: isDark ? "#0F172A" : "#F8F9FA" }}>
         <StatusBar style={isDark ? "light" : "dark"} />
         <SessionExpiredState
           title={t("dsSessionExpiredTitle")}
@@ -179,7 +181,7 @@ export default function DashboardScreen() {
   }
   if (primaryError?.code === "INACTIVE_ACCOUNT") {
     return (
-      <View style={{ flex: 1, backgroundColor: isDark ? "#121212" : "#F8F9FA" }}>
+      <View style={{ flex: 1, backgroundColor: isDark ? "#0F172A" : "#F8F9FA" }}>
         <StatusBar style={isDark ? "light" : "dark"} />
         <ForbiddenState
           title={t("candidateProfileInactiveAccountTitle")}
@@ -193,7 +195,7 @@ export default function DashboardScreen() {
   }
   if (primaryError?.code === "OFFLINE") {
     return (
-      <View style={{ flex: 1, backgroundColor: isDark ? "#121212" : "#F8F9FA" }}>
+      <View style={{ flex: 1, backgroundColor: isDark ? "#0F172A" : "#F8F9FA" }}>
         <StatusBar style={isDark ? "light" : "dark"} />
         <OfflineState
           title={t("dsOfflineTitle")}
@@ -207,7 +209,7 @@ export default function DashboardScreen() {
   }
   if (primaryError) {
     return (
-      <View style={{ flex: 1, backgroundColor: isDark ? "#121212" : "#F8F9FA" }}>
+      <View style={{ flex: 1, backgroundColor: isDark ? "#0F172A" : "#F8F9FA" }}>
         <StatusBar style={isDark ? "light" : "dark"} />
         <ErrorState message={t(primaryErrorKeys[primaryError.code])} retryLabel={t("retry")} onRetry={handleRefresh} language={language} />
       </View>
@@ -215,7 +217,7 @@ export default function DashboardScreen() {
   }
   if (!profileQuery.data || !progressQuery.data) {
     return (
-      <View style={{ flex: 1, backgroundColor: isDark ? "#121212" : "#F8F9FA" }}>
+      <View style={{ flex: 1, backgroundColor: isDark ? "#0F172A" : "#F8F9FA" }}>
         <StatusBar style={isDark ? "light" : "dark"} />
         <ErrorState message={t("somethingWentWrong")} retryLabel={t("retry")} onRetry={handleRefresh} language={language} />
       </View>
@@ -279,9 +281,9 @@ export default function DashboardScreen() {
       <MeasuredSvg>
         <Defs>
           <LinearGradient id="homeBackdrop" x1="0" y1="0" x2="1" y2="1">
-            <Stop offset="0" stopColor="#EEF8FF" />
-            <Stop offset="0.48" stopColor="#FFF8EE" />
-            <Stop offset="1" stopColor="#F3F7FF" />
+            <Stop offset="0" stopColor={themed("#EEF8FF", "#0F172A")} />
+            <Stop offset="0.48" stopColor={themed("#FFF8EE", "#131C30")} />
+            <Stop offset="1" stopColor={themed("#F3F7FF", "#0F172A")} />
           </LinearGradient>
         </Defs>
         <Rect x="0" y="0" width="100%" height="100%" fill="url(#homeBackdrop)" />
@@ -401,8 +403,8 @@ export default function DashboardScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: "#F3F7FF" },
+const styles = themedStyles(() => ({
+  screen: { flex: 1, backgroundColor: themed("#F3F7FF", "#0F172A") },
   scroll: { flex: 1 },
   scrollContent: { flexGrow: 1 },
   content: { paddingHorizontal: 14, paddingTop: 14, gap: 12 },
@@ -410,4 +412,4 @@ const styles = StyleSheet.create({
   sectionTitleUrdu: { lineHeight: 34 },
   tileGrid: { gap: spacing[2] },
   tileRow: { gap: spacing[2] },
-});
+}));

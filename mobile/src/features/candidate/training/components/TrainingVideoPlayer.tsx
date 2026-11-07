@@ -3,6 +3,7 @@ import { StyleSheet, View } from 'react-native';
 import { Text } from '../../../../design-system/Text';
 import { VideoView, useVideoPlayer } from 'expo-video';
 import { getFontFamily } from '../../../../design-system';
+import { themedStyles } from '../../../../design-system/theme';
 
 interface TrainingVideoPlayerProps {
   /** Short-lived signed URL of the MP4. */
@@ -43,9 +44,9 @@ export function TrainingVideoPlayer({ url, language, errorMessage }: TrainingVid
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themedStyles(() => ({
   container: { height: 260, backgroundColor: '#000', borderRadius: 12, overflow: 'hidden' },
   video: { flex: 1 },
   error: { ...StyleSheet.absoluteFillObject, alignItems: 'center', justifyContent: 'center', padding: 20, backgroundColor: '#000' },
   errorText: { color: '#fff', fontSize: 15, textAlign: 'center', lineHeight: 26 },
-});
+}));

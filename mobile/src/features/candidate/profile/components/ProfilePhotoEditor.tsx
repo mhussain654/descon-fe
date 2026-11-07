@@ -7,6 +7,7 @@ import { Button, ValidationMessage, getFontFamily } from '../../../../design-sys
 import { colors, spacing } from '../../../../design-system/tokens';
 import type { TranslationKey } from '../../../../../../shared/i18n/translations';
 import { useProfilePhoto, type ProfilePhotoProblem } from '../hooks/useProfilePhoto';
+import { themed, themedStyles } from '../../../../design-system/theme';
 
 interface ProfilePhotoEditorProps {
   language: 'en' | 'ur';
@@ -130,14 +131,14 @@ function PhotoViewer({ uri, visible, onClose, closeLabel }: { uri: string; visib
 
 const AVATAR_SIZE = 72;
 
-const styles = StyleSheet.create({
+const styles = themedStyles(() => ({
   container: { width: '100%', alignItems: 'center', gap: spacing[2], marginBottom: spacing[3] },
   avatar: {
     width: AVATAR_SIZE,
     height: AVATAR_SIZE,
     borderRadius: AVATAR_SIZE / 2,
     borderWidth: 3,
-    borderColor: '#BFDDFB',
+    borderColor: themed('#BFDDFB', '#334155'),
     backgroundColor: colors.brand.default,
     alignItems: 'center',
     justifyContent: 'center',
@@ -147,9 +148,9 @@ const styles = StyleSheet.create({
   initial: { fontSize: 34, color: colors.text.inverse, fontFamily: getFontFamily('en', 'semibold') },
   savingOverlay: { ...StyleSheet.absoluteFillObject, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(0,0,0,0.35)' },
   status: { fontSize: 13, color: colors.text.secondary },
-  photoAction: { minHeight: 34, paddingHorizontal: spacing[3], borderRadius: 10, backgroundColor: '#E7F1FF', borderWidth: 1, borderColor: '#A8CCFF', justifyContent: 'center' },
+  photoAction: { minHeight: 34, paddingHorizontal: spacing[3], borderRadius: 10, backgroundColor: themed('#E7F1FF', '#142236'), borderWidth: 1, borderColor: themed('#A8CCFF', '#4A5D77'), justifyContent: 'center' },
   photoActionUrdu: { minHeight: 48, paddingVertical: spacing[1], alignItems: 'center' },
-  link: { fontSize: 12, color: '#0759B8' },
+  link: { fontSize: 12, color: themed('#0759B8', '#93C3FB') },
   linkUrdu: { lineHeight: 30, textAlign: 'center', includeFontPadding: true },
   options: { alignSelf: 'stretch', gap: spacing[2] },
   hint: { fontSize: 12, lineHeight: 17, color: colors.text.secondary, textAlign: 'center', paddingHorizontal: spacing[2] },
@@ -158,4 +159,4 @@ const styles = StyleSheet.create({
   viewerShade: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0, 0, 0, 0.45)' },
   viewerPhoto: { width: '92%', height: '75%' },
   viewerClose: { position: 'absolute', top: 56, end: 20, width: 40, height: 40, borderRadius: 20, backgroundColor: 'rgba(0, 0, 0, 0.45)', alignItems: 'center', justifyContent: 'center' },
-});
+}));

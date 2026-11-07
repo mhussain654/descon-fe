@@ -72,6 +72,8 @@ describe('createCandidateProfileClient (real)', () => {
       currentWorkflowStage: { code: 'registered', name: 'Registered' },
       country: null,
       photoUrl: null,
+      photoStatus: null,
+      photoReviewedAt: null,
       active: true,
       payment: {
         eligible: false,

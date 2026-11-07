@@ -12,6 +12,7 @@ export * from './EmptyState';
 export * from './ErrorState';
 export * from './FilterChip';
 export * from './Text';
+export * from './theme';
 export * from './fonts';
 export * from './ForbiddenState';
 export * from './HelperText';

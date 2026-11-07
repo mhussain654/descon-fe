@@ -1,10 +1,10 @@
 import { Tabs } from "expo-router";
-import { useColorScheme } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { House, Files, ClipboardList, UserRound } from "lucide-react-native";
 import { RequireAuth } from "../../features/auth/RequireAuth";
 import { useLanguage } from "../../contexts/LanguageContext";
 import { getFontFamily } from "../../design-system";
+import { isDarkTheme, themed } from '../../design-system/theme';
 
 // Every candidate tab renders through this layout, so guarding here protects
 // dashboard/documents/status/profile in one place (AGENTS.md / MPS-F201:
@@ -19,8 +19,7 @@ export default function TabLayout() {
 }
 
 function TabNavigator() {
-  const colorScheme = useColorScheme();
-  const isDark = colorScheme === "dark";
+  const isDark = isDarkTheme();
   const { t, language } = useLanguage();
   const insets = useSafeAreaInsets();
   const isUrdu = language === "ur";
@@ -36,7 +35,7 @@ function TabNavigator() {
         // Rounded, softly-shadowed bar from the approved home design: it
         // reads as a floating panel without actually overlapping content.
         tabBarStyle: {
-          backgroundColor: isDark ? "#1E1E1E" : "#FFFFFF",
+          backgroundColor: isDark ? "#1E293B" : "#FFFFFF",
           borderTopWidth: 0,
           borderTopLeftRadius: 22,
           borderTopRightRadius: 22,
@@ -49,7 +48,7 @@ function TabNavigator() {
           shadowRadius: 16,
           elevation: 12,
         },
-        tabBarActiveTintColor: "#0871DF",
+        tabBarActiveTintColor: themed("#0871DF", "#7FBBFA"),
         tabBarInactiveTintColor: isDark ? "#9CA3AF" : "#768198",
         tabBarShowLabel: true,
         tabBarLabelStyle: {

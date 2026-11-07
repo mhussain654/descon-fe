@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { Image, Linking, Pressable, StyleSheet, View } from "react-native";
+import { Image, Linking, Pressable, View } from "react-native";
 import { Text } from "../../../../design-system/Text";
 import { Landmark, ChevronRight, ChevronLeft } from "lucide-react-native";
 import {
@@ -28,6 +28,16 @@ import { useBankDetailUpload } from "../hooks/useBankDetailUpload";
 
 import { GradientIconBox } from "../../home/GradientIconBox";
 import { physicalTextAlign, rowDirectionTowards } from "../../../../lib/layoutDirection";
+import { themed, themedStyles, themedValues } from '../../../../design-system/theme';
+
+// Same colours as the other rows on the documents list, so the row reads the same in dark mode.
+const STATUS_COLORS = themedValues(() => ({
+  required: themed("#6B7280", "#94A3B8"),
+  uploaded: themed("#6941C6", "#BBA9E5"),
+  under_approval: themed("#9A5700", "#FFC57A"),
+  approved: themed("#087C46", "#82F7C1"),
+  rejected: themed("#B42318", "#F2A29C"),
+}));
 
 const PERMISSION_NOTICE_KEYS: Record<string, TranslationKey> = {
   "camera:denied": "candidateDocumentsCameraPermissionDeniedError",
@@ -102,7 +112,7 @@ export function BankDetailsPanel({ isDark, t, language, submittedForReview, onSe
   if (query.error) {
     const key = CANDIDATE_BANK_DETAILS_ERROR_KEYS[query.error.code] as TranslationKey;
     return (
-      <View style={[styles.row, { backgroundColor: isDark ? "#1E1E1E" : "#FFFFFF", borderColor: isDark ? "#333333" : "#E0ECF9" }]}>
+      <View style={[styles.row, { backgroundColor: isDark ? "#1E293B" : "#FFFFFF", borderColor: isDark ? "#334155" : "#E0ECF9" }]}>
         <ErrorState message={query.error.message ?? t(key)} retryLabel={t("retry")} onRetry={() => query.refetch()} language={language} />
       </View>
     );
@@ -123,14 +133,19 @@ export function BankDetailsPanel({ isDark, t, language, submittedForReview, onSe
           ? "candidateDocumentsStatusUnderApproval"
           : "candidateDocumentsStatusUploaded";
   const statusColor = !isComplete
-    ? "#6B7280"
+    ? STATUS_COLORS.required
     : reviewStatus === "verified"
-      ? "#087C46"
+      ? STATUS_COLORS.approved
       : reviewStatus === "rejected"
-        ? "#B42318"
+        ? STATUS_COLORS.rejected
         : submittedForReview
-          ? "#9A5700"
-          : "#6941C6";
+          ? STATUS_COLORS.under_approval
+          : STATUS_COLORS.uploaded;
+  // Like the other documents: the status, then the date the details were last sent.
+  const sentOn = bankDetail?.updatedAt ?? bankDetail?.submittedAt;
+  const statusLine = [t(statusKey), sentOn ? new Date(sentOn).toLocaleDateString(language === "ur" ? "ur-PK" : "en-GB") : null]
+    .filter(Boolean)
+    .join(" • ");
 
   const handleToggle = () => {
     if (upload.mutation.isPending) return;
@@ -140,7 +155,7 @@ export function BankDetailsPanel({ isDark, t, language, submittedForReview, onSe
   const Chevron = language === "ur" ? ChevronLeft : ChevronRight;
 
   return (
-    <View style={[styles.row, { backgroundColor: isDark ? "#1E1E1E" : "#FFFFFF", borderColor: isDark ? "#333333" : "#E0ECF9" }]}>
+    <View style={[styles.row, { backgroundColor: isDark ? "#1E293B" : "#FFFFFF", borderColor: isDark ? "#334155" : "#E0ECF9" }]}>
       <Pressable
         onPress={handleToggle}
         disabled={upload.mutation.isPending}
@@ -156,7 +171,7 @@ export function BankDetailsPanel({ isDark, t, language, submittedForReview, onSe
             <Text
               style={[styles.subtitle, { color: statusColor, fontFamily: getFontFamily(language, "regular"), textAlign: physicalTextAlign(language === "ur" ? "right" : "left"), lineHeight: language === "ur" ? 30 : 20 }]}
             >
-              {t(statusKey)}
+              {statusLine}
             </Text>
           </View>
           <Chevron size={20} color={isDark ? "#6B7280" : "#9CA3AF"} />
@@ -314,7 +329,7 @@ function BankDetailErrorNotice({
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themedStyles(() => ({
   row: { borderRadius: 20, padding: 16, marginBottom: 12, borderWidth: 1, ...elevation.sm },
   rowContent: { flexDirection: "row", alignItems: "center" },
   rowText: { flex: 1, marginStart: 12 },
@@ -328,4 +343,4 @@ const styles = StyleSheet.create({
   permissionNotice: { marginTop: spacing[2] },
   actions: { flexDirection: "row", gap: spacing[2], marginTop: spacing[4] },
   errorNotice: { marginTop: spacing[3] },
-});
+}));

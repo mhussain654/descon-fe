@@ -1,12 +1,13 @@
 import { Stack } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
-import { useEffect } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { AppState } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { QueryClient, QueryClientProvider, focusManager } from "@tanstack/react-query";
 import { AuthProvider } from "../contexts/AuthContext";
 import { candidateAuthClient } from "../lib/auth-client";
 import { LanguageProvider } from "../contexts/LanguageContext";
+import { ThemeProvider } from "../contexts/ThemeContext";
 import { Toaster } from "../design-system/toast";
 import { useAppFonts } from "../design-system/fonts";
 SplashScreen.preventAutoHideAsync();
@@ -46,38 +47,43 @@ const queryClient = new QueryClient({
 
 export default function RootLayout() {
   const fontsLoaded = useAppFonts();
+  // The light/dark theme is loaded before any screen draws (ThemeProvider).
+  const [themeReady, setThemeReady] = useState(false);
+  const markThemeReady = useCallback(() => setThemeReady(true), []);
 
   useEffect(() => {
-    if (fontsLoaded) SplashScreen.hideAsync();
-  }, [fontsLoaded]);
+    if (fontsLoaded && themeReady) SplashScreen.hideAsync();
+  }, [fontsLoaded, themeReady]);
 
   if (!fontsLoaded) return null;
 
   return (
-    <LanguageProvider>
-      <QueryClientProvider client={queryClient}>
-        <AuthProvider client={candidateAuthClient}>
-          <GestureHandlerRootView style={{ flex: 1 }}>
-            <Stack
-              screenOptions={{ headerShown: false }}
-              initialRouteName="index"
-            >
-              <Stack.Screen name="index" />
-              <Stack.Screen name="login" />
-              <Stack.Screen name="consent" />
-              <Stack.Screen name="(tabs)" />
-              <Stack.Screen name="payment" />
-              <Stack.Screen name="training" />
-              {/* Developer-facing component reference, not a candidate screen --
-                  excluded from production builds (redirects to the initial
-                  route if somehow navigated to), matching the equivalent web
-                  exclusion in web/src/app/routes.ts. */}
-              <Stack.Screen name="design-system" redirect={!__DEV__} />
-            </Stack>
-            <Toaster />
-          </GestureHandlerRootView>
-        </AuthProvider>
-      </QueryClientProvider>
-    </LanguageProvider>
+    <ThemeProvider onReady={markThemeReady}>
+      <LanguageProvider>
+        <QueryClientProvider client={queryClient}>
+          <AuthProvider client={candidateAuthClient}>
+            <GestureHandlerRootView style={{ flex: 1 }}>
+              <Stack
+                screenOptions={{ headerShown: false }}
+                initialRouteName="index"
+              >
+                <Stack.Screen name="index" />
+                <Stack.Screen name="login" />
+                <Stack.Screen name="consent" />
+                <Stack.Screen name="(tabs)" />
+                <Stack.Screen name="payment" />
+                <Stack.Screen name="training" />
+                {/* Developer-facing component reference, not a candidate screen --
+                    excluded from production builds (redirects to the initial
+                    route if somehow navigated to), matching the equivalent web
+                    exclusion in web/src/app/routes.ts. */}
+                <Stack.Screen name="design-system" redirect={!__DEV__} />
+              </Stack>
+              <Toaster />
+            </GestureHandlerRootView>
+          </AuthProvider>
+        </QueryClientProvider>
+      </LanguageProvider>
+    </ThemeProvider>
   );
 }

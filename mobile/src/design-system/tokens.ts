@@ -4,9 +4,11 @@
 // them into. Only genuinely native-specific additions (shadow/elevation,
 // per-platform tuning) live here.
 import { Platform } from 'react-native';
-import { colors, fontWeights, minTouchTarget, motion, radii, spacing, typeScale, zIndex } from '../../../shared/design-tokens';
+import { fontWeights, minTouchTarget, motion, radii, spacing, typeScale, zIndex } from '../../../shared/design-tokens';
 
-export { colors, fontWeights, minTouchTarget, motion, radii, spacing, typeScale, zIndex };
+// Colours follow the light or dark theme (./theme.ts); the rest is shared as is.
+export { colors } from './theme';
+export { fontWeights, minTouchTarget, motion, radii, spacing, typeScale, zIndex };
 
 export type ElevationLevel = 'none' | 'sm' | 'md' | 'lg';
 

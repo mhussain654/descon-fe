@@ -11,6 +11,7 @@ import { ValidationMessage } from './ValidationMessage';
 import { colors, radii, spacing, zIndex } from './tokens';
 import { getFontFamily } from './fonts';
 import { physicalTextAlign, rowDirectionTowards } from '../lib/layoutDirection';
+import { themedStyles } from './theme';
 
 type Language = 'en' | 'ur';
 type CalendarView = 'days' | 'months' | 'years';
@@ -240,7 +241,7 @@ export function DateField({
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themedStyles(() => ({
   trigger: {
     minHeight: 48,
     alignItems: 'center',
@@ -291,4 +292,4 @@ const styles = StyleSheet.create({
   optionTextSelected: { color: colors.brand.on },
   optionTextDisabled: { color: colors.text.disabled },
   actions: { flexDirection: 'row', gap: spacing[2], justifyContent: 'flex-end' },
-});
+}));

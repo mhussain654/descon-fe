@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { Pressable, ScrollView, View } from 'react-native';
 import { Text } from '../../../design-system/Text';
 import { BadgeCheck, BriefcaseBusiness, Check, FileText, Globe, LogOut, Plane, ShieldCheck, UserRound } from 'lucide-react-native';
 import { Circle, Defs, LinearGradient, Rect, Stop } from 'react-native-svg';
@@ -11,6 +11,7 @@ import { physicalTextAlign, rowDirectionTowards } from '../../../lib/layoutDirec
 import { BrandRow } from '../../onboarding/BrandRow';
 import { forwardArrowSlots } from '../../onboarding/directionalArrows';
 import { GradientIconBox } from '../home/GradientIconBox';
+import { themed, themedStyles } from '../../../design-system/theme';
 
 interface ConsentContentProps {
   language: 'en' | 'ur';
@@ -44,7 +45,7 @@ export function ConsentContent({ language, t, topInset, bottomInset, isPending, 
         <MeasuredSvg>
           <Defs><LinearGradient id="consentHero" x1="0" y1="0" x2="1" y2="1"><Stop offset="0" stopColor="#2B8CD4" /><Stop offset="0.48" stopColor="#0065B3" /><Stop offset="1" stopColor="#004C87" /></LinearGradient></Defs>
           <Rect width="100%" height="100%" fill="url(#consentHero)" />
-          <Circle cx="100%" cy="45%" r="115" fill="none" stroke="#FFFFFF" strokeOpacity={0.08} strokeWidth={30} />
+          <Circle cx="100%" cy="45%" r="115" fill="none" stroke={themed("#FFFFFF", "#1E293B")} strokeOpacity={0.08} strokeWidth={30} />
         </MeasuredSvg>
         {/* The same header as the language and sign-in pages: the logo row from
             the reading side, the language switch on the other end of the line. */}
@@ -92,15 +93,15 @@ export function ConsentContent({ language, t, topInset, bottomInset, isPending, 
   );
 }
 
-const styles = StyleSheet.create({
-  content: { flexGrow: 1, backgroundColor: '#F0F7FF' },
+const styles = themedStyles(() => ({
+  content: { flexGrow: 1, backgroundColor: themed('#F0F7FF', '#0F172A') },
   hero: { paddingHorizontal: spacing[6], paddingBottom: spacing[8], overflow: 'hidden', backgroundColor: '#0065B3' },
   topRow: { alignItems: 'center', justifyContent: 'space-between', gap: spacing[3] },
   language: { minHeight: 44, minWidth: 62, paddingHorizontal: spacing[3], borderRadius: 24, borderWidth: 1, borderColor: 'rgba(255,255,255,0.3)', backgroundColor: 'rgba(255,255,255,0.12)', alignItems: 'center', justifyContent: 'center' },
   languageText: { color: colors.text.inverse, fontSize: 12, lineHeight: 28 },
   art: { width: 176, height: 106, marginTop: spacing[3], marginBottom: spacing[1], alignSelf: 'center' },
   orbit: { position: 'absolute', left: 42, top: 3, width: 93, height: 93, borderRadius: 47, borderWidth: 1, borderColor: 'rgba(255,255,255,0.3)' },
-  shield: { position: 'absolute', left: 55, top: 16, width: 68, height: 68, borderRadius: 20, backgroundColor: '#EAFBFF', alignItems: 'center', justifyContent: 'center', transform: [{ rotate: '-8deg' }], ...elevation.lg },
+  shield: { position: 'absolute', left: 55, top: 16, width: 68, height: 68, borderRadius: 20, backgroundColor: themed('#EAFBFF', '#122A30'), alignItems: 'center', justifyContent: 'center', transform: [{ rotate: '-8deg' }], ...elevation.lg },
   document: { position: 'absolute', left: 10, top: 14, transform: [{ rotate: '-10deg' }] },
   plane: { position: 'absolute', right: 6, top: 10, transform: [{ rotate: '12deg' }] },
   briefcase: { position: 'absolute', left: 21, bottom: 6, transform: [{ rotate: '9deg' }] },
@@ -109,7 +110,7 @@ const styles = StyleSheet.create({
   titleUrdu: { fontSize: 23, lineHeight: 46 },
   intro: { textAlign: 'center', marginTop: spacing[2], fontSize: 14, lineHeight: 22, color: '#E5F4FF' },
   introUrdu: { lineHeight: 32 },
-  sheet: { marginTop: -24, padding: spacing[4], gap: spacing[4], borderTopLeftRadius: 28, borderTopRightRadius: 28, backgroundColor: '#F0F7FF', width: '100%', maxWidth: 600, alignSelf: 'center' },
+  sheet: { marginTop: -24, padding: spacing[4], gap: spacing[4], borderTopLeftRadius: 28, borderTopRightRadius: 28, backgroundColor: themed('#F0F7FF', '#0F172A'), width: '100%', maxWidth: 600, alignSelf: 'center' },
   kickerRow: { alignItems: 'center', justifyContent: 'space-between', gap: spacing[2], flexWrap: 'wrap' },
   kicker: { fontSize: 12, color: colors.text.primary },
   policy: { backgroundColor: colors.surface.raised, padding: spacing[4], borderRadius: 20, gap: spacing[5], ...elevation.sm },
@@ -117,7 +118,7 @@ const styles = StyleSheet.create({
   sectionCopy: { flex: 1, minWidth: 0 },
   sectionTitle: { fontSize: 14, lineHeight: 22, marginBottom: spacing[1], color: colors.text.primary },
   sectionTitleUrdu: { lineHeight: 32 },
-  statement: { fontSize: 14, lineHeight: 23, color: '#55667E' },
+  statement: { fontSize: 14, lineHeight: 23, color: themed('#55667E', '#94A3B8') },
   statementUrdu: { lineHeight: 34 },
   choice: { padding: spacing[3], minHeight: 56, alignItems: 'center', gap: spacing[3], backgroundColor: colors.surface.raised, borderWidth: 1, borderColor: colors.border.default, borderRadius: 16 },
   choiceChecked: { borderColor: colors.brand.default, backgroundColor: colors.brand.subtle },
@@ -128,4 +129,4 @@ const styles = StyleSheet.create({
   acceptText: { flexShrink: 1, fontSize: 16 },
   acceptUrdu: { fontSize: 15, lineHeight: 32 },
   logoutText: { color: colors.text.secondary, flexShrink: 1 },
-});
+}));

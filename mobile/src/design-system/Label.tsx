@@ -1,8 +1,9 @@
-import { StyleSheet, View } from 'react-native';
+import { View } from 'react-native';
 import { Text } from './Text';
 import { colors, fontWeights, spacing } from './tokens';
 import { getFontFamily } from './fonts';
 import { isStartSide } from '../lib/layoutDirection';
+import { themedStyles } from './theme';
 
 export interface LabelProps {
   children: string;
@@ -26,10 +27,10 @@ export function Label({ children, requirementText, language = 'en' }: LabelProps
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themedStyles(() => ({
   row: { flexDirection: 'row', flexWrap: 'wrap', marginBottom: spacing[1.5] },
   rowReversed: { flexDirection: 'row-reverse' },
   label: { fontSize: 14, fontWeight: fontWeights.medium, color: colors.text.primary },
   urduLabel: { lineHeight: 30, paddingHorizontal: spacing[1] },
   requirement: { fontSize: 14, color: colors.text.tertiary },
-});
+}));

@@ -1,6 +1,7 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react-native";
+import { Alert } from "react-native";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { AuthProvider } from "../../../contexts/AuthContext";
 import { LanguageProvider } from "../../../contexts/LanguageContext";
@@ -15,6 +16,10 @@ const TEST_SAFE_AREA_METRICS = {
 };
 
 const mockReplace = jest.fn();
+const mockSetScheme = jest.fn(() => Promise.resolve());
+jest.mock("../../../contexts/ThemeContext", () => ({
+  useTheme: () => ({ scheme: "light", setScheme: mockSetScheme }),
+}));
 jest.mock("expo-router", () => ({
   useRouter: () => ({ replace: (...args) => mockReplace(...args), push: jest.fn(), back: jest.fn() }),
 }));
@@ -233,6 +238,64 @@ describe("ProfileScreen", () => {
       if (originalApiBase === undefined) delete process.env.EXPO_PUBLIC_API_BASE_URL;
       else process.env.EXPO_PUBLIC_API_BASE_URL = originalApiBase;
     }
+  });
+
+  it("says a new photo is waiting for approval", async () => {
+    candidateProfileClient.getProfile.mockResolvedValue(
+      profilePayload({ photoUrl: "/rails/active_storage/blobs/proxy/x/p.jpg", photoStatus: "pending", photoReviewedAt: null })
+    );
+    renderProfileScreen();
+
+    expect(await screen.findByText("Waiting for approval")).toBeOnTheScreen();
+  });
+
+  it("tells the candidate once when staff reject their photo", async () => {
+    const alert = jest.spyOn(Alert, "alert").mockImplementation(() => {});
+    try {
+      candidateProfileClient.getProfile.mockResolvedValue(
+        profilePayload({ photoUrl: null, photoStatus: "rejected", photoReviewedAt: "2026-11-07T10:00:00Z" })
+      );
+      renderProfileScreen();
+
+      await waitFor(() =>
+        expect(alert).toHaveBeenCalledWith("Picture not approved!", "Please upload a clear photo of your own face.", expect.any(Array))
+      );
+      alert.mock.calls[0][2][0].onPress();
+      await waitFor(async () => expect(await AsyncStorage.getItem("descon.photoRejectionSeen")).toBe("2026-11-07T10:00:00Z"));
+      expect(screen.queryByText("Waiting for approval")).toBeNull();
+    } finally {
+      alert.mockRestore();
+      await AsyncStorage.removeItem("descon.photoRejectionSeen");
+    }
+  });
+
+  it("does not repeat a rejection the candidate has already seen", async () => {
+    const alert = jest.spyOn(Alert, "alert").mockImplementation(() => {});
+    await AsyncStorage.setItem("descon.photoRejectionSeen", "2026-11-07T10:00:00Z");
+    try {
+      candidateProfileClient.getProfile.mockResolvedValue(
+        profilePayload({ photoUrl: null, photoStatus: "rejected", photoReviewedAt: "2026-11-07T10:00:00Z" })
+      );
+      renderProfileScreen();
+
+      expect(await screen.findByText("Ahmed Ali")).toBeOnTheScreen();
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      expect(alert).not.toHaveBeenCalled();
+    } finally {
+      alert.mockRestore();
+      await AsyncStorage.removeItem("descon.photoRejectionSeen");
+    }
+  });
+
+  it("lets the candidate turn on dark mode, coming back to this screen after the app reloads", async () => {
+    candidateProfileClient.getProfile.mockResolvedValue(profilePayload());
+    renderProfileScreen();
+
+    const darkMode = await screen.findByLabelText("Dark mode");
+    expect(screen.getByText("Off")).toBeOnTheScreen();
+    fireEvent(darkMode, "valueChange", true);
+
+    expect(mockSetScheme).toHaveBeenCalledWith("dark", "/(tabs)/profile");
   });
 
   it("shows which country the application is in process for", async () => {

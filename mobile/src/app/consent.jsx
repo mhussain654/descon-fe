@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { StyleSheet, View } from "react-native";
+import { View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
 import { Redirect, useRouter } from "expo-router";
@@ -9,6 +9,7 @@ import { RestoringScreen } from "../features/auth/RestoringScreen";
 import { useAcceptConsent } from "../features/candidate/consent/hooks/useAcceptConsent";
 import { ConsentContent } from "../features/candidate/consent/ConsentContent";
 import { colors } from "../design-system/tokens";
+import { themedStyles } from '../design-system/theme';
 
 // MPS-204: candidates must accept the current policy version before using
 // any other part of the app. RequireAuth (used by every other protected
@@ -56,6 +57,6 @@ export default function ConsentScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themedStyles(() => ({
   screen: { flex: 1, backgroundColor: colors.surface.raised },
-});
+}));

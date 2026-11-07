@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react';
-import { Animated, StyleSheet, type StyleProp, type ViewStyle } from 'react-native';
+import { Animated, type StyleProp, type ViewStyle } from 'react-native';
 import { colors, radii } from './tokens';
+import { themedStyles } from './theme';
 
 export interface SkeletonProps {
   style?: StyleProp<ViewStyle>;
@@ -30,6 +31,6 @@ export function Skeleton({ style }: SkeletonProps) {
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themedStyles(() => ({
   base: { borderRadius: radii.md, backgroundColor: colors.surface.sunken },
-});
+}));

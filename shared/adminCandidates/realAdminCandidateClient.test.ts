@@ -89,7 +89,12 @@ describe('createAdminCandidateClient (real)', () => {
       stubFetch(async (url, init) => {
         capturedUrl = String(url);
         capturedHeaders = init?.headers as Record<string, string>;
-        return jsonResponse(successEnvelope(candidateDetailResponse()));
+        return jsonResponse(
+          successEnvelope({
+            ...candidateDetailResponse(),
+            profile_photo: { status: 'pending', url: '/rails/active_storage/blobs/proxy/abc/profile-photo.jpg', reviewed_at: null },
+          })
+        );
       });
       const client = buildClient('ur');
 
@@ -118,7 +123,24 @@ describe('createAdminCandidateClient (real)', () => {
           currentWorkflowStage: { code: 'documents_pending', name: 'Documents Pending' },
           createdAt: '2026-08-30T09:00:00Z',
         },
+        profilePhoto: { status: 'pending', url: '/rails/active_storage/blobs/proxy/abc/profile-photo.jpg', reviewedAt: null },
       });
+    });
+
+    it('approves and rejects the profile photo at its own endpoints', async () => {
+      const urls: string[] = [];
+      stubFetch(async (url) => {
+        urls.push(String(url));
+        return jsonResponse(successEnvelope({ status: 'rejected', url: null, reviewed_at: '2026-11-07T10:00:00Z' }), { status: 201 });
+      });
+      const client = buildClient('en');
+
+      await client.decideProfilePhoto('candidate-1', 'approved');
+      const result = await client.decideProfilePhoto('candidate-1', 'rejected');
+
+      expect(urls[0]).toContain('/admin/candidates/candidate-1/profile_photo/approval');
+      expect(urls[1]).toContain('/admin/candidates/candidate-1/profile_photo/rejection');
+      expect(result).toEqual({ status: 'rejected', url: null, reviewedAt: '2026-11-07T10:00:00Z' });
     });
 
     it('maps a null assignment to null, never a fabricated placeholder', async () => {

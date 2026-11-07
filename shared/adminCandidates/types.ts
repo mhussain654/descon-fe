@@ -34,6 +34,16 @@ export interface NextOfKinDetail {
   cnic: string | null;
 }
 
+export type AdminCandidateProfilePhotoStatus = 'pending' | 'approved' | 'rejected';
+
+/** The candidate's profile photo and staff's decision on it. A rejected photo is removed, so `url` is null. */
+export interface AdminCandidateProfilePhoto {
+  status: AdminCandidateProfilePhotoStatus | null;
+  /** Short-lived, signed relative path; null when there is no photo. */
+  url: string | null;
+  reviewedAt: string | null;
+}
+
 export interface AdminCandidateDetail {
   id: string;
   fullName: string;
@@ -49,6 +59,8 @@ export interface AdminCandidateDetail {
   /** The more recent of the candidate's and its assignment's own updated_at. Echo back as `expectedUpdatedAt` on a subsequent update to guard against overwriting a concurrent edit. */
   updatedAt: string | null;
   assignment: AdminCandidateAssignmentSummary | null;
+  /** Only on the single-candidate view (getCandidate); null in the list. */
+  profilePhoto: AdminCandidateProfilePhoto | null;
 }
 
 /** Send all four fields together, or none -- matches the backend's all-or-nothing validation. Sending all four as empty strings intentionally clears a previously recorded next-of-kin (the backend accepts an all-blank group as "clear", not as an incomplete one). */
@@ -197,6 +209,8 @@ export interface AdminCandidateClient {
   ): Promise<AdminCandidateListResult>;
   createCandidate(input: CreateCandidateInput): Promise<AdminCandidateDetail>;
   updateCandidate(input: UpdateCandidateInput): Promise<AdminCandidateDetail>;
+  /** Approve or reject the candidate's profile photo (a rejected photo is removed). */
+  decideProfilePhoto(candidateId: string, decision: 'approved' | 'rejected'): Promise<AdminCandidateProfilePhoto>;
   getCountries(): Promise<ReferenceDataItem[]>;
   getProjects(): Promise<ReferenceDataItem[]>;
   getCrafts(): Promise<ReferenceDataItem[]>;

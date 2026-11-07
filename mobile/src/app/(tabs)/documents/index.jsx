@@ -37,15 +37,16 @@ import { PCC_COMPLIANCE_STATUS_KEYS } from "../../../../../shared/candidateDocum
 import { documentStatusGroup, documentSummaryTiles, hasSubmittedForReview, DOCUMENT_STATUS_GROUP_KEYS } from "../../../../../shared/candidateDocuments/statusGroups";
 
 import { ButtonHeightContext } from "../../../design-system/Button";
+import { isDarkTheme, themed, themedValues } from '../../../design-system/theme';
 
 // The five statuses the candidate sees (see shared/candidateDocuments/statusGroups.ts).
-const STATUS_COLORS = {
-  required: "#6B7280",
-  uploaded: "#6941C6",
-  under_approval: "#9A5700",
-  approved: "#087C46",
-  rejected: "#B42318",
-};
+const STATUS_COLORS = themedValues(() => ({
+  required: themed("#6B7280", "#94A3B8"),
+  uploaded: themed("#6941C6", "#BBA9E5"),
+  under_approval: themed("#9A5700", "#FFC57A"),
+  approved: themed("#087C46", "#82F7C1"),
+  rejected: themed("#B42318", "#F2A29C"),
+}));
 
 function statusPresentation(item) {
   const group = documentStatusGroup(item.status);
@@ -57,7 +58,7 @@ function statusPresentation(item) {
 export default function DocumentsScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const isDark = false;
+  const isDark = isDarkTheme();
   const { t, language } = useLanguage();
   const { logout } = useAuth();
   const checklistQuery = useCandidateDocuments();
@@ -327,7 +328,7 @@ function DocumentRow({
 
   return (
     <View
-      style={[documentsStyles.card, { backgroundColor: "#FFFFFF", borderColor: rowIsExpanded ? "#78B8F6" : "#E0ECF9" }]}
+      style={[documentsStyles.card, { backgroundColor: themed("#FFFFFF", "#1E293B"), borderColor: rowIsExpanded ? "#78B8F6" : themed("#E0ECF9", "#16283A") }]}
     >
       <View style={[documentsStyles.cardRow, { flexDirection: rowDirectionTowards(language === "ur" ? "right" : "left") }]}>
         {rowIsExpandable ? (
@@ -341,7 +342,7 @@ function DocumentRow({
           >
             <View style={[documentsStyles.cardRow, { flexDirection: rowDirectionTowards(language === "ur" ? "right" : "left") }]} >
               <View style={{ flex: 1 }}>{mainContent}</View>
-              {rowIsExpanded ? <ChevronDown size={20} color="#6B7280" /> : <Chevron size={20} color="#9CA3AF" />}
+              {rowIsExpanded ? <ChevronDown size={20} color={themed("#6B7280", "#94A3B8")} /> : <Chevron size={20} color="#9CA3AF" />}
             </View>
           </Pressable>
         ) : (

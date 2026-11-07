@@ -377,7 +377,7 @@ describe("DashboardScreen", () => {
     );
     renderDashboardScreen();
 
-    expect(await screen.findByText("Pay onboarding fee")).toBeOnTheScreen();
+    expect(await screen.findByText("Pay Mobilization Fee")).toBeOnTheScreen();
     expect(screen.queryByText("Verification complete")).toBeNull();
   });
 

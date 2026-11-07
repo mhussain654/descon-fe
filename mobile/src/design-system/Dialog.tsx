@@ -1,9 +1,10 @@
 import type { ReactNode } from 'react';
-import { Modal, Pressable, StyleSheet, View } from 'react-native';
+import { Modal, Pressable, View } from 'react-native';
 import { Text } from './Text';
 import { Button, type ButtonVariant } from './Button';
 import { colors, fontWeights, radii, spacing, zIndex } from './tokens';
 import { getFontFamily } from './fonts';
+import { themedStyles } from './theme';
 
 export interface ConfirmDialogProps {
   open: boolean;
@@ -71,7 +72,7 @@ export function ConfirmDialog({
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themedStyles(() => ({
   overlay: {
     position: 'absolute',
     top: 0,
@@ -93,4 +94,4 @@ const styles = StyleSheet.create({
   title: { fontSize: 18, fontWeight: fontWeights.semibold, color: colors.text.primary },
   description: { fontSize: 14, color: colors.text.secondary },
   actions: { flexDirection: 'row', justifyContent: 'flex-end', gap: spacing[2] },
-});
+}));

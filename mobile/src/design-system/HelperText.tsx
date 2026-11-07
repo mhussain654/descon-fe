@@ -2,6 +2,7 @@ import { StyleSheet } from 'react-native';
 import { Text } from './Text';
 import { colors, spacing } from './tokens';
 import { getFontFamily } from './fonts';
+import { themedStyles } from './theme';
 
 export interface HelperTextProps {
   children: string;
@@ -14,7 +15,7 @@ export function HelperText({ children, language = 'en' }: HelperTextProps) {
   return <Text style={[styles.text, language === 'ur' && styles.urduText, { fontFamily: getFontFamily(language, 'regular') }]}>{children}</Text>;
 }
 
-const styles = StyleSheet.create({
+const styles = themedStyles(() => ({
   text: { marginTop: spacing[1.5], fontSize: 14, color: colors.text.secondary },
   urduText: { lineHeight: 30, textAlign: 'right', writingDirection: 'rtl' },
-});
+}));

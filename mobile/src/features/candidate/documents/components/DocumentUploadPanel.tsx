@@ -1,4 +1,4 @@
-import { Image, Linking, Pressable, StyleSheet, View } from 'react-native';
+import { Image, Linking, Pressable, View } from 'react-native';
 import { Text } from '../../../../design-system/Text';
 import { X } from 'lucide-react-native';
 import {
@@ -32,6 +32,7 @@ import type { CandidateDocumentsError } from '../../../../lib/candidate-document
 import type { Language, TranslationKey } from '../../../../../../shared/i18n/translations';
 import type { DocumentUploadController, PickedFile } from '../hooks/useDocumentUpload';
 import { offeredContentTypes, offeredPairModes, offersPhotoCapture } from '../uploadOptions';
+import { themed, themedStyles } from '../../../../design-system/theme';
 
 const PERMISSION_NOTICE_KEYS: Record<string, TranslationKey> = {
   'camera:denied': 'candidateDocumentsCameraPermissionDeniedError',
@@ -353,7 +354,7 @@ function DocumentUploadErrorNotice({ error, t, language }: { error: CandidateDoc
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themedStyles(() => ({
   container: {
     marginTop: spacing[3],
     borderRadius: 12,
@@ -364,9 +365,9 @@ const styles = StyleSheet.create({
   instructionsEmphasis: { color: colors.text.primary },
   section: { marginTop: spacing[2] },
   modeRow: { flexDirection: 'row', gap: spacing[2], marginBottom: spacing[3] },
-  modeButton: { flex: 1, minWidth: 0, height: 34, paddingVertical: 0, paddingHorizontal: spacing[1], borderWidth: 1, borderColor: '#A8CCFF', borderRadius: 12, alignItems: 'center', justifyContent: 'center', backgroundColor: '#E7F1FF' },
+  modeButton: { flex: 1, minWidth: 0, height: 34, paddingVertical: 0, paddingHorizontal: spacing[1], borderWidth: 1, borderColor: themed('#A8CCFF', '#4A5D77'), borderRadius: 12, alignItems: 'center', justifyContent: 'center', backgroundColor: themed('#E7F1FF', '#142236') },
   modeSelected: { backgroundColor: '#0862BC', borderColor: '#0862BC' },
-  modeText: { color: '#0759B8', fontSize: 12, lineHeight: 18, textAlign: 'center' },
+  modeText: { color: themed('#0759B8', '#93C3FB'), fontSize: 12, lineHeight: 18, textAlign: 'center' },
   modeTextSelected: { color: '#FFFFFF' },
   modeTextUrdu: { fontSize: 11, lineHeight: 28 },
   slotLabel: { fontSize: 14, color: colors.text.primary, marginBottom: spacing[1] },
@@ -384,4 +385,4 @@ const styles = StyleSheet.create({
   emptyText: { fontSize: 13, color: colors.text.tertiary, marginTop: spacing[1] },
   previewImage: { width: 48, height: 48, borderRadius: 6 },
   actions: { flexDirection: 'row', gap: spacing[2], marginTop: spacing[4] },
-});
+}));

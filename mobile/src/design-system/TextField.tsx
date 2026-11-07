@@ -1,10 +1,11 @@
 import { forwardRef } from 'react';
-import { StyleSheet, TextInput, View, type TextInputProps } from 'react-native';
+import { TextInput, View, type TextInputProps } from 'react-native';
 import { HelperText } from './HelperText';
 import { Label } from './Label';
 import { colors, radii, spacing } from './tokens';
 import { ValidationMessage } from './ValidationMessage';
 import { getFontFamily } from './fonts';
+import { themedStyles } from './theme';
 
 export interface TextFieldProps extends Omit<TextInputProps, 'style'> {
   /** Already-translated label text. */
@@ -57,7 +58,7 @@ export const TextField = forwardRef<TextInput, TextFieldProps>(function TextFiel
   );
 });
 
-const styles = StyleSheet.create({
+const styles = themedStyles(() => ({
   input: {
     height: 48,
     borderWidth: 1,
@@ -68,4 +69,4 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface.raised,
   },
   disabled: { opacity: 0.5 },
-});
+}));

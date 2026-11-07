@@ -1,8 +1,9 @@
 import { Check } from 'lucide-react-native';
-import { Pressable, StyleSheet } from 'react-native';
+import { Pressable } from 'react-native';
 import { Text } from './Text';
 import { colors, fontWeights, radii, spacing } from './tokens';
 import { getFontFamily } from './fonts';
+import { themedStyles } from './theme';
 
 export interface FilterChipProps {
   selected: boolean;
@@ -34,7 +35,7 @@ export function FilterChip({ selected, onPress, children, language = 'en' }: Fil
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themedStyles(() => ({
   chip: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -49,4 +50,4 @@ const styles = StyleSheet.create({
     borderColor: colors.border.default,
   },
   text: { fontSize: 14, fontWeight: fontWeights.medium },
-});
+}));

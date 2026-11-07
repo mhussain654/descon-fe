@@ -1,8 +1,9 @@
-import { StyleSheet, View } from 'react-native';
+import { View } from 'react-native';
 import { Text } from './Text';
 import { Spinner } from './Spinner';
 import { colors, spacing } from './tokens';
 import { getFontFamily } from './fonts';
+import { themedStyles } from './theme';
 
 export interface LoadingStateProps {
   /** Already-translated message, e.g. `t('loading')`. */
@@ -23,7 +24,7 @@ export function LoadingState({ message, language = 'en' }: LoadingStateProps) {
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themedStyles(() => ({
   row: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: spacing[2], paddingVertical: spacing[12] },
   text: { fontSize: 14, color: colors.text.secondary },
-});
+}));

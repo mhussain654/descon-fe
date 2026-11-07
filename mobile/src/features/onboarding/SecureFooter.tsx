@@ -1,8 +1,9 @@
-import { StyleSheet, View } from 'react-native';
+import { View } from 'react-native';
 import { Text } from '../../design-system/Text';
 import { ShieldCheck } from 'lucide-react-native';
 import { getFontFamily } from '../../design-system';
 import { colors, spacing } from '../../design-system/tokens';
+import { themedStyles } from '../../design-system/theme';
 
 /** Green shield + reassurance line closing the welcome and sign-in sheets. */
 export function SecureFooter({ language, children }: { language: string; children: string }) {
@@ -19,9 +20,9 @@ export function SecureFooter({ language, children }: { language: string; childre
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themedStyles(() => ({
   row: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: spacing[2] },
   text: { fontSize: 12, color: colors.text.secondary, textAlign: 'center' },
   // Nastaliq's thin strokes wash out in the standard secondary grey.
   textUrdu: { color: colors.text.primary, opacity: 0.74 },
-});
+}));

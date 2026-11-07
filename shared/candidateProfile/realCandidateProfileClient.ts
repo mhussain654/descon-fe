@@ -27,6 +27,8 @@ interface CandidateProfileResponse {
   current_workflow_stage: { code: string; name: string } | null;
   country?: { code: string; name: string } | null;
   photo_url?: string | null;
+  photo_status?: string | null;
+  photo_reviewed_at?: string | null;
   active: boolean;
   payment: EligibilityResponse;
   consent: { current_policy_version: string; accepted: boolean; accepted_at: string | null };
@@ -44,6 +46,12 @@ const SERVER_CODE_TO_ERROR: Record<string, CandidateProfileErrorCode> = {
   consent_required: 'CONSENT_REQUIRED',
 };
 
+const PHOTO_STATUSES = ['pending', 'approved', 'rejected'] as const;
+
+function toPhotoStatus(value: string | null | undefined): CandidateProfile['photoStatus'] {
+  return PHOTO_STATUSES.find((status) => status === value) ?? null;
+}
+
 function toProfile(data: CandidateProfileResponse): CandidateProfile {
   return {
     id: data.id,
@@ -55,6 +63,8 @@ function toProfile(data: CandidateProfileResponse): CandidateProfile {
     currentWorkflowStage: data.current_workflow_stage,
     country: data.country ?? null,
     photoUrl: data.photo_url ?? null,
+    photoStatus: toPhotoStatus(data.photo_status),
+    photoReviewedAt: data.photo_reviewed_at ?? null,
     active: data.active,
     payment: toPaymentEligibility(data.payment),
     consent: {

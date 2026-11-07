@@ -1,9 +1,10 @@
-import { StyleSheet, View } from 'react-native';
+import { View } from 'react-native';
 import { Image } from 'expo-image';
 import { Text } from '../../design-system/Text';
 import { getFontFamily } from '../../design-system';
 import { colors, elevation, radii, spacing } from '../../design-system/tokens';
 import { rowDirectionTowards } from '../../lib/layoutDirection';
+import { themedStyles } from '../../design-system/theme';
 
 const DESCON_LOGO = require('../../../assets/images/descon-logo.png');
 
@@ -52,13 +53,14 @@ export function BrandRow({ language, primary, secondary, side }: BrandRowProps) 
 
 export const BRAND_ROW_HEIGHT = 48;
 
-const styles = StyleSheet.create({
+const styles = themedStyles(() => ({
   row: { alignItems: 'center', gap: spacing[3] },
   tile: {
     width: BRAND_ROW_HEIGHT,
     height: BRAND_ROW_HEIGHT,
     borderRadius: radii.lg,
-    backgroundColor: colors.surface.raised,
+    // Brand book: the Descon logo always sits on white, in the dark theme too.
+    backgroundColor: '#FFFFFF',
     alignItems: 'center',
     justifyContent: 'center',
     ...elevation.md,
@@ -68,4 +70,4 @@ const styles = StyleSheet.create({
   // Nastaliq needs the extra line height or its lower strokes clip.
   urduName: { alignItems: 'center', gap: spacing[1.5] },
   nameUrdu: { fontSize: 19, lineHeight: 42, writingDirection: 'rtl', paddingHorizontal: 2 },
-});
+}));

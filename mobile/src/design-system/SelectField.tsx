@@ -9,6 +9,7 @@ import { ValidationMessage } from './ValidationMessage';
 import { colors, radii, spacing, zIndex } from './tokens';
 import { getFontFamily } from './fonts';
 import { physicalTextAlign, rowDirectionTowards } from '../lib/layoutDirection';
+import { themedStyles } from './theme';
 
 export interface SelectFieldOption {
   value: string;
@@ -112,7 +113,7 @@ export function SelectField({
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themedStyles(() => ({
   trigger: {
     height: 48,
     alignItems: 'center',
@@ -142,4 +143,4 @@ const styles = StyleSheet.create({
   list: { flexGrow: 0 },
   option: { alignItems: 'center', justifyContent: 'space-between', gap: spacing[2], minHeight: 48, paddingVertical: spacing[2] },
   optionText: { flex: 1, fontSize: 16, color: colors.text.primary },
-});
+}));

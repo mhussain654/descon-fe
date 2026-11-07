@@ -1,6 +1,7 @@
 import type { ComponentType } from 'react';
 import { StyleSheet, View } from 'react-native';
 import Svg, { Defs, LinearGradient, Rect, Stop } from 'react-native-svg';
+import { themedStyles } from '../../../design-system/theme';
 
 export type IconTone = 'blue' | 'orange' | 'green' | 'purple' | 'coral';
 
@@ -47,7 +48,7 @@ export function GradientIconBox({ tone, icon: Icon, size = 44 }: GradientIconBox
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themedStyles(() => ({
   iconLayer: { position: 'relative', zIndex: 1 },
   box: {
     overflow: 'hidden',
@@ -59,4 +60,4 @@ const styles = StyleSheet.create({
     shadowRadius: 10,
     elevation: 4,
   },
-});
+}));

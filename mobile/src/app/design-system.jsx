@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { ScrollView, StyleSheet, View } from "react-native";
+import { ScrollView, View } from "react-native";
 import { Text } from "../design-system/Text";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useLanguage } from "../contexts/LanguageContext";
@@ -28,6 +28,7 @@ import {
   toast,
 } from "../design-system";
 import { colors, fontWeights, spacing } from "../design-system/tokens";
+import { themedStyles } from '../design-system/theme';
 
 const CANDIDATES = [
   { id: "1", name: "Ahmed Khan", stageKey: "documentsUploaded" },
@@ -214,7 +215,7 @@ export default function DesignSystemShowcaseScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themedStyles(() => ({
   scroll: { flex: 1, backgroundColor: colors.surface.background },
   content: { paddingHorizontal: spacing[6], gap: spacing[10] },
   title: { fontSize: 24, fontWeight: fontWeights.semibold, color: colors.text.primary },
@@ -231,4 +232,4 @@ const styles = StyleSheet.create({
   filterRow: { flexDirection: "row", gap: spacing[2] },
   listItemName: { fontSize: 16, fontWeight: fontWeights.medium, color: colors.text.primary },
   listItemStage: { marginTop: spacing[1], fontSize: 14, color: colors.text.secondary },
-});
+}));

@@ -150,7 +150,7 @@ describe("PaymentScreen", () => {
     paymentsClient.getEligibility.mockResolvedValue(eligibility());
     renderPaymentScreen();
 
-    expect(await screen.findByText("1500.0 PKR")).toBeOnTheScreen();
+    expect(await screen.findByText(/Rs\s?1,500/)).toBeOnTheScreen();
     expect(screen.getByRole("button", { name: "Pay now" })).toBeOnTheScreen();
   });
 
@@ -445,6 +445,18 @@ describe("PaymentScreen payment code (voucher)", () => {
 
     expect(screen.getByText(/You already have a payment code/)).toBeOnTheScreen();
     expect(screen.getByRole("button", { name: "Pay now" })).toBeOnTheScreen();
+  });
+
+  it("does not warn to pay one way only when the card is switched off", async () => {
+    const open = voucher();
+    paymentsClient.getEligibility.mockResolvedValue(
+      eligibility({ checkoutAvailable: false, voucherAvailable: true, openVoucher: open, latestPayment: open })
+    );
+    renderPaymentScreen();
+
+    expect(await screen.findByText("0000832249220")).toBeOnTheScreen();
+    expect(screen.queryByText(/Pay by code or by card, not both/)).toBeNull();
+    expect(screen.queryByRole("tab", { name: "Pay by card" })).toBeNull();
   });
 
   it("still shows the open code when the newest payment is a card checkout", async () => {

@@ -13,6 +13,7 @@ import { ADMIN_CANDIDATE_ERROR_KEYS } from "../../../../../../shared/adminCandid
 import type { TranslationKey } from "../../../../../../shared/i18n/translations";
 import { useCandidateDetail } from "../hooks/useCandidateDetail";
 import { CandidateProfileCard } from "./CandidateProfileCard";
+import { ProfilePhotoReviewCard } from "./ProfilePhotoReviewCard";
 import { CandidateDocumentsSummaryCard } from "./CandidateDocumentsSummaryCard";
 import { CandidatePaymentStatusCard } from "./CandidatePaymentStatusCard";
 import { CandidateAiCallsCard } from "../../candidateAiCalls/components/CandidateAiCallsCard";
@@ -190,7 +191,10 @@ export function CandidateWorkspace({ candidateId }: { candidateId: string }) {
           </>
         ) : null}
         {section === "profile" ? (
-          <CandidateProfileCard candidateId={candidateId} />
+          <>
+            <ProfilePhotoReviewCard candidateId={candidateId} />
+            <CandidateProfileCard candidateId={candidateId} />
+          </>
         ) : null}
         {section === "documents" ? (
           <CandidateDocumentsSummaryCard candidateId={candidateId} />
