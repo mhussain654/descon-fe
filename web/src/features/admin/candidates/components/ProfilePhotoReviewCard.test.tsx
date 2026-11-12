@@ -1,6 +1,6 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createMockStaffAuthClient, MOCK_STAFF_ACCOUNTS, MOCK_STAFF_PASSWORD } from "../../../../../../shared/auth/staffAuthClient";
 import { LanguageProvider } from "../../../../contexts/LanguageContext";
 import { StaffAuthProvider } from "../../../../contexts/StaffAuthContext";
@@ -49,7 +49,13 @@ async function renderCard(account: { email: string }) {
 }
 
 describe("ProfilePhotoReviewCard", () => {
+  beforeEach(() => {
+    // The photo's relative path is resolved against the API origin.
+    vi.stubEnv("VITE_API_BASE_URL", "http://localhost:3000/api/v1");
+  });
+
   afterEach(() => {
+    vi.unstubAllEnvs();
     vi.mocked(adminCandidateClient.getCandidate).mockReset();
     vi.mocked(adminCandidateClient.decideProfilePhoto).mockReset();
   });

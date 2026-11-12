@@ -55,9 +55,13 @@ export function ProfilePhotoReviewCard({ candidateId }: { candidateId: string })
         {photo?.status ? <Badge tone={STATUS_TONES[photo.status]}>{t(STATUS_KEYS[photo.status])}</Badge> : null}
       </div>
 
-      {photoUrl ? (
+      {photo?.url ? (
         <div className="mt-3 flex flex-wrap items-start gap-4">
-          <img src={photoUrl} alt={t('adminProfilePhotoTitle')} className="h-40 w-40 rounded-xl border border-border object-cover" />
+          {photoUrl ? (
+            <img src={photoUrl} alt={t('adminProfilePhotoTitle')} className="h-40 w-40 rounded-xl border border-border object-cover" />
+          ) : (
+            <p className="text-sm text-danger-emphasis">{t('somethingWentWrong')}</p>
+          )}
           <div className="min-w-0 flex-1 space-y-3">
             <p className="text-sm text-text-secondary">{t('adminProfilePhotoHint')}</p>
             {photo?.reviewedAt ? (
