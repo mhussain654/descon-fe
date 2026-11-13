@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import type { AllowedWorkflowTransition, WorkflowTransitionField } from '../../../../../../shared/adminWorkflow/types';
 import type { TranslationKey } from '../../../../../../shared/i18n/translations';
 import { useLanguage } from '../../../../contexts/LanguageContext';
@@ -6,7 +6,10 @@ import { Button, ConfirmDialog, Input, ValidationMessage } from '../../../../des
 import { toWorkflowBlockingReason, WORKFLOW_BLOCKING_REASON_KEYS } from '../../../../../../shared/adminWorkflow/blockingReasons';
 
 const FIELD_LABEL_KEYS: Record<string, TranslationKey> = {
+  medical_center_name: 'adminWorkflowMedicalCenterNameLabel',
+  medical_center_address: 'adminWorkflowMedicalCenterAddressLabel',
   medical_appointment_date: 'adminWorkflowMedicalAppointmentDateLabel',
+  medical_appointment_time: 'adminWorkflowMedicalAppointmentTimeLabel',
   medical_outcome_code: 'adminWorkflowMedicalOutcomeLabel',
   medical_result_date: 'adminWorkflowMedicalResultDateLabel',
   e_number: 'adminWorkflowENumberLabel',
@@ -37,10 +40,18 @@ interface GenericTransitionCardProps {
   onSubmit: (toStageCode: string, currentStageCode: string | undefined, evidence: Record<string, string>) => void;
 }
 
-function inputType(field: WorkflowTransitionField): 'date' | 'datetime-local' | 'text' {
+function inputType(field: WorkflowTransitionField): 'date' | 'datetime-local' | 'time' | 'text' {
   if (field.type === 'iso_date') return 'date';
   if (field.type === 'iso_datetime') return 'datetime-local';
+  if (field.type === 'time') return 'time';
   return 'text';
+}
+
+/** The values the form opens with: each field's default (e.g. the admin's default medical appointment), if any. */
+function defaultValues(fields: WorkflowTransitionField[]): Record<string, string> {
+  return Object.fromEntries(
+    fields.flatMap((field) => (field.defaultValue ? [[field.name, field.defaultValue] as const] : []))
+  );
 }
 
 function fieldLabelKey(fieldName: string): TranslationKey {
@@ -75,12 +86,19 @@ export function GenericTransitionCard({
   const genuineBlockingReasons = transition.blockingReasons.filter((reason) => !ownEvidenceReasons.has(reason));
   const canAttempt = supportedFields && (transition.allowed || genuineBlockingReasons.length === 0);
 
+  // Opening the form fills in the defaults; staff may change them before moving
+  // the candidate, and what they send is saved for that candidate. Only on
+  // opening -- a background refetch while it is open must not undo their edits.
+  const wasOpen = useRef(false);
   useEffect(() => {
-    if (!open) {
+    if (open && !wasOpen.current) {
+      setValues(defaultValues(transition.fields));
+    } else if (!open) {
       setValues({});
       setMissingFields([]);
     }
-  }, [open]);
+    wasOpen.current = open;
+  }, [open, transition.fields]);
 
   const confirm = () => {
     const missing = transition.fields
@@ -92,7 +110,10 @@ export function GenericTransitionCard({
     }
 
     setMissingFields([]);
-    onSubmit(transition.code, currentStageCode, values);
+    // Optional fields left (or cleared to) blank are not sent: the backend
+    // rejects blank strings, and an absent field simply isn't recorded.
+    const filled = Object.fromEntries(Object.entries(values).filter(([, value]) => value.trim() !== ''));
+    onSubmit(transition.code, currentStageCode, filled);
   };
 
   return (

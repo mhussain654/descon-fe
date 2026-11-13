@@ -33,13 +33,16 @@ export type WorkflowActionType =
   | 'mobilization'
   | 'unknown';
 
-export type WorkflowFieldType = 'string' | 'iso_date' | 'iso_datetime' | 'enum' | 'unknown';
+/** `time` is a time of day, HH:MM on a 24-hour clock. */
+export type WorkflowFieldType = 'string' | 'iso_date' | 'iso_datetime' | 'time' | 'enum' | 'unknown';
 
 export interface WorkflowTransitionField {
   name: string;
   type: WorkflowFieldType;
   required: boolean;
   values: string[];
+  /** Value to fill in, e.g. the admin's default medical appointment centre, date and time. */
+  defaultValue?: string;
 }
 
 export interface MobilizationProcessSummary {

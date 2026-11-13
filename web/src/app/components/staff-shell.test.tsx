@@ -105,10 +105,16 @@ describe('StaffShell sidebar navigation', () => {
   });
 
   it('never renders the Settings nav link for a staff member without any settings permission', async () => {
-    await renderShellAs(MPS);
+    await renderShellAs(HR);
 
     expect(await screen.findByText('page content')).toBeInTheDocument();
     expect(screen.queryByRole('link', { name: 'Settings' })).not.toBeInTheDocument();
+  });
+
+  it('shows the Settings nav link to staff who move candidates (MPS), for the default medical appointment', async () => {
+    await renderShellAs(MPS);
+
+    expect(await screen.findByRole('link', { name: 'Settings' })).toHaveAttribute('href', '/admin/settings');
   });
 
   it('shows the Audit log nav link under the Administration section for a staff member with view_audit_events', async () => {

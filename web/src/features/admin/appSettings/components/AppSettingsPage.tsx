@@ -8,13 +8,14 @@ import { ForbiddenState } from '../../../../design-system';
 import type { TranslationKey } from '../../../../../../shared/i18n/translations';
 import { AiCallOperationalSettingsForm } from '../../aiCallOperationalSettings/components/AiCallOperationalSettingsForm';
 import { CallTypesCard } from '../../bulkCalls/components/CallTypesCard';
+import { MedicalAppointmentSettingForm } from '../../medicalAppointmentSetting/components/MedicalAppointmentSettingForm';
 import { FeeSettingsCard } from '../../payments/components/FeeSettingsCard';
 import { SupportSettingForm } from '../../supportSetting/components/SupportSettingForm';
 import { WorkflowStageCallScriptList } from '../../workflowStageCallScripts/components/WorkflowStageCallScriptList';
 import { AppFeatureSettingsForm } from './AppFeatureSettingsForm';
 import { SmsTemplateList } from './SmsTemplateList';
 
-export type AppSettingsTab = 'features' | 'fee' | 'support' | 'calls' | 'bulk-calls' | 'automatic-calls' | 'sms';
+export type AppSettingsTab = 'features' | 'fee' | 'medical' | 'support' | 'calls' | 'bulk-calls' | 'automatic-calls' | 'sms';
 
 interface TabDefinition {
   id: AppSettingsTab;
@@ -44,6 +45,12 @@ export function AppSettingsPage() {
       labelKey: 'adminAppSettingsTabFee',
       visible: hasPermission('view_payments') || hasPermission('manage_payments'),
       render: () => <FeeSettingsCard />,
+    },
+    {
+      id: 'medical',
+      labelKey: 'adminAppSettingsTabMedical',
+      visible: hasPermission('manage_workflow'),
+      render: () => <MedicalAppointmentSettingForm />,
     },
     { id: 'support', labelKey: 'adminAppSettingsTabSupport', visible: hasPermission('manage_support_settings'), render: () => <SupportSettingForm /> },
     { id: 'calls', labelKey: 'adminAppSettingsTabCalls', visible: hasPermission('manage_ai_call_settings'), render: () => <AiCallOperationalSettingsForm /> },

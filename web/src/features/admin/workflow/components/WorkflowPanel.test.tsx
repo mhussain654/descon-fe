@@ -740,6 +740,41 @@ describe("WorkflowPanel", () => {
     );
   });
 
+  describe("medical appointment defaults", () => {
+    const medicalTransition = () => ({
+      ...qatarBuTransition(), code: "medical_appointment", name: "Medical Appointment", actionType: "medical_appointment",
+      fields: [
+        { name: "medical_center_name", type: "string", required: false, values: [], defaultValue: "Al Shifa Medical Centre" },
+        { name: "medical_center_address", type: "string", required: false, values: [] },
+        { name: "medical_appointment_date", type: "iso_date", required: false, values: [], defaultValue: "2026-11-20" },
+        { name: "medical_appointment_time", type: "time", required: false, values: [], defaultValue: "09:30" },
+      ],
+    });
+
+    it("opens with the admin's default centre, date and time filled in, and sends what staff changed", async () => {
+      adminWorkflowClient.getWorkflowState.mockResolvedValue(workflowState());
+      adminWorkflowClient.getAllowedTransitions.mockResolvedValue(allowedTransitions({ allowedNextTransitions: [medicalTransition()] }));
+      adminWorkflowClient.getWorkflowHistory.mockResolvedValue(workflowHistory());
+      adminWorkflowClient.submitTransition.mockResolvedValue(transitionResult());
+      renderPanel(await signInAs(MPS));
+
+      fireEvent.click(await screen.findByRole("button", { name: "Complete stage" }));
+      expect(await screen.findByLabelText("Medical centre")).toHaveValue("Al Shifa Medical Centre");
+      expect(screen.getByLabelText("Medical centre address")).toHaveValue("");
+      expect(screen.getByLabelText("Medical appointment date")).toHaveValue("2026-11-20");
+      expect(screen.getByLabelText("Medical appointment time")).toHaveValue("09:30");
+
+      fireEvent.change(screen.getByLabelText("Medical appointment time"), { target: { value: "11:00" } });
+      fireEvent.click(screen.getAllByRole("button", { name: "Complete stage" }).at(-1)!);
+
+      await waitFor(() => expect(adminWorkflowClient.submitTransition).toHaveBeenCalledTimes(1));
+      // The blank address is left out rather than sent empty.
+      expect(JSON.stringify(adminWorkflowClient.submitTransition.mock.calls[0])).toContain(
+        JSON.stringify({ medical_center_name: "Al Shifa Medical Centre", medical_appointment_date: "2026-11-20", medical_appointment_time: "11:00" })
+      );
+    });
+  });
+
   describe("QVC contract gating", () => {
     it.each(["none", "unknown", "medical_appointment"])("keeps history read-only without QVC metadata (%s)", async (actionType) => {
       adminWorkflowClient.getWorkflowState.mockResolvedValue(workflowState());

@@ -22,6 +22,10 @@ interface WorkflowHistoryStageReferenceResponse {
 
 interface WorkflowTransitionDetailsResponse {
   source?: string;
+  medical_center_name?: string;
+  medical_center_address?: string;
+  medical_appointment_date?: string;
+  medical_appointment_time?: string;
   appointment_date?: string;
   qvc_outcome_code?: string;
   qvc_outcome_date?: string;
@@ -88,6 +92,10 @@ function toDetails(raw: unknown): WorkflowTransitionDetails | null {
   const value = raw as Partial<WorkflowTransitionDetailsResponse>;
 
   const details: WorkflowTransitionDetails = {
+    medicalCenterName: toOptionalString(value.medical_center_name),
+    medicalCenterAddress: toOptionalString(value.medical_center_address),
+    medicalAppointmentDate: toOptionalString(value.medical_appointment_date),
+    medicalAppointmentTime: toOptionalString(value.medical_appointment_time),
     appointmentDate: toOptionalString(value.appointment_date),
     qvcOutcomeCode: toQvcOutcomeCode(value.qvc_outcome_code),
     qvcOutcomeDate: toOptionalString(value.qvc_outcome_date),

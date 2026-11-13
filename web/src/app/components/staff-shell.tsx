@@ -252,6 +252,7 @@ function StaffShellContent({ children }: { children: ReactNode }) {
             hasPermission('view_payments') ||
             hasPermission('manage_payments') ||
             hasPermission('manage_support_settings') ||
+            hasPermission('manage_workflow') ||
             hasPermission('manage_ai_call_settings') ||
             hasPermission('access_communications_menu'),
           icon: SlidersHorizontal,

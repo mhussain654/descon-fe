@@ -21,6 +21,13 @@ export type VisaOutcomeCode = 'issued' | 'rejected';
  * returned for that transition.
  */
 export interface WorkflowTransitionDetails {
+  /** Where and when the candidate goes for their medical (medical appointment stages). */
+  medicalCenterName?: string;
+  medicalCenterAddress?: string;
+  /** YYYY-MM-DD. */
+  medicalAppointmentDate?: string;
+  /** HH:MM, 24-hour. */
+  medicalAppointmentTime?: string;
   appointmentDate?: string;
   qvcOutcomeCode?: QvcOutcomeCode;
   qvcOutcomeDate?: string;

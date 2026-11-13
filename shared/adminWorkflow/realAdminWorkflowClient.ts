@@ -264,7 +264,7 @@ const KNOWN_ACTION_TYPES = new Set<string>([
   'visa_case_preparation', 'visa_case_submission', 'qvc_appointment', 'qvc_outcome', 'visa_processing',
   'visa_decision', 'protection_call', 'protection_appearance', 'ticket_handover', 'flight_details', 'mobilization',
 ]);
-const KNOWN_FIELD_TYPES = new Set<string>(['string', 'iso_date', 'iso_datetime', 'enum']);
+const KNOWN_FIELD_TYPES = new Set<string>(['string', 'iso_date', 'iso_datetime', 'time', 'enum']);
 // `re_medical` is what the backend actually stores/returns
 // (CandidateQvcAttempt::OUTCOME_CODES) -- `re_medical_required` is accepted
 // only as an *input* alias on write, never a value the API returns.
@@ -287,10 +287,12 @@ function toActionType(raw: unknown): WorkflowActionType {
 
 function toTransitionField(raw: unknown): WorkflowTransitionField | null {
   if (!raw || typeof raw !== 'object') return null;
-  const value = raw as { name?: unknown; type?: unknown; required?: unknown; values?: unknown };
+  const value = raw as { name?: unknown; type?: unknown; required?: unknown; values?: unknown; default?: unknown };
   if (typeof value.name !== 'string' || !value.name) return null;
+  const defaultValue = toStringOrUndefined(value.default);
 
   return {
+    ...(defaultValue ? { defaultValue } : {}),
     name: value.name,
     type:
       typeof value.type === 'string' && KNOWN_FIELD_TYPES.has(value.type)

@@ -36,3 +36,5 @@ app-example
 
 caches/
 public/
+# Stale native folder (no Xcode project); EAS must prebuild from app.json
+/ios

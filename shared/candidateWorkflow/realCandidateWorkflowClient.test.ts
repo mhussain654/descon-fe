@@ -157,6 +157,40 @@ describe('createCandidateWorkflowHistoryClient (real)', () => {
     expect(history.items[0].details).toEqual({ qvcOutcomeDate: '2026-08-10' });
   });
 
+  it('maps the medical appointment details saved with a move', async () => {
+    stubFetch(async () =>
+      jsonResponse(
+        successEnvelope(
+          historyPayload({
+            history: [
+              {
+                from_stage: { code: 'campaign_nomination', name: 'Campaign Nomination', position: 6 },
+                to_stage: { code: 'medical_appointment', name: 'Medical Appointment', position: 7 },
+                occurred_at: '2026-11-13T09:00:00Z',
+                reason_code: null,
+                details: {
+                  medical_center_name: 'Al Shifa Medical Centre',
+                  medical_center_address: '12 Mall Road, Lahore',
+                  medical_appointment_date: '2026-11-20',
+                  medical_appointment_time: '09:30',
+                },
+              },
+            ],
+          })
+        )
+      )
+    );
+
+    const history = await buildClient().getWorkflowHistory('token');
+
+    expect(history.items[0].details).toEqual({
+      medicalCenterName: 'Al Shifa Medical Centre',
+      medicalCenterAddress: '12 Mall Road, Lahore',
+      medicalAppointmentDate: '2026-11-20',
+      medicalAppointmentTime: '09:30',
+    });
+  });
+
   it('maps a 401 to SESSION_EXPIRED', async () => {
     stubFetch(async () =>
       jsonResponse(errorEnvelope([{ code: 'unauthorized', message: 'Session expired.' }]), { status: 401 })

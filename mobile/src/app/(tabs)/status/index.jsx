@@ -17,9 +17,11 @@ import { useCandidateFlightDetail } from "../../../features/candidate/workflow/h
 import { useFlightTicketAccess } from "../../../features/candidate/workflow/hooks/useFlightTicketAccess";
 import { useCandidateVisaDecisions } from "../../../features/candidate/workflow/hooks/useCandidateVisaDecisions";
 import { useVisaCopyAccess } from "../../../features/candidate/workflow/hooks/useVisaCopyAccess";
+import { MedicalAppointmentDetails } from "../../../features/candidate/workflow/components/MedicalAppointmentDetails";
 import { LoadingState, ErrorState, OfflineState, SessionExpiredState, ForbiddenState, Button, ValidationMessage, getFontFamily } from "../../../design-system";
 import { APPLICATION_PROGRESS_ERROR_KEYS } from "../../../../../shared/applicationProgress/errorMessages";
 import { findLatestQvcOutcome, QVC_OUTCOME_KEYS, QVC_OUTCOME_TONES } from "../../../../../shared/candidateWorkflow/qvcOutcome";
+import { findLatestMedicalAppointment } from "../../../../../shared/candidateWorkflow/medicalAppointment";
 import { mobilizationJourney } from "../../../../../shared/applicationProgress/mobilizationJourney";
 import { interpolate } from "../../../../../shared/i18n/interpolate";
 import { VISA_OUTCOME_KEYS, VISA_OUTCOME_TONES } from "../../../../../shared/candidateVisaDecisions/outcomeLabels";
@@ -28,6 +30,7 @@ import { CANDIDATE_VISA_DECISIONS_ERROR_KEYS } from "../../../../../shared/candi
 import { themed, themedValues } from '../../../design-system/theme';
 
 // The steps that carry an outcome or a download of their own.
+const MEDICAL_STEP = "medical";
 const QVC_OUTCOME_STEP = "qvc_status";
 const VISA_OUTCOME_STEP = "visa";
 const FLIGHT_TICKET_STEP = "ready_to_fly";
@@ -76,6 +79,8 @@ export default function StatusScreen() {
     documents: progressQuery.data?.documents,
   });
   const qvcOutcome = findLatestQvcOutcome(historyQuery.data?.items ?? []);
+  // Where and when to go for the medical, as staff saved it with the move to that stage.
+  const medicalAppointment = findLatestMedicalAppointment(historyQuery.data?.items ?? []);
   // The latest recorded visa decision (a candidate can be re-submitted, so this is
   // never assumed to be the only one) -- the backend returns the list in chronological order.
   const latestVisaDecision = visaDecisionsQuery.data?.at(-1) ?? null;
@@ -175,6 +180,9 @@ export default function StatusScreen() {
 
               return (
                 <JourneyStepCard key={step.code} step={step} isLast={isLast} language={language} t={t} dateLabel={completedLabel ? `${t("workflowStageCompletedPrefix")} ${completedLabel}` : startedLabel ? `${t("workflowStageStartedPrefix")} ${startedLabel}` : null}>
+                    {step.code === MEDICAL_STEP && step.status !== "upcoming" && medicalAppointment ? (
+                      <MedicalAppointmentDetails appointment={medicalAppointment} language={language} t={t} />
+                    ) : null}
                     {step.code === QVC_OUTCOME_STEP && qvcOutcome ? (
                       <View
                         style={{

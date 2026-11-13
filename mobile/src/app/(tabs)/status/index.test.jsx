@@ -356,6 +356,49 @@ describe("StatusScreen", () => {
     expect(within(stageRow("QVC Status")).getByText(/QVC Outcome/).children.join("")).toContain("Approved");
   });
 
+  describe("the medical appointment", () => {
+    const MEDICAL_APPOINTMENT_STAGE = { code: "medical_appointment", name: "Medical Appointment", position: 6 };
+    // Documents done, now at the medical appointment stage.
+    const atMedicalAppointment = () => [
+      ...CANONICAL_STAGES.slice(0, 5).map((stage) => ({ ...stage, status: "completed", startedAt: null, completedAt: "2026-11-10" })),
+      { ...MEDICAL_APPOINTMENT_STAGE, status: "current", startedAt: "2026-11-13", completedAt: null },
+      ...CANONICAL_STAGES.slice(5).map((stage) => ({ ...stage, position: stage.position + 1, status: "pending", startedAt: null, completedAt: null })),
+    ];
+    const moveToMedical = (details) =>
+      historyPayload({
+        items: [{ fromStage: CANONICAL_STAGES[4], toStage: MEDICAL_APPOINTMENT_STAGE, occurredAt: "2026-11-13T09:00:00Z", reasonCode: null, details }],
+      });
+
+    it("shows the centre, address, date and time staff saved when moving the candidate there", async () => {
+      applicationProgressClient.getProgress.mockResolvedValue(progressPayload({ workflow: workflowPayload({ timeline: atMedicalAppointment() }) }));
+      candidateWorkflowClient.getWorkflowHistory.mockResolvedValue(
+        moveToMedical({
+          medicalCenterName: "Al Shifa Medical Centre",
+          medicalCenterAddress: "12 Mall Road, Lahore",
+          medicalAppointmentDate: "2026-11-20",
+          medicalAppointmentTime: "09:30",
+        })
+      );
+      renderStatusScreen();
+
+      await screen.findAllByText("Medical");
+      const medicalRow = within(stageRow("Medical"));
+      expect(await medicalRow.findByText("Your medical appointment")).toBeOnTheScreen();
+      expect(medicalRow.getByText("Al Shifa Medical Centre")).toBeOnTheScreen();
+      expect(medicalRow.getByText("12 Mall Road, Lahore")).toBeOnTheScreen();
+      expect(medicalRow.getByText("20/11/2026 • 09:30")).toBeOnTheScreen();
+    });
+
+    it("shows nothing extra when the move recorded no appointment details", async () => {
+      applicationProgressClient.getProgress.mockResolvedValue(progressPayload({ workflow: workflowPayload({ timeline: atMedicalAppointment() }) }));
+      candidateWorkflowClient.getWorkflowHistory.mockResolvedValue(moveToMedical(null));
+      renderStatusScreen();
+
+      await screen.findAllByText("Medical");
+      expect(screen.queryByText("Your medical appointment")).toBeNull();
+    });
+  });
+
   it("no longer lists every internal stage change under Recent Updates", async () => {
     applicationProgressClient.getProgress.mockResolvedValue(progressPayload());
     candidateWorkflowClient.getWorkflowHistory.mockResolvedValue(historyPayload());
