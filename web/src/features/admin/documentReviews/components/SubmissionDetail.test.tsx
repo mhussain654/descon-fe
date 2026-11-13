@@ -6,7 +6,12 @@ import { createMockStaffAuthClient, MOCK_STAFF_ACCOUNTS, MOCK_STAFF_PASSWORD } f
 import { LanguageProvider } from '../../../../contexts/LanguageContext';
 import { StaffAuthProvider } from '../../../../contexts/StaffAuthContext';
 import { adminDocumentReviewsClient } from '../../../../lib/admin-document-reviews-client';
+import { adminBankDetailsClient } from '../../../../lib/admin-bank-details-client';
 import { SubmissionDetail } from './SubmissionDetail';
+
+vi.mock('../../../../lib/admin-bank-details-client', () => ({
+  adminBankDetailsClient: { get: vi.fn(), requestProofAccess: vi.fn(), verify: vi.fn(), reject: vi.fn() },
+}));
 
 vi.mock('../../../../lib/admin-document-reviews-client', () => ({
   adminDocumentReviewsClient: {
@@ -57,8 +62,19 @@ function submissionDetail(documents: ReturnType<typeof submissionDocument>[]) {
   };
 }
 
-async function renderDetail() {
-  const client = createMockStaffAuthClient({ delayMs: 0 });
+/** The mock admin plus `extraPermissions` (the mock accounts have no payments permission). */
+function withPermissions(client: ReturnType<typeof createMockStaffAuthClient>, extraPermissions: string[]) {
+  const widen = <T extends { permissions: string[] } | null>(session: T): T =>
+    session ? { ...session, permissions: [...session.permissions, ...extraPermissions] } : session;
+  return {
+    ...client,
+    signIn: async (credentials: Parameters<typeof client.signIn>[0]) => widen(await client.signIn(credentials)),
+    restoreSession: async () => widen(await client.restoreSession()),
+  };
+}
+
+async function renderDetail(extraPermissions: string[] = []) {
+  const client = withPermissions(createMockStaffAuthClient({ delayMs: 0 }), extraPermissions);
   await client.signIn({ email: ADMIN.email, password: MOCK_STAFF_PASSWORD });
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } });
   return render(
@@ -77,6 +93,7 @@ async function renderDetail() {
 describe('SubmissionDetail', () => {
   beforeEach(() => {
     vi.stubEnv("VITE_API_BASE_URL", "http://localhost:3000/api/v1");
+    vi.mocked(adminBankDetailsClient.get).mockResolvedValue(null);
   });
 
   afterEach(() => {
@@ -85,6 +102,57 @@ describe('SubmissionDetail', () => {
     vi.mocked(adminDocumentReviewsClient.verifyDocument).mockReset();
     vi.mocked(adminDocumentReviewsClient.rejectDocument).mockReset();
     vi.mocked(adminDocumentReviewsClient.getExtraction).mockReset();
+    vi.mocked(adminBankDetailsClient.get).mockReset();
+    vi.mocked(adminBankDetailsClient.verify).mockReset();
+  });
+
+  describe('Approve all', () => {
+    const bankDetail = (status: string) => ({
+      id: 'bank-1', accountTitle: 'Ahmed Ali', accountNumber: '****3310', bankName: 'Meezan Bank Limited', status,
+      proof: { fileName: 'proof.pdf', contentType: 'application/pdf', fileSize: 2048 }, submittedAt: '2026-08-19T12:00:00Z',
+    });
+
+    it('approves every waiting document, with the scanned dates, then the bank details', async () => {
+      adminDocumentReviewsClient.getSubmission.mockResolvedValue(
+        submissionDetail([
+          submissionDocument(),
+          submissionDocument({ id: 'doc-2', requirementCode: 'cv', name: 'CV' }),
+          submissionDocument({ id: 'doc-3', requirementCode: 'cheque_copy', name: 'Cheque Copy', status: 'verified' }),
+        ])
+      );
+      adminDocumentReviewsClient.getExtraction.mockResolvedValue({ status: 'succeeded', issuedOn: '2020-01-01', expiresOn: '2030-01-01' });
+      adminDocumentReviewsClient.verifyDocument.mockResolvedValue({
+        document: submissionDocument({ status: 'verified' }),
+        submission: { id: 'submission-1', review: { pendingReview: 0, verified: 3, rejected: 0, requiredTotal: 3, reviewState: 'verified' } },
+      });
+      vi.mocked(adminBankDetailsClient.get).mockResolvedValue(bankDetail('submitted') as never);
+      vi.mocked(adminBankDetailsClient.verify).mockResolvedValue(bankDetail('verified') as never);
+
+      await renderDetail(['manage_payments']);
+      await screen.findByText('Meezan Bank Limited');
+      const buttons = await screen.findAllByRole('button', { name: 'Approve all' });
+      expect(buttons).toHaveLength(2);
+      fireEvent.click(buttons[1]);
+      expect(await screen.findByText(/approves the 3 items still waiting/)).toBeInTheDocument();
+      const confirm = screen.getAllByRole('button', { name: 'Approve all' });
+      fireEvent.click(confirm[confirm.length - 1]);
+
+      await waitFor(() => expect(adminBankDetailsClient.verify).toHaveBeenCalledWith('candidate-1', expect.any(String)));
+      expect(adminDocumentReviewsClient.verifyDocument).toHaveBeenCalledTimes(2);
+      expect(adminDocumentReviewsClient.verifyDocument).toHaveBeenCalledWith('doc-1', expect.any(String), {
+        issuedOn: '2020-01-01', expiresOn: '2030-01-01',
+      });
+      expect(adminDocumentReviewsClient.verifyDocument).toHaveBeenCalledWith('doc-2', expect.any(String), {});
+    });
+
+    it('is not offered once nothing is waiting for review', async () => {
+      adminDocumentReviewsClient.getSubmission.mockResolvedValue(submissionDetail([submissionDocument({ status: 'verified' })]));
+      vi.mocked(adminBankDetailsClient.get).mockResolvedValue(bankDetail('verified') as never);
+
+      await renderDetail(['manage_payments']);
+      await screen.findByText('Meezan Bank Limited');
+      expect(screen.queryByRole('button', { name: 'Approve all' })).not.toBeInTheDocument();
+    });
   });
 
   it('shows the extraction status and pre-fills issue/expiry inputs for an OCR-supported document, then submits the (possibly edited) dates', async () => {

@@ -18,7 +18,7 @@ interface FlightDetailResponse {
   id: string;
   airline: string;
   flight_number: string;
-  sector: string;
+  sector: string | null;
   flight_departure_at: string;
   ticket_attached: boolean;
   mobilized_on: string | null;
@@ -42,7 +42,7 @@ function toFlightDetail(data: FlightDetailResponse): CandidateFlightDetail {
     id: data.id,
     airline: data.airline,
     flightNumber: data.flight_number,
-    sector: data.sector,
+    sector: data.sector || null,
     flightDepartureAt: data.flight_departure_at,
     ticketAttached: data.ticket_attached,
     mobilizedOn: data.mobilized_on,

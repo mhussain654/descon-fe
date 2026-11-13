@@ -19,19 +19,30 @@ import { ADMIN_REVIEWER_ROLE_KEYS } from '../../../../../../shared/adminDocument
 import type { TranslationKey } from '../../../../../../shared/i18n/translations';
 import { resolveDocumentAccessUrl } from '../../../../lib/resolveDocumentAccessUrl';
 import { blockedOnlyByEvidenceFields } from '../blockedByOwnEvidence';
-import type { useFlightActions } from '../hooks/useFlightActions';
+import type { FlightDetailDefaults, useFlightActions } from '../hooks/useFlightActions';
 import type { useFlightDetail } from '../hooks/useFlightDetail';
 import { WorkflowFileField } from './WorkflowFileField';
 
 /**
  * `flight_details_uploaded`'s required evidence fields, per the real
- * backend's StageRequirements (confirmed live against the running API).
+ * backend's StageRequirements. The route (`sector`) is optional.
  * The internal evidence key is `flight_reference`, not the flight-detail
  * controller's own public request field name `flight_number` (used by
  * useFlightActions.ts's FormData) -- the allowed-transitions endpoint's
  * blocking reasons use the former (`flight_reference_required`).
  */
-const FLIGHT_REQUIRED_EVIDENCE_FIELDS = ['airline', 'flight_reference', 'sector', 'flight_date'];
+const FLIGHT_REQUIRED_EVIDENCE_FIELDS = ['airline', 'flight_reference', 'flight_date'];
+/** The admin's default flight details, offered as the flight transition fields' defaults (FlightDetailSetting). */
+function flightDetailDefaults(transition: AllowedWorkflowTransition | undefined): FlightDetailDefaults {
+  const defaultFor = (name: string) => transition?.fields.find((field) => field.name === name)?.defaultValue;
+  return {
+    airline: defaultFor('airline'),
+    flightNumber: defaultFor('flight_reference'),
+    sector: defaultFor('sector'),
+    flightDate: defaultFor('flight_date'),
+  };
+}
+
 /** The mobilization (PATCH) transition's own single required field. */
 const MOBILIZE_REQUIRED_EVIDENCE_FIELDS = ['mobilized_on'];
 
@@ -136,7 +147,7 @@ export function FlightDetailPanel({
         <h3 className="text-sm font-semibold text-text-primary">{t('adminWorkflowFlightPanelTitle')}</h3>
         <div className="flex flex-wrap gap-2">
           {canAttemptFlight && canTransition ? (
-            <Button type="button" variant="secondary" onClick={actions.openRecordDialog}>
+            <Button type="button" variant="secondary" onClick={() => actions.openRecordDialog(flightDetailDefaults(flightTransition))}>
               {t('adminWorkflowFlightAddDetailsAction')}
             </Button>
           ) : null}
@@ -185,10 +196,12 @@ export function FlightDetailPanel({
             {isMobilized ? <Badge tone="success">{t('adminWorkflowFlightMobilizedBadge')}</Badge> : null}
           </div>
           <dl className="mt-2 grid grid-cols-2 gap-2 text-xs text-text-tertiary">
-            <div>
-              <dt>{t('adminWorkflowFlightSectorLabel')}</dt>
-              <dd className="text-text-primary">{flightDetail.sector}</dd>
-            </div>
+            {flightDetail.sector ? (
+              <div>
+                <dt>{t('adminWorkflowFlightSectorLabel')}</dt>
+                <dd className="text-text-primary">{flightDetail.sector}</dd>
+              </div>
+            ) : null}
             <div>
               <dt>{t('adminWorkflowFlightDepartureLabel')}</dt>
               <dd className="text-text-primary">
@@ -262,7 +275,7 @@ function RecordFlightDetailDialog({
 }) {
   const { t } = useLanguage();
   const [note, setNote] = useState('');
-  const [fieldErrors, setFieldErrors] = useState<{ airline?: string; flightNumber?: string; sector?: string; flightDate?: string }>({});
+  const [fieldErrors, setFieldErrors] = useState<{ airline?: string; flightNumber?: string; flightDate?: string }>({});
 
   const mutationError = actions.recordMutation.error;
   const conflictMessage =
@@ -285,7 +298,6 @@ function RecordFlightDetailDialog({
     const nextErrors: typeof fieldErrors = {};
     if (!actions.airline.trim()) nextErrors.airline = t('adminWorkflowFlightAirlineRequiredError');
     if (!actions.flightNumber.trim()) nextErrors.flightNumber = t('adminWorkflowFlightNumberRequiredError');
-    if (!actions.sector.trim()) nextErrors.sector = t('adminWorkflowFlightSectorRequiredError');
     if (!actions.flightDate) nextErrors.flightDate = t('adminWorkflowFlightDateRequiredError');
     setFieldErrors(nextErrors);
     if (Object.keys(nextErrors).length > 0) return;
@@ -319,9 +331,9 @@ function RecordFlightDetailDialog({
         />
         <Input
           label={t('adminWorkflowFlightSectorLabel')}
+          placeholder={t('adminWorkflowFlightSectorPlaceholder')}
           value={actions.sector}
           onChange={(event) => actions.setSector(event.target.value)}
-          errorMessage={fieldErrors.sector}
         />
         <Input
           type="datetime-local"

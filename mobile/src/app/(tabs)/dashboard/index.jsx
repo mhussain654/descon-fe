@@ -16,6 +16,12 @@ import { useCandidateDocuments } from "../../../features/candidate/documents/hoo
 import { useApplicationProgress } from "../../../features/candidate/progress/hooks/useApplicationProgress";
 import { useSupportSetting } from "../../../features/candidate/support/hooks/useSupportSetting";
 import { useCandidateWorkflowHistory } from "../../../features/candidate/workflow/hooks/useCandidateWorkflowHistory";
+import { useCandidateFlightDetail } from "../../../features/candidate/workflow/hooks/useCandidateFlightDetail";
+import { useFlightTicketAccess } from "../../../features/candidate/workflow/hooks/useFlightTicketAccess";
+import { MedicalAppointmentDetails } from "../../../features/candidate/workflow/components/MedicalAppointmentDetails";
+import { FlightDetails } from "../../../features/candidate/workflow/components/FlightDetails";
+import { FlightTicketDownload } from "../../../features/candidate/workflow/components/FlightTicketDownload";
+import { findLatestMedicalAppointment } from "../../../../../shared/candidateWorkflow/medicalAppointment";
 import { HomeHeader } from "../../../features/candidate/home/HomeHeader";
 import { ApplicationProgressCard } from "../../../features/candidate/home/ApplicationProgressCard";
 import { NextStepCard } from "../../../features/candidate/home/NextStepCard";
@@ -93,6 +99,11 @@ export default function DashboardScreen() {
   // disables its tile, and the latest-update card has its own empty state.
   const supportQuery = useSupportSetting();
   const historyQuery = useCandidateWorkflowHistory();
+  // The medical appointment and flight shown while that step is the current one,
+  // as the SMS asks candidates to check them in the app. Neither blocks the screen.
+  const flightDetailQuery = useCandidateFlightDetail();
+  const ticketAccess = useFlightTicketAccess();
+  useRefetchOnFocus(flightDetailQuery.refetch, flightDetailQuery.isFetching);
   useRefetchOnFocus(profileQuery.refetch, profileQuery.isFetching);
   useRefetchOnFocus(checklistQuery.refetch, checklistQuery.isFetching);
   useRefetchOnFocus(progressQuery.refetch, progressQuery.isFetching);
@@ -122,12 +133,13 @@ export default function DashboardScreen() {
         progressQuery.refetch(),
         historyQuery.refetch(),
         supportQuery.refetch(),
+        flightDetailQuery.refetch(),
       ]);
     } finally {
       isRefreshingRef.current = false;
       setIsRefreshing(false);
     }
-  }, [profileQuery.refetch, checklistQuery.refetch, progressQuery.refetch, historyQuery.refetch, supportQuery.refetch]);
+  }, [profileQuery.refetch, checklistQuery.refetch, progressQuery.refetch, historyQuery.refetch, supportQuery.refetch, flightDetailQuery.refetch]);
 
   // Dashboard composes 3 independent queries (profile, checklist, progress)
   // -- a SESSION_EXPIRED/INACTIVE_ACCOUNT from *any* of them must win over a
@@ -259,6 +271,14 @@ export default function DashboardScreen() {
   }[variant];
   const forwardArrow = forwardArrowSlots(language, colors.brand.on, 15);
 
+  const currentStepCode = journey?.current?.code;
+  const medicalAppointment =
+    currentStepCode === "medical" ? findLatestMedicalAppointment(historyQuery.data?.items ?? []) : null;
+  const upcomingFlight =
+    currentStepCode === "ready_to_fly" && flightDetailQuery.data && !flightDetailQuery.data.mobilized
+      ? flightDetailQuery.data
+      : null;
+
   const latest = latestActionableUpdate(historyQuery.data?.items ?? []);
   const latestUpdate = latest
     ? {
@@ -325,6 +345,19 @@ export default function DashboardScreen() {
             percentLine={interpolate(t("homePercentComplete"), { percent: percentage })}
             percentage={percentage}
           />
+
+          {medicalAppointment ? (
+            <MedicalAppointmentDetails appointment={medicalAppointment} language={language} t={t} />
+          ) : null}
+
+          {upcomingFlight ? (
+            <View>
+              <FlightDetails flight={upcomingFlight} language={language} t={t} />
+              {upcomingFlight.ticketAttached ? (
+                <FlightTicketDownload ticketAccess={ticketAccess} language={language} t={t} />
+              ) : null}
+            </View>
+          ) : null}
 
           {nextStep ? (
             <NextStepCard

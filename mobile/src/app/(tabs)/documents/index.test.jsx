@@ -1,7 +1,7 @@
 import { QueryClientProvider } from "@tanstack/react-query";
 import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react-native";
 import { SafeAreaProvider } from "react-native-safe-area-context";
-import { Image, Keyboard, Linking, Text } from "react-native";
+import { Image, Keyboard, Linking, RefreshControl, Text } from "react-native";
 import * as DocumentPicker from "expo-document-picker";
 import * as ImagePicker from "expo-image-picker";
 import { AuthProvider, useAuth } from "../../../contexts/AuthContext";
@@ -1263,6 +1263,21 @@ describe("DocumentsScreen", () => {
       expect(screen.getAllByText("Approved").length).toBeGreaterThan(0);
       expect(screen.getByText(/verified and can no longer be changed/)).toBeOnTheScreen();
       expect(screen.queryByRole("button", { name: "Submit" })).toBeNull();
+    });
+
+    it("picks up a staff approval of the bank details on pull to refresh", async () => {
+      candidateDocumentsClient.getChecklist.mockResolvedValue([item({ status: "missing" })]);
+      applicationProgressClient.getProgress.mockResolvedValue(progress());
+      candidateBankDetailsClient.getBankDetail.mockResolvedValue(bankDetailSummary({ status: "submitted", bankDetail: bankDetail() }));
+      renderDocumentsScreen();
+      expect(await screen.findByText(/^Uploaded • /)).toBeOnTheScreen();
+
+      candidateBankDetailsClient.getBankDetail.mockResolvedValue(bankDetailSummary({ status: "verified", bankDetail: bankDetail({ status: "verified" }) }));
+      await act(async () => {
+        screen.UNSAFE_getByType(RefreshControl).props.onRefresh();
+      });
+
+      expect(await screen.findByText(/^Approved • /)).toBeOnTheScreen();
     });
 
     it("validates required fields client-side before calling the API", async () => {

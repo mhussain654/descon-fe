@@ -13,7 +13,8 @@ export interface CandidateFlightDetail {
   /** Already localized where applicable server-side; free text otherwise. */
   airline: string;
   flightNumber: string;
-  sector: string;
+  /** The route, e.g. LHE-DOH; optional, null when staff left it blank. */
+  sector: string | null;
   /** ISO 8601. */
   flightDepartureAt: string;
   /** Whether a ticket file was actually attached -- the ONLY signal that gates showing a download action; never inferred from the workflow stage alone (a stage reaching flight_details_uploaded does not guarantee a file was attached). */

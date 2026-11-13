@@ -1410,7 +1410,7 @@ describe("WorkflowPanel", () => {
       await screen.findByText("Record flight details");
       fireEvent.change(screen.getByLabelText("Airline"), { target: { value: "Qatar Airways" } });
       fireEvent.change(screen.getByLabelText("Flight number"), { target: { value: "QR-101" } });
-      fireEvent.change(screen.getByLabelText("Sector"), { target: { value: "LHE-DOH" } });
+      fireEvent.change(screen.getByLabelText("Route (from – to)"), { target: { value: "LHE-DOH" } });
       fireEvent.change(screen.getByLabelText("Departure"), { target: { value: "2026-09-20T14:30" } });
       const ticket = new File(["ticket"], "ticket.pdf", { type: "application/pdf" });
       fireEvent.change(screen.getByLabelText("Ticket"), { target: { files: [ticket] } });
@@ -1423,6 +1423,52 @@ describe("WorkflowPanel", () => {
       expect(call.formData.get("candidate_flight_detail[sector]")).toBe("LHE-DOH");
       expect(call.formData.get("candidate_flight_detail[flight_date]")).toBe("2026-09-20T14:30");
       expect(call.formData.get("candidate_flight_detail[ticket]")).toBe(ticket);
+    });
+
+    it("opens the flight dialog filled with the admin defaults, sending what staff change", async () => {
+      adminWorkflowClient.getWorkflowState.mockResolvedValue(
+        workflowState({ currentStage: timelineStage({ code: "visa_issued_or_rejected", position: 11 }) })
+      );
+      adminWorkflowClient.getAllowedTransitions.mockResolvedValue(
+        allowedTransitions({
+          allowedNextTransitions: [
+            flightTransition({
+              fields: [
+                { name: "airline", type: "string", required: true, defaultValue: "Qatar Airways" },
+                { name: "flight_reference", type: "string", required: true, defaultValue: "QR-615" },
+                { name: "sector", type: "string", required: true, defaultValue: "LHE-DOH" },
+                { name: "flight_date", type: "iso_datetime", required: true, defaultValue: "2026-11-20T14:30" },
+              ],
+            }),
+          ],
+        })
+      );
+      adminWorkflowClient.getWorkflowHistory.mockResolvedValue(workflowHistory());
+      adminWorkflowClient.recordFlightDetail.mockResolvedValue({
+        workflow: workflowState({ currentStage: timelineStage({ code: "flight_details_uploaded", position: 14 }) }),
+        flightDetail: flightDetailRecord(),
+      });
+      const client = await signInAs(MPS);
+      renderPanel(client);
+      await screen.findByText("Flight details");
+
+      fireEvent.click(screen.getByRole("button", { name: "Add flight details" }));
+      await screen.findByText("Record flight details");
+      expect(screen.getByLabelText("Airline")).toHaveValue("Qatar Airways");
+      expect(screen.getByLabelText("Flight number")).toHaveValue("QR-615");
+      expect(screen.getByLabelText("Route (from – to)")).toHaveValue("LHE-DOH");
+      expect(screen.getByLabelText("Departure")).toHaveValue("2026-11-20T14:30");
+
+      fireEvent.change(screen.getByLabelText("Flight number"), { target: { value: "QR-617" } });
+      const ticket = new File(["ticket"], "ticket.pdf", { type: "application/pdf" });
+      fireEvent.change(screen.getByLabelText("Ticket"), { target: { files: [ticket] } });
+      fireEvent.click(screen.getByRole("button", { name: "Save flight details" }));
+
+      await waitFor(() => expect(adminWorkflowClient.recordFlightDetail).toHaveBeenCalledTimes(1));
+      const call = adminWorkflowClient.recordFlightDetail.mock.calls[0][0];
+      expect(call.formData.get("candidate_flight_detail[airline]")).toBe("Qatar Airways");
+      expect(call.formData.get("candidate_flight_detail[flight_number]")).toBe("QR-617");
+      expect(call.formData.get("candidate_flight_detail[flight_date]")).toBe("2026-11-20T14:30");
     });
 
     it("requires the ticket file before submitting flight details", async () => {
@@ -1439,7 +1485,7 @@ describe("WorkflowPanel", () => {
       await screen.findByText("Record flight details");
       fireEvent.change(screen.getByLabelText("Airline"), { target: { value: "Qatar Airways" } });
       fireEvent.change(screen.getByLabelText("Flight number"), { target: { value: "QR-101" } });
-      fireEvent.change(screen.getByLabelText("Sector"), { target: { value: "LHE-DOH" } });
+      fireEvent.change(screen.getByLabelText("Route (from – to)"), { target: { value: "LHE-DOH" } });
       fireEvent.change(screen.getByLabelText("Departure"), { target: { value: "2026-09-20T14:30" } });
       fireEvent.click(screen.getByRole("button", { name: "Save flight details" }));
 

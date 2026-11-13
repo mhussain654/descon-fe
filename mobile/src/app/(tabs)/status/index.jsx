@@ -18,6 +18,8 @@ import { useFlightTicketAccess } from "../../../features/candidate/workflow/hook
 import { useCandidateVisaDecisions } from "../../../features/candidate/workflow/hooks/useCandidateVisaDecisions";
 import { useVisaCopyAccess } from "../../../features/candidate/workflow/hooks/useVisaCopyAccess";
 import { MedicalAppointmentDetails } from "../../../features/candidate/workflow/components/MedicalAppointmentDetails";
+import { FlightDetails } from "../../../features/candidate/workflow/components/FlightDetails";
+import { FlightTicketDownload } from "../../../features/candidate/workflow/components/FlightTicketDownload";
 import { LoadingState, ErrorState, OfflineState, SessionExpiredState, ForbiddenState, Button, ValidationMessage, getFontFamily } from "../../../design-system";
 import { APPLICATION_PROGRESS_ERROR_KEYS } from "../../../../../shared/applicationProgress/errorMessages";
 import { findLatestQvcOutcome, QVC_OUTCOME_KEYS, QVC_OUTCOME_TONES } from "../../../../../shared/candidateWorkflow/qvcOutcome";
@@ -25,7 +27,6 @@ import { findLatestMedicalAppointment } from "../../../../../shared/candidateWor
 import { mobilizationJourney } from "../../../../../shared/applicationProgress/mobilizationJourney";
 import { interpolate } from "../../../../../shared/i18n/interpolate";
 import { VISA_OUTCOME_KEYS, VISA_OUTCOME_TONES } from "../../../../../shared/candidateVisaDecisions/outcomeLabels";
-import { CANDIDATE_FLIGHT_DETAIL_ERROR_KEYS } from "../../../../../shared/candidateFlightDetail/errorMessages";
 import { CANDIDATE_VISA_DECISIONS_ERROR_KEYS } from "../../../../../shared/candidateVisaDecisions/errorMessages";
 import { themed, themedValues } from '../../../design-system/theme';
 
@@ -244,26 +245,11 @@ export default function StatusScreen() {
                         ) : null}
                       </View>
                     ) : null}
-                    {step.code === FLIGHT_TICKET_STEP && step.status !== "upcoming" && flightDetailQuery.data?.ticketAttached ? (
-                      <View style={{ marginTop: 8 }}>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          style={[statusStyles.download, { alignSelf: isStartSide(language === "ur" ? "right" : "left") ? "flex-start" : "flex-end" }]}
-                          labelStyle={[statusStyles.downloadText, language === "ur" && statusStyles.downloadTextUrdu]}
-                          leadingIcon={<Download size={14} color={themed("#087443", "#83F6C2")} />}
-                          onPress={ticketAccess.downloadTicket}
-                          disabled={ticketAccess.isRequesting}
-                          language={language}
-                        >
-                          {t("candidateFlightDownloadTicketAction")}
-                        </Button>
-                        {ticketAccess.error ? (
-                          <View style={{ marginTop: 4 }}>
-                            <ValidationMessage tone="error" language={language}>
-                              {ticketAccess.error.message || t(CANDIDATE_FLIGHT_DETAIL_ERROR_KEYS[ticketAccess.error.code])}
-                            </ValidationMessage>
-                          </View>
+                    {step.code === FLIGHT_TICKET_STEP && step.status !== "upcoming" && flightDetailQuery.data ? (
+                      <View>
+                        <FlightDetails flight={flightDetailQuery.data} language={language} t={t} />
+                        {flightDetailQuery.data.ticketAttached ? (
+                          <FlightTicketDownload ticketAccess={ticketAccess} language={language} t={t} />
                         ) : null}
                       </View>
                     ) : null}

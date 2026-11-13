@@ -517,6 +517,31 @@ describe("StatusScreen", () => {
       expect(within(stageRow("Ready to Fly")).queryByRole("button", { name: "Download Ticket" })).toBeNull();
     });
 
+    it("shows the airline, flight number, sector and departure in the Ready to Fly step", async () => {
+      applicationProgressClient.getProgress.mockResolvedValue(progressPayload({ workflow: workflowPayload({ timeline: timelineThrough(14) }) }));
+      candidateWorkflowClient.getWorkflowHistory.mockResolvedValue(historyPayload());
+      candidateFlightDetailClient.getFlightDetail.mockResolvedValue(flightDetail({ ticketAttached: false }));
+      renderStatusScreen();
+
+      await screen.findAllByText("Ready to Fly");
+      const row = within(stageRow("Ready to Fly"));
+      expect(await row.findByText("Your flight")).toBeOnTheScreen();
+      expect(row.getByText("Qatar Airways QR-123")).toBeOnTheScreen();
+      expect(row.getByText(/^Departure: 20\/09\/2026 • \d{2}:30$/)).toBeOnTheScreen();
+    });
+
+    it("leaves out a route staff did not record, without an empty line", async () => {
+      applicationProgressClient.getProgress.mockResolvedValue(progressPayload({ workflow: workflowPayload({ timeline: timelineThrough(14) }) }));
+      candidateWorkflowClient.getWorkflowHistory.mockResolvedValue(historyPayload());
+      candidateFlightDetailClient.getFlightDetail.mockResolvedValue(flightDetail({ sector: null, ticketAttached: false }));
+      renderStatusScreen();
+
+      await screen.findAllByText("Ready to Fly");
+      const row = within(stageRow("Ready to Fly"));
+      expect(await row.findByText("Qatar Airways QR-123")).toBeOnTheScreen();
+      expect(row.queryByText("LHE-DOH")).toBeNull();
+    });
+
     it("shows no download action once the stage is reached if no ticket file was actually attached", async () => {
       applicationProgressClient.getProgress.mockResolvedValue(progressPayload({ workflow: workflowPayload({ timeline: timelineThrough(14) }) }));
       candidateWorkflowClient.getWorkflowHistory.mockResolvedValue(historyPayload());

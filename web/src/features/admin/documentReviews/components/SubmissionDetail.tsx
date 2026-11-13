@@ -31,6 +31,9 @@ import { useDocumentSubmission } from '../hooks/useDocumentSubmission';
 import { useReviewDecision } from '../hooks/useReviewDecision';
 import { DocumentPreview } from './DocumentPreview';
 import { BankDetailReviewCard } from './BankDetailReviewCard';
+import { useApproveAll } from '../hooks/useApproveAll';
+import { useAdminBankDetail } from '../hooks/useBankDetailReview';
+import { interpolate } from '../../../../../../shared/i18n/interpolate';
 
 export interface SubmissionDetailProps {
   submissionId: string;
@@ -39,11 +42,16 @@ export interface SubmissionDetailProps {
 /** The full admin submission-detail screen: safe document metadata, secure preview, and verify/reject actions. */
 export function SubmissionDetail({ submissionId }: SubmissionDetailProps) {
   const { t, language } = useLanguage();
-  const { signOut } = useStaffAuth();
+  const { signOut, hasPermission } = useStaffAuth();
   const query = useDocumentSubmission(submissionId);
   const decision = useReviewDecision(submissionId, query.data?.candidate.id);
   const documentAccess = useDocumentAccess();
   const [preview, setPreview] = useState<{ documentId: string; fileId: string | null } | null>(null);
+  const approveAll = useApproveAll(submissionId, query.data?.candidate.id);
+  // Bank details are reviewed by staff who manage payments, as on BankDetailReviewCard.
+  const canReviewBankDetails = hasPermission('manage_payments');
+  const bankDetailQuery = useAdminBankDetail(query.data?.candidate.id, Boolean(query.data) && canReviewBankDetails);
+  const [approveAllOpen, setApproveAllOpen] = useState(false);
 
   // A confirmed-dead session or a deactivated account can surface from any
   // of the three independent operations on this page -- loading the
@@ -115,6 +123,17 @@ export function SubmissionDetail({ submissionId }: SubmissionDetailProps) {
   if (!detail) return null;
 
   const previewDocument = detail.documents.find((doc) => doc.id === preview?.documentId) ?? null;
+  // Everything still waiting for review: the documents, plus the bank details.
+  const bankDetailPending = canReviewBankDetails && bankDetailQuery.data?.status === 'submitted';
+  const pendingCount = detail.documents.filter((doc) => doc.status === 'pending_review').length + (bankDetailPending ? 1 : 0);
+  const approveAllButton =
+    pendingCount > 0 ? (
+      <div className="flex justify-end">
+        <Button type="button" onClick={() => setApproveAllOpen(true)} loading={approveAll.isApproving}>
+          {t('adminDocumentReviewApproveAllAction')}
+        </Button>
+      </div>
+    ) : null;
   const verifyTargetDocument =
     decision.confirmTarget?.action === 'verified'
       ? (detail.documents.find((doc) => doc.id === decision.confirmTarget?.documentId) ?? null)
@@ -151,6 +170,8 @@ export function SubmissionDetail({ submissionId }: SubmissionDetailProps) {
         <p className="text-sm text-text-secondary">{detail.candidate.fullName}</p>
         <p className="text-xs text-text-tertiary">{detail.candidate.id}</p>
       </div>
+
+      {approveAllButton ? <div className="mb-4">{approveAllButton}</div> : null}
 
       <Card className="mb-4">
         <dl className="grid grid-cols-2 gap-4 text-sm sm:grid-cols-3">
@@ -199,6 +220,23 @@ export function SubmissionDetail({ submissionId }: SubmissionDetailProps) {
       <div className="mt-4">
         <BankDetailReviewCard candidateId={detail.candidate.id} />
       </div>
+
+      {approveAllButton ? <div className="mt-4">{approveAllButton}</div> : null}
+
+      <ConfirmDialog
+        open={approveAllOpen}
+        onOpenChange={setApproveAllOpen}
+        title={t('adminDocumentReviewApproveAllConfirmTitle')}
+        description={interpolate(t('adminDocumentReviewApproveAllConfirmDescription'), { count: pendingCount })}
+        confirmLabel={t('adminDocumentReviewApproveAllAction')}
+        cancelLabel={t('adminDocumentReviewCancelAction')}
+        closeLabel={t('dsClose')}
+        onConfirm={() => {
+          setApproveAllOpen(false);
+          void approveAll.approveAll({ documents: detail.documents, bankDetailPending });
+        }}
+        isConfirming={approveAll.isApproving}
+      />
 
       <ConfirmDialog
         open={decision.confirmTarget?.action === 'verified'}

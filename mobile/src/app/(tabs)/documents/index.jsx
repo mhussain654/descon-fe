@@ -74,6 +74,9 @@ export default function DocumentsScreen() {
   const [viewOpenRequirementCode, setViewOpenRequirementCode] = useState(null);
   useRefetchOnFocus(checklistQuery.refetch, checklistQuery.isFetching);
   useRefetchOnFocus(progressQuery.refetch, progressQuery.isFetching);
+  // The bank details are reviewed by staff like the documents, so they refresh with them --
+  // otherwise an approval made while the app was open kept showing "Under Approval".
+  useRefetchOnFocus(bankDetailQuery.refetch, bankDetailQuery.isFetching);
 
   const returnToSignIn = async () => {
     await logout("expired");
@@ -220,6 +223,7 @@ export default function DocumentsScreen() {
             onRefresh={() => {
               checklistQuery.refetch();
               progressQuery.refetch();
+              bankDetailQuery.refetch();
             }}
             title={t("pullToRefresh")}
           />

@@ -10,6 +10,7 @@ import { candidateDocumentsClient } from "../../../lib/candidate-documents-clien
 import { applicationProgressClient } from "../../../lib/application-progress-client";
 import { supportSettingClient } from "../../../lib/support-setting-client";
 import { candidateWorkflowClient } from "../../../lib/candidate-workflow-client";
+import { candidateFlightDetailClient } from "../../../lib/candidate-flight-detail-client";
 import { createQueryClientTestLifecycle } from "../../../testSupport/queryClientTestLifecycle";
 import { toast } from "../../../design-system";
 import DashboardScreen from "./index";
@@ -70,6 +71,9 @@ jest.mock("../../../lib/support-setting-client", () => ({
 }));
 jest.mock("../../../lib/candidate-workflow-client", () => ({
   candidateWorkflowClient: { getWorkflowHistory: jest.fn() },
+}));
+jest.mock("../../../lib/candidate-flight-detail-client", () => ({
+  candidateFlightDetailClient: { getFlightDetail: jest.fn(), requestTicketAccess: jest.fn() },
 }));
 
 const CANONICAL_STAGES = [
@@ -183,6 +187,7 @@ const { createTestQueryClient, trackRender, cleanup } = createQueryClientTestLif
 beforeEach(() => {
   supportSettingClient.getSupportSetting.mockResolvedValue({ phoneNumber: "+923001234567" });
   candidateWorkflowClient.getWorkflowHistory.mockResolvedValue({ items: [], updatedAt: null });
+  candidateFlightDetailClient.getFlightDetail.mockResolvedValue(null);
 });
 
 afterEach(async () => {
@@ -192,6 +197,8 @@ afterEach(async () => {
   jest.mocked(applicationProgressClient.getProgress).mockReset();
   jest.mocked(supportSettingClient.getSupportSetting).mockReset();
   jest.mocked(candidateWorkflowClient.getWorkflowHistory).mockReset();
+  jest.mocked(candidateFlightDetailClient.getFlightDetail).mockReset();
+  jest.mocked(candidateFlightDetailClient.requestTicketAccess).mockReset();
   mockReplace.mockReset();
   mockPush.mockReset();
 });
@@ -457,6 +464,70 @@ describe("DashboardScreen", () => {
       expect(info).toHaveBeenCalledWith("Our support line isn’t available yet. Please try again later.");
       openURL.mockRestore();
       info.mockRestore();
+    });
+  });
+
+  describe("the current medical appointment and flight", () => {
+    const MEDICAL_APPOINTMENT_STAGE = { code: "medical_appointment", name: "Medical Appointment", position: 6 };
+    const atMedicalAppointment = () => [
+      ...CANONICAL_STAGES.slice(0, 5).map((stage) => ({ ...stage, status: "completed", startedAt: null, completedAt: "2026-11-10" })),
+      { ...MEDICAL_APPOINTMENT_STAGE, status: "current", startedAt: "2026-11-13", completedAt: null },
+      ...CANONICAL_STAGES.slice(5).map((stage) => ({ ...stage, position: stage.position + 1, status: "pending", startedAt: null, completedAt: null })),
+    ];
+    const flight = (overrides = {}) => ({
+      id: "flight-1",
+      airline: "Qatar Airways",
+      flightNumber: "QR-615",
+      sector: "LHE-DOH",
+      flightDepartureAt: "2026-11-20T09:30:00Z",
+      ticketAttached: true,
+      mobilizedOn: null,
+      mobilized: false,
+      ...overrides,
+    });
+
+    beforeEach(() => {
+      candidateProfileClient.getProfile.mockResolvedValue(profilePayload());
+      candidateDocumentsClient.getChecklist.mockResolvedValue([]);
+    });
+
+    it("shows where and when the medical is while it is the current step", async () => {
+      applicationProgressClient.getProgress.mockResolvedValue(progress({ workflow: workflowPayload({ timeline: atMedicalAppointment() }) }));
+      candidateWorkflowClient.getWorkflowHistory.mockResolvedValue({
+        items: [{
+          fromStage: CANONICAL_STAGES[4], toStage: MEDICAL_APPOINTMENT_STAGE, occurredAt: "2026-11-13T09:00:00Z", reasonCode: null,
+          details: { medicalCenterName: "Al Shifa Medical Centre", medicalAppointmentDate: "2026-11-20", medicalAppointmentTime: "09:30" },
+        }],
+        updatedAt: "2026-11-13T09:00:00Z",
+      });
+      renderDashboardScreen();
+
+      expect(await screen.findByText("Your medical appointment")).toBeOnTheScreen();
+      expect(screen.getByText("Al Shifa Medical Centre")).toBeOnTheScreen();
+      expect(screen.getByText("20/11/2026 • 09:30")).toBeOnTheScreen();
+      expect(screen.queryByText("Your flight")).toBeNull();
+    });
+
+    it("shows the flight and the ticket download once staff added the flight", async () => {
+      applicationProgressClient.getProgress.mockResolvedValue(progress({ workflow: workflowPayload({ timeline: timelineThrough(14) }) }));
+      candidateFlightDetailClient.getFlightDetail.mockResolvedValue(flight());
+      renderDashboardScreen();
+
+      expect(await screen.findByText("Your flight")).toBeOnTheScreen();
+      expect(screen.getByText("Qatar Airways QR-615")).toBeOnTheScreen();
+      expect(screen.getByText("LHE-DOH")).toBeOnTheScreen();
+      expect(screen.getByText(/^Departure: 20\/11\/2026 • \d{2}:30$/)).toBeOnTheScreen();
+      expect(screen.getByRole("button", { name: "Download Ticket" })).toBeOnTheScreen();
+      expect(screen.queryByText("Your medical appointment")).toBeNull();
+    });
+
+    it("shows neither once the candidate has flown", async () => {
+      applicationProgressClient.getProgress.mockResolvedValue(progress({ workflow: workflowPayload({ timeline: timelineThrough(15) }) }));
+      candidateFlightDetailClient.getFlightDetail.mockResolvedValue(flight({ mobilized: true, mobilizedOn: "2026-11-20" }));
+      renderDashboardScreen();
+
+      await screen.findByText(/My Journey/);
+      expect(screen.queryByText("Your flight")).toBeNull();
     });
   });
 

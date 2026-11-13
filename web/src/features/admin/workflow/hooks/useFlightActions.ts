@@ -49,7 +49,10 @@ function buildFlightDetailFormData(selection: FlightDetailSelection, ticket: Fil
   const formData = new FormData();
   formData.append('candidate_flight_detail[airline]', selection.airline);
   formData.append('candidate_flight_detail[flight_number]', selection.flightNumber);
-  formData.append('candidate_flight_detail[sector]', selection.sector);
+  // The route is optional; a blank one is simply not sent.
+  if (selection.sector.trim()) {
+    formData.append('candidate_flight_detail[sector]', selection.sector);
+  }
   formData.append('candidate_flight_detail[flight_date]', selection.flightDate);
   if (ticket) {
     formData.append('candidate_flight_detail[ticket]', ticket);
@@ -61,6 +64,15 @@ function buildFlightDetailFormData(selection: FlightDetailSelection, ticket: Fil
     formData.append('candidate_flight_detail[note]', note);
   }
   return formData;
+}
+
+/** The record dialog's starting values (FlightDetailSetting's defaults, via the allowed transition's fields). */
+export interface FlightDetailDefaults {
+  airline?: string;
+  flightNumber?: string;
+  sector?: string;
+  /** Local date and time, as a datetime-local input holds it (2026-11-20T14:30). */
+  flightDate?: string;
 }
 
 interface MobilizeSelection {
@@ -178,13 +190,14 @@ export function useFlightActions(candidateId: string | undefined) {
     },
   });
 
-  const openRecordDialog = useCallback(() => {
+  /** Opens the dialog filled with the admin's default flight details, if any; staff may change them, and the ticket is always chosen per candidate. */
+  const openRecordDialog = useCallback((defaults: FlightDetailDefaults = {}) => {
     if (recordMutation.isPending) return;
     recordMutation.reset();
-    setAirline('');
-    setFlightNumber('');
-    setSector('');
-    setFlightDate('');
+    setAirline(defaults.airline ?? '');
+    setFlightNumber(defaults.flightNumber ?? '');
+    setSector(defaults.sector ?? '');
+    setFlightDate(defaults.flightDate ?? '');
     setTicket(null);
     setTicketError(null);
     setRecordKey(null);
