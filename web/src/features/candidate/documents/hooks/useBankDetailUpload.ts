@@ -71,6 +71,8 @@ export function useBankDetailUpload() {
       if (session?.candidateId !== variables.candidateIdAtCallTime) return;
 
       queryClient.setQueryData(documentQueries.bankDetail(candidateId, language), result);
+      // Bank details count towards "ready to submit for review", so progress must refresh too.
+      queryClient.invalidateQueries({ queryKey: documentQueries.applicationProgress(candidateId, language) });
       toast.success(t('candidateBankDetailsSubmitSuccessToast'));
 
       setAccountTitle('');

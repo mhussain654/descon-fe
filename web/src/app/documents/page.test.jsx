@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { axe } from "jest-axe";
 import { Link, MemoryRouter, Route, Routes } from "react-router";
@@ -210,6 +210,14 @@ function pdfFile(name = "passport.pdf", size = 1024) {
 
 function imageFile(name = "photo.jpg", size = 1024, type = "image/jpeg") {
   return new File([new Uint8Array(size)], name, { type });
+}
+
+// The open panel's own Upload button -- the row action that opened the panel
+// is also named "Upload", so look inside the panel holding the file input.
+function panelUploadButton() {
+  let panel = document.querySelector('input[type="file"]').parentElement;
+  while (within(panel).queryAllByRole("button", { name: "Upload" }).length === 0) panel = panel.parentElement;
+  return within(panel).getByRole("button", { name: "Upload" });
 }
 
 function selectFileOnActiveRow(file) {
@@ -723,13 +731,13 @@ describe("DocumentsPage", () => {
 
       fireEvent.click(await screen.findByRole("button", { name: "Upload" }));
       selectFileOnActiveRow(pdfFile());
-      fireEvent.click(screen.getByRole("button", { name: "Submit" }));
+      fireEvent.click(panelUploadButton());
 
       expect(await screen.findByText("Uploading…")).toBeInTheDocument();
 
       resolveUpload(item({ status: "uploaded", document: uploadedDocument() }));
       await waitFor(() => expect(screen.getByText(/Uploaded/)).toBeInTheDocument());
-      expect(screen.queryByText("Submit")).not.toBeInTheDocument();
+      expect(screen.queryByText("Upload")).not.toBeInTheDocument();
     });
 
     it("does not show a stale success toast or update the cache when the candidate logs out while an upload is still in flight", async () => {
@@ -745,7 +753,7 @@ describe("DocumentsPage", () => {
 
       fireEvent.click(await screen.findByRole("button", { name: "Upload" }));
       selectFileOnActiveRow(pdfFile());
-      fireEvent.click(screen.getByRole("button", { name: "Submit" }));
+      fireEvent.click(panelUploadButton());
       await screen.findByText("Uploading…");
 
       const successSpy = vi.spyOn(toast, "success").mockClear();
@@ -769,7 +777,7 @@ describe("DocumentsPage", () => {
 
       fireEvent.click(await screen.findByRole("button", { name: "Upload" }));
       selectFileOnActiveRow(pdfFile());
-      fireEvent.click(screen.getByRole("button", { name: "Submit" }));
+      fireEvent.click(panelUploadButton());
 
       await waitFor(() =>
         expect(applicationProgressClient.getProgress.mock.calls.length).toBeGreaterThan(progressCallsBeforeUpload)
@@ -851,7 +859,7 @@ describe("DocumentsPage", () => {
       fireEvent.click(await screen.findByRole("button", { name: "Upload" }));
       expect(screen.getByLabelText("Police Character Certificate issue date")).toBeInTheDocument();
       selectFileOnActiveRow(pdfFile());
-      fireEvent.click(screen.getByRole("button", { name: "Submit" }));
+      fireEvent.click(panelUploadButton());
 
       expect(await screen.findByText("Choose the Police Character Certificate issue date.")).toBeInTheDocument();
       expect(candidateDocumentsClient.uploadDocument).not.toHaveBeenCalled();
@@ -872,7 +880,7 @@ describe("DocumentsPage", () => {
       const recentIssueDate = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
       fireEvent.change(screen.getByLabelText("Police Character Certificate issue date"), { target: { value: recentIssueDate } });
       selectFileOnActiveRow(pdfFile());
-      fireEvent.click(screen.getByRole("button", { name: "Submit" }));
+      fireEvent.click(panelUploadButton());
 
       await waitFor(() => expect(candidateDocumentsClient.uploadDocument).toHaveBeenCalledTimes(1));
       const [call] = candidateDocumentsClient.uploadDocument.mock.calls[0];
@@ -904,7 +912,7 @@ describe("DocumentsPage", () => {
       fireEvent.click(screen.getByRole("button", { name: "Replace" }));
       fireEvent.change(screen.getByLabelText("Police Character Certificate issue date"), { target: { value: "2026-08-01" } });
       selectFileOnActiveRow(pdfFile());
-      fireEvent.click(screen.getByRole("button", { name: "Submit" }));
+      fireEvent.click(panelUploadButton());
 
       await waitFor(() => expect(screen.queryByText(/Expiring soon/)).not.toBeInTheDocument());
     });
@@ -917,7 +925,7 @@ describe("DocumentsPage", () => {
 
       fireEvent.click(await screen.findByRole("button", { name: "Upload" }));
       selectFileOnActiveRow(pdfFile());
-      const submitButton = screen.getByRole("button", { name: "Submit" });
+      const submitButton = panelUploadButton();
       fireEvent.click(submitButton);
       fireEvent.click(submitButton);
       fireEvent.click(submitButton);
@@ -940,10 +948,10 @@ describe("DocumentsPage", () => {
       const uploadButtons = await screen.findAllByRole("button", { name: "Upload" });
       fireEvent.click(uploadButtons[0]);
       selectFileOnActiveRow(pdfFile());
-      fireEvent.click(screen.getByRole("button", { name: "Submit" }));
+      fireEvent.click(panelUploadButton());
 
       await screen.findByText("Uploading…");
-      expect(screen.getAllByRole("button", { name: "Upload" })[1]).toBeDisabled();
+      expect(uploadButtons[1]).toBeDisabled();
       // Let the request actually go out (it waits a tick for the access token) so it can't land in the next test.
       await waitFor(() => expect(candidateDocumentsClient.uploadDocument).toHaveBeenCalled());
     });
@@ -972,7 +980,7 @@ describe("DocumentsPage", () => {
 
       fireEvent.click(await screen.findByRole("button", { name: "Upload" }));
       selectFileOnActiveRow(pdfFile());
-      fireEvent.click(screen.getByRole("button", { name: "Submit" }));
+      fireEvent.click(panelUploadButton());
       await waitFor(() => expect(candidateDocumentsClient.uploadDocument).toHaveBeenCalledTimes(1));
 
       fireEvent.click(await screen.findByRole("button", { name: "Retry" }));
@@ -992,7 +1000,7 @@ describe("DocumentsPage", () => {
       const file = pdfFile();
       fireEvent.click(await screen.findByRole("button", { name: "Upload" }));
       selectFileOnActiveRow(file);
-      fireEvent.click(screen.getByRole("button", { name: "Submit" }));
+      fireEvent.click(panelUploadButton());
 
       await waitFor(() => expect(candidateDocumentsClient.uploadDocument).toHaveBeenCalledTimes(1));
       const [call] = candidateDocumentsClient.uploadDocument.mock.calls[0];
@@ -1016,7 +1024,7 @@ describe("DocumentsPage", () => {
 
       fireEvent.click(await screen.findByRole("button", { name: "Upload" }));
       selectFileOnActiveRow(pdfFile());
-      fireEvent.click(screen.getByRole("button", { name: "Submit" }));
+      fireEvent.click(panelUploadButton());
 
       expect(await screen.findByText("The idempotency key does not match the original request.")).toBeInTheDocument();
       expect(screen.queryByText(/Uploaded/)).not.toBeInTheDocument();
@@ -1035,7 +1043,7 @@ describe("DocumentsPage", () => {
 
       fireEvent.click(await screen.findByRole("button", { name: "Replace" }));
       selectFileOnActiveRow(pdfFile());
-      fireEvent.click(screen.getByRole("button", { name: "Submit" }));
+      fireEvent.click(panelUploadButton());
 
       expect(await screen.findByText("This document cannot be replaced in its current status.")).toBeInTheDocument();
       await waitFor(() => expect(candidateDocumentsClient.getChecklist).toHaveBeenCalledTimes(2));
@@ -1049,7 +1057,7 @@ describe("DocumentsPage", () => {
 
       fireEvent.click(await screen.findByRole("button", { name: "Upload" }));
       selectFileOnActiveRow(pdfFile());
-      fireEvent.click(screen.getByRole("button", { name: "Submit" }));
+      fireEvent.click(panelUploadButton());
 
       await waitFor(() => expect(screen.getByText("Login screen")).toBeInTheDocument());
     });
@@ -1062,7 +1070,7 @@ describe("DocumentsPage", () => {
 
       fireEvent.click(await screen.findByRole("button", { name: "Upload" }));
       selectFileOnActiveRow(pdfFile());
-      fireEvent.click(screen.getByRole("button", { name: "Submit" }));
+      fireEvent.click(panelUploadButton());
 
       expect(await screen.findByText("You are offline")).toBeInTheDocument();
     });
@@ -1258,7 +1266,7 @@ describe("DocumentsPage", () => {
       const back = imageFile("back.jpg");
       selectFileForSlot("Back", back);
       selectFileForSlot("Front", front);
-      fireEvent.click(screen.getByRole("button", { name: "Submit" }));
+      fireEvent.click(panelUploadButton());
 
       await waitFor(() => expect(candidateDocumentsClient.uploadDocument).toHaveBeenCalledTimes(1));
       const { formData } = candidateDocumentsClient.uploadDocument.mock.calls[0][0];
@@ -1273,7 +1281,7 @@ describe("DocumentsPage", () => {
 
       fireEvent.click(await screen.findByRole("button", { name: "Upload" }));
       selectFileForSlot("Front", imageFile("front.jpg"));
-      fireEvent.click(screen.getByRole("button", { name: "Submit" }));
+      fireEvent.click(panelUploadButton());
 
       expect(
         await screen.findByText("Upload both parts of this document (front and back, or page 1 and page 2).")
@@ -1291,7 +1299,7 @@ describe("DocumentsPage", () => {
       fireEvent.click(screen.getByRole("button", { name: "One PDF with every page" }));
       const combined = pdfFile("cnic.pdf");
       selectFileForSlot("Combined PDF", combined);
-      fireEvent.click(screen.getByRole("button", { name: "Submit" }));
+      fireEvent.click(panelUploadButton());
 
       await waitFor(() => expect(candidateDocumentsClient.uploadDocument).toHaveBeenCalledTimes(1));
       const { formData } = candidateDocumentsClient.uploadDocument.mock.calls[0][0];
@@ -1312,7 +1320,7 @@ describe("DocumentsPage", () => {
       const first = pdfFile("matric.pdf");
       const second = pdfFile("degree.pdf");
       fireEvent.change(screen.getByLabelText("Add file", { selector: "input" }), { target: { files: [first, second] } });
-      fireEvent.click(screen.getByRole("button", { name: "Submit" }));
+      fireEvent.click(panelUploadButton());
 
       await waitFor(() => expect(candidateDocumentsClient.uploadDocument).toHaveBeenCalledTimes(1));
       const { formData } = candidateDocumentsClient.uploadDocument.mock.calls[0][0];
@@ -1366,7 +1374,7 @@ describe("DocumentsPage", () => {
       fireEvent.click(await screen.findByRole("button", { name: "Upload" }));
       selectFileForSlot("Front", imageFile("front.jpg"));
       selectFileForSlot("Back", imageFile("back.jpg"));
-      fireEvent.click(screen.getByRole("button", { name: "Submit" }));
+      fireEvent.click(panelUploadButton());
 
       expect(await screen.findByText("Each part of this document can only be uploaded once.")).toBeInTheDocument();
     });

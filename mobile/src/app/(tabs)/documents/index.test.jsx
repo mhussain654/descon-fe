@@ -267,6 +267,14 @@ function renderDocumentsScreen() {
   );
 }
 
+
+// The open panel's own Upload button. The row action that opened the panel is
+// also named "Upload"; the panel's button is the one right before its Cancel.
+function panelUploadButton() {
+  const buttons = screen.getAllByRole("button");
+  return buttons[buttons.indexOf(screen.getByRole("button", { name: "Cancel" })) - 1];
+}
+
 describe("DocumentsScreen", () => {
   it("shows a loading state before the checklist resolves", async () => {
     candidateDocumentsClient.getChecklist.mockReturnValue(new Promise(() => {}));
@@ -689,14 +697,14 @@ describe("DocumentsScreen", () => {
     fireEvent.press(await screen.findByRole("button", { name: "Upload" }));
     fireEvent.press(await screen.findByRole("button", { name: "Choose file" }));
     await screen.findByText(/Selected file: passport\.pdf/);
-    fireEvent.press(screen.getByRole("button", { name: "Submit" }));
+    fireEvent.press(panelUploadButton());
 
     expect(await screen.findByText("Uploading…")).toBeOnTheScreen();
 
     resolveUpload(item({ status: "uploaded", document: uploadedDocument() }));
     // The row reads Uploaded until the documents are submitted for review.
     await waitFor(() => expect(screen.getByText(/^Uploaded • /)).toBeOnTheScreen());
-    expect(screen.queryByText("Submit")).toBeNull();
+    expect(screen.queryByRole("button", { name: "Cancel" })).toBeNull();
   });
 
   it("refreshes application progress after a successful upload, so Dashboard/Status next-action and counts don't go stale", async () => {
@@ -713,7 +721,7 @@ describe("DocumentsScreen", () => {
     fireEvent.press(await screen.findByRole("button", { name: "Choose file" }));
     await screen.findByText(/Selected file: passport\.pdf/);
     await act(async () => {
-      fireEvent.press(screen.getByRole("button", { name: "Submit" }));
+      fireEvent.press(panelUploadButton());
     });
 
     await waitFor(() =>
@@ -750,7 +758,7 @@ describe("DocumentsScreen", () => {
     fireEvent.press(await screen.findByRole("button", { name: "Upload" }));
     fireEvent.press(await screen.findByRole("button", { name: "Choose file" }));
     await screen.findByText(/Selected file: passport\.pdf/);
-    fireEvent.press(screen.getByRole("button", { name: "Submit" }));
+    fireEvent.press(panelUploadButton());
     await screen.findByText("Uploading…");
 
     const { toast } = require("sonner-native");
@@ -984,7 +992,7 @@ describe("DocumentsScreen", () => {
     expect(screen.getByLabelText("Police Character Certificate issue date")).toBeOnTheScreen();
     fireEvent.press(await screen.findByRole("button", { name: "Choose file" }));
     await screen.findByText(/Selected file: passport\.pdf/);
-    fireEvent.press(screen.getByRole("button", { name: "Submit" }));
+    fireEvent.press(panelUploadButton());
 
     expect(await screen.findByText("Choose the Police Character Certificate issue date.")).toBeOnTheScreen();
     expect(candidateDocumentsClient.uploadDocument).not.toHaveBeenCalled();
@@ -1018,7 +1026,7 @@ describe("DocumentsScreen", () => {
     // renderer defers the resulting state update to a low-priority
     // scheduling lane instead of committing it (and warns accordingly).
     await act(async () => {
-      fireEvent.press(screen.getByRole("button", { name: "Submit" }));
+      fireEvent.press(panelUploadButton());
     });
 
     await waitFor(() => expect(candidateDocumentsClient.uploadDocument).toHaveBeenCalledTimes(1));
@@ -1047,8 +1055,8 @@ describe("DocumentsScreen", () => {
     expect(await screen.findByText("This PCC was issued more than 5 months ago. Please get a new one and upload it.")).toBeOnTheScreen();
     fireEvent.press(await screen.findByRole("button", { name: "Choose file" }));
     await screen.findByText(/Selected file: passport\.pdf/);
-    expect(screen.getByRole("button", { name: "Submit" })).toBeDisabled();
-    fireEvent.press(screen.getByRole("button", { name: "Submit" }));
+    expect(panelUploadButton()).toBeDisabled();
+    fireEvent.press(panelUploadButton());
     expect(candidateDocumentsClient.uploadDocument).not.toHaveBeenCalled();
 
     // Choosing a recent date clears the error and enables Submit again.
@@ -1060,7 +1068,7 @@ describe("DocumentsScreen", () => {
     fireEvent.press(screen.getByRole("button", { name: `1 ${now.toLocaleString("en-US", { month: "long" })} ${now.getFullYear()}` }));
     fireEvent.press(screen.getByRole("button", { name: "Done" }));
     expect(screen.queryByText("This PCC was issued more than 5 months ago. Please get a new one and upload it.")).toBeNull();
-    expect(screen.getByRole("button", { name: "Submit" })).toBeEnabled();
+    expect(panelUploadButton()).toBeEnabled();
   });
 
   it("shows \"Next of Kin\" in bold in the next of kin's CNIC instructions", async () => {
@@ -1095,7 +1103,7 @@ describe("DocumentsScreen", () => {
     fireEvent.press(await screen.findByRole("button", { name: "Upload" }));
     fireEvent.press(await screen.findByRole("button", { name: "Choose file" }));
     await screen.findByText(/Selected file: passport\.pdf/);
-    fireEvent.press(screen.getByRole("button", { name: "Submit" }));
+    fireEvent.press(panelUploadButton());
     expect(await screen.findByText("Choose how your Next of Kin is related to you.")).toBeOnTheScreen();
     expect(candidateDocumentsClient.uploadDocument).not.toHaveBeenCalled();
 
@@ -1103,7 +1111,7 @@ describe("DocumentsScreen", () => {
     fireEvent.press(await screen.findByRole("button", { name: "Wife" }));
     expect(await screen.findByText("You will also need to upload your marriage certificate (Nikah Nama).")).toBeOnTheScreen();
     await act(async () => {
-      fireEvent.press(screen.getByRole("button", { name: "Submit" }));
+      fireEvent.press(panelUploadButton());
     });
 
     await waitFor(() => expect(candidateDocumentsClient.uploadDocument).toHaveBeenCalledTimes(1));
@@ -1121,7 +1129,7 @@ describe("DocumentsScreen", () => {
     fireEvent.press(await screen.findByRole("button", { name: "Upload" }));
     fireEvent.press(await screen.findByRole("button", { name: "Choose file" }));
     await screen.findByText(/Selected file: passport\.pdf/);
-    fireEvent.press(screen.getByRole("button", { name: "Submit" }));
+    fireEvent.press(panelUploadButton());
 
     await waitFor(() => expect(mockReplace).toHaveBeenCalledWith("/login"));
   });
@@ -1140,7 +1148,7 @@ describe("DocumentsScreen", () => {
     fireEvent.press(uploadButtons[0]);
     fireEvent.press(await screen.findByRole("button", { name: "Choose file" }));
     await screen.findByText(/Selected file: passport\.pdf/);
-    fireEvent.press(screen.getByRole("button", { name: "Submit" }));
+    fireEvent.press(panelUploadButton());
 
     await screen.findByText("Uploading…");
     expect(screen.getAllByRole("button", { name: "Upload" })[1]).toBeDisabled();
@@ -1318,6 +1326,30 @@ describe("DocumentsScreen", () => {
       expect(screen.getByText("Uploaded")).toBeOnTheScreen();
     });
 
+    it("refreshes application progress after saving bank details, so Submit for review can appear", async () => {
+      candidateDocumentsClient.getChecklist.mockResolvedValue([item({ status: "missing" })]);
+      applicationProgressClient.getProgress.mockResolvedValue(progress());
+      DocumentPicker.getDocumentAsync.mockResolvedValue({ canceled: false, assets: [pdfAsset("cheque.pdf")] });
+      candidateBankDetailsClient.submitBankDetail.mockResolvedValue(bankDetailSummary({ status: "submitted", bankDetail: bankDetail() }));
+      renderDocumentsScreen();
+
+      fireEvent.press(await screen.findByRole("button", { name: "Add bank details" }));
+      fireEvent.changeText(screen.getByLabelText("Account title"), "Ahmed Ali");
+      fireEvent.changeText(screen.getByLabelText("IBAN"), "PK36SCBL0000001123456702");
+      fireEvent.press(screen.getByLabelText("Bank name"));
+      fireEvent.press(screen.getByRole("button", { name: "Meezan Bank Limited" }));
+      fireEvent.press(await screen.findByRole("button", { name: "Choose file" }));
+      await screen.findByText(/Selected file: cheque\.pdf/);
+      await waitFor(() => expect(applicationProgressClient.getProgress).toHaveBeenCalled());
+      const progressCallsBefore = applicationProgressClient.getProgress.mock.calls.length;
+
+      await act(async () => {
+        fireEvent.press(screen.getByRole("button", { name: "Submit" }));
+      });
+
+      await waitFor(() => expect(applicationProgressClient.getProgress.mock.calls.length).toBeGreaterThan(progressCallsBefore));
+    });
+
     it("ends the session and returns to sign-in when the bank-detail submission fails because the session expired", async () => {
       candidateDocumentsClient.getChecklist.mockResolvedValue([item({ status: "missing" })]);
       applicationProgressClient.getProgress.mockResolvedValue(progress());
@@ -1363,7 +1395,8 @@ describe("DocumentsScreen", () => {
       expect(screen.getByText("Combined PDF")).toBeOnTheScreen();
       expect(screen.getByText("PDF, up to 5 MB per file.")).toBeOnTheScreen();
       expect(screen.queryByText(/as one PDF, or as two photos/)).toBeNull();
-      expect(screen.queryByText("Upload")).toBeNull();
+      // Only the panel's Upload button reads "Upload" -- no generic "Upload" heading.
+      expect(screen.getAllByText("Upload")).toHaveLength(1);
       expect(screen.getByText("Upload one PDF containing scanned images or clear photos of the first two pages of your passport. Both pages must be clear and readable.")).toBeOnTheScreen();
       fireEvent.press(screen.getByRole("button", { name: "Separate photos" }));
       expect(screen.getByText("PDF, JPEG, PNG, up to 5 MB per file.")).toBeOnTheScreen();
@@ -1383,7 +1416,7 @@ describe("DocumentsScreen", () => {
       fireEvent.press(screen.getAllByRole("button", { name: "Choose file" })[0]);
       await screen.findByText(/Selected file: page2\.jpg/);
       const appendSpy = jest.spyOn(FormData.prototype, "append");
-      await act(async () => { fireEvent.press(screen.getByRole("button", { name: "Submit" })); });
+      await act(async () => { fireEvent.press(panelUploadButton()); });
       await waitFor(() => expect(candidateDocumentsClient.uploadDocument).toHaveBeenCalledTimes(1));
       expect(appendSpy.mock.calls.filter(([key]) => key === "candidate_document[files][][side_code]").map(([, value]) => value)).toEqual(["page_1", "page_2"]);
       appendSpy.mockRestore();
@@ -1403,7 +1436,7 @@ describe("DocumentsScreen", () => {
       fireEvent.press(screen.getByRole("button", { name: "Choose file" }));
       await screen.findByText(/Selected file: passport-scan\.pdf/);
       const appendSpy = jest.spyOn(FormData.prototype, "append");
-      await act(async () => { fireEvent.press(screen.getByRole("button", { name: "Submit" })); });
+      await act(async () => { fireEvent.press(panelUploadButton()); });
       await waitFor(() => expect(candidateDocumentsClient.uploadDocument).toHaveBeenCalledTimes(1));
       expect(appendSpy.mock.calls.filter(([key]) => key === "candidate_document[files][][side_code]").map(([, value]) => value)).toEqual(["combined"]);
       appendSpy.mockRestore();
@@ -1449,7 +1482,7 @@ describe("DocumentsScreen", () => {
       await chooseFileForNextEmptySlot(pdfAsset());
       expect(screen.queryByText("Choose which part of the document each file is.")).toBeNull();
       await act(async () => {
-        fireEvent.press(screen.getByRole("button", { name: "Submit" }));
+        fireEvent.press(panelUploadButton());
       });
 
       await waitFor(() => expect(candidateDocumentsClient.uploadDocument).toHaveBeenCalledTimes(1));
@@ -1466,7 +1499,8 @@ describe("DocumentsScreen", () => {
       fireEvent.press(await screen.findByRole("button", { name: "Upload" }));
       expect(screen.getByText("Upload separate scans or clear photos of the front and back of the CNIC. Both sides must be clear and readable.")).toBeOnTheScreen();
       expect(screen.queryByText("Upload the front and back of your CNIC.")).toBeNull();
-      expect(screen.queryByText("Upload")).toBeNull();
+      // Only the panel's Upload button reads "Upload" -- no generic "Upload" heading.
+      expect(screen.getAllByText("Upload")).toHaveLength(1);
       expect(screen.getByText("Front side")).toBeOnTheScreen();
       expect(screen.getByText("Back side")).toBeOnTheScreen();
 
@@ -1474,7 +1508,7 @@ describe("DocumentsScreen", () => {
       await chooseFileForNextEmptySlot(imageAsset("back.jpg"));
       const appendSpy = jest.spyOn(FormData.prototype, "append");
       await act(async () => {
-        fireEvent.press(screen.getByRole("button", { name: "Submit" }));
+        fireEvent.press(panelUploadButton());
       });
 
       await waitFor(() => expect(candidateDocumentsClient.uploadDocument).toHaveBeenCalledTimes(1));
@@ -1492,7 +1526,7 @@ describe("DocumentsScreen", () => {
 
       fireEvent.press(await screen.findByRole("button", { name: "Upload" }));
       await chooseFileForNextEmptySlot(imageAsset("front.jpg"));
-      fireEvent.press(screen.getByRole("button", { name: "Submit" }));
+      fireEvent.press(panelUploadButton());
 
       expect(
         await screen.findByText("Upload both the front and back sides of the CNIC.")
