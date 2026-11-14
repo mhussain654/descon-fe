@@ -44,3 +44,7 @@ app-example
 caches/*
 # Play Store upload service-account key (never commit)
 google-service-account.json
+
+# Local EAS build outputs (eas build --local)
+*.aab
+*.apk
