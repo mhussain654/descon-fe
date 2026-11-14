@@ -1,6 +1,6 @@
 import { SIDE_CODE_LABEL_KEYS } from '../../../../../../shared/candidateDocuments/fileSet';
 import { useEffect, useState } from 'react';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, ArrowRight, UserRound } from 'lucide-react';
 import { Link } from 'react-router';
 import { useLanguage } from '../../../../contexts/LanguageContext';
 import { useStaffAuth } from '../../../../contexts/StaffAuthContext';
@@ -167,7 +167,15 @@ export function SubmissionDetail({ submissionId }: SubmissionDetailProps) {
 
       <div className="mb-6 mt-2">
         <h1 className="text-2xl font-semibold text-text-primary">{t('adminDocumentReviewDetailTitle')}</h1>
-        <p className="text-sm text-text-secondary">{detail.candidate.fullName}</p>
+        {/* The candidate's own page, for the next action once the documents are reviewed. */}
+        <Link
+          to={`/admin/candidates/${encodeURIComponent(detail.candidate.id)}`}
+          className="mt-1 inline-flex items-center gap-1.5 text-sm font-semibold text-brand hover:underline"
+          aria-label={`${t('adminDocumentReviewOpenCandidateAction')}: ${detail.candidate.fullName}`}
+        >
+          <UserRound className="h-4 w-4" aria-hidden="true" />
+          {detail.candidate.fullName}
+        </Link>
         <p className="text-xs text-text-tertiary">{detail.candidate.id}</p>
       </div>
 
@@ -222,6 +230,16 @@ export function SubmissionDetail({ submissionId }: SubmissionDetailProps) {
       </div>
 
       {approveAllButton ? <div className="mt-4">{approveAllButton}</div> : null}
+
+      <div className="mt-6 border-t border-border-subtle pt-4">
+        <Link
+          to={`/admin/candidates/${encodeURIComponent(detail.candidate.id)}`}
+          className="inline-flex items-center gap-1.5 text-sm font-semibold text-brand hover:underline"
+        >
+          {t('adminDocumentReviewOpenCandidateAction')}
+          <ArrowRight className="h-4 w-4 rtl:rotate-180" aria-hidden="true" />
+        </Link>
+      </div>
 
       <ConfirmDialog
         open={approveAllOpen}

@@ -106,6 +106,14 @@ describe('SubmissionDetail', () => {
     vi.mocked(adminBankDetailsClient.verify).mockReset();
   });
 
+  it("links the candidate's name, and the foot of the page, to the candidate page", async () => {
+    adminDocumentReviewsClient.getSubmission.mockResolvedValue(submissionDetail([submissionDocument()]));
+    await renderDetail();
+
+    expect(await screen.findByRole('link', { name: 'Open candidate page: Ahmed Ali' })).toHaveAttribute('href', '/admin/candidates/candidate-1');
+    expect(screen.getByRole('link', { name: 'Open candidate page' })).toHaveAttribute('href', '/admin/candidates/candidate-1');
+  });
+
   describe('Approve all', () => {
     const bankDetail = (status: string) => ({
       id: 'bank-1', accountTitle: 'Ahmed Ali', accountNumber: '****3310', bankName: 'Meezan Bank Limited', status,
