@@ -1,5 +1,5 @@
 import { useEffect, useState, type ReactNode } from 'react';
-import { CalendarClock, Pencil, Plane, Stethoscope } from 'lucide-react';
+import { CalendarClock, FileCheck2, Pencil, Plane, Stethoscope } from 'lucide-react';
 import { useLanguage } from '../../../../contexts/LanguageContext';
 import { useStaffAuth } from '../../../../contexts/StaffAuthContext';
 import { Button, Card, ConfirmDialog, ErrorState, Input, LoadingState, Textarea, ValidationMessage } from '../../../../design-system';
@@ -8,6 +8,7 @@ import type { TranslationKey } from '../../../../../../shared/i18n/translations'
 import type {
   AppointmentValues,
   FlightValues,
+  VisaCopyValues,
   WorkflowCorrectionBlockedReason,
   WorkflowCorrectionBox,
   WorkflowCorrectionKind,
@@ -19,22 +20,25 @@ const BLOCKED_KEYS: Record<WorkflowCorrectionBlockedReason, TranslationKey> = {
   past_medical: 'adminWorkflowCorrectionBlockedPastMedical',
   qvc_result_recorded: 'adminWorkflowCorrectionBlockedQvcResultRecorded',
   mobilized: 'adminWorkflowCorrectionBlockedMobilized',
+  visa_rejected: 'adminWorkflowCorrectionBlockedVisaRejected',
 };
 
 const DIALOG_TITLE_KEYS: Record<WorkflowCorrectionKind, TranslationKey> = {
   medicalAppointment: 'adminWorkflowCorrectionDialogMedicalTitle',
   qvcAppointment: 'adminWorkflowCorrectionDialogQvcTitle',
   flightDetail: 'adminWorkflowCorrectionDialogFlightTitle',
+  visaCopy: 'adminWorkflowCorrectionDialogVisaTitle',
 };
 
 const RECENT_CHANGES_SHOWN = 3;
 
 /**
  * Developer-only boxes on the candidate Overview tab for correcting the
- * recorded medical appointment, QVC appointment and flight details without
- * moving the candidate. A box's Change button stays visible but disabled once
- * the candidate is past that step (medically fit, QVC result recorded,
- * mobilized), with the reason shown. Renders nothing for other roles.
+ * recorded medical appointment, QVC appointment and flight details, and
+ * replacing the visa copy, without moving the candidate. A box's Change button
+ * stays visible but disabled once the candidate is past that step (medically
+ * fit, QVC result recorded, mobilized, visa rejected), with the reason shown.
+ * Renders nothing for other roles.
  */
 export function WorkflowCorrectionsCard({ candidateId }: { candidateId: string }) {
   const { t } = useLanguage();
@@ -57,7 +61,7 @@ export function WorkflowCorrectionsCard({ candidateId }: { candidateId: string }
       ) : null}
       {query.data ? (
         <>
-          <div className="grid gap-4 lg:grid-cols-3">
+          <div className="grid gap-4 md:grid-cols-2 2xl:grid-cols-4">
             <CorrectionBox
               icon={<Stethoscope className="h-4 w-4" aria-hidden="true" />}
               title={t('adminWorkflowCorrectionMedicalTitle')}
@@ -81,6 +85,14 @@ export function WorkflowCorrectionsCard({ candidateId }: { candidateId: string }
               onChange={() => setEditing('flightDetail')}
             >
               <FlightLines values={query.data.flightDetail.values} />
+            </CorrectionBox>
+            <CorrectionBox
+              icon={<FileCheck2 className="h-4 w-4" aria-hidden="true" />}
+              title={t('adminWorkflowCorrectionVisaTitle')}
+              box={query.data.visaCopy}
+              onChange={() => setEditing('visaCopy')}
+            >
+              <VisaCopyLines values={query.data.visaCopy.values} />
             </CorrectionBox>
           </div>
           <CorrectionDialog
@@ -193,6 +205,22 @@ function FlightLines({ values }: { values: FlightValues }) {
   );
 }
 
+function VisaCopyLines({ values }: { values: VisaCopyValues }) {
+  const { t, language } = useLanguage();
+  const missing = values.hasVisaCopy && values.visaCopyStored === false;
+  let copy = t('adminWorkflowCorrectionVisaCopyNone');
+  if (values.hasVisaCopy) copy = missing ? t('adminWorkflowCorrectionVisaCopyMissing') : t('adminWorkflowCorrectionVisaCopyStored');
+  return (
+    <>
+      <Line label={t('adminWorkflowCorrectionDateLabel')} value={values.decisionDate ? formatDate(values.decisionDate, language, { dateStyle: 'medium' }) : null} />
+      <p className={missing ? 'font-medium text-danger' : undefined}>
+        <span className="text-text-secondary">{t('adminWorkflowCorrectionVisaCopyLabel')}: </span>
+        {copy}
+      </p>
+    </>
+  );
+}
+
 interface FormValues {
   centerName: string;
   centerAddress: string;
@@ -236,7 +264,9 @@ function CorrectionDialog({
   const [reason, setReason] = useState('');
   const [notifyCandidate, setNotifyCandidate] = useState(true);
   const [ticket, setTicket] = useState<File | null>(null);
+  const [visaCopy, setVisaCopy] = useState<File | null>(null);
   const [reasonError, setReasonError] = useState<string | undefined>(undefined);
+  const [visaCopyError, setVisaCopyError] = useState<string | undefined>(undefined);
 
   // Fresh form each time a box is opened, filled in with its current values.
   useEffect(() => {
@@ -245,7 +275,9 @@ function CorrectionDialog({
     setReason('');
     setNotifyCandidate(true);
     setTicket(null);
+    setVisaCopy(null);
     setReasonError(undefined);
+    setVisaCopyError(undefined);
     mutation.reset();
     // eslint-disable-next-line react-hooks/exhaustive-deps -- reset only when a box opens
   }, [kind]);
@@ -258,14 +290,16 @@ function CorrectionDialog({
 
   const submit = () => {
     if (!kind) return;
-    if (!reason.trim()) {
-      setReasonError(t('adminWorkflowCorrectionReasonRequired'));
-      return;
-    }
-    setReasonError(undefined);
+    const missingReason = !reason.trim();
+    const missingVisaCopy = kind === 'visaCopy' && !visaCopy;
+    setReasonError(missingReason ? t('adminWorkflowCorrectionReasonRequired') : undefined);
+    setVisaCopyError(missingVisaCopy ? t('adminWorkflowCorrectionVisaFileRequired') : undefined);
+    if (missingReason || missingVisaCopy) return;
     const common = { candidateId, reason, notifyCandidate };
     const options = { onSuccess: () => onClose() };
-    if (kind === 'flightDetail') {
+    if (kind === 'visaCopy') {
+      if (visaCopy) mutation.mutate({ kind, input: { candidateId, reason, visaCopy } }, options);
+    } else if (kind === 'flightDetail') {
       mutation.mutate(
         { kind, input: { ...common, airline: values.airline, flightNumber: values.flightNumber, sector: values.sector, flightDate: values.flightDate, ticket } },
         options
@@ -294,6 +328,15 @@ function CorrectionDialog({
       isConfirming={mutation.isPending}
     >
       <div className="space-y-4">
+        {kind === 'visaCopy' ? (
+          <Input
+            type="file"
+            accept="application/pdf,image/jpeg,image/png"
+            label={t('adminWorkflowCorrectionVisaFileLabel')}
+            onChange={(event) => setVisaCopy(event.target.files?.[0] ?? null)}
+            errorMessage={visaCopyError}
+          />
+        ) : null}
         {kind === 'flightDetail' ? (
           <>
             <div className="grid gap-4 sm:grid-cols-2">
@@ -315,7 +358,8 @@ function CorrectionDialog({
               onChange={(event) => setTicket(event.target.files?.[0] ?? null)}
             />
           </>
-        ) : (
+        ) : null}
+        {kind === 'medicalAppointment' || kind === 'qvcAppointment' ? (
           <>
             <Input label={t('adminWorkflowCorrectionCentreLabel')} value={values.centerName} maxLength={150} onChange={(event) => set('centerName')(event.target.value)} />
             <Textarea
@@ -330,7 +374,7 @@ function CorrectionDialog({
               <Input type="time" label={t('adminWorkflowCorrectionTimeLabel')} value={values.appointmentTime} onChange={(event) => set('appointmentTime')(event.target.value)} />
             </div>
           </>
-        )}
+        ) : null}
         <Textarea
           label={t('adminWorkflowCorrectionReasonLabel')}
           placeholder={t('adminWorkflowCorrectionReasonPlaceholder')}
@@ -340,10 +384,14 @@ function CorrectionDialog({
           onChange={(event) => setReason(event.target.value)}
           errorMessage={reasonError}
         />
-        <label className="flex items-center gap-2 text-sm font-medium text-text-secondary">
-          <input type="checkbox" checked={notifyCandidate} onChange={(event) => setNotifyCandidate(event.target.checked)} className="h-4 w-4 accent-brand" />
-          {t('adminWorkflowCorrectionNotifyLabel')}
-        </label>
+        {kind === 'visaCopy' ? (
+          <p className="text-sm text-text-secondary">{t('adminWorkflowCorrectionVisaNoSms')}</p>
+        ) : (
+          <label className="flex items-center gap-2 text-sm font-medium text-text-secondary">
+            <input type="checkbox" checked={notifyCandidate} onChange={(event) => setNotifyCandidate(event.target.checked)} className="h-4 w-4 accent-brand" />
+            {t('adminWorkflowCorrectionNotifyLabel')}
+          </label>
+        )}
         {errorMessage ? <ValidationMessage tone="error">{errorMessage}</ValidationMessage> : null}
       </div>
     </ConfirmDialog>

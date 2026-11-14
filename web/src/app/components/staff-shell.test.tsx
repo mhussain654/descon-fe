@@ -132,6 +132,19 @@ describe('StaffShell sidebar navigation', () => {
     expect(screen.queryByRole('link', { name: 'Backups' })).not.toBeInTheDocument();
   });
 
+  it('shows the developer-only Job logs link only to staff with view_job_logs', async () => {
+    await renderShellAs(FINANCE, ['/'], ['view_job_logs']);
+
+    expect(await screen.findByRole('link', { name: 'Job logs' })).toHaveAttribute('href', '/admin/job-logs');
+  });
+
+  it('never shows the Job logs link to an admin without view_job_logs', async () => {
+    await renderShellAs(ADMIN);
+
+    expect(await screen.findByText('page content')).toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'Job logs' })).not.toBeInTheDocument();
+  });
+
   it('shows no Communications-section link to a staff member without those permissions', async () => {
     await renderShellAs(FINANCE);
 

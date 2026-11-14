@@ -14,6 +14,7 @@ vi.mock('../../../../lib/admin-workflow-corrections-client', () => ({
     correctMedicalAppointment: vi.fn(),
     correctQvcAppointment: vi.fn(),
     correctFlightDetail: vi.fn(),
+    correctVisaCopy: vi.fn(),
   },
 }));
 
@@ -38,6 +39,12 @@ function corrections(overrides: Partial<WorkflowCorrections> = {}): WorkflowCorr
       values: { airline: 'PIA', flightNumber: 'PK-283', sector: null, flightDate: '2026-12-10T14:30:00+05:00', hasTicket: true },
       editable: false,
       blockedReason: 'mobilized',
+      recentChanges: [],
+    },
+    visaCopy: {
+      values: { outcomeCode: 'issued', decisionDate: '2026-11-14', hasVisaCopy: true, visaCopyStored: false },
+      editable: true,
+      blockedReason: null,
       recentChanges: [],
     },
     ...overrides,
@@ -130,6 +137,50 @@ describe('WorkflowCorrectionsCard', () => {
       })
     );
     await waitFor(() => expect(screen.queryByText('Change medical appointment')).not.toBeInTheDocument());
+  });
+
+  it('flags a visa copy missing from storage and replaces it with a new file and a reason, without the SMS choice', async () => {
+    vi.mocked(adminWorkflowCorrectionsClient.correctVisaCopy).mockResolvedValue(corrections());
+    await renderCard();
+
+    const visa = await screen.findByRole('region', { name: 'Visa copy' });
+    expect(within(visa).getByText('File missing from storage. Upload it again.')).toBeInTheDocument();
+    fireEvent.click(within(visa).getByRole('button', { name: 'Change' }));
+
+    expect(await screen.findByText('No SMS is sent for a new visa copy.')).toBeInTheDocument();
+    expect(screen.queryByLabelText('Send SMS to candidate')).not.toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText('Reason for the change'), { target: { value: 'Wrong file uploaded' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Save change' }));
+    expect(await screen.findByText('Choose the visa file.')).toBeInTheDocument();
+    expect(adminWorkflowCorrectionsClient.correctVisaCopy).not.toHaveBeenCalled();
+
+    const file = new File(['%PDF-1.4'], 'visa.pdf', { type: 'application/pdf' });
+    fireEvent.change(screen.getByLabelText(/New visa copy/), { target: { files: [file] } });
+    fireEvent.click(screen.getByRole('button', { name: 'Save change' }));
+
+    await waitFor(() =>
+      expect(adminWorkflowCorrectionsClient.correctVisaCopy).toHaveBeenCalledWith({
+        candidateId: 'candidate-1', reason: 'Wrong file uploaded', visaCopy: file,
+      })
+    );
+  });
+
+  it('keeps the visa Change button disabled when the latest decision is a rejection', async () => {
+    vi.mocked(adminWorkflowCorrectionsClient.getCorrections).mockResolvedValue(
+      corrections({
+        visaCopy: {
+          values: { outcomeCode: 'rejected', decisionDate: '2026-11-14', hasVisaCopy: false, visaCopyStored: null },
+          editable: false,
+          blockedReason: 'visa_rejected',
+          recentChanges: [],
+        },
+      })
+    );
+    await renderCard();
+
+    const visa = await screen.findByRole('region', { name: 'Visa copy' });
+    expect(within(visa).getByRole('button', { name: 'Change' })).toBeDisabled();
+    expect(within(visa).getByText('The latest visa decision is a rejection.')).toBeInTheDocument();
   });
 
   it('keeps the dialog open and shows the server message when the change is refused', async () => {

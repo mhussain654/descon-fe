@@ -5,13 +5,20 @@
 //   PATCH /api/v1/admin/candidates/:id/workflow_corrections/medical_appointment
 //   PATCH /api/v1/admin/candidates/:id/workflow_corrections/qvc_appointment
 //   PATCH /api/v1/admin/candidates/:id/workflow_corrections/flight_detail
-// Each change keeps the candidate at the same stage, needs a reason, is audited,
-// and texts the candidate unless `notifyCandidate` is false. Web-only.
+//   PATCH /api/v1/admin/candidates/:id/workflow_corrections/visa_copy
+// Each change keeps the candidate at the same stage, needs a reason and is
+// audited; all but the visa copy text the candidate unless `notifyCandidate` is
+// false. Web-only.
 
-export type WorkflowCorrectionKind = 'medicalAppointment' | 'qvcAppointment' | 'flightDetail';
+export type WorkflowCorrectionKind = 'medicalAppointment' | 'qvcAppointment' | 'flightDetail' | 'visaCopy';
 
 /** Why a box cannot be changed right now; null when it can. */
-export type WorkflowCorrectionBlockedReason = 'not_recorded' | 'past_medical' | 'qvc_result_recorded' | 'mobilized';
+export type WorkflowCorrectionBlockedReason =
+  | 'not_recorded'
+  | 'past_medical'
+  | 'qvc_result_recorded'
+  | 'mobilized'
+  | 'visa_rejected';
 
 export interface WorkflowCorrectionChange {
   occurredAt: string;
@@ -51,11 +58,21 @@ export interface FlightValues {
   hasTicket: boolean;
 }
 
+export interface VisaCopyValues {
+  outcomeCode: 'issued' | 'rejected' | null;
+  /** YYYY-MM-DD */
+  decisionDate: string | null;
+  hasVisaCopy: boolean;
+  /** false when a copy is recorded but its file is missing from storage; null when unknown or no copy. */
+  visaCopyStored: boolean | null;
+}
+
 export interface WorkflowCorrections {
   candidateId: string;
   medicalAppointment: WorkflowCorrectionBox<AppointmentValues>;
   qvcAppointment: WorkflowCorrectionBox<QvcAppointmentValues>;
   flightDetail: WorkflowCorrectionBox<FlightValues>;
+  visaCopy: WorkflowCorrectionBox<VisaCopyValues>;
 }
 
 interface CorrectionCommon {
@@ -80,6 +97,12 @@ export interface FlightCorrectionInput extends CorrectionCommon {
   ticket?: File | null;
 }
 
+export interface VisaCopyCorrectionInput {
+  candidateId: string;
+  reason: string;
+  visaCopy: File;
+}
+
 export type WorkflowCorrectionErrorCode =
   | 'VALIDATION_FAILED'
   | 'FORBIDDEN'
@@ -102,4 +125,5 @@ export interface WorkflowCorrectionsClient {
   correctMedicalAppointment(input: AppointmentCorrectionInput): Promise<WorkflowCorrections>;
   correctQvcAppointment(input: AppointmentCorrectionInput): Promise<WorkflowCorrections>;
   correctFlightDetail(input: FlightCorrectionInput): Promise<WorkflowCorrections>;
+  correctVisaCopy(input: VisaCopyCorrectionInput): Promise<WorkflowCorrections>;
 }

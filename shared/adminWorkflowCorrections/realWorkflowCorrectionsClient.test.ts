@@ -29,6 +29,12 @@ const payload = {
     blocked_reason: 'mobilized',
     recent_changes: [],
   },
+  visa_copy: {
+    values: { outcome_code: 'issued', decision_date: '2026-11-14', has_visa_copy: true, visa_copy_stored: false },
+    editable: true,
+    blocked_reason: null,
+    recent_changes: [],
+  },
 };
 
 function fakeStaffAuthClient(): StaffAuthClient {
@@ -51,7 +57,7 @@ function buildClient() {
 }
 
 describe('createWorkflowCorrectionsClient (real)', () => {
-  it('maps the three boxes', async () => {
+  it('maps the four boxes', async () => {
     let seenUrl = '';
     globalThis.fetch = (async (url: string) => {
       seenUrl = String(url);
@@ -72,6 +78,40 @@ describe('createWorkflowCorrectionsClient (real)', () => {
     expect(result.qvcAppointment.blockedReason).toBe('not_recorded');
     expect(result.flightDetail.values).toEqual({ airline: 'PIA', flightNumber: 'PK-283', sector: null, flightDate: '2026-12-10T14:30:00+05:00', hasTicket: true });
     expect(result.flightDetail.blockedReason).toBe('mobilized');
+    expect(result.visaCopy.values).toEqual({ outcomeCode: 'issued', decisionDate: '2026-11-14', hasVisaCopy: true, visaCopyStored: false });
+    expect(result.visaCopy.editable).toBe(true);
+  });
+
+  it('maps a rejected visa as blocked', async () => {
+    globalThis.fetch = (async () =>
+      jsonResponse({
+        data: { ...payload, visa_copy: { values: { outcome_code: 'rejected', has_visa_copy: false }, editable: false, blocked_reason: 'visa_rejected', recent_changes: [] } },
+        meta: {},
+        errors: [],
+      })) as typeof fetch;
+
+    const result = await buildClient().getCorrections('candidate-1');
+
+    expect(result.visaCopy.blockedReason).toBe('visa_rejected');
+    expect(result.visaCopy.values.visaCopyStored).toBeNull();
+  });
+
+  it('sends a new visa copy as multipart with the reason', async () => {
+    let body: FormData | undefined;
+    let seenUrl = '';
+    globalThis.fetch = (async (url: string, init: RequestInit) => {
+      seenUrl = String(url);
+      body = init.body as FormData;
+      return jsonResponse({ data: payload, meta: {}, errors: [] });
+    }) as typeof fetch;
+    const file = new File(['%PDF-1.4'], 'visa.pdf', { type: 'application/pdf' });
+
+    await buildClient().correctVisaCopy({ candidateId: 'candidate-1', reason: ' Wrong file ', visaCopy: file });
+
+    expect(seenUrl).toBe('http://example.test/api/v1/admin/candidates/candidate-1/workflow_corrections/visa_copy');
+    expect(body?.get('workflow_correction[reason]')).toBe('Wrong file');
+    expect((body?.get('workflow_correction[visa_copy]') as File).name).toBe('visa.pdf');
+    expect(body?.has('workflow_correction[notify_candidate]')).toBe(false);
   });
 
   it('sends a flight change as multipart, with the ticket only when one is chosen', async () => {

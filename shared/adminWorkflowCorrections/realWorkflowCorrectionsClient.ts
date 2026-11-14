@@ -9,6 +9,8 @@ import type {
   FlightCorrectionInput,
   FlightValues,
   QvcAppointmentValues,
+  VisaCopyCorrectionInput,
+  VisaCopyValues,
   WorkflowCorrectionBlockedReason,
   WorkflowCorrectionBox,
   WorkflowCorrectionChange,
@@ -26,7 +28,13 @@ export interface RealWorkflowCorrectionsClientOptions {
   getLocale: () => 'en' | 'ur';
 }
 
-const BLOCKED_REASONS: WorkflowCorrectionBlockedReason[] = ['not_recorded', 'past_medical', 'qvc_result_recorded', 'mobilized'];
+const BLOCKED_REASONS: WorkflowCorrectionBlockedReason[] = [
+  'not_recorded',
+  'past_medical',
+  'qvc_result_recorded',
+  'mobilized',
+  'visa_rejected',
+];
 
 const text = (value: unknown): string | null => (typeof value === 'string' && value ? value : null);
 const object = (value: unknown): Raw => (value && typeof value === 'object' ? (value as Raw) : {});
@@ -77,6 +85,16 @@ function toFlight(values: Raw): FlightValues {
   };
 }
 
+function toVisaCopy(values: Raw): VisaCopyValues {
+  const outcome = values.outcome_code;
+  return {
+    outcomeCode: outcome === 'issued' || outcome === 'rejected' ? outcome : null,
+    decisionDate: text(values.decision_date),
+    hasVisaCopy: values.has_visa_copy === true,
+    visaCopyStored: typeof values.visa_copy_stored === 'boolean' ? values.visa_copy_stored : null,
+  };
+}
+
 function toCorrections(raw: unknown): WorkflowCorrections {
   const value = object(raw);
   return {
@@ -84,6 +102,7 @@ function toCorrections(raw: unknown): WorkflowCorrections {
     medicalAppointment: toBox(value.medical_appointment, toAppointment),
     qvcAppointment: toBox(value.qvc_appointment, toQvcAppointment),
     flightDetail: toBox(value.flight_detail, toFlight),
+    visaCopy: toBox(value.visa_copy, toVisaCopy),
   };
 }
 
@@ -134,6 +153,13 @@ function flightBody(input: FlightCorrectionInput): FormData {
   return form;
 }
 
+function visaCopyBody(input: VisaCopyCorrectionInput): FormData {
+  const form = new FormData();
+  form.append('workflow_correction[reason]', input.reason.trim());
+  form.append('workflow_correction[visa_copy]', input.visaCopy);
+  return form;
+}
+
 export function createWorkflowCorrectionsClient(options: RealWorkflowCorrectionsClientOptions): WorkflowCorrectionsClient {
   const { apiClient, staffAuthClient, getLocale } = options;
   const headers = (token: string) => ({ Authorization: `Bearer ${token}`, 'X-Locale': getLocale() });
@@ -158,5 +184,7 @@ export function createWorkflowCorrectionsClient(options: RealWorkflowCorrections
       call((token) => apiClient.patch<Raw>(path(input.candidateId, 'qvc_appointment'), appointmentBody(input), { headers: headers(token) })),
     correctFlightDetail: (input) =>
       call((token) => apiClient.patch<Raw>(path(input.candidateId, 'flight_detail'), flightBody(input), { headers: headers(token) })),
+    correctVisaCopy: (input) =>
+      call((token) => apiClient.patch<Raw>(path(input.candidateId, 'visa_copy'), visaCopyBody(input), { headers: headers(token) })),
   };
 }

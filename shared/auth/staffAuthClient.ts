@@ -60,6 +60,7 @@ export const MOCK_STAFF_ACCOUNTS: MockStaffAccount[] = [
       'trigger_ai_calls',
       'send_candidate_sms',
       'manage_ai_call_scripts',
+      'view_job_logs',
     ],
   },
   {

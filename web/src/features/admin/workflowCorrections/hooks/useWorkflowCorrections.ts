@@ -5,12 +5,13 @@ import { adminWorkflowCorrectionsClient } from '../../../../lib/admin-workflow-c
 import type {
   AppointmentCorrectionInput,
   FlightCorrectionInput,
+  VisaCopyCorrectionInput,
   WorkflowCorrectionError,
   WorkflowCorrections,
 } from '../../../../lib/admin-workflow-corrections-client';
 import { adminWorkflowCorrectionQueries } from '../../../../../../shared/queryKeys/adminWorkflowCorrectionQueries';
 
-/** The candidate's three correction boxes. Only fetched for staff who may correct (developers). */
+/** The candidate's four correction boxes. Only fetched for staff who may correct (developers). */
 export function useWorkflowCorrections(candidateId: string, enabled: boolean) {
   const { language } = useLanguage();
   return useQuery<WorkflowCorrections, WorkflowCorrectionError>({
@@ -23,11 +24,12 @@ export function useWorkflowCorrections(candidateId: string, enabled: boolean) {
 export type CorrectionSubmission =
   | { kind: 'medicalAppointment'; input: AppointmentCorrectionInput }
   | { kind: 'qvcAppointment'; input: AppointmentCorrectionInput }
-  | { kind: 'flightDetail'; input: FlightCorrectionInput };
+  | { kind: 'flightDetail'; input: FlightCorrectionInput }
+  | { kind: 'visaCopy'; input: VisaCopyCorrectionInput };
 
 /**
  * Saves one correction, then refreshes the boxes and everything else on the
- * page that shows these details (workflow panel, QVC attempts, flight).
+ * page that shows these details (workflow panel, QVC attempts, flight, visa).
  */
 export function useSubmitWorkflowCorrection(candidateId: string) {
   const { t, language } = useLanguage();
@@ -37,6 +39,7 @@ export function useSubmitWorkflowCorrection(candidateId: string) {
     mutationFn: (submission) => {
       if (submission.kind === 'medicalAppointment') return adminWorkflowCorrectionsClient.correctMedicalAppointment(submission.input);
       if (submission.kind === 'qvcAppointment') return adminWorkflowCorrectionsClient.correctQvcAppointment(submission.input);
+      if (submission.kind === 'visaCopy') return adminWorkflowCorrectionsClient.correctVisaCopy(submission.input);
       return adminWorkflowCorrectionsClient.correctFlightDetail(submission.input);
     },
     onSuccess: (data) => {

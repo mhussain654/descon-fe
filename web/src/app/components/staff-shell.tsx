@@ -18,6 +18,7 @@ import {
   PanelLeftClose,
   PanelLeftOpen,
   PhoneCall,
+  ServerCog,
   SlidersHorizontal,
   Sun,
   TrendingUp,
@@ -231,6 +232,12 @@ function StaffShellContent({ children }: { children: ReactNode }) {
           labelKey: 'staffNavAuditLog',
           visible: hasPermission('view_audit_events'),
           icon: History,
+        },
+        {
+          href: '/admin/job-logs',
+          labelKey: 'staffNavJobLogs',
+          visible: hasPermission('view_job_logs'),
+          icon: ServerCog,
         },
         {
           href: '/admin/backups',
