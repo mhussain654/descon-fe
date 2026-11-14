@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useLanguage } from '../../../../contexts/LanguageContext';
 import {
   Badge,
@@ -20,6 +20,7 @@ import { ADMIN_REVIEWER_ROLE_KEYS } from '../../../../../../shared/adminDocument
 import type { TranslationKey } from '../../../../../../shared/i18n/translations';
 import type { useQvcActions } from '../hooks/useQvcActions';
 import type { useQvcAttempts } from '../hooks/useQvcAttempts';
+import { useQvcAppointmentSetting } from '../../qvcAppointmentSetting/hooks/useQvcAppointmentSetting';
 
 export interface QvcPanelProps {
   canTransition: boolean;
@@ -148,6 +149,7 @@ function QvcAttemptRow({
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="font-medium text-text-primary">
           {t('adminWorkflowQvcAttemptPrefix')} {attempt.attemptNumber} · {formatDate(attempt.appointmentDate, language, { dateStyle: 'medium' })}
+          {attempt.appointmentTime ? <span dir="ltr"> · {attempt.appointmentTime}</span> : null}
         </div>
         <Badge tone={attemptStatusTone(attempt.status)}>{t(QVC_ATTEMPT_STATUS_KEYS[attempt.status] as TranslationKey)}</Badge>
       </div>
@@ -164,6 +166,9 @@ function QvcAttemptRow({
           </>
         ) : null}
       </div>
+      {attempt.centerName || attempt.centerAddress ? (
+        <p className="mt-1 text-xs text-text-secondary">{[attempt.centerName, attempt.centerAddress].filter(Boolean).join(' — ')}</p>
+      ) : null}
       {attempt.internalNote ? <p className="mt-2 text-xs text-text-secondary">{attempt.internalNote}</p> : null}
       {canRecordOutcome ? (
         <div className="mt-3">
@@ -185,8 +190,25 @@ function ScheduleDialog({
 }) {
   const { t } = useLanguage();
   const [appointmentDate, setAppointmentDate] = useState('');
+  const [appointmentTime, setAppointmentTime] = useState('');
+  const [centerName, setCenterName] = useState('');
+  const [centerAddress, setCenterAddress] = useState('');
   const [note, setNote] = useState('');
   const [dateError, setDateError] = useState<string | undefined>(undefined);
+  const [prefilled, setPrefilled] = useState(false);
+  // The admin's default QVC appointment (App Settings), filled in once each time the form opens.
+  const defaults = useQvcAppointmentSetting({ enabled: actions.scheduleDialogOpen });
+
+  useEffect(() => {
+    if (!actions.scheduleDialogOpen || prefilled || !defaults.data) return;
+    // Only empty fields: anything the admin already typed is kept.
+    const data = defaults.data;
+    setAppointmentDate((current) => current || (data.appointmentOn ?? ''));
+    setAppointmentTime((current) => current || (data.appointmentTime ?? ''));
+    setCenterName((current) => current || (data.centerName ?? ''));
+    setCenterAddress((current) => current || (data.centerAddress ?? ''));
+    setPrefilled(true);
+  }, [actions.scheduleDialogOpen, prefilled, defaults.data]);
 
   const mutationError = actions.scheduleMutation.error;
   const conflictMessage =
@@ -202,8 +224,12 @@ function ScheduleDialog({
     if (open) return;
     actions.closeScheduleDialog();
     setAppointmentDate('');
+    setAppointmentTime('');
+    setCenterName('');
+    setCenterAddress('');
     setNote('');
     setDateError(undefined);
+    setPrefilled(false);
   };
 
   const handleConfirm = () => {
@@ -212,7 +238,11 @@ function ScheduleDialog({
       return;
     }
     setDateError(undefined);
-    actions.submitSchedule(appointmentDate, currentStageCode, note.trim() || undefined);
+    actions.submitSchedule(appointmentDate, currentStageCode, note.trim() || undefined, {
+      appointmentTime: appointmentTime || undefined,
+      centerName: centerName.trim() || undefined,
+      centerAddress: centerAddress.trim() || undefined,
+    });
   };
 
   return (
@@ -228,12 +258,33 @@ function ScheduleDialog({
       isConfirming={actions.scheduleMutation.isPending}
     >
       <div className="space-y-4">
+        <div className="grid gap-4 sm:grid-cols-2">
+          <Input
+            type="date"
+            label={t('adminWorkflowQvcAppointmentDateLabel')}
+            value={appointmentDate}
+            onChange={(event) => setAppointmentDate(event.target.value)}
+            errorMessage={dateError}
+          />
+          <Input
+            type="time"
+            label={t('adminWorkflowQvcAppointmentTimeLabel')}
+            value={appointmentTime}
+            onChange={(event) => setAppointmentTime(event.target.value)}
+          />
+        </div>
         <Input
-          type="date"
-          label={t('adminWorkflowQvcAppointmentDateLabel')}
-          value={appointmentDate}
-          onChange={(event) => setAppointmentDate(event.target.value)}
-          errorMessage={dateError}
+          label={t('adminWorkflowQvcCenterNameLabel')}
+          value={centerName}
+          maxLength={150}
+          onChange={(event) => setCenterName(event.target.value)}
+        />
+        <Textarea
+          label={t('adminWorkflowQvcCenterAddressLabel')}
+          value={centerAddress}
+          maxLength={500}
+          rows={2}
+          onChange={(event) => setCenterAddress(event.target.value)}
         />
         <Textarea label={t('adminWorkflowQvcNoteLabel')} value={note} onChange={(event) => setNote(event.target.value)} rows={2} />
         {conflictMessage ? <ValidationMessage tone="error">{conflictMessage}</ValidationMessage> : null}

@@ -508,6 +508,17 @@ describe("DashboardScreen", () => {
       expect(screen.queryByText("Your flight")).toBeNull();
     });
 
+    it("shows the QVC appointment while it is still to happen", async () => {
+      applicationProgressClient.getProgress.mockResolvedValue(
+        progress({ workflow: workflowPayload({ timeline: timelineThrough(9), qvcAppointment: { date: "2026-12-03", time: "08:30", centerName: "QVC Islamabad", centerAddress: "Blue Area", scheduled: true } }) })
+      );
+      renderDashboardScreen();
+
+      expect(await screen.findByText("Your QVC appointment")).toBeOnTheScreen();
+      expect(screen.getByText("QVC Islamabad")).toBeOnTheScreen();
+      expect(screen.getByText("03/12/2026 • 08:30")).toBeOnTheScreen();
+    });
+
     it("shows the flight and the ticket download once staff added the flight", async () => {
       applicationProgressClient.getProgress.mockResolvedValue(progress({ workflow: workflowPayload({ timeline: timelineThrough(14) }) }));
       candidateFlightDetailClient.getFlightDetail.mockResolvedValue(flight());

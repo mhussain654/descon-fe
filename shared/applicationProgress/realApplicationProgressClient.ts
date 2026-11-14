@@ -7,6 +7,7 @@ import type { WorkflowActionType } from '../adminWorkflow/types';
 import { toPaymentEligibility, type EligibilityResponse } from '../payments/mapEligibilityResponse';
 import type {
   ApplicationProgress,
+  CandidateQvcAppointment,
   ApplicationProgressClient,
   ApplicationProgressDocuments,
   ApplicationProgressError,
@@ -47,6 +48,7 @@ interface ApplicationProgressWorkflowResponse {
   progress_percentage: number;
   updated_at: string | null;
   outcomes?: unknown;
+  qvc_appointment?: unknown;
 }
 
 interface BlockingRequirementResponse {
@@ -210,6 +212,24 @@ function toApplicationProgressWorkflow(raw: unknown): ApplicationProgressWorkflo
     progressPercentage: toNumber(value.progress_percentage),
     updatedAt: toIsoStringOrNull(value.updated_at),
     outcomes: toOutcomes(value.outcomes),
+    qvcAppointment: toQvcAppointment(value.qvc_appointment),
+  };
+}
+
+const presentText = (value: unknown): string | undefined => (typeof value === 'string' && value ? value : undefined);
+
+/** Null for no booking, or one without a date (never shown half-filled). */
+function toQvcAppointment(raw: unknown): CandidateQvcAppointment | null {
+  if (!raw || typeof raw !== 'object') return null;
+  const value = raw as Record<string, unknown>;
+  const date = presentText(value.appointment_date);
+  if (!date) return null;
+  return {
+    date,
+    time: presentText(value.appointment_time),
+    centerName: presentText(value.center_name),
+    centerAddress: presentText(value.center_address),
+    scheduled: value.status === 'scheduled',
   };
 }
 

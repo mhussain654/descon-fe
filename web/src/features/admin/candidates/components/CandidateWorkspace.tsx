@@ -19,6 +19,7 @@ import { CandidatePaymentStatusCard } from "./CandidatePaymentStatusCard";
 import { CandidateAiCallsCard } from "../../candidateAiCalls/components/CandidateAiCallsCard";
 import { CandidateSmsCard } from "../../candidateSms/components/CandidateSmsCard";
 import { WorkflowPanel } from "../../workflow/components/WorkflowPanel";
+import { WorkflowCorrectionsCard } from "../../workflowCorrections/components/WorkflowCorrectionsCard";
 import { FeeSettingsCard } from "../../payments/components/FeeSettingsCard";
 
 const SECTIONS = [
@@ -188,6 +189,7 @@ export function CandidateWorkspace({ candidateId }: { candidateId: string }) {
               <CandidatePaymentStatusCard candidateId={candidateId} />
             </div>
             <WorkflowPanel candidateId={candidateId} section="overview" />
+            <WorkflowCorrectionsCard candidateId={candidateId} />
           </>
         ) : null}
         {section === "profile" ? (

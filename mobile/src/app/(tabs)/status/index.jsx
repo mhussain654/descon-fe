@@ -33,6 +33,7 @@ import { themed, themedValues } from '../../../design-system/theme';
 // The steps that carry an outcome or a download of their own.
 const MEDICAL_STEP = "medical";
 const QVC_OUTCOME_STEP = "qvc_status";
+const QVC_APPOINTMENT_STEP = "qvc_appointment";
 const VISA_OUTCOME_STEP = "visa";
 const FLIGHT_TICKET_STEP = "ready_to_fly";
 
@@ -82,6 +83,8 @@ export default function StatusScreen() {
   const qvcOutcome = findLatestQvcOutcome(historyQuery.data?.items ?? []);
   // Where and when to go for the medical, as staff saved it with the move to that stage.
   const medicalAppointment = findLatestMedicalAppointment(historyQuery.data?.items ?? []);
+  // Where and when to go for QVC (Qatar), shown until its result is recorded.
+  const qvcAppointment = progressQuery.data?.workflow?.qvcAppointment ?? null;
   // The latest recorded visa decision (a candidate can be re-submitted, so this is
   // never assumed to be the only one) -- the backend returns the list in chronological order.
   const latestVisaDecision = visaDecisionsQuery.data?.at(-1) ?? null;
@@ -183,6 +186,9 @@ export default function StatusScreen() {
                 <JourneyStepCard key={step.code} step={step} isLast={isLast} language={language} t={t} dateLabel={completedLabel ? `${t("workflowStageCompletedPrefix")} ${completedLabel}` : startedLabel ? `${t("workflowStageStartedPrefix")} ${startedLabel}` : null}>
                     {step.code === MEDICAL_STEP && step.status !== "upcoming" && medicalAppointment ? (
                       <MedicalAppointmentDetails appointment={medicalAppointment} language={language} t={t} />
+                    ) : null}
+                    {step.code === QVC_APPOINTMENT_STEP && qvcAppointment?.scheduled ? (
+                      <MedicalAppointmentDetails appointment={qvcAppointment} language={language} t={t} titleKey="candidateQvcAppointmentTitle" />
                     ) : null}
                     {step.code === QVC_OUTCOME_STEP && qvcOutcome ? (
                       <View

@@ -12,6 +12,8 @@ interface MedicalAppointmentDetailsProps {
   appointment: MedicalAppointment;
   language: Language;
   t: (key: TranslationKey) => string;
+  /** The box heading; the QVC appointment reuses this box with its own title. */
+  titleKey?: TranslationKey;
 }
 
 /** "20/11/2026 • 09:30", or whichever of the two was recorded. */
@@ -26,16 +28,22 @@ function whenLabel(appointment: MedicalAppointment, language: Language): string 
 /**
  * Where and when the candidate goes for their medical, as staff recorded it
  * when moving them to the medical appointment stage -- shown under the Medical
- * step on the Status tab. Only what was recorded is shown.
+ * step on the Status tab. Only what was recorded is shown. Also used for the
+ * QVC appointment (Qatar), which has the same centre, address, date and time.
  */
-export function MedicalAppointmentDetails({ appointment, language, t }: MedicalAppointmentDetailsProps) {
+export function MedicalAppointmentDetails({
+  appointment,
+  language,
+  t,
+  titleKey = 'candidateMedicalAppointmentTitle',
+}: MedicalAppointmentDetailsProps) {
   const when = whenLabel(appointment, language);
   const iconColor = themed('#0065B3', '#7CC4FF');
   const rowStyle = [styles.row, { flexDirection: rowDirectionTowards(language === 'ur' ? 'right' : 'left') }];
 
   return (
-    <View style={styles.box} accessibilityLabel={t('candidateMedicalAppointmentTitle')}>
-      <Text style={[styles.title, statusCopyStyle(language, 13)]}>{t('candidateMedicalAppointmentTitle')}</Text>
+    <View style={styles.box} accessibilityLabel={t(titleKey)}>
+      <Text style={[styles.title, statusCopyStyle(language, 13)]}>{t(titleKey)}</Text>
       {appointment.centerName || appointment.centerAddress ? (
         <View style={rowStyle}>
           <MapPin size={14} color={iconColor} style={styles.icon} />

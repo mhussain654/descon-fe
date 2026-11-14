@@ -17,7 +17,14 @@ function randomIdempotencyKey(prefix: string): string {
   return `${prefix}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
 }
 
-interface ScheduleSelection {
+/** Where and at what time the QVC appointment is -- each optional. */
+export interface QvcAppointmentPlace {
+  appointmentTime?: string;
+  centerName?: string;
+  centerAddress?: string;
+}
+
+interface ScheduleSelection extends QvcAppointmentPlace {
   candidateId: string;
   appointmentDate: string;
   expectedCurrentStageCode: string | undefined;
@@ -36,6 +43,9 @@ function sameScheduleSelection(a: ScheduleSelection | null, b: ScheduleSelection
     !!a &&
     a.candidateId === b.candidateId &&
     a.appointmentDate === b.appointmentDate &&
+    a.appointmentTime === b.appointmentTime &&
+    a.centerName === b.centerName &&
+    a.centerAddress === b.centerAddress &&
     a.expectedCurrentStageCode === b.expectedCurrentStageCode
   );
 }
@@ -89,6 +99,9 @@ export function useQvcActions(candidateId: string | undefined) {
       adminWorkflowClient.scheduleQvcAppointment({
         candidateId: variables.candidateId,
         appointmentDate: variables.appointmentDate,
+        appointmentTime: variables.appointmentTime,
+        centerName: variables.centerName,
+        centerAddress: variables.centerAddress,
         expectedCurrentStageCode: variables.expectedCurrentStageCode,
         note: variables.note,
         idempotencyKey: variables.idempotencyKey,
@@ -168,10 +181,10 @@ export function useQvcActions(candidateId: string | undefined) {
   }, [scheduleMutation]);
 
   const submitSchedule = useCallback(
-    (appointmentDate: string, expectedCurrentStageCode: string | undefined, note?: string) => {
+    (appointmentDate: string, expectedCurrentStageCode: string | undefined, note?: string, place: QvcAppointmentPlace = {}) => {
       if (!candidateId || scheduleMutation.isPending) return;
 
-      const selection: ScheduleSelection = { candidateId, appointmentDate, expectedCurrentStageCode };
+      const selection: ScheduleSelection = { candidateId, appointmentDate, expectedCurrentStageCode, ...place };
       const key = sameScheduleSelection(scheduleKey?.selection ?? null, selection)
         ? (scheduleKey as { key: string; selection: ScheduleSelection }).key
         : randomIdempotencyKey('admin-qvc-schedule');

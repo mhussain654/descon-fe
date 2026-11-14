@@ -356,6 +356,32 @@ describe("StatusScreen", () => {
     expect(within(stageRow("QVC Status")).getByText(/QVC Outcome/).children.join("")).toContain("Approved");
   });
 
+  describe("the QVC appointment", () => {
+    it("shows where and when to go under the QVC appointment step while it is still to happen", async () => {
+      applicationProgressClient.getProgress.mockResolvedValue(
+        progressPayload({ workflow: workflowPayload({ timeline: timelineThrough(9), qvcAppointment: { date: "2026-12-03", time: "08:30", centerName: "QVC Islamabad", centerAddress: "Blue Area", scheduled: true } }) })
+      );
+      renderStatusScreen();
+
+      await screen.findAllByText("QVC Appointment");
+      const row = within(stageRow("QVC Appointment"));
+      expect(await row.findByText("Your QVC appointment")).toBeOnTheScreen();
+      expect(row.getByText("QVC Islamabad")).toBeOnTheScreen();
+      expect(row.getByText("Blue Area")).toBeOnTheScreen();
+      expect(row.getByText("03/12/2026 • 08:30")).toBeOnTheScreen();
+    });
+
+    it("hides it once the QVC result is recorded", async () => {
+      applicationProgressClient.getProgress.mockResolvedValue(
+        progressPayload({ workflow: workflowPayload({ timeline: timelineThrough(10), qvcAppointment: { ...{ date: "2026-12-03", time: "08:30", centerName: "QVC Islamabad", centerAddress: "Blue Area", scheduled: true }, scheduled: false } }) })
+      );
+      renderStatusScreen();
+
+      await screen.findAllByText("QVC Appointment");
+      expect(screen.queryByText("Your QVC appointment")).toBeNull();
+    });
+  });
+
   describe("the medical appointment", () => {
     const MEDICAL_APPOINTMENT_STAGE = { code: "medical_appointment", name: "Medical Appointment", position: 6 };
     // Documents done, now at the medical appointment stage.

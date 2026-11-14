@@ -167,6 +167,9 @@ interface QvcAttemptResponse {
   id: string;
   attempt_number: number;
   appointment_date: string;
+  appointment_time?: string | null;
+  center_name?: string | null;
+  center_address?: string | null;
   outcome_code: string | null;
   no_show: boolean;
   outcome_recorded_at: string | null;
@@ -509,6 +512,9 @@ function toQvcAttempt(raw: unknown): AdminQvcAttempt | null {
     id: value.id,
     attemptNumber: toNumber(value.attempt_number),
     appointmentDate: typeof value.appointment_date === 'string' ? value.appointment_date : '',
+    appointmentTime: typeof value.appointment_time === 'string' && value.appointment_time ? value.appointment_time : null,
+    centerName: typeof value.center_name === 'string' && value.center_name ? value.center_name : null,
+    centerAddress: typeof value.center_address === 'string' && value.center_address ? value.center_address : null,
     outcomeCode: toQvcOutcomeCode(value.outcome_code),
     noShow: value.no_show === true,
     outcomeRecordedAt: typeof value.outcome_recorded_at === 'string' ? value.outcome_recorded_at : null,
@@ -829,6 +835,9 @@ export function createAdminWorkflowClient(options: RealAdminWorkflowClientOption
             {
               candidate_qvc_attempt: {
                 appointment_date: input.appointmentDate,
+                ...(input.appointmentTime?.trim() ? { appointment_time: input.appointmentTime.trim() } : {}),
+                ...(input.centerName?.trim() ? { center_name: input.centerName.trim() } : {}),
+                ...(input.centerAddress?.trim() ? { center_address: input.centerAddress.trim() } : {}),
                 ...(input.expectedCurrentStageCode ? { expected_current_stage_code: input.expectedCurrentStageCode } : {}),
                 ...(input.note ? { note: input.note } : {}),
               },

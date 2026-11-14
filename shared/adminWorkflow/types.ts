@@ -227,6 +227,10 @@ export interface AdminQvcAttempt {
   id: string;
   attemptNumber: number;
   appointmentDate: string;
+  /** HH:MM, 24-hour, Pakistan time; null when not given. */
+  appointmentTime: string | null;
+  centerName: string | null;
+  centerAddress: string | null;
   outcomeCode: QvcOutcomeCode | null;
   noShow: boolean;
   outcomeRecordedAt: string | null;
@@ -246,6 +250,10 @@ export interface AdminQvcAttempts {
 export interface ScheduleQvcAppointmentInput {
   candidateId: string;
   appointmentDate: string;
+  /** Optional, HH:MM. Blank values are left out. */
+  appointmentTime?: string;
+  centerName?: string;
+  centerAddress?: string;
   expectedCurrentStageCode?: string;
   note?: string;
   idempotencyKey: string;

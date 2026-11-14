@@ -9,6 +9,7 @@ import type { TranslationKey } from '../../../../../../shared/i18n/translations'
 import { AiCallOperationalSettingsForm } from '../../aiCallOperationalSettings/components/AiCallOperationalSettingsForm';
 import { CallTypesCard } from '../../bulkCalls/components/CallTypesCard';
 import { MedicalAppointmentSettingForm } from '../../medicalAppointmentSetting/components/MedicalAppointmentSettingForm';
+import { QvcAppointmentSettingForm } from '../../qvcAppointmentSetting/components/QvcAppointmentSettingForm';
 import { FlightDetailSettingForm } from '../../flightDetailSetting/components/FlightDetailSettingForm';
 import { FeeSettingsCard } from '../../payments/components/FeeSettingsCard';
 import { SupportSettingForm } from '../../supportSetting/components/SupportSettingForm';
@@ -16,7 +17,7 @@ import { WorkflowStageCallScriptList } from '../../workflowStageCallScripts/comp
 import { AppFeatureSettingsForm } from './AppFeatureSettingsForm';
 import { SmsTemplateList } from './SmsTemplateList';
 
-export type AppSettingsTab = 'features' | 'fee' | 'medical' | 'flight' | 'support' | 'calls' | 'bulk-calls' | 'automatic-calls' | 'sms';
+export type AppSettingsTab = 'features' | 'fee' | 'medical' | 'qvc' | 'flight' | 'support' | 'calls' | 'bulk-calls' | 'automatic-calls' | 'sms';
 
 interface TabDefinition {
   id: AppSettingsTab;
@@ -52,6 +53,12 @@ export function AppSettingsPage() {
       labelKey: 'adminAppSettingsTabMedical',
       visible: hasPermission('manage_workflow'),
       render: () => <MedicalAppointmentSettingForm />,
+    },
+    {
+      id: 'qvc',
+      labelKey: 'adminAppSettingsTabQvc',
+      visible: hasPermission('manage_workflow'),
+      render: () => <QvcAppointmentSettingForm />,
     },
     {
       id: 'flight',

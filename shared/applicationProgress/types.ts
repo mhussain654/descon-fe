@@ -77,6 +77,21 @@ export interface WorkflowOutcomes {
   visa: 'issued' | 'rejected' | null;
 }
 
+/**
+ * The candidate's latest QVC booking (Qatar only): where and when to go, as
+ * staff booked it (or a developer later corrected it). Shown while `scheduled`.
+ */
+export interface CandidateQvcAppointment {
+  /** YYYY-MM-DD */
+  date: string;
+  /** HH:MM, Pakistan time */
+  time?: string;
+  centerName?: string;
+  centerAddress?: string;
+  /** `scheduled` until the QVC result (or a no-show) is recorded. */
+  scheduled: boolean;
+}
+
 export interface ApplicationProgressWorkflow {
   mobilizationProcess: MobilizationProcessSummary | null;
   timeline: WorkflowTimelineStage[];
@@ -87,6 +102,8 @@ export interface ApplicationProgressWorkflow {
   updatedAt: string | null;
   /** The latest medical result and visa decision (null until recorded) -- marks those journey steps Rejected. */
   outcomes: WorkflowOutcomes;
+  /** The latest QVC booking, or null when none (every country but Qatar). */
+  qvcAppointment: CandidateQvcAppointment | null;
 }
 
 export interface ApplicationProgressDocuments {

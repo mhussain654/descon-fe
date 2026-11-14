@@ -274,6 +274,8 @@ export default function DashboardScreen() {
   const currentStepCode = journey?.current?.code;
   const medicalAppointment =
     currentStepCode === "medical" ? findLatestMedicalAppointment(historyQuery.data?.items ?? []) : null;
+  // A QVC booking still to happen (Qatar): shown until its result is recorded.
+  const qvcAppointment = workflow?.qvcAppointment?.scheduled ? workflow.qvcAppointment : null;
   const upcomingFlight =
     currentStepCode === "ready_to_fly" && flightDetailQuery.data && !flightDetailQuery.data.mobilized
       ? flightDetailQuery.data
@@ -346,6 +348,9 @@ export default function DashboardScreen() {
             percentage={percentage}
           />
 
+          {qvcAppointment ? (
+            <MedicalAppointmentDetails appointment={qvcAppointment} language={language} t={t} titleKey="candidateQvcAppointmentTitle" />
+          ) : null}
           {medicalAppointment ? (
             <MedicalAppointmentDetails appointment={medicalAppointment} language={language} t={t} />
           ) : null}

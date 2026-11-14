@@ -5,6 +5,7 @@ import { createMockStaffAuthClient, MOCK_STAFF_ACCOUNTS, MOCK_STAFF_PASSWORD } f
 import { LanguageProvider } from "../../../../contexts/LanguageContext";
 import { StaffAuthProvider } from "../../../../contexts/StaffAuthContext";
 import { adminWorkflowClient } from "../../../../lib/admin-workflow-client";
+import { adminQvcAppointmentSettingClient } from "../../../../lib/admin-qvc-appointment-setting-client";
 import { WorkflowPanel } from "./WorkflowPanel";
 
 vi.mock("../../../../lib/admin-workflow-client", () => ({
@@ -23,6 +24,15 @@ vi.mock("../../../../lib/admin-workflow-client", () => ({
     recordFlightDetail: vi.fn(),
     mobilizeFlightDetail: vi.fn(),
     getFlightTicketAccess: vi.fn(),
+  },
+}));
+
+const BLANK_QVC_DEFAULTS = { centerName: null, centerAddress: null, appointmentOn: null, appointmentTime: null, updatedBy: null, updatedAt: "2026-11-01T00:00:00Z" };
+
+vi.mock("../../../../lib/admin-qvc-appointment-setting-client", () => ({
+  adminQvcAppointmentSettingClient: {
+    getQvcAppointmentSetting: vi.fn(() => Promise.resolve(BLANK_QVC_DEFAULTS)),
+    updateQvcAppointmentSetting: vi.fn(),
   },
 }));
 
@@ -888,6 +898,35 @@ describe("WorkflowPanel", () => {
         )
       );
       await waitFor(() => expect(screen.queryByText("Schedule a QVC appointment")).not.toBeInTheDocument());
+    });
+
+    it("fills in the default QVC centre, address, date and time, and sends what the admin keeps", async () => {
+      vi.mocked(adminQvcAppointmentSettingClient.getQvcAppointmentSetting).mockResolvedValueOnce({
+        ...BLANK_QVC_DEFAULTS, centerName: "QVC Islamabad", centerAddress: "Blue Area", appointmentOn: "2026-09-10", appointmentTime: "08:30",
+      });
+      adminWorkflowClient.getWorkflowState.mockResolvedValue(workflowState());
+      adminWorkflowClient.getAllowedTransitions.mockResolvedValue(allowedTransitions({ allowedNextTransitions: [qatarBuTransition(), { ...qatarBuTransition(), code: "qvc_appointment_booked", actionType: "qvc_appointment" }] }));
+      adminWorkflowClient.getWorkflowHistory.mockResolvedValue(workflowHistory());
+      adminWorkflowClient.scheduleQvcAppointment.mockResolvedValue({
+        workflow: workflowState({ currentStage: timelineStage({ code: "qvc_appointment_booked" }) }),
+        transition: historyItem({ toStage: { code: "qvc_appointment_booked", name: "QVC Appointment Booked", position: 9 } }),
+        qvcAttempt: null,
+      });
+      const client = await signInAs(MPS);
+      renderPanel(client);
+
+      fireEvent.click(await screen.findByRole("button", { name: "Schedule appointment" }));
+      await waitFor(() => expect(screen.getByLabelText("QVC centre")).toHaveValue("QVC Islamabad"));
+      expect(screen.getByLabelText("Appointment date")).toHaveValue("2026-09-10");
+      expect(screen.getByLabelText("QVC appointment time")).toHaveValue("08:30");
+      fireEvent.change(screen.getByLabelText("QVC appointment time"), { target: { value: "09:00" } });
+      fireEvent.click(screen.getByRole("button", { name: "Schedule" }));
+
+      await waitFor(() =>
+        expect(adminWorkflowClient.scheduleQvcAppointment).toHaveBeenCalledWith(
+          expect.objectContaining({ appointmentDate: "2026-09-10", appointmentTime: "09:00", centerName: "QVC Islamabad", centerAddress: "Blue Area" })
+        )
+      );
     });
 
     it("requires an appointment date client-side before submitting", async () => {
