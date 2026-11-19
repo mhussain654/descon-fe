@@ -162,6 +162,14 @@ function toSummary(raw: unknown): AdminCandidateListResult['summary'] {
     .map((row) => ({ code: String(row.code), count: typeof row.count === 'number' ? row.count : 0 }));
 }
 
+function toBoardingPassSummary(raw: unknown): AdminCandidateListResult['boardingPassSummary'] {
+  const value = (raw && typeof raw === 'object' ? raw : {}) as { uploaded?: unknown; missing?: unknown };
+  return {
+    uploaded: typeof value.uploaded === 'number' ? value.uploaded : 0,
+    missing: typeof value.missing === 'number' ? value.missing : 0,
+  };
+}
+
 function toCandidateDetail(raw: unknown): AdminCandidateDetail {
   const value = (raw && typeof raw === 'object' ? raw : {}) as Partial<CandidateDetailResponse>;
   return {
@@ -310,12 +318,15 @@ export function createAdminCandidateClient(options: RealAdminCandidateClientOpti
         if (!result) throw { code: 'UNKNOWN' } satisfies AdminCandidateError;
 
         const items = Array.isArray(result.data) ? result.data.map(toCandidateDetail) : [];
-        const meta = result.meta as { pagination?: unknown; applied_filters?: unknown; summary?: unknown } | undefined;
+        const meta = result.meta as
+          | { pagination?: unknown; applied_filters?: unknown; summary?: unknown; boarding_pass_summary?: unknown }
+          | undefined;
         return {
           items,
           pagination: toPagination(meta?.pagination),
           appliedFilters: toAppliedFilters(meta?.applied_filters),
           summary: toSummary(meta?.summary),
+          boardingPassSummary: toBoardingPassSummary(meta?.boarding_pass_summary),
         };
       } catch (error) {
         throw toCandidateError(error);

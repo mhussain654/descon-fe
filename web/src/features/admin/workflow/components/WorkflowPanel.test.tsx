@@ -24,6 +24,7 @@ vi.mock("../../../../lib/admin-workflow-client", () => ({
     recordFlightDetail: vi.fn(),
     mobilizeFlightDetail: vi.fn(),
     getFlightTicketAccess: vi.fn(),
+    getBoardingPassAccess: vi.fn(),
   },
 }));
 
@@ -132,6 +133,7 @@ function flightDetailRecord(overrides: Record<string, unknown> = {}) {
     ticketAttached: true,
     mobilizedOn: null,
     mobilized: false,
+    boardingPassUploadedAt: null,
     recordedBy: { id: "staff-1", role: "mps" },
     mobilizedRecordedBy: null,
     ...overrides,
@@ -329,6 +331,7 @@ describe("WorkflowPanel", () => {
     vi.mocked(adminWorkflowClient.recordFlightDetail).mockReset();
     vi.mocked(adminWorkflowClient.mobilizeFlightDetail).mockReset();
     vi.mocked(adminWorkflowClient.getFlightTicketAccess).mockReset();
+    vi.mocked(adminWorkflowClient.getBoardingPassAccess).mockReset();
     localStorage.removeItem("descon.language");
   });
 
@@ -1554,6 +1557,44 @@ describe("WorkflowPanel", () => {
 
       await waitFor(() => expect(adminWorkflowClient.getFlightTicketAccess).toHaveBeenCalledWith("candidate-1"));
       expect(await screen.findByRole("link", { name: "Open ticket" })).toBeInTheDocument();
+    });
+
+    it("shows when the candidate uploaded their boarding pass and opens it only when staff choose to view it", async () => {
+      adminWorkflowClient.getWorkflowState.mockResolvedValue(workflowState());
+      adminWorkflowClient.getAllowedTransitions.mockResolvedValue(allowedTransitions({ allowedNextTransitions: [] }));
+      adminWorkflowClient.getWorkflowHistory.mockResolvedValue(workflowHistory());
+      adminWorkflowClient.getFlightDetail.mockResolvedValue(
+        flightDetailShow({ flightDetail: flightDetailRecord({ boardingPassUploadedAt: "2026-09-20T11:05:00Z" }) })
+      );
+      adminWorkflowClient.getBoardingPassAccess.mockResolvedValue({
+        flightDetailId: "flight-detail-1",
+        url: "/rails/active_storage/blobs/proxy/abc/boarding-pass.jpg",
+        expiresAt: new Date(Date.now() + 300_000).toISOString(),
+      });
+      const client = await signInAs(MPS);
+
+      renderPanel(client);
+
+      expect(await screen.findByText(/^Uploaded on /)).toBeInTheDocument();
+      expect(adminWorkflowClient.getBoardingPassAccess).not.toHaveBeenCalled();
+
+      fireEvent.click(screen.getByRole("button", { name: "View boarding pass" }));
+
+      await waitFor(() => expect(adminWorkflowClient.getBoardingPassAccess).toHaveBeenCalledWith("candidate-1"));
+      expect(await screen.findByRole("link", { name: "Open boarding pass" })).toBeInTheDocument();
+    });
+
+    it("says when the candidate has not uploaded their boarding pass yet", async () => {
+      adminWorkflowClient.getWorkflowState.mockResolvedValue(workflowState());
+      adminWorkflowClient.getAllowedTransitions.mockResolvedValue(allowedTransitions({ allowedNextTransitions: [] }));
+      adminWorkflowClient.getWorkflowHistory.mockResolvedValue(workflowHistory());
+      adminWorkflowClient.getFlightDetail.mockResolvedValue(flightDetailShow({ flightDetail: flightDetailRecord() }));
+      const client = await signInAs(MPS);
+
+      renderPanel(client);
+
+      expect(await screen.findByText("The candidate has not uploaded their boarding pass yet.")).toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: "View boarding pass" })).not.toBeInTheDocument();
     });
 
     it("shows the mobilize action only once flight details exist and the backend returns mobilized as available", async () => {

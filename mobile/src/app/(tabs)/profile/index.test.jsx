@@ -183,7 +183,7 @@ describe("ProfileScreen", () => {
     expect(screen.getAllByText("A", { includeHiddenElements: true })).toHaveLength(2);
   });
 
-  it("shows the current status as the mobilization step and its status, e.g. Visa approved", async () => {
+  it("shows the current status as the mobilization step and its status, e.g. Visa completed", async () => {
     candidateProfileClient.getProfile.mockResolvedValue(profilePayload());
     applicationProgressClient.getProgress.mockResolvedValue(
       progressPayload({
@@ -212,7 +212,7 @@ describe("ProfileScreen", () => {
     renderProfileScreen();
 
     const row = hostViewAncestor(await screen.findByText("Current status"), 2);
-    expect(within(row).getByText("Visa approved")).toBeOnTheScreen();
+    expect(within(row).getByText("Visa completed")).toBeOnTheScreen();
   });
 
   it("falls back to the candidate status until progress has loaded", async () => {

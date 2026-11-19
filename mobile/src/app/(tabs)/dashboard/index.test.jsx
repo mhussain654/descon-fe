@@ -345,7 +345,7 @@ describe("DashboardScreen", () => {
     );
     renderDashboardScreen();
 
-    expect(await screen.findByText("Mobilization Fee approved")).toBeOnTheScreen();
+    expect(await screen.findByText("Mobilization Fee completed")).toBeOnTheScreen();
     expect(screen.queryByText("Upload Documents")).toBeNull();
     expect(screen.queryByRole("button", { name: "Proceed" })).toBeNull();
     expect(screen.queryByRole("button", { name: "Pay now" })).toBeNull();

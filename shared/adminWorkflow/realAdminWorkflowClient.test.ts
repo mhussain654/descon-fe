@@ -860,6 +860,7 @@ describe('createAdminWorkflowClient (real)', () => {
         ticketAttached: true,
         mobilizedOn: null,
         mobilized: false,
+        boardingPassUploadedAt: null,
         recordedBy: { id: 'staff-1', role: 'mps' },
         mobilizedRecordedBy: null,
       });

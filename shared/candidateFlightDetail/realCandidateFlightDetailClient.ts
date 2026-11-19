@@ -2,6 +2,7 @@
 // calling the backend documented in descon-be's openapi.yaml:
 //   GET  /api/v1/candidate/flight_detail
 //   POST /api/v1/candidate/flight_detail/ticket_access
+//   PUT  /api/v1/candidate/flight_detail/boarding_pass
 //
 // accessToken is passed in per call (not read from a wrapped auth client),
 // matching every other candidate-facing real client's identical convention.
@@ -23,6 +24,7 @@ interface FlightDetailResponse {
   ticket_attached: boolean;
   mobilized_on: string | null;
   mobilized: boolean;
+  boarding_pass_uploaded_at?: string | null;
 }
 
 interface FlightTicketAccessResponse {
@@ -47,6 +49,7 @@ function toFlightDetail(data: FlightDetailResponse): CandidateFlightDetail {
     ticketAttached: data.ticket_attached,
     mobilizedOn: data.mobilized_on,
     mobilized: data.mobilized,
+    boardingPassUploadedAt: data.boarding_pass_uploaded_at ?? null,
   };
 }
 
@@ -59,6 +62,10 @@ const SERVER_CODE_TO_ERROR: Record<string, CandidateFlightDetailErrorCode> = {
   inactive_account: 'INACTIVE_ACCOUNT',
   not_found: 'NOT_FOUND',
   document_attachment_missing: 'TICKET_NOT_ATTACHED',
+  missing_file: 'MISSING_FILE',
+  empty_file: 'EMPTY_FILE',
+  file_too_large: 'FILE_TOO_LARGE',
+  unsupported_file_type: 'UNSUPPORTED_FILE_TYPE',
 };
 
 function toFlightDetailError(error: unknown): CandidateFlightDetailError {
@@ -106,6 +113,18 @@ export function createCandidateFlightDetailClient(options: RealCandidateFlightDe
         });
         if (!data) throw { code: 'UNKNOWN' } satisfies CandidateFlightDetailError;
         return toAccess(data);
+      } catch (error) {
+        throw toFlightDetailError(error);
+      }
+    },
+
+    async uploadBoardingPass({ accessToken, formData }): Promise<CandidateFlightDetail> {
+      try {
+        const data = await apiClient.put<FlightDetailResponse>('/candidate/flight_detail/boarding_pass', formData, {
+          headers: { Authorization: `Bearer ${accessToken}`, 'X-Locale': getLocale() },
+        });
+        if (!data) throw { code: 'UNKNOWN' } satisfies CandidateFlightDetailError;
+        return toFlightDetail(data);
       } catch (error) {
         throw toFlightDetailError(error);
       }

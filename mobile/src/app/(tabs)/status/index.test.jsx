@@ -280,7 +280,7 @@ describe("StatusScreen", () => {
     expect(screen.queryByText("Document Submission in process")).toBeNull();
     expect(screen.queryByText("Next step")).toBeNull();
     expect(within(stageRow("Document Submission")).getByText("In process")).toBeOnTheScreen();
-    expect(within(stageRow("Enrolled")).getByText("Approved")).toBeOnTheScreen();
+    expect(within(stageRow("Enrolled")).getByText("Completed")).toBeOnTheScreen();
   });
 
   it("approves a step once it is done and leaves later steps without a status tag", async () => {
@@ -289,9 +289,9 @@ describe("StatusScreen", () => {
     renderStatusScreen();
 
     await screen.findByTestId("status-step-mobilization_fee");
-    expect(within(stageRow("Mobilization Fee")).getByText("Approved")).toBeOnTheScreen();
+    expect(within(stageRow("Mobilization Fee")).getByText("Completed")).toBeOnTheScreen();
     expect(within(stageRow("QVC Appointment")).queryByText("In process")).toBeNull();
-    expect(within(stageRow("QVC Appointment")).queryByText("Approved")).toBeNull();
+    expect(within(stageRow("QVC Appointment")).queryByText("Completed")).toBeNull();
     expect(screen.queryByText("Upcoming")).toBeNull();
   });
 
@@ -330,7 +330,7 @@ describe("StatusScreen", () => {
     renderStatusScreen();
 
     await screen.findByTestId("status-step-ready_to_fly");
-    expect(within(stageRow("Ready to Fly")).getByText("Approved")).toBeOnTheScreen();
+    expect(within(stageRow("Mobilize Status")).getByText("Completed")).toBeOnTheScreen();
     expect(screen.getByText("100%")).toBeOnTheScreen();
     expect(screen.queryByText("In process")).toBeNull();
   });
@@ -532,28 +532,53 @@ describe("StatusScreen", () => {
     expect(candidateVisaDecisionsClient.listVisaDecisions).toHaveBeenCalledTimes(1);
   });
 
+  describe("boarding pass upload", () => {
+    it("offers the boarding pass upload under Mobilize Status once the flight is recorded", async () => {
+      applicationProgressClient.getProgress.mockResolvedValue(progressPayload({ workflow: workflowPayload({ timeline: timelineThrough(16) }) }));
+      candidateWorkflowClient.getWorkflowHistory.mockResolvedValue(historyPayload());
+      candidateFlightDetailClient.getFlightDetail.mockResolvedValue(flightDetail({ boardingPassUploadedAt: null }));
+      renderStatusScreen();
+
+      const row = within(await screen.findByTestId("status-step-ready_to_fly"));
+      expect(await row.findByText("Boarding pass")).toBeOnTheScreen();
+      expect(row.getByRole("button", { name: "Take photo" })).toBeOnTheScreen();
+      expect(within(stageRow("Pre Flight Brief")).queryByText("Boarding pass")).toBeNull();
+    });
+
+    it("offers no boarding pass upload before Mobilize Status has started", async () => {
+      applicationProgressClient.getProgress.mockResolvedValue(progressPayload({ workflow: workflowPayload({ timeline: timelineThrough(3) }) }));
+      candidateWorkflowClient.getWorkflowHistory.mockResolvedValue(historyPayload());
+      candidateFlightDetailClient.getFlightDetail.mockResolvedValue(flightDetail({ boardingPassUploadedAt: null }));
+      renderStatusScreen();
+
+      await screen.findAllByText("Mobilize Status");
+      expect(screen.queryByText("Boarding pass")).toBeNull();
+    });
+  });
+
   describe("flight ticket download", () => {
-    it("shows no download action before the Ready to Fly step has started", async () => {
+    it("shows no download action before the Pre Flight Brief step has started", async () => {
       applicationProgressClient.getProgress.mockResolvedValue(progressPayload({ workflow: workflowPayload({ timeline: timelineThrough(3) }) }));
       candidateWorkflowClient.getWorkflowHistory.mockResolvedValue(historyPayload());
       candidateFlightDetailClient.getFlightDetail.mockResolvedValue(flightDetail());
       renderStatusScreen();
 
-      await screen.findAllByText("Ready to Fly");
-      expect(within(stageRow("Ready to Fly")).queryByRole("button", { name: "Download Ticket" })).toBeNull();
+      await screen.findAllByText("Pre Flight Brief");
+      expect(within(stageRow("Pre Flight Brief")).queryByRole("button", { name: "Download Ticket" })).toBeNull();
     });
 
-    it("shows the airline, flight number, sector and departure in the Ready to Fly step", async () => {
+    it("shows the airline, flight number, sector and departure in the Pre Flight Brief step", async () => {
       applicationProgressClient.getProgress.mockResolvedValue(progressPayload({ workflow: workflowPayload({ timeline: timelineThrough(14) }) }));
       candidateWorkflowClient.getWorkflowHistory.mockResolvedValue(historyPayload());
       candidateFlightDetailClient.getFlightDetail.mockResolvedValue(flightDetail({ ticketAttached: false }));
       renderStatusScreen();
 
-      await screen.findAllByText("Ready to Fly");
-      const row = within(stageRow("Ready to Fly"));
+      await screen.findAllByText("Pre Flight Brief");
+      const row = within(stageRow("Pre Flight Brief"));
       expect(await row.findByText("Your flight")).toBeOnTheScreen();
       expect(row.getByText("Qatar Airways QR-123")).toBeOnTheScreen();
       expect(row.getByText(/^Departure: 20\/09\/2026 • \d{2}:30$/)).toBeOnTheScreen();
+      expect(within(stageRow("Mobilize Status")).queryByText("Your flight")).toBeNull();
     });
 
     it("leaves out a route staff did not record, without an empty line", async () => {
@@ -562,8 +587,8 @@ describe("StatusScreen", () => {
       candidateFlightDetailClient.getFlightDetail.mockResolvedValue(flightDetail({ sector: null, ticketAttached: false }));
       renderStatusScreen();
 
-      await screen.findAllByText("Ready to Fly");
-      const row = within(stageRow("Ready to Fly"));
+      await screen.findAllByText("Pre Flight Brief");
+      const row = within(stageRow("Pre Flight Brief"));
       expect(await row.findByText("Qatar Airways QR-123")).toBeOnTheScreen();
       expect(row.queryByText("LHE-DOH")).toBeNull();
     });
@@ -574,7 +599,7 @@ describe("StatusScreen", () => {
       candidateFlightDetailClient.getFlightDetail.mockResolvedValue(flightDetail({ ticketAttached: false }));
       renderStatusScreen();
 
-      await screen.findAllByText("Ready to Fly");
+      await screen.findAllByText("Pre Flight Brief");
       expect(screen.queryByRole("button", { name: "Download Ticket" })).toBeNull();
     });
 
@@ -584,8 +609,8 @@ describe("StatusScreen", () => {
       candidateFlightDetailClient.getFlightDetail.mockResolvedValue(flightDetail());
       renderStatusScreen();
 
-      await screen.findAllByText("Ready to Fly");
-      expect(within(stageRow("Ready to Fly")).getByRole("button", { name: "Download Ticket" })).toBeOnTheScreen();
+      await screen.findAllByText("Pre Flight Brief");
+      expect(within(stageRow("Pre Flight Brief")).getByRole("button", { name: "Download Ticket" })).toBeOnTheScreen();
     });
 
     it("requests a signed URL on press and hands it to the OS via Linking.openURL", async () => {
@@ -605,11 +630,11 @@ describe("StatusScreen", () => {
       const openURL = jest.spyOn(Linking, "openURL").mockResolvedValue();
       renderStatusScreen();
 
-      await screen.findAllByText("Ready to Fly");
+      await screen.findAllByText("Pre Flight Brief");
       expect(candidateFlightDetailClient.requestTicketAccess).not.toHaveBeenCalled();
 
       await act(async () => {
-        fireEvent.press(within(stageRow("Ready to Fly")).getByRole("button", { name: "Download Ticket" }));
+        fireEvent.press(within(stageRow("Pre Flight Brief")).getByRole("button", { name: "Download Ticket" }));
       });
 
       await waitFor(() => expect(openURL).toHaveBeenCalledTimes(1));
@@ -633,9 +658,9 @@ describe("StatusScreen", () => {
       const openURL = jest.spyOn(Linking, "openURL").mockResolvedValue();
       renderStatusScreen();
 
-      await screen.findAllByText("Ready to Fly");
+      await screen.findAllByText("Pre Flight Brief");
       await act(async () => {
-        fireEvent.press(within(stageRow("Ready to Fly")).getByRole("button", { name: "Download Ticket" }));
+        fireEvent.press(within(stageRow("Pre Flight Brief")).getByRole("button", { name: "Download Ticket" }));
       });
 
       expect(await screen.findByText("Something went wrong.")).toBeOnTheScreen();
@@ -654,9 +679,9 @@ describe("StatusScreen", () => {
       });
       renderStatusScreen();
 
-      await screen.findAllByText("Ready to Fly");
+      await screen.findAllByText("Pre Flight Brief");
       await act(async () => {
-        fireEvent.press(within(stageRow("Ready to Fly")).getByRole("button", { name: "Download Ticket" }));
+        fireEvent.press(within(stageRow("Pre Flight Brief")).getByRole("button", { name: "Download Ticket" }));
       });
 
       expect(await screen.findByText("Your flight ticket has not been uploaded yet.")).toBeOnTheScreen();

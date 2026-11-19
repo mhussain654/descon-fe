@@ -20,6 +20,7 @@ import { useVisaCopyAccess } from "../../../features/candidate/workflow/hooks/us
 import { MedicalAppointmentDetails } from "../../../features/candidate/workflow/components/MedicalAppointmentDetails";
 import { FlightDetails } from "../../../features/candidate/workflow/components/FlightDetails";
 import { FlightTicketDownload } from "../../../features/candidate/workflow/components/FlightTicketDownload";
+import { BoardingPassUpload } from "../../../features/candidate/workflow/components/BoardingPassUpload";
 import { LoadingState, ErrorState, OfflineState, SessionExpiredState, ForbiddenState, Button, ValidationMessage, getFontFamily } from "../../../design-system";
 import { APPLICATION_PROGRESS_ERROR_KEYS } from "../../../../../shared/applicationProgress/errorMessages";
 import { findLatestQvcOutcome, QVC_OUTCOME_KEYS, QVC_OUTCOME_TONES } from "../../../../../shared/candidateWorkflow/qvcOutcome";
@@ -35,7 +36,11 @@ const MEDICAL_STEP = "medical";
 const QVC_OUTCOME_STEP = "qvc_status";
 const QVC_APPOINTMENT_STEP = "qvc_appointment";
 const VISA_OUTCOME_STEP = "visa";
-const FLIGHT_TICKET_STEP = "ready_to_fly";
+// The flight and ticket show under Pre Flight Brief, before Mobilize Status
+// (client request, Nov 2026); staff record them as the candidate moves on.
+const FLIGHT_TICKET_STEP = "pre_flight_brief";
+// Mobilize Status: the candidate uploads their boarding pass there.
+const BOARDING_PASS_STEP = "ready_to_fly";
 
 const QVC_TONE_COLORS = themedValues(() => ({
   success: { bg: themed("#E6F9F0", "#133224"), text: themed("#087C46", "#82F7C1") },
@@ -258,6 +263,9 @@ export default function StatusScreen() {
                           <FlightTicketDownload ticketAccess={ticketAccess} language={language} t={t} />
                         ) : null}
                       </View>
+                    ) : null}
+                    {step.code === BOARDING_PASS_STEP && step.status !== "upcoming" && flightDetailQuery.data ? (
+                      <BoardingPassUpload flight={flightDetailQuery.data} language={language} t={t} />
                     ) : null}
                 </JourneyStepCard>
               );

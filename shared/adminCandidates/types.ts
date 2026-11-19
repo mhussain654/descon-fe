@@ -163,7 +163,11 @@ export interface AdminCandidateListFilters {
   countryCode?: string;
   projectCode?: string;
   craftCode?: string;
+  /** Candidates with a recorded flight who have (`uploaded`) or have not (`missing`) uploaded their boarding pass. */
+  boardingPass?: AdminCandidateBoardingPassFilter;
 }
+
+export type AdminCandidateBoardingPassFilter = 'uploaded' | 'missing';
 
 /** Matches Admin::Candidates::IndexQuery::ALLOWED_SORTS exactly -- a leading `-` means descending, mirroring the backend's own convention. */
 export type AdminCandidateListSort = 'created_at' | '-created_at' | 'full_name' | '-full_name' | 'reference_number' | '-reference_number';
@@ -198,6 +202,8 @@ export interface AdminCandidateListResult {
   /** Echoes back which filters the backend actually applied (Admin::Candidates::IndexQuery#applied_filters) -- informational only, never used to drive UI state (the URL already owns that). */
   appliedFilters: Record<string, string>;
   summary: AdminCandidateStatusSummaryRow[];
+  /** Among candidates with a recorded flight: how many have and have not uploaded their boarding pass, under every filter except the boarding pass one. */
+  boardingPassSummary?: { uploaded: number; missing: number };
 }
 
 export interface AdminCandidateClient {

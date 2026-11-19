@@ -230,6 +230,7 @@ interface FlightDetailResponse {
   ticket_attached: boolean;
   mobilized_on: string | null;
   mobilized: boolean;
+  boarding_pass_uploaded_at?: string | null;
   recorded_by: ActorResponse | null;
   mobilized_recorded_by: ActorResponse | null;
 }
@@ -621,6 +622,7 @@ function toFlightDetail(raw: unknown): AdminFlightDetail | null {
     ticketAttached: value.ticket_attached === true,
     mobilizedOn: typeof value.mobilized_on === 'string' ? value.mobilized_on : null,
     mobilized: value.mobilized === true,
+    boardingPassUploadedAt: typeof value.boarding_pass_uploaded_at === 'string' ? value.boarding_pass_uploaded_at : null,
     recordedBy: toActor(value.recorded_by),
     mobilizedRecordedBy: toActor(value.mobilized_recorded_by),
   };
@@ -645,6 +647,7 @@ const EMPTY_FLIGHT_DETAIL: AdminFlightDetail = {
   ticketAttached: false,
   mobilizedOn: null,
   mobilized: false,
+  boardingPassUploadedAt: null,
   recordedBy: null,
   mobilizedRecordedBy: null,
 };
@@ -1000,6 +1003,21 @@ export function createAdminWorkflowClient(options: RealAdminWorkflowClientOption
         const data = await staffAuthClient.authenticatedDataRequest((token) =>
           apiClient.post<FlightTicketAccessResponse>(
             `/admin/candidates/${encodeURIComponent(candidateId)}/flight_detail/ticket_access`,
+            undefined,
+            { headers: { Authorization: `Bearer ${token}`, 'X-Locale': getLocale() } }
+          )
+        );
+        return toFlightTicketAccessResult(data);
+      } catch (error) {
+        throw toWorkflowError(error);
+      }
+    },
+
+    async getBoardingPassAccess(candidateId: string): Promise<FlightTicketAccessResult> {
+      try {
+        const data = await staffAuthClient.authenticatedDataRequest((token) =>
+          apiClient.post<FlightTicketAccessResponse>(
+            `/admin/candidates/${encodeURIComponent(candidateId)}/flight_detail/boarding_pass_access`,
             undefined,
             { headers: { Authorization: `Bearer ${token}`, 'X-Locale': getLocale() } }
           )

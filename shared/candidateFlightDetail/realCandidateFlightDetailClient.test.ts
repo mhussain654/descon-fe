@@ -84,6 +84,7 @@ describe('createCandidateFlightDetailClient (real) -- getFlightDetail', () => {
       ticketAttached: true,
       mobilizedOn: null,
       mobilized: false,
+      boardingPassUploadedAt: null,
     });
   });
 
@@ -201,5 +202,47 @@ describe('createCandidateFlightDetailClient (real) -- requestTicketAccess', () =
 
     const client = buildClient();
     await expect(client.requestTicketAccess('token')).rejects.toEqual({ code: 'NETWORK_ERROR' });
+  });
+});
+
+describe('createCandidateFlightDetailClient (real) -- uploadBoardingPass', () => {
+  it('PUTs the photo with the bearer token and maps the updated flight detail', async () => {
+    let seenUrl = '';
+    let seenMethod = '';
+    let seenBody: unknown;
+    stubFetch(async (url, init) => {
+      seenUrl = String(url);
+      seenMethod = String((init as RequestInit)?.method);
+      seenBody = (init as RequestInit)?.body;
+      return jsonResponse(successEnvelope(flightDetailPayload({ boarding_pass_uploaded_at: '2026-09-20T11:05:00Z' })));
+    });
+    const formData = new FormData();
+    formData.append('boarding_pass[photo]', 'photo-bytes');
+
+    const detail = await buildClient().uploadBoardingPass({ accessToken: 'candidate-access-token', formData });
+
+    expect(seenUrl).toBe('http://example.test/api/v1/candidate/flight_detail/boarding_pass');
+    expect(seenMethod).toBe('PUT');
+    expect(seenBody).toBe(formData);
+    expect(detail.boardingPassUploadedAt).toBe('2026-09-20T11:05:00Z');
+  });
+
+  it('keeps the backend message for a refused photo', async () => {
+    stubFetch(async () =>
+      jsonResponse(errorEnvelope([{ code: 'unsupported_file_type', message: 'Upload a JPEG, PNG or WebP image.' }]), { status: 422 })
+    );
+
+    await expect(buildClient().uploadBoardingPass({ accessToken: 'token', formData: new FormData() })).rejects.toEqual({
+      code: 'UNSUPPORTED_FILE_TYPE',
+      message: 'Upload a JPEG, PNG or WebP image.',
+    });
+  });
+
+  it('maps a 404 (flight not recorded yet) to NOT_FOUND', async () => {
+    stubFetch(async () => jsonResponse(errorEnvelope([{ code: 'not_found', message: 'Not found.' }]), { status: 404 }));
+
+    await expect(buildClient().uploadBoardingPass({ accessToken: 'token', formData: new FormData() })).rejects.toMatchObject({
+      code: 'NOT_FOUND',
+    });
   });
 });

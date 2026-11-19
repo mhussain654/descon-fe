@@ -154,7 +154,7 @@ describe('createApplicationProgressClient (real) -- getProgress', () => {
         totalCount: 15,
         progressPercentage: 6,
         updatedAt: '2026-08-02T00:00:00Z',
-        outcomes: { medical: null, visa: null },
+        outcomes: { medical: null, visa: null, boardingPass: null },
         qvcAppointment: null,
       },
       documents: {
@@ -253,7 +253,7 @@ describe('createApplicationProgressClient (real) -- getProgress', () => {
 
     expect(progress.workflow).toEqual({
       mobilizationProcess: null, timeline: [], completedCount: 0, totalCount: 0, progressPercentage: 0, updatedAt: null,
-      outcomes: { medical: null, visa: null },
+      outcomes: { medical: null, visa: null, boardingPass: null },
       qvcAppointment: null,
     });
   });

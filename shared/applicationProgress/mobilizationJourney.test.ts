@@ -153,6 +153,16 @@ describe('mobilizationJourney', () => {
     expect(statuses(journey)).toMatchObject({ medical: 'approved', mobilization_fee: 'in_process' });
   });
 
+  it('completes Mobilize Status once the boarding pass is uploaded, before staff mark the candidate mobilized', () => {
+    const flightRecorded = timeline(QATAR, 'flight_details_uploaded');
+    const step = (boardingPass: 'uploaded' | null) =>
+      mobilizationJourney({ countryCode: 'qatar', timeline: flightRecorded, outcomes: { medical: 'fit', visa: 'issued', boardingPass } })
+        .steps.find((candidateStep) => candidateStep.code === 'ready_to_fly');
+
+    expect(step(null)?.status).toBe('in_process');
+    expect(step('uploaded')?.status).toBe('approved');
+  });
+
   it('has no steps before the candidate has a mobilization process', () => {
     expect(mobilizationJourney({ countryCode: null, timeline: [] })).toMatchObject({ steps: [], current: null, next: null, percentage: 0 });
   });

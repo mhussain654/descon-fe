@@ -6,6 +6,10 @@ import type { CandidateFlightDetailErrorCode } from './types';
 export const CANDIDATE_FLIGHT_DETAIL_ERROR_KEYS: Record<CandidateFlightDetailErrorCode, string> = {
   NOT_FOUND: 'somethingWentWrong',
   TICKET_NOT_ATTACHED: 'candidateFlightTicketNotAttachedError',
+  MISSING_FILE: 'boardingPassFailed',
+  EMPTY_FILE: 'boardingPassFailed',
+  FILE_TOO_LARGE: 'boardingPassTooLarge',
+  UNSUPPORTED_FILE_TYPE: 'profilePhotoUnsupported',
   FORBIDDEN: 'dsForbiddenDescription',
   INACTIVE_ACCOUNT: 'candidateProfileInactiveAccountDescription',
   SESSION_EXPIRED: 'dsSessionExpiredDescription',

@@ -118,6 +118,7 @@ export function useFlightActions(candidateId: string | undefined) {
   const [staleNotice, setStaleNotice] = useState(false);
 
   const ticketAccess = useShortLivedAccess<FlightTicketAccessResult>();
+  const boardingPassAccess = useShortLivedAccess<FlightTicketAccessResult>();
 
   const invalidateWorkflowData = useCallback(() => {
     if (!candidateId) return;
@@ -278,6 +279,11 @@ export function useFlightActions(candidateId: string | undefined) {
     void ticketAccess.requestAccess(() => adminWorkflowClient.getFlightTicketAccess(candidateId));
   }, [candidateId, ticketAccess]);
 
+  const requestBoardingPassAccess = useCallback(() => {
+    if (!candidateId) return;
+    void boardingPassAccess.requestAccess(() => adminWorkflowClient.getBoardingPassAccess(candidateId));
+  }, [candidateId, boardingPassAccess]);
+
   return {
     recordDialogOpen,
     openRecordDialog,
@@ -306,5 +312,7 @@ export function useFlightActions(candidateId: string | undefined) {
     dismissStaleNotice,
     ticketAccess,
     requestTicketAccess,
+    boardingPassAccess,
+    requestBoardingPassAccess,
   };
 }

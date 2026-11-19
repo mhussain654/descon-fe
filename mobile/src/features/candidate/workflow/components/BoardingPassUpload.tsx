@@ -1,0 +1,115 @@
+import { View } from 'react-native';
+import { Camera, CheckCircle2, Image as ImageIcon } from 'lucide-react-native';
+import { Button, ValidationMessage } from '../../../../design-system';
+import { Text } from '../../../../design-system/Text';
+import { spacing } from '../../../../design-system/tokens';
+import { colors, themed, themedStyles } from '../../../../design-system/theme';
+import { rowDirectionTowards } from '../../../../lib/layoutDirection';
+import type { CandidateFlightDetail } from '../../../../../../shared/candidateFlightDetail/types';
+import { CANDIDATE_FLIGHT_DETAIL_ERROR_KEYS } from '../../../../../../shared/candidateFlightDetail/errorMessages';
+import { interpolate } from '../../../../../../shared/i18n/interpolate';
+import type { Language, TranslationKey } from '../../../../../../shared/i18n/translations';
+import { statusCopyStyle } from '../../progress/components/StatusPresentation';
+import { useBoardingPassUpload, type BoardingPassProblem } from '../hooks/useBoardingPassUpload';
+
+interface BoardingPassUploadProps {
+  flight: CandidateFlightDetail;
+  language: Language;
+  t: (key: TranslationKey) => string;
+}
+
+function problemMessage(problem: BoardingPassProblem, t: (key: TranslationKey) => string): string {
+  switch (problem.kind) {
+    case 'too_large':
+      return t('boardingPassTooLarge');
+    case 'unsupported':
+      return t('profilePhotoUnsupported');
+    case 'permission':
+      if (problem.blocked) return t('profilePhotoPermissionBlocked');
+      return t(problem.source === 'camera' ? 'profilePhotoCameraDenied' : 'profilePhotoGalleryDenied');
+    case 'failed':
+      return problem.error.message || t(CANDIDATE_FLIGHT_DETAIL_ERROR_KEYS[problem.error.code] as TranslationKey);
+  }
+}
+
+function uploadedOn(iso: string, language: Language): string {
+  return new Date(iso).toLocaleDateString(language === 'ur' ? 'ur-PK' : 'en-GB');
+}
+
+/**
+ * The Mobilize Status step's boarding pass upload (client request, Nov 2026):
+ * the candidate takes or picks a photo of their boarding pass, and can upload
+ * it again to replace a wrong one. Uploading completes the step.
+ */
+export function BoardingPassUpload({ flight, language, t }: BoardingPassUploadProps) {
+  const upload = useBoardingPassUpload(t);
+  const uploadedAt = flight.boardingPassUploadedAt;
+  const rowDirection = rowDirectionTowards(language === 'ur' ? 'right' : 'left');
+
+  return (
+    <View style={styles.box} accessibilityLabel={t('boardingPassTitle')}>
+      <Text style={[styles.title, statusCopyStyle(language, 13)]}>{t('boardingPassTitle')}</Text>
+      {uploadedAt ? (
+        <View style={[styles.row, { flexDirection: rowDirection }]}>
+          <CheckCircle2 size={16} color={themed('#087443', '#83F6C2')} />
+          <Text style={[styles.uploaded, styles.flex, statusCopyStyle(language, 14)]}>
+            {interpolate(t('boardingPassUploadedOn'), { date: uploadedOn(uploadedAt, language) })}
+          </Text>
+        </View>
+      ) : null}
+      <Text style={[styles.hint, statusCopyStyle(language, 13)]}>
+        {t(uploadedAt ? 'boardingPassReplaceHint' : 'boardingPassHint')}
+      </Text>
+      <View style={[styles.actions, { flexDirection: rowDirection }]}>
+        <Button
+          variant={uploadedAt ? 'outline' : 'primary'}
+          size="sm"
+          style={styles.flex}
+          language={language}
+          onPress={upload.takePhoto}
+          disabled={upload.isUploading}
+          leadingIcon={<Camera size={16} color={uploadedAt ? colors.text.primary : colors.brand.on} />}
+        >
+          {t('profilePhotoTake')}
+        </Button>
+        <Button
+          variant="outline"
+          size="sm"
+          style={styles.flex}
+          language={language}
+          onPress={upload.chooseFromGallery}
+          disabled={upload.isUploading}
+          leadingIcon={<ImageIcon size={16} color={colors.text.primary} />}
+        >
+          {t('profilePhotoChoose')}
+        </Button>
+      </View>
+      {upload.isUploading ? (
+        <Text style={[styles.hint, statusCopyStyle(language, 13)]}>{t('boardingPassUploading')}</Text>
+      ) : null}
+      {upload.problem ? (
+        <ValidationMessage tone="error" language={language}>
+          {problemMessage(upload.problem, t)}
+        </ValidationMessage>
+      ) : null}
+    </View>
+  );
+}
+
+const styles = themedStyles(() => ({
+  box: {
+    marginTop: spacing[2],
+    borderRadius: 10,
+    padding: spacing[3],
+    gap: spacing[2],
+    backgroundColor: themed('#EEF6FF', '#172554'),
+    borderWidth: 1,
+    borderColor: themed('#CFE3FA', '#1E3A8A'),
+  },
+  title: { fontSize: 13, color: themed('#0065B3', '#93C5FD') },
+  row: { gap: spacing[2], alignItems: 'center' },
+  flex: { flex: 1, minWidth: 0 },
+  uploaded: { fontSize: 14, color: themed('#087443', '#83F6C2') },
+  hint: { fontSize: 13, color: themed('#526581', '#A9BFE5') },
+  actions: { gap: spacing[2] },
+}));

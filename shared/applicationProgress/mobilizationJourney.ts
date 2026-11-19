@@ -154,6 +154,8 @@ function stepStatus(
     covered.some((stage) => definition.doneStages.includes(stage.code) && isReached(stage)) ||
     (covered.length > 0 && covered.every((stage) => stage.status === 'completed')) ||
     (lastIndex !== -1 && timeline.slice(lastIndex + 1).some(isReached)) ||
+    // Mobilize Status is done once the candidate has uploaded their boarding pass (client request, Nov 2026).
+    (code === 'ready_to_fly' && input.outcomes?.boardingPass === 'uploaded') ||
     // A step with no stage of its own (candidates still on an earlier KSA or common process version, which ended at ticket handover) is done at the end of the journey.
     (covered.length === 0 && finalStageReached);
   const started = covered.some(isReached);

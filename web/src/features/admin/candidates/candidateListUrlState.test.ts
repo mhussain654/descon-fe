@@ -24,6 +24,12 @@ describe('candidateListUrlState', () => {
     expect(state.page).toEqual({ number: 3, size: 50 });
   });
 
+  it('keeps a known boarding pass filter across reloads and drops an unknown one', () => {
+    expect(readCandidateListStateFromSearchParams(new URLSearchParams('boarding_pass=uploaded')).filters.boardingPass).toBe('uploaded');
+    expect(readCandidateListStateFromSearchParams(new URLSearchParams('boarding_pass=maybe')).filters.boardingPass).toBeUndefined();
+    expect(writeCandidateListStateToSearchParams({ boardingPass: 'missing' }, undefined, {}).get('boarding_pass')).toBe('missing');
+  });
+
   it('preserves country-specific stages across reloads', () => {
     expect(readCandidateListStateFromSearchParams(new URLSearchParams('status=medical_pending')).filters.status).toBe('medical_pending');
     expect(readCandidateListStateFromSearchParams(new URLSearchParams('status=ticket_handover')).filters.status).toBe('ticket_handover');

@@ -26,7 +26,7 @@ function departureLabel(iso: string, language: Language): string | null {
 
 /**
  * The candidate's flight as staff recorded it -- airline, flight number,
- * route and departure -- shown on the Status tab's Ready to Fly step and on
+ * route and departure -- shown on the Status tab's Pre Flight Brief step and on
  * Home while the flight is coming up, matching the SMS that asks them to check
  * MPS Connect for their flight details. Same look as MedicalAppointmentDetails.
  * Only what was recorded is shown: a blank field leaves no empty line or label.

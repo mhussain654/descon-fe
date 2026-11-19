@@ -12,6 +12,7 @@ import {
   ValidationMessage,
 } from '../../../../design-system';
 import { formatDate } from '../../../../../../shared/i18n/locale';
+import { interpolate } from '../../../../../../shared/i18n/interpolate';
 import { ADMIN_WORKFLOW_ERROR_KEYS } from '../../../../../../shared/adminWorkflow/errorMessages';
 import { toWorkflowBlockingReason, WORKFLOW_BLOCKING_REASON_KEYS } from '../../../../../../shared/adminWorkflow/blockingReasons';
 import type { AllowedWorkflowTransition } from '../../../../../../shared/adminWorkflow/types';
@@ -140,6 +141,10 @@ export function FlightDetailPanel({
   const ticketAccessUrl = actions.ticketAccess.access
     ? resolveDocumentAccessUrl(actions.ticketAccess.access.url, import.meta.env.VITE_API_BASE_URL ?? '')
     : null;
+  const boardingPass = actions.boardingPassAccess;
+  const boardingPassUrl = boardingPass.access
+    ? resolveDocumentAccessUrl(boardingPass.access.url, import.meta.env.VITE_API_BASE_URL ?? '')
+    : null;
 
   return (
     <div className="mt-6 border-t border-border pt-6">
@@ -251,6 +256,45 @@ export function FlightDetailPanel({
               ) : null}
             </div>
           ) : null}
+          <div className="mt-3 border-t border-border pt-3">
+            <p className="text-sm font-medium text-text-primary">{t('boardingPassTitle')}</p>
+            {flightDetail.boardingPassUploadedAt ? (
+              <>
+                <p className="mt-1 text-sm text-text-secondary">
+                  {interpolate(t('boardingPassUploadedOn'), {
+                    date: formatDate(flightDetail.boardingPassUploadedAt, language, { dateStyle: 'medium', timeStyle: 'short' }),
+                  })}
+                </p>
+                <div className="mt-2">
+                  {boardingPass.access && !boardingPass.isExpired && boardingPassUrl ? (
+                    <a href={boardingPassUrl} target="_blank" rel="noopener noreferrer" className="text-sm font-medium text-brand-primary underline">
+                      {t('adminBoardingPassOpenAction')}
+                    </a>
+                  ) : (
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      onClick={actions.requestBoardingPassAccess}
+                      disabled={boardingPass.isRequesting}
+                    >
+                      {t('adminBoardingPassViewAction')}
+                    </Button>
+                  )}
+                  {boardingPass.access && boardingPass.isExpired ? (
+                    <p className="mt-1 text-xs text-text-tertiary">{t('adminWorkflowAccessExpiredMessage')}</p>
+                  ) : null}
+                  {boardingPass.error ? (
+                    <ValidationMessage tone="error">
+                      {boardingPass.error.message || t(ADMIN_WORKFLOW_ERROR_KEYS[boardingPass.error.code] as TranslationKey)}
+                    </ValidationMessage>
+                  ) : null}
+                </div>
+              </>
+            ) : (
+              <p className="mt-1 text-sm text-text-tertiary">{t('adminBoardingPassNotUploaded')}</p>
+            )}
+          </div>
         </div>
       )}
 

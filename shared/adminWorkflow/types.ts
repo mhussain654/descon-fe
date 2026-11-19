@@ -356,6 +356,8 @@ export interface AdminFlightDetail {
   ticketAttached: boolean;
   mobilizedOn: string | null;
   mobilized: boolean;
+  /** When the candidate uploaded their boarding pass photo from the app; null until they do. */
+  boardingPassUploadedAt: string | null;
   recordedBy: WorkflowActor | null;
   mobilizedRecordedBy: WorkflowActor | null;
 }
@@ -408,4 +410,6 @@ export interface AdminWorkflowClient {
   recordFlightDetail(params: RecordFlightDetailParams): Promise<FlightDetailResult>;
   mobilizeFlightDetail(input: MobilizeFlightDetailInput): Promise<FlightDetailResult>;
   getFlightTicketAccess(candidateId: string): Promise<FlightTicketAccessResult>;
+  /** A short-lived, audited link to the boarding pass photo the candidate uploaded. */
+  getBoardingPassAccess(candidateId: string): Promise<FlightTicketAccessResult>;
 }

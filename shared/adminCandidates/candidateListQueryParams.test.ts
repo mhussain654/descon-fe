@@ -20,6 +20,10 @@ describe('buildCandidateListQuery', () => {
     expect(query).toContain('filter%5Bcraft_code%5D=electrician');
   });
 
+  it('serializes filter[boarding_pass]', () => {
+    expect(buildCandidateListQuery({ boardingPass: 'missing' }, undefined, {})).toBe('?filter%5Bboarding_pass%5D=missing');
+  });
+
   it('serializes sort with its leading `-` for descending', () => {
     expect(buildCandidateListQuery({}, '-created_at', {})).toBe('?sort=-created_at');
   });

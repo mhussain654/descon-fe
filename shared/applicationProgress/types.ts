@@ -75,6 +75,8 @@ export interface WorkflowTimelineStage {
 export interface WorkflowOutcomes {
   medical: 'fit' | 'unfit' | null;
   visa: 'issued' | 'rejected' | null;
+  /** `uploaded` once the candidate has uploaded their boarding pass photo -- completes Mobilize Status. */
+  boardingPass?: 'uploaded' | null;
 }
 
 /**

@@ -26,6 +26,8 @@ import type {
   AdminCandidateStatusSummaryRow,
 } from '../../../../lib/admin-candidates-client';
 import type { TranslationKey } from '../../../../../../shared/i18n/translations';
+import type { AdminCandidateBoardingPassFilter } from '../../../../../../shared/adminCandidates/types';
+import { interpolate } from '../../../../../../shared/i18n/interpolate';
 import { CategoryBarChart } from '../../reports/components/ReportCharts';
 import { CANDIDATE_LIST_STAGE_LABEL_KEYS } from '../../../../../../shared/adminCandidates/workflowStageLabels';
 import { useDebouncedUrlFilter } from '../../documentReviews/hooks/useDebouncedUrlFilter';
@@ -109,7 +111,10 @@ export function CandidateListWorkspace() {
     setSearchParams(new URLSearchParams());
   };
 
-  const hasActiveFilters = Boolean(filters.search || filters.status || filters.countryCode || filters.projectCode || filters.craftCode || sort);
+  const hasActiveFilters = Boolean(
+    filters.search || filters.status || filters.countryCode || filters.projectCode || filters.craftCode || filters.boardingPass || sort
+  );
+  const boardingPassCounts = query.data?.boardingPassSummary;
 
   const columns: DataTableColumn<AdminCandidateDetail>[] = [
     {
@@ -205,6 +210,16 @@ export function CandidateListWorkspace() {
             options={[
               { value: '', label: t('adminCandidateListFilterAllStatuses') },
               ...Object.keys(CANDIDATE_LIST_STAGE_LABEL_KEYS).map((code) => ({ value: code, label: stageLabel(code, t) })),
+            ]}
+          />
+          <Select
+            label={t('adminCandidateListFilterBoardingPassLabel')}
+            value={filters.boardingPass ?? ''}
+            onChange={(event) => updateFilters({ boardingPass: (event.target.value || undefined) as AdminCandidateBoardingPassFilter | undefined })}
+            options={[
+              { value: '', label: t('adminCandidateListFilterBoardingPassAll') },
+              { value: 'uploaded', label: interpolate(t('adminCandidateListFilterBoardingPassUploaded'), { count: boardingPassCounts?.uploaded ?? 0 }) },
+              { value: 'missing', label: interpolate(t('adminCandidateListFilterBoardingPassMissing'), { count: boardingPassCounts?.missing ?? 0 }) },
             ]}
           />
           <Select

@@ -37,6 +37,9 @@ export function buildCandidateListQuery(
   if (filters.craftCode) {
     appendParam(params, 'filter[craft_code]', filters.craftCode);
   }
+  if (filters.boardingPass) {
+    appendParam(params, 'filter[boarding_pass]', filters.boardingPass);
+  }
   if (sort) {
     appendParam(params, 'sort', sort);
   }

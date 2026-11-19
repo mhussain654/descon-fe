@@ -2,6 +2,7 @@
 // backend documented in descon-be's openapi.yaml:
 //   GET  /api/v1/candidate/flight_detail
 //   POST /api/v1/candidate/flight_detail/ticket_access
+//   PUT  /api/v1/candidate/flight_detail/boarding_pass
 //
 // The ticket-access endpoint is shared server-side between the admin and
 // candidate flows (CandidateWorkflows::FlightTicketAccessService) -- this
@@ -22,6 +23,8 @@ export interface CandidateFlightDetail {
   /** ISO 8601 date, or null before mobilization. */
   mobilizedOn: string | null;
   mobilized: boolean;
+  /** When the candidate uploaded their boarding pass photo (ISO 8601), or null before they do. */
+  boardingPassUploadedAt: string | null;
 }
 
 export interface FlightTicketAccess {
@@ -36,6 +39,11 @@ export type CandidateFlightDetailErrorCode =
   | 'NOT_FOUND'
   /** 422 -- flight detail exists but has no attached ticket file. */
   | 'TICKET_NOT_ATTACHED'
+  /** 422 boarding pass upload validation; the backend's localized message is kept for display. */
+  | 'MISSING_FILE'
+  | 'EMPTY_FILE'
+  | 'FILE_TOO_LARGE'
+  | 'UNSUPPORTED_FILE_TYPE'
   | 'FORBIDDEN'
   | 'INACTIVE_ACCOUNT'
   | 'SESSION_EXPIRED'
@@ -55,4 +63,6 @@ export interface CandidateFlightDetailClient {
   /** Resolves to `null` before a flight detail has been recorded -- not an error. */
   getFlightDetail(accessToken: string): Promise<CandidateFlightDetail | null>;
   requestTicketAccess(accessToken: string): Promise<FlightTicketAccess>;
+  /** Uploads (or replaces) the boarding pass photo; resolves to the updated flight detail. */
+  uploadBoardingPass(input: { accessToken: string; formData: FormData }): Promise<CandidateFlightDetail>;
 }

@@ -234,10 +234,11 @@ function toQvcAppointment(raw: unknown): CandidateQvcAppointment | null {
 }
 
 function toOutcomes(raw: unknown): WorkflowOutcomes {
-  const value = (raw && typeof raw === 'object' ? raw : {}) as { medical?: unknown; visa?: unknown };
+  const value = (raw && typeof raw === 'object' ? raw : {}) as { medical?: unknown; visa?: unknown; boarding_pass?: unknown };
   return {
     medical: value.medical === 'fit' || value.medical === 'unfit' ? value.medical : null,
     visa: value.visa === 'issued' || value.visa === 'rejected' ? value.visa : null,
+    boardingPass: value.boarding_pass === 'uploaded' ? 'uploaded' : null,
   };
 }
 
