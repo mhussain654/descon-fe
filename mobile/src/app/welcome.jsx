@@ -13,6 +13,7 @@ import { BrandRow } from "../features/onboarding/BrandRow";
 import { SecureFooter } from "../features/onboarding/SecureFooter";
 import { HeroDarkFade } from "../features/onboarding/HeroDarkFade";
 import { ThemeToggleButton } from "../features/onboarding/ThemeToggleButton";
+import { TaglineBanner } from "../features/onboarding/TaglineBanner";
 import { forwardArrowSlots } from "../features/onboarding/directionalArrows";
 import { isStartSide, physicalTextAlign, rowDirectionTowards } from "../lib/layoutDirection";
 import { themedStyles } from '../design-system/theme';
@@ -108,15 +109,7 @@ function WelcomeHero({ width, windowHeight, topInset, language, t }) {
           >
             {t("welcomeHeading")}
           </Text>
-          <Text
-            style={[
-              isUrdu ? styles.taglineUrdu : styles.tagline,
-              copyText,
-              { fontFamily: getFontFamily(language, "semibold") },
-            ]}
-          >
-            {t("welcomeTagline")}
-          </Text>
+          <TaglineBanner text={t("welcomeTagline")} language={language} side={copySide} />
         </View>
       </View>
     </View>
@@ -217,14 +210,10 @@ const styles = themedStyles(() => ({
   alignEnd: { alignSelf: "flex-end" },
   heading: { fontSize: 32, lineHeight: 38, letterSpacing: -0.6, color: colors.text.inverse, ...TEXT_SHADOW },
   headingCompact: { fontSize: 28, lineHeight: 34 },
-  // Same size and width cap as sign-in's, so it breaks the same way on
-  // every phone: "Your Gateway to" / "Overseas Employment."
-  tagline: { marginTop: spacing[2], maxWidth: 210, fontSize: 17, lineHeight: 24, color: colors.text.inverse, ...TEXT_SHADOW },
   // Nastaliq needs ~2x line height so stacked descenders and dots never touch,
   // and side padding so its overhanging strokes are not clipped.
   headingUrdu: { fontSize: 24, lineHeight: 50, paddingHorizontal: spacing[1], color: colors.text.inverse, ...TEXT_SHADOW },
   headingUrduCompact: { fontSize: 21, lineHeight: 44 },
-  taglineUrdu: { fontSize: 16, lineHeight: 34, paddingHorizontal: spacing[1], color: colors.text.inverse, ...TEXT_SHADOW },
 
   sheet: {
     flex: 1,

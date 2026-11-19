@@ -171,6 +171,8 @@ describe('LoginScreen', () => {
 
     await waitFor(() => expect(screen.getByLabelText('One-Time Password')).toBeOnTheScreen());
     expect(screen.queryByLabelText('CNIC Number')).toBeNull();
+    // The code step keeps its own heading and no tagline banner.
+    expect(screen.queryByTestId('tagline-banner')).toBeNull();
   });
 
   it('welcomes the candidate (not "welcome back") and explains which CNIC to use and that an OTP follows', async () => {
@@ -180,6 +182,8 @@ describe('LoginScreen', () => {
     expect(screen.getByText('Welcome')).toBeOnTheScreen();
     expect(screen.queryByText('Welcome back')).toBeNull();
     expect(screen.getByText('Your Gateway to Overseas Employment')).toBeOnTheScreen();
+    // The same tagline banner as the language page.
+    expect(screen.getByTestId('tagline-banner')).toBeOnTheScreen();
     expect(screen.getByText('Use the CNIC provided with your application')).toBeOnTheScreen();
     expect(screen.getByText('An OTP will be sent to your registered mobile number.')).toBeOnTheScreen();
     expect(screen.getByText('Example: 35202-1234567-1')).toBeOnTheScreen();

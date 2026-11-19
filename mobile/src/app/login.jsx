@@ -12,6 +12,7 @@ import { RequireGuest } from "../features/auth/RequireGuest";
 import { RegistrationGuidance } from "../features/onboarding/RegistrationGuidance";
 import { BRAND_ROW_HEIGHT, BrandRow } from "../features/onboarding/BrandRow";
 import { HeroDarkFade } from "../features/onboarding/HeroDarkFade";
+import { TaglineBanner } from "../features/onboarding/TaglineBanner";
 import { SecureFooter } from "../features/onboarding/SecureFooter";
 import { BackArrow, forwardArrowSlots } from "../features/onboarding/directionalArrows";
 import { isStartSide, physicalTextAlign } from "../lib/layoutDirection";
@@ -264,11 +265,8 @@ export default function LoginScreen() {
             >
               {step === "cnic" ? t("loginHeroTitle") : t("otpHeroTitle")}
             </Text>
-            {step === "cnic" ? (
-              <Text style={[styles.heroLead, isUrdu ? styles.heroLeadUrdu : null, copyTextStyle, font("medium")]}>
-                {t("loginHeroSubtitle")}
-              </Text>
-            ) : null}
+            {/* Same banner as the language page; the code step has no tagline. */}
+            {step === "cnic" ? <TaglineBanner text={t("loginHeroSubtitle")} language={language} side={copySide} /> : null}
           </View>
         </View>
 
@@ -533,10 +531,6 @@ const styles = themedStyles(() => ({
   },
   // Nastaliq needs ~2x line height so stacked descenders and dots never touch.
   heroTitleUrdu: { fontSize: 24, lineHeight: 48, letterSpacing: 0, paddingHorizontal: spacing[1] },
-  // The width cap breaks the English tagline into two even lines
-  // ("Your Gateway to" / "Overseas Employment") on every phone width.
-  heroLead: { marginTop: -spacing[2], maxWidth: 210, fontSize: 17, lineHeight: 24, color: colors.text.inverse, ...HERO_TEXT_SHADOW },
-  heroLeadUrdu: { marginTop: -spacing[1], maxWidth: "100%", fontSize: 14, lineHeight: 28, paddingHorizontal: spacing[1] },
 
   sheet: {
     flex: 1,

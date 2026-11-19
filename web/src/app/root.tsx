@@ -264,7 +264,12 @@ export function Layout({ children }: { children: ReactNode }) {
         <title>MPS Connect</title>
         <Meta />
         <Links />
-        <link rel="icon" type="image/png" href="/favicon.png" />
+        {/* Descon brandmark on a white tile (brand book: white backing on coloured surfaces). */}
+        <link rel="icon" href="/favicon.ico" sizes="48x48" />
+        <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png" />
+        <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png" />
+        <link rel="icon" type="image/png" sizes="64x64" href="/favicon.png" />
+        <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
         {/* Render the same font links on the server and client. Rendering these
             only during SSR changes <head> during hydration, causing React to
             replace the document and discard React Router's critical CSS. */}

@@ -281,7 +281,7 @@ export const translations = {
     adminProfilePhotoRejectedToast: 'Photo rejected',
     brandNamePrimary: 'MPS',
     brandNameSecondary: 'Connect',
-    welcomeTagline: 'Your Gateway to Overseas Employment.',
+    welcomeTagline: 'Your Gateway to Overseas Employment',
     welcomeChooseLanguage: 'Choose your language',
     welcomeHeading: 'Welcome to MPS Connect',
     welcomeChooseLanguageHint: 'You can change it later from your profile.',

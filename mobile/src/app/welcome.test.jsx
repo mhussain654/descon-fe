@@ -92,7 +92,7 @@ describe('WelcomeScreen', () => {
     expect(await screen.findByText('Choose your language')).toBeOnTheScreen();
     expect(screen.getByLabelText('MPS Connect')).toBeOnTheScreen();
     expect(screen.getByRole('header', { name: 'Welcome to MPS Connect' })).toBeOnTheScreen();
-    expect(screen.getByText('Your Gateway to Overseas Employment.')).toBeOnTheScreen();
+    expect(screen.getByText('Your Gateway to Overseas Employment')).toBeOnTheScreen();
     expect(screen.getByText('You can change it later from your profile.')).toBeOnTheScreen();
     expect(screen.getByText('Continue in English')).toBeOnTheScreen();
     expect(screen.getByText('اردو میں جاری رکھیں')).toBeOnTheScreen();
