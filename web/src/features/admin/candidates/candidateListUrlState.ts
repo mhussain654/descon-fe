@@ -6,7 +6,8 @@
 // rationale and structure.
 import { CANDIDATE_LIST_STAGE_LABEL_KEYS } from '../../../../../shared/adminCandidates/workflowStageLabels';
 import type { AdminCandidateListFilters, AdminCandidateListPage, AdminCandidateListSort } from '../../../lib/admin-candidates-client';
-import { isFlightDate } from '../../../../../shared/adminCandidates/flightDate';
+
+import { readRegisteredDateRange, writeRegisteredDateRange } from '../../../../../shared/adminCandidates/registeredDates';
 
 export const DEFAULT_PAGE_SIZE = 20;
 
@@ -54,7 +55,7 @@ export function readCandidateListStateFromSearchParams(searchParams: URLSearchPa
       projectCode: searchParams.get('project') || undefined,
       craftCode: searchParams.get('craft') || undefined,
       boardingPass: isBoardingPassFilter(searchParams.get('boarding_pass')) ? (searchParams.get('boarding_pass') as 'uploaded' | 'missing') : undefined,
-      flightDate: isFlightDate(searchParams.get('flight_date')) ? (searchParams.get('flight_date') as string) : undefined,
+      ...readRegisteredDateRange(searchParams),
     },
     sort: sortParam && isCandidateListSort(sortParam) ? sortParam : undefined,
     page: {
@@ -78,7 +79,7 @@ export function writeCandidateListStateToSearchParams(
   if (filters.projectCode) params.set('project', filters.projectCode);
   if (filters.craftCode) params.set('craft', filters.craftCode);
   if (filters.boardingPass) params.set('boarding_pass', filters.boardingPass);
-  if (filters.flightDate) params.set('flight_date', filters.flightDate);
+  writeRegisteredDateRange(params, filters);
   if (sort) params.set('sort', sort);
   if (page.number && page.number !== 1) params.set('page', String(page.number));
   if (page.size && page.size !== DEFAULT_PAGE_SIZE) params.set('size', String(page.size));

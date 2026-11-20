@@ -7,6 +7,8 @@
 import type { CandidateDocumentFile } from '../candidateDocuments/types';
 
 /** The four review states the backend can report today (Admin::DocumentReviewQueueParams::REVIEW_STATES). */
+import type { RegisteredDateRange } from '../adminCandidates/registeredDates';
+
 export type ReviewState = 'pending_review' | 'partially_reviewed' | 'changes_required' | 'verified';
 
 /** Adds 'unknown' for a future backend state this build doesn't recognize yet -- never rendered as the raw code. */
@@ -125,7 +127,8 @@ export interface DocumentReviewQueueResult {
  */
 export type QueueStatusFilter = ReviewState | 'rejected' | 'expired_pcc' | 'near_expiry_pcc';
 
-export interface DocumentReviewQueueFilters {
+/** Also narrows by the candidate's registered (import batch) date range. */
+export interface DocumentReviewQueueFilters extends RegisteredDateRange {
   /** Omit to use the backend's own default (`pending_review, partially_reviewed`) -- never invent a different client-side default. */
   status?: QueueStatusFilter[];
   /** ISO 8601 datetime (not just a date) -- the backend parses with `Time.iso8601`. */

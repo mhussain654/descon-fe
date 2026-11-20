@@ -30,6 +30,7 @@ import type {
   StatusSummaryRow,
   TrendPoint,
 } from './types';
+import { appendDashboardFilterParams } from './dashboardFilterQueryParams';
 
 export interface RealAdminReportsClientOptions {
   apiClient: ApiClient;
@@ -38,8 +39,17 @@ export interface RealAdminReportsClientOptions {
   getLocale: () => 'en' | 'ur';
 }
 
+/** The report's query-string parts: the trend granularity and the dashboard-style filters. */
+function reportQueryParts(params?: ReportDataParams): string[] {
+  const parts: string[] = [];
+  if (params?.granularity) parts.push(`granularity=${encodeURIComponent(params.granularity)}`);
+  if (params?.filters) appendDashboardFilterParams(parts, params.filters);
+  return parts;
+}
+
 function granularityQuery(params?: ReportDataParams): string {
-  return params?.granularity ? `?granularity=${encodeURIComponent(params.granularity)}` : '';
+  const parts = reportQueryParts(params);
+  return parts.length > 0 ? `?${parts.join('&')}` : '';
 }
 
 function toMobilizationRow(raw: unknown): MobilizationRow {
@@ -136,9 +146,7 @@ export function createAdminReportsClient(options: RealAdminReportsClientOptions)
     },
 
     async exportReport(reportType: ReportType, format: ReportExportFormat, params?: ReportDataParams): Promise<ReportExportResult> {
-      const query = [`format=${format}`, params?.granularity ? `granularity=${params.granularity}` : undefined]
-        .filter((part): part is string => Boolean(part))
-        .join('&');
+      const query = [`format=${format}`, ...reportQueryParts(params)].join('&');
       try {
         const result = await staffAuthClient.authenticatedRequest((token) =>
           apiClient.getBinaryFile(`/admin/reports/${reportType}/export?${query}`, {

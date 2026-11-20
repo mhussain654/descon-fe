@@ -28,6 +28,7 @@ const SECTIONS = [
   ["documents", "adminCandidateDocumentsTab"],
   ["payments", "adminCandidatePaymentsTab"],
   ["records", "adminCandidateRecordsTab"],
+  ["mobilization", "adminCandidateMobilizationTab"],
   ["aiCalls", "adminCandidateAiCallsTab"],
   ["sms", "adminCandidateSmsTab"],
   ["activity", "adminCandidateActivityTab"],
@@ -217,6 +218,9 @@ export function CandidateWorkspace({ candidateId }: { candidateId: string }) {
         ) : null}
         {section === "records" ? (
           <WorkflowPanel candidateId={candidateId} section="records" />
+        ) : null}
+        {section === "mobilization" ? (
+          <WorkflowPanel candidateId={candidateId} section="mobilization" />
         ) : null}
         {section === "aiCalls" ? (
           <CandidateAiCallsCard candidateId={candidateId} />

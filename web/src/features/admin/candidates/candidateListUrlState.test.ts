@@ -30,12 +30,10 @@ describe('candidateListUrlState', () => {
     expect(writeCandidateListStateToSearchParams({ boardingPass: 'missing' }, undefined, {}).get('boarding_pass')).toBe('missing');
   });
 
-  it('keeps a valid flight date across reloads and drops a malformed one', () => {
-    expect(readCandidateListStateFromSearchParams(new URLSearchParams('flight_date=2026-11-20')).filters.flightDate).toBe('2026-11-20');
-    expect(readCandidateListStateFromSearchParams(new URLSearchParams('flight_date=20/11/2026')).filters.flightDate).toBeUndefined();
-    expect(writeCandidateListStateToSearchParams({ flightDate: '2026-11-20', boardingPass: 'missing' }, undefined, {}).toString()).toBe(
-      'boarding_pass=missing&flight_date=2026-11-20'
-    );
+  it('keeps the registered date range (one import batch) across reloads', () => {
+    const state = readCandidateListStateFromSearchParams(new URLSearchParams('country=qatar&registered_from=2026-11-20&registered_to=2026-11-21'));
+    expect(state.filters).toMatchObject({ countryCode: 'qatar', registeredFrom: '2026-11-20', registeredTo: '2026-11-21' });
+    expect(writeCandidateListStateToSearchParams(state.filters, undefined, {}).toString()).toBe('country=qatar&registered_from=2026-11-20&registered_to=2026-11-21');
   });
 
   it('preserves country-specific stages across reloads', () => {

@@ -9,6 +9,8 @@
 // and starts a batch for the next few (at most the batch limit). Web-only
 // (AGENTS.md: "administrative workflows remain web-focused").
 
+import type { RegisteredDateRange } from '../adminCandidates/registeredDates';
+
 export interface RobocallVoice {
   id: string;
   nameEn: string;
@@ -59,7 +61,7 @@ export interface BulkCallPagination {
   totalPages: number;
 }
 
-export interface BulkCallCandidatesQuery {
+export interface BulkCallCandidatesQuery extends RegisteredDateRange {
   voiceId: string;
   stageCode: string;
   countryCode?: string;
@@ -79,7 +81,7 @@ export interface BulkCallCandidatesResult {
   batchLimit: number;
 }
 
-export interface StartBulkCallInput {
+export interface StartBulkCallInput extends RegisteredDateRange {
   voiceId: string;
   stageCode: string;
   limit: number;

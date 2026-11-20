@@ -1,5 +1,6 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { MemoryRouter } from 'react-router';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { createMockStaffAuthClient, MOCK_STAFF_ACCOUNTS, MOCK_STAFF_PASSWORD } from '../../../../../../shared/auth/staffAuthClient';
 import { LanguageProvider } from '../../../../contexts/LanguageContext';
@@ -10,6 +11,15 @@ import { ReportsWorkspace } from './ReportsWorkspace';
 
 vi.mock('../../../../lib/admin-reports-client', () => ({
   adminReportsClient: { listReportTypes: vi.fn(), getReportData: vi.fn(), exportReport: vi.fn() },
+}));
+
+// The filter bar's country/project/craft options.
+vi.mock('../../../../lib/admin-candidates-client', () => ({
+  adminCandidateClient: {
+    getCountries: vi.fn(() => Promise.resolve([])),
+    getProjects: vi.fn(() => Promise.resolve([])),
+    getCrafts: vi.fn(() => Promise.resolve([])),
+  },
 }));
 
 vi.mock('../triggerBlobDownload', () => ({
@@ -25,17 +35,19 @@ async function signedInClient(account: typeof MPS) {
   return client;
 }
 
-async function renderAs(account: typeof MPS) {
+async function renderAs(account: typeof MPS, path = '/admin/reports') {
   const client = await signedInClient(account);
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } });
   return render(
-    <QueryClientProvider client={queryClient}>
-      <LanguageProvider>
-        <StaffAuthProvider client={client}>
-          <ReportsWorkspace />
-        </StaffAuthProvider>
-      </LanguageProvider>
-    </QueryClientProvider>
+    <MemoryRouter initialEntries={[path]}>
+      <QueryClientProvider client={queryClient}>
+        <LanguageProvider>
+          <StaffAuthProvider client={client}>
+            <ReportsWorkspace />
+          </StaffAuthProvider>
+        </LanguageProvider>
+      </QueryClientProvider>
+    </MemoryRouter>
   );
 }
 
@@ -108,7 +120,7 @@ describe('ReportsWorkspace', () => {
     await screen.findByRole('combobox', { name: 'Granularity' });
     fireEvent.change(screen.getByRole('combobox', { name: 'Granularity' }), { target: { value: 'weekly' } });
 
-    await waitFor(() => expect(adminReportsClient.getReportData).toHaveBeenCalledWith('trend', { granularity: 'weekly' }));
+    await waitFor(() => expect(adminReportsClient.getReportData).toHaveBeenCalledWith('trend', expect.objectContaining({ granularity: 'weekly' })));
   });
 
   it('exports the current report when an export button is clicked', async () => {
@@ -121,7 +133,7 @@ describe('ReportsWorkspace', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Export CSV' }));
 
-    await waitFor(() => expect(adminReportsClient.exportReport).toHaveBeenCalledWith('status_summary', 'csv', undefined));
+    await waitFor(() => expect(adminReportsClient.exportReport).toHaveBeenCalledWith('status_summary', 'csv', expect.objectContaining({ filters: {} })));
     await waitFor(() => expect(triggerBlobDownload).toHaveBeenCalledWith(expect.any(Blob), 'status_summary.csv'));
   });
 
@@ -137,7 +149,7 @@ describe('ReportsWorkspace', () => {
     fireEvent.click(screen.getByRole('checkbox', { name: 'Show empty stages' }));
     expect(screen.getByText('Registered')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Export CSV' }));
-    await waitFor(() => expect(adminReportsClient.exportReport).toHaveBeenCalledWith('status_summary', 'csv', undefined));
+    await waitFor(() => expect(adminReportsClient.exportReport).toHaveBeenCalledWith('status_summary', 'csv', expect.objectContaining({ filters: {} })));
     fireEvent.keyDown(screen.getByRole('tab', { name: 'Table' }), { key: 'Home' });
     expect(screen.getByRole('tab', { name: 'Chart' })).toHaveFocus();
     expect(screen.getByRole('tab', { name: 'Chart' })).toHaveAttribute('aria-selected', 'true');
@@ -165,5 +177,18 @@ describe('ReportsWorkspace', () => {
     await renderAs(HR);
 
     expect(await screen.findByText('Access restricted')).toBeInTheDocument();
+  });
+
+  it('narrows the report and its export to one import batch from the URL filters', async () => {
+    adminReportsClient.listReportTypes.mockResolvedValue(['status_summary']);
+    adminReportsClient.getReportData.mockResolvedValue({ type: 'status_summary', rows: [] });
+    adminReportsClient.exportReport.mockResolvedValue({ blob: new Blob(['x']), filename: 'status_summary.csv' });
+    await renderAs(MPS, '/admin/reports?country=qatar&registered_from=2026-11-20&registered_to=2026-11-20');
+
+    const batch = { countryCode: 'qatar', registeredFrom: '2026-11-20', registeredTo: '2026-11-20' };
+    await waitFor(() =>
+      expect(adminReportsClient.getReportData).toHaveBeenCalledWith('status_summary', expect.objectContaining({ filters: expect.objectContaining(batch) }))
+    );
+    expect(screen.getByLabelText('Registered from')).toHaveValue('2026-11-20');
   });
 });

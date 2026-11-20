@@ -132,6 +132,21 @@ describe('createAdminReportsClient (real)', () => {
       expect(seenUrl).toBe('http://example.test/api/v1/admin/reports/trend?granularity=daily');
     });
 
+    it('narrows the report to one import batch by country and registered dates', async () => {
+      let seenUrl = '';
+      stubFetch(async (url) => {
+        seenUrl = String(url);
+        return jsonResponse(successEnvelope([]));
+      });
+      const { client } = buildClient();
+
+      await client.getReportData('status_summary', { filters: { countryCode: 'qatar', registeredFrom: '2026-11-20', registeredTo: '2026-11-20' } });
+
+      expect(seenUrl).toBe(
+        'http://example.test/api/v1/admin/reports/status_summary?filter%5Bcountry_code%5D=qatar&filter%5Bregistered_from%5D=2026-11-20&filter%5Bregistered_to%5D=2026-11-20'
+      );
+    });
+
     it('rejects an unknown report_type as BAD_REQUEST', async () => {
       stubFetch(async () =>
         jsonResponse(errorEnvelope([{ code: 'invalid_query_parameter', message: 'Unknown report', field: 'report_type' }]), {

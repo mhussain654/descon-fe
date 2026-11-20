@@ -6,6 +6,7 @@
 // rationale and structure. Shared by every admin dashboard (Admin/MPS/...)
 // that accepts the same filter vocabulary, not duplicated per dashboard.
 import type { DashboardFilters } from '../../../../../shared/adminReports/types';
+import { readRegisteredDateRange, writeRegisteredDateRange } from '../../../../../shared/adminCandidates/registeredDates';
 
 /** Reads a dashboard's country/project/craft filters from URL search params. An absent filter genuinely means "show every candidate". */
 export function readDashboardFiltersFromSearchParams(searchParams: URLSearchParams): DashboardFilters {
@@ -13,6 +14,7 @@ export function readDashboardFiltersFromSearchParams(searchParams: URLSearchPara
     countryCode: searchParams.get('country') || undefined,
     projectCode: searchParams.get('project') || undefined,
     craftCode: searchParams.get('craft') || undefined,
+    ...readRegisteredDateRange(searchParams),
   };
 }
 
@@ -23,6 +25,7 @@ export function writeDashboardFiltersToSearchParams(filters: DashboardFilters): 
   if (filters.countryCode) params.set('country', filters.countryCode);
   if (filters.projectCode) params.set('project', filters.projectCode);
   if (filters.craftCode) params.set('craft', filters.craftCode);
+  writeRegisteredDateRange(params, filters);
 
   return params;
 }

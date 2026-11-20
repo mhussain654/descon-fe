@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useSearchParams } from 'react-router';
 import { Activity, AlertTriangle, BarChart3, Download, Filter, Hammer, Plane, TrendingUp, Table2, CheckCircle2 } from 'lucide-react';
 import { useLanguage } from '../../../../contexts/LanguageContext';
 import { useStaffAuth } from '../../../../contexts/StaffAuthContext';
@@ -8,6 +9,9 @@ import { REPORT_TYPE_LABEL_KEYS } from '../../../../../../shared/adminReports/re
 import type { ReportData, ReportExportFormat, ReportType, TrendGranularity } from '../../../../lib/admin-reports-client';
 import type { Language, TranslationKey } from '../../../../../../shared/i18n/translations';
 import { useReportData } from '../hooks/useReportData';
+import { DashboardFilterBar } from './DashboardFilterBar';
+import { readDashboardFiltersFromSearchParams, writeDashboardFiltersToSearchParams } from '../dashboardFiltersUrlState';
+import type { DashboardFilters } from '../../../../../../shared/adminReports/types';
 import { useReportExport } from '../hooks/useReportExport';
 import { useReportTypes } from '../hooks/useReportTypes';
 import {
@@ -58,9 +62,15 @@ export function ReportsWorkspace() {
   const [view, setView] = useState<'chart' | 'table'>('chart');
   const [showEmptyStages, setShowEmptyStages] = useState(false);
   const [granularity, setGranularity] = useState<TrendGranularity>('monthly');
+  // Country/project/craft and the registered (import batch) dates live in the
+  // URL, as on the dashboards, and narrow both the view and the export.
+  const [searchParams, setSearchParams] = useSearchParams();
+  const filters = readDashboardFiltersFromSearchParams(searchParams);
+  const updateFilters = (patch: Partial<DashboardFilters>) => setSearchParams(writeDashboardFiltersToSearchParams({ ...filters, ...patch }));
+  const reportParams = { ...(reportType === 'trend' ? { granularity } : {}), filters };
 
   const typesQuery = useReportTypes();
-  const dataQuery = useReportData(reportType, reportType === 'trend' ? { granularity } : undefined, true);
+  const dataQuery = useReportData(reportType, reportParams, true);
   const exportMutation = useReportExport();
 
   useEffect(() => {
@@ -123,6 +133,8 @@ export function ReportsWorkspace() {
         </div>
       </section>
 
+      <DashboardFilterBar filters={filters} onChange={updateFilters} t={t} />
+
       <Card className="mb-5 p-5">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
           <div className="flex flex-wrap items-end gap-4">
@@ -154,7 +166,7 @@ export function ReportsWorkspace() {
                   className={option.format === 'csv' ? 'border-success/30 bg-success-subtle text-success-emphasis' : option.format === 'xlsx' ? 'border-brand/30 bg-brand-subtle text-brand' : 'border-danger/30 bg-danger-subtle text-danger-emphasis'}
                   size="sm"
                   loading={exportMutation.isPending && exportMutation.variables?.format === option.format}
-                  onClick={() => exportMutation.mutate({ reportType, format: option.format, params: reportType === 'trend' ? { granularity } : undefined })}
+                  onClick={() => exportMutation.mutate({ reportType, format: option.format, params: reportParams })}
                 >
                   {t(option.labelKey)}
                 </Button>

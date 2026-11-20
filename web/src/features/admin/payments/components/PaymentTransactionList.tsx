@@ -1,4 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
+import { CountryFilterSelect } from '../../shared/CountryFilterSelect';
+import { RegisteredDateRangeInputs } from '../../shared/RegisteredDateRangeInputs';
 import { AlertTriangle, ChevronDown, CircleDollarSign, CreditCard, SlidersHorizontal, WalletCards } from 'lucide-react';
 import { Link, useSearchParams } from 'react-router';
 import { useLanguage } from '../../../../contexts/LanguageContext';
@@ -103,6 +105,9 @@ export function PaymentTransactionList() {
       filters.createdFrom ||
       filters.createdTo ||
       filters.reconciliationState ||
+      filters.countryCode ||
+      filters.registeredFrom ||
+      filters.registeredTo ||
       sort
   );
 
@@ -186,6 +191,9 @@ export function PaymentTransactionList() {
             value={searchDraft}
             onChange={(event) => setSearchDraft(event.target.value)}
           />
+          {/* The candidate's country and registered dates: one import batch's payments. */}
+          <CountryFilterSelect value={filters.countryCode} onChange={(countryCode) => updateFilters({ countryCode })} t={t} />
+          <RegisteredDateRangeInputs value={filters} onChange={updateFilters} t={t} />
           <Select
             label={t('adminFinancePaymentFilterStatusLabel')}
             value={filters.status ?? ''}

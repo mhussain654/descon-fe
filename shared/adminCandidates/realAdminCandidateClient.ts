@@ -15,6 +15,7 @@
 import type { ApiClient, ApiError } from '../api-client';
 import type { StaffAuthClient, StaffAuthError } from '../auth/staffTypes';
 import { buildCandidateListQuery } from './candidateListQueryParams';
+import { buildMobilizationListQuery, toMobilizationRow, toMobilizationSummary, type MobilizationRowResponse } from './mobilizations';
 import type {
   AdminCandidateAssignmentSummary,
   AdminCandidateClient,
@@ -327,6 +328,27 @@ export function createAdminCandidateClient(options: RealAdminCandidateClientOpti
           appliedFilters: toAppliedFilters(meta?.applied_filters),
           summary: toSummary(meta?.summary),
           boardingPassSummary: toBoardingPassSummary(meta?.boarding_pass_summary),
+        };
+      } catch (error) {
+        throw toCandidateError(error);
+      }
+    },
+
+    async listMobilizations(filters, sort, page) {
+      const query = buildMobilizationListQuery(filters, sort, page);
+      try {
+        const result = await staffAuthClient.authenticatedDataRequest((token) =>
+          apiClient.getWithMeta<MobilizationRowResponse[]>(`/admin/mobilizations${query}`, {
+            headers: { Authorization: `Bearer ${token}`, 'X-Locale': getLocale() },
+          })
+        );
+        if (!result) throw { code: 'UNKNOWN' } satisfies AdminCandidateError;
+
+        const meta = result.meta as { pagination?: unknown; summary?: unknown } | undefined;
+        return {
+          items: Array.isArray(result.data) ? result.data.map(toMobilizationRow) : [],
+          pagination: toPagination(meta?.pagination),
+          summary: toMobilizationSummary(meta?.summary),
         };
       } catch (error) {
         throw toCandidateError(error);

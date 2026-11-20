@@ -2,6 +2,7 @@
 // transaction list). Kept separate from the client so query-parameter
 // serialization is directly unit-testable without mocking fetch, mirroring
 // shared/adminCandidateImport/historyQueryParams.ts's identical rationale.
+import { appendRegisteredDateParams } from '../adminCandidates/registeredDates';
 import type { PaymentListFilters, PaymentListPage, PaymentListSort } from './types';
 
 /** Rails' Rack::Utils.parse_nested_query accepts percent-encoded brackets the same as raw ones, so encodeURIComponent on the whole `filter[x]`/`page[x]` key is standard and safe here. */
@@ -21,6 +22,8 @@ export function buildPaymentListQuery(filters: PaymentListFilters, sort: Payment
   if (filters.createdFrom) appendParam(params, 'filter[created_from]', filters.createdFrom);
   if (filters.createdTo) appendParam(params, 'filter[created_to]', filters.createdTo);
   if (filters.reconciliationState) appendParam(params, 'filter[reconciliation_state]', filters.reconciliationState);
+  if (filters.countryCode) appendParam(params, 'filter[country_code]', filters.countryCode);
+  appendRegisteredDateParams(params, filters);
   if (sort) appendParam(params, 'sort', sort);
   if (page.number) appendParam(params, 'page[number]', String(page.number));
   if (page.size) appendParam(params, 'page[size]', String(page.size));

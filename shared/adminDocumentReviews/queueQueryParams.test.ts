@@ -1,6 +1,12 @@
 import { buildDocumentReviewQueueQuery } from './queueQueryParams';
 
 describe('buildDocumentReviewQueueQuery', () => {
+  it("serializes the candidate's registered date range", () => {
+    expect(buildDocumentReviewQueueQuery({ registeredFrom: '2026-11-20', registeredTo: '2026-11-21' }, {})).toBe(
+      '?filter%5Bregistered_from%5D=2026-11-20&filter%5Bregistered_to%5D=2026-11-21'
+    );
+  });
+
   it('returns an empty string when no filters or page are set', () => {
     expect(buildDocumentReviewQueueQuery({}, {})).toBe('');
   });

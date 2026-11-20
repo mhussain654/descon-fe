@@ -2,6 +2,7 @@
 // Kept separate from the client so it's directly unit-testable (the ticket
 // explicitly requires "Query-parameter serialization" coverage) without
 // mocking fetch.
+import { appendRegisteredDateParams } from '../adminCandidates/registeredDates';
 import type { DocumentReviewQueueFilters, DocumentReviewQueuePage } from './types';
 
 /** Rails' Rack::Utils.parse_nested_query accepts percent-encoded brackets the same as raw ones, so encodeURIComponent on the whole `filter[x]`/`page[x]` key is standard and safe here. */
@@ -40,6 +41,7 @@ export function buildDocumentReviewQueueQuery(
   if (filters.countryCode) {
     appendParam(params, 'filter[country_code]', filters.countryCode);
   }
+  appendRegisteredDateParams(params, filters);
   if (page.number) {
     appendParam(params, 'page[number]', String(page.number));
   }

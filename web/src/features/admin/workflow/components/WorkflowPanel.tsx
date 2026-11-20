@@ -39,7 +39,7 @@ import { VisaDecisionPanel } from './VisaDecisionPanel';
 
 export interface WorkflowPanelProps {
   candidateId: string;
-  section?: 'overview' | 'records' | 'activity' | 'all';
+  section?: 'overview' | 'records' | 'mobilization' | 'activity' | 'all';
 }
 
 /** Stage codes with a real, interactive confirmation card in this build. Every other returned transition renders as a plain, non-interactive row. */
@@ -228,7 +228,7 @@ export function WorkflowPanel({ candidateId, section = 'all' }: WorkflowPanelPro
 
   return (
     <Card>
-      <h2 className="mb-4 text-lg font-semibold text-text-primary">{t(section === 'records' ? 'adminCandidateRecordsTab' : section === 'activity' ? 'adminCandidateActivityTab' : 'adminWorkflowPanelTitle')}</h2>
+      <h2 className="mb-4 text-lg font-semibold text-text-primary">{t(section === 'records' ? 'adminCandidateRecordsTab' : section === 'mobilization' ? 'adminCandidateMobilizationTab' : section === 'activity' ? 'adminCandidateActivityTab' : 'adminWorkflowPanelTitle')}</h2>
       {state.mobilizationProcess?.provisional ? (
         <div
           role="status"
@@ -346,7 +346,8 @@ export function WorkflowPanel({ candidateId, section = 'all' }: WorkflowPanelPro
       />
 
       </RecordSection> : null}
-      {section === 'all' || section === 'records' || (section === 'overview' && (flightTransition || mobilizeTransition)) ? <RecordSection collapsed={section === 'records'} label={t('adminWorkflowFlightPanelTitle')}><FlightDetailPanel
+      {/* The flight, ticket, boarding pass and mobilization live on their own Mobilization tab. */}
+      {section === 'all' || section === 'mobilization' || (section === 'overview' && (flightTransition || mobilizeTransition)) ? <RecordSection collapsed={false} label={t('adminWorkflowFlightPanelTitle')}><FlightDetailPanel
         canTransition={canTransition}
         flightTransition={flightTransition}
         mobilizeTransition={mobilizeTransition}

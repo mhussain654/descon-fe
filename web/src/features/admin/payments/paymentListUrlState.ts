@@ -4,6 +4,7 @@
 // unit-testable without mounting a router, mirroring
 // web/src/features/admin/candidates/candidateListUrlState.ts's identical
 // rationale and structure.
+import { readRegisteredDateRange, writeRegisteredDateRange } from '../../../../../shared/adminCandidates/registeredDates';
 import type { AdminPaymentStatus, PaymentListFilters, PaymentListPage, PaymentListSort } from '../../../lib/admin-payments-client';
 
 export const DEFAULT_PAGE_SIZE = 20;
@@ -62,6 +63,8 @@ export function readPaymentListStateFromSearchParams(searchParams: URLSearchPara
       createdFrom: createdFrom && isIsoDate(createdFrom) ? createdFrom : undefined,
       createdTo: createdTo && isIsoDate(createdTo) ? createdTo : undefined,
       reconciliationState: reconciliationState && isReconciliationState(reconciliationState) ? reconciliationState : undefined,
+      countryCode: searchParams.get('country') || undefined,
+      ...readRegisteredDateRange(searchParams),
     },
     sort: sortParam && isPaymentListSort(sortParam) ? sortParam : undefined,
     page: {
@@ -87,6 +90,8 @@ export function writePaymentListStateToSearchParams(
   if (filters.createdFrom) params.set('from', filters.createdFrom);
   if (filters.createdTo) params.set('to', filters.createdTo);
   if (filters.reconciliationState) params.set('reconciliation', filters.reconciliationState);
+  if (filters.countryCode) params.set('country', filters.countryCode);
+  writeRegisteredDateRange(params, filters);
   if (sort) params.set('sort', sort);
   if (page.number && page.number !== 1) params.set('page', String(page.number));
   if (page.size && page.size !== DEFAULT_PAGE_SIZE) params.set('size', String(page.size));

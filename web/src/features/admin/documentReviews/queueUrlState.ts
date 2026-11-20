@@ -2,6 +2,7 @@
 // filter/page state -- kept separate from the component so "does a refresh/
 // back/forward preserve filters" is directly unit-testable without mounting
 // a router.
+import { readRegisteredDateRange, writeRegisteredDateRange } from '../../../../../shared/adminCandidates/registeredDates';
 import { FILTERABLE_QUEUE_STATUSES } from '../../../../../shared/adminDocumentReviews/statusLabels';
 import type { DocumentReviewQueueFilters, DocumentReviewQueuePage, QueueStatusFilter, ReviewState } from '../../../../../shared/adminDocumentReviews/types';
 
@@ -34,6 +35,7 @@ export function readQueueStateFromSearchParams(searchParams: URLSearchParams): Q
       countryCode: searchParams.get('country') || undefined,
       submittedFrom: searchParams.get('from') || undefined,
       submittedTo: searchParams.get('to') || undefined,
+      ...readRegisteredDateRange(searchParams),
     },
     page: {
       number: Number.isFinite(pageNumber) && pageNumber > 0 ? pageNumber : 1,
@@ -54,6 +56,7 @@ export function writeQueueStateToSearchParams(filters: DocumentReviewQueueFilter
   if (filters.countryCode) params.set('country', filters.countryCode);
   if (filters.submittedFrom) params.set('from', filters.submittedFrom);
   if (filters.submittedTo) params.set('to', filters.submittedTo);
+  writeRegisteredDateRange(params, filters);
   if (page.number && page.number !== 1) params.set('page', String(page.number));
   if (page.size && page.size !== DEFAULT_PAGE_SIZE) params.set('size', String(page.size));
 

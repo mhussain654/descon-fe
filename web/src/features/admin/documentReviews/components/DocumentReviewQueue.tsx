@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
+import { RegisteredDateRangeInputs } from '../../shared/RegisteredDateRangeInputs';
 import { ChevronDown, Clock, FileCheck2, SlidersHorizontal } from 'lucide-react';
 import { Link, useSearchParams } from 'react-router';
 import { useLanguage } from '../../../../contexts/LanguageContext';
@@ -112,7 +113,9 @@ export function DocumentReviewQueue() {
   };
 
   const hasActiveFilters =
-    Boolean(filters.candidatePublicId || filters.projectCode || filters.countryCode || filters.submittedFrom || filters.submittedTo) ||
+    Boolean(
+      filters.candidatePublicId || filters.projectCode || filters.countryCode || filters.submittedFrom || filters.submittedTo || filters.registeredFrom || filters.registeredTo
+    ) ||
     (filters.status ?? []).length !== 2 ||
     !(filters.status ?? []).includes('pending_review') ||
     !(filters.status ?? []).includes('partially_reviewed');
@@ -290,6 +293,8 @@ export function DocumentReviewQueue() {
             value={isoToDatetimeLocalValue(filters.submittedTo)}
             onChange={(event) => updateFilters({ submittedTo: datetimeLocalValueToIso(event.target.value) })}
           />
+          {/* The candidate's registered dates: one import batch's documents. */}
+          <RegisteredDateRangeInputs value={filters} onChange={updateFilters} t={t} />
         </div> : null}
         {hasActiveFilters ? (
           <div className="mt-4">

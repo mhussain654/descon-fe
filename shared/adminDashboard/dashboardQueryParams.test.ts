@@ -1,6 +1,12 @@
 import { buildDashboardQuery } from './dashboardQueryParams';
 
 describe('buildDashboardQuery', () => {
+  it('serializes the registered (import batch) date range with the country', () => {
+    expect(buildDashboardQuery({ countryCode: 'qatar', registeredFrom: '2026-11-20', registeredTo: '2026-11-21' })).toBe(
+      '?filter%5Bcountry_code%5D=qatar&filter%5Bregistered_from%5D=2026-11-20&filter%5Bregistered_to%5D=2026-11-21'
+    );
+  });
+
   it('returns an empty string when no filter is set', () => {
     expect(buildDashboardQuery({})).toBe('');
   });

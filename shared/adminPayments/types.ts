@@ -112,6 +112,11 @@ export interface PaymentListFilters {
   createdFrom?: string;
   createdTo?: string;
   reconciliationState?: PaymentReconciliationState;
+  /** The candidate's destination country, with `registeredFrom`/`registeredTo` picking out one import batch's payments. */
+  countryCode?: string;
+  /** The candidate's registered (added or imported) day range, Pakistan time -- not the payment date. */
+  registeredFrom?: string;
+  registeredTo?: string;
 }
 
 /** Matches Admin::Payments::IndexQuery::ALLOWED_SORTS, `-` prefix for descending. Defaults to `-created_at` server-side when omitted. */

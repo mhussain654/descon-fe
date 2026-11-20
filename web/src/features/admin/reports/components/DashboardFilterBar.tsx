@@ -2,8 +2,9 @@ import { Card, Select } from '../../../../design-system';
 import { useCountries, useCrafts, useProjects } from '../../candidates/hooks/useReferenceData';
 import type { DashboardFilters } from '../../../../../../shared/adminReports/types';
 import type { TFn } from './ReportTables';
+import { RegisteredDateRangeInputs } from '../../shared/RegisteredDateRangeInputs';
 
-/** Country/project/craft filter row, scoping every dashboard section to matching candidates -- reuses the exact reference-data hooks and Select pattern CandidateListWorkspace.tsx's own filter row already established, not a second implementation. Shared across every admin dashboard (Admin/MPS/...) that accepts the same filter vocabulary, not duplicated per dashboard. */
+/** Country/project/craft and registered (import batch) date-range filter row, scoping every dashboard section to matching candidates -- reuses the exact reference-data hooks and Select pattern CandidateListWorkspace.tsx's own filter row already established, not a second implementation. Shared across every admin dashboard (Admin/MPS/...) that accepts the same filter vocabulary, not duplicated per dashboard. */
 export function DashboardFilterBar({
   filters,
   onChange,
@@ -16,11 +17,11 @@ export function DashboardFilterBar({
   const countriesQuery = useCountries();
   const projectsQuery = useProjects();
   const craftsQuery = useCrafts();
-  const hasActiveFilters = Boolean(filters.countryCode || filters.projectCode || filters.craftCode);
+  const hasActiveFilters = Boolean(filters.countryCode || filters.projectCode || filters.craftCode || filters.registeredFrom || filters.registeredTo);
 
   return (
     <Card className="mb-4">
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5">
         <Select
           label={t('adminCandidateListFilterCountryLabel')}
           value={filters.countryCode ?? ''}
@@ -48,12 +49,13 @@ export function DashboardFilterBar({
             ...(craftsQuery.data ?? []).map((item) => ({ value: item.code, label: item.name })),
           ]}
         />
+        <RegisteredDateRangeInputs value={filters} onChange={onChange} t={t} />
       </div>
       {hasActiveFilters ? (
         <div className="mt-4">
           <button
             type="button"
-            onClick={() => onChange({ countryCode: undefined, projectCode: undefined, craftCode: undefined })}
+            onClick={() => onChange({ countryCode: undefined, projectCode: undefined, craftCode: undefined, registeredFrom: undefined, registeredTo: undefined })}
             className="text-sm font-medium text-brand hover:underline"
           >
             {t('adminCandidateListClearFilters')}

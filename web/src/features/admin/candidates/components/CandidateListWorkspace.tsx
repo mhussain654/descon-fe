@@ -28,11 +28,12 @@ import type {
 import type { TranslationKey } from '../../../../../../shared/i18n/translations';
 import type { AdminCandidateBoardingPassFilter } from '../../../../../../shared/adminCandidates/types';
 import { interpolate } from '../../../../../../shared/i18n/interpolate';
-import { flightDateToday } from '../../../../../../shared/adminCandidates/flightDate';
 import { CategoryBarChart } from '../../reports/components/ReportCharts';
 import { CANDIDATE_LIST_STAGE_LABEL_KEYS } from '../../../../../../shared/adminCandidates/workflowStageLabels';
 import { useDebouncedUrlFilter } from '../../documentReviews/hooks/useDebouncedUrlFilter';
 import { useCandidateList } from '../hooks/useCandidateList';
+import { CountryFilterSelect } from '../../shared/CountryFilterSelect';
+import { RegisteredDateRangeInputs } from '../../shared/RegisteredDateRangeInputs';
 import { readCandidateListStateFromSearchParams, writeCandidateListStateToSearchParams } from '../candidateListUrlState';
 
 function stageLabel(code: string, t: (key: TranslationKey) => string): string {
@@ -113,7 +114,7 @@ export function CandidateListWorkspace() {
   };
 
   const hasActiveFilters = Boolean(
-    filters.search || filters.status || filters.countryCode || filters.projectCode || filters.craftCode || filters.boardingPass || filters.flightDate || sort
+    filters.search || filters.status || filters.countryCode || filters.projectCode || filters.craftCode || filters.boardingPass || filters.registeredFrom || filters.registeredTo || sort
   );
   const boardingPassCounts = query.data?.boardingPassSummary;
 
@@ -204,6 +205,9 @@ export function CandidateListWorkspace() {
             onChange={(event) => setSearchDraft(event.target.value)}
           />
           </div>
+          {/* Country and registered dates together pick out one import batch. */}
+          <CountryFilterSelect value={filters.countryCode} onChange={(countryCode) => updateFilters({ countryCode })} t={t} />
+          <RegisteredDateRangeInputs value={filters} onChange={updateFilters} t={t} />
           <Select
             label={t('adminCandidateListFilterStatusLabel')}
             value={filters.status ?? ''}
@@ -212,14 +216,6 @@ export function CandidateListWorkspace() {
               { value: '', label: t('adminCandidateListFilterAllStatuses') },
               ...Object.keys(CANDIDATE_LIST_STAGE_LABEL_KEYS).map((code) => ({ value: code, label: stageLabel(code, t) })),
             ]}
-          />
-          {/* With the boarding pass filter and its counts, this answers "of today's
-              flights, who has and hasn't uploaded a boarding pass". */}
-          <Input
-            type="date"
-            label={t('adminCandidateListFilterFlightDateLabel')}
-            value={filters.flightDate ?? ''}
-            onChange={(event) => updateFilters({ flightDate: event.target.value || undefined })}
           />
           <Select
             label={t('adminCandidateListFilterBoardingPassLabel')}
@@ -238,16 +234,13 @@ export function CandidateListWorkspace() {
             options={[{ value: '', label: t('adminCandidateListSortNewest') }, ...SORT_OPTIONS.map((option) => ({ value: option.value, label: t(option.labelKey) }))]}
           />
         </div>
-        <div className="mt-4 flex flex-wrap items-center gap-x-5 gap-y-2">
-          <button type="button" onClick={() => updateFilters({ flightDate: flightDateToday() })} className="text-sm font-medium text-brand hover:underline">
-            {t('adminCandidateListFilterFlightToday')}
-          </button>
-          {hasActiveFilters ? (
+        {hasActiveFilters ? (
+          <div className="mt-4">
             <button type="button" onClick={clearFilters} className="text-sm font-medium text-brand hover:underline">
               {t('adminCandidateListClearFilters')}
             </button>
-          ) : null}
-        </div>
+          </div>
+        ) : null}
       </Card>
 
       <div role="tablist" aria-label={t('adminCandidateListViewTabs')} className="mb-5 flex flex-wrap gap-2 rounded-xl border border-border bg-surface p-2">

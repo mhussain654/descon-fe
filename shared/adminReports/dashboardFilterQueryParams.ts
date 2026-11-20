@@ -5,6 +5,7 @@
 // shared/adminMpsDashboard/mpsDashboardQueryParams.ts don't each redeclare
 // the same 3 `if` checks.
 import type { DashboardFilters } from './types';
+import { appendRegisteredDateParams } from '../adminCandidates/registeredDates';
 
 /** Rails' Rack::Utils.parse_nested_query accepts percent-encoded brackets the same as raw ones, so encodeURIComponent on the whole `filter[x]` key is standard and safe here. */
 export function appendParam(params: string[], key: string, value: string): void {
@@ -22,4 +23,5 @@ export function appendDashboardFilterParams(params: string[], filters: Dashboard
   if (filters.craftCode) {
     appendParam(params, 'filter[craft_code]', filters.craftCode);
   }
+  appendRegisteredDateParams(params, filters);
 }

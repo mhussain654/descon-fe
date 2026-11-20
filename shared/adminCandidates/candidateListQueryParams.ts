@@ -3,6 +3,7 @@
 // without mocking fetch, mirroring
 // shared/adminDocumentReviews/queueQueryParams.ts's identical rationale.
 import type { AdminCandidateListFilters, AdminCandidateListPage, AdminCandidateListSort } from './types';
+import { appendRegisteredDateParams } from './registeredDates';
 
 /** Rails' Rack::Utils.parse_nested_query accepts percent-encoded brackets the same as raw ones, so encodeURIComponent on the whole `filter[x]`/`page[x]` key is standard and safe here. */
 function appendParam(params: string[], key: string, value: string): void {
@@ -40,9 +41,7 @@ export function buildCandidateListQuery(
   if (filters.boardingPass) {
     appendParam(params, 'filter[boarding_pass]', filters.boardingPass);
   }
-  if (filters.flightDate) {
-    appendParam(params, 'filter[flight_date]', filters.flightDate);
-  }
+  appendRegisteredDateParams(params, filters);
   if (sort) {
     appendParam(params, 'sort', sort);
   }

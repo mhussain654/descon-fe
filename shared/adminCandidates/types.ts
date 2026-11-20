@@ -3,6 +3,9 @@
 // feat/mps-f301-admin-candidate-creation-profile-editing -- must satisfy),
 // mirroring the shared/adminWorkflow/types.ts pattern.
 
+import type { MobilizationFilters, MobilizationListResult, MobilizationPage, MobilizationSort } from './mobilizations';
+import type { RegisteredDateRange } from './registeredDates';
+
 export interface ReferenceDataItem {
   code: string;
   /** Localized per the caller's current language. */
@@ -157,7 +160,8 @@ export interface AdminCandidateError {
  * takes exactly one value per filter, unlike the document-review queue's
  * multi-value status filter.
  */
-export interface AdminCandidateListFilters {
+/** Also narrows by the registered (import batch) date range. */
+export interface AdminCandidateListFilters extends RegisteredDateRange {
   search?: string;
   status?: string;
   countryCode?: string;
@@ -165,8 +169,6 @@ export interface AdminCandidateListFilters {
   craftCode?: string;
   /** Candidates with a recorded flight who have (`uploaded`) or have not (`missing`) uploaded their boarding pass. */
   boardingPass?: AdminCandidateBoardingPassFilter;
-  /** Candidates whose recorded flight departs on this day (YYYY-MM-DD, Pakistan time). */
-  flightDate?: string;
 }
 
 export type AdminCandidateBoardingPassFilter = 'uploaded' | 'missing';
@@ -210,6 +212,8 @@ export interface AdminCandidateListResult {
 
 export interface AdminCandidateClient {
   getCandidate(candidateId: string): Promise<AdminCandidateDetail>;
+  /** GET /api/v1/admin/mobilizations -- candidates whose flight is recorded. */
+  listMobilizations(filters: MobilizationFilters, sort: MobilizationSort | undefined, page: MobilizationPage): Promise<MobilizationListResult>;
   listCandidates(
     filters: AdminCandidateListFilters,
     sort: AdminCandidateListSort | undefined,

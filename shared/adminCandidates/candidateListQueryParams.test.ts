@@ -20,9 +20,9 @@ describe('buildCandidateListQuery', () => {
     expect(query).toContain('filter%5Bcraft_code%5D=electrician');
   });
 
-  it('serializes filter[flight_date] alongside the boarding pass filter', () => {
-    expect(buildCandidateListQuery({ flightDate: '2026-11-20', boardingPass: 'missing' }, undefined, {})).toBe(
-      '?filter%5Bboarding_pass%5D=missing&filter%5Bflight_date%5D=2026-11-20'
+  it('serializes the registered (import batch) date range', () => {
+    expect(buildCandidateListQuery({ countryCode: 'qatar', registeredFrom: '2026-11-20', registeredTo: '2026-11-21' }, undefined, {})).toBe(
+      '?filter%5Bcountry_code%5D=qatar&filter%5Bregistered_from%5D=2026-11-20&filter%5Bregistered_to%5D=2026-11-21'
     );
   });
 

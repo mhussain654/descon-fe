@@ -11,6 +11,8 @@
 // Web-only (AGENTS.md: "administrative workflows remain web-focused").
 
 /** One of the 15 canonical workflow stages, zero-filled -- see shared/adminWorkflow/canonicalStages.ts for the code enum and its translation keys. */
+import type { RegisteredDateRange } from '../adminCandidates/registeredDates';
+
 export interface StatusSummaryRow {
   code: string;
   position: number;
@@ -61,7 +63,8 @@ export interface TrendPoint {
 export type TrendGranularity = 'daily' | 'weekly' | 'monthly';
 
 /** Scopes a dashboard endpoint's sections to candidates whose current assignment matches -- see descon-be's Admin::Reports::DashboardFilterResolution. Shared by every admin dashboard (Admin/MPS/Management) that accepts the same filter[country_code]/project_code/craft_code vocabulary, rather than each dashboard declaring its own identical shape. */
-export interface DashboardFilters {
+/** Country/project/craft plus the registered (import batch) date range, for every dashboard and report. */
+export interface DashboardFilters extends RegisteredDateRange {
   countryCode?: string;
   projectCode?: string;
   craftCode?: string;
@@ -83,6 +86,8 @@ export type ReportData =
 export interface ReportDataParams {
   /** Only meaningful for the `trend` report; ignored by every other report type. Defaults to `monthly` server-side. */
   granularity?: TrendGranularity;
+  /** Narrows the report (and its export) to matching candidates, e.g. one import batch's country and registered dates. */
+  filters?: DashboardFilters;
 }
 
 export interface ReportExportResult {

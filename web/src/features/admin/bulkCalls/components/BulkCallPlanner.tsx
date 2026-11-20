@@ -1,4 +1,7 @@
 import { useEffect, useState } from 'react';
+import type { RegisteredDateRange } from '../../../../../../shared/adminCandidates/registeredDates';
+import { CountryFilterSelect } from '../../shared/CountryFilterSelect';
+import { RegisteredDateRangeInputs } from '../../shared/RegisteredDateRangeInputs';
 import { Link } from 'react-router';
 import { CheckCircle2, PhoneCall, Users } from 'lucide-react';
 import { useLanguage } from '../../../../contexts/LanguageContext';
@@ -43,6 +46,8 @@ export function BulkCallPlanner() {
   const [voiceId, setVoiceId] = useState('');
   const [called, setCalled] = useState<BulkCallCalledFilter>('not_called');
   const [searchDraft, setSearchDraft] = useState('');
+  // Country and registered dates narrow the call to one import batch.
+  const [batch, setBatch] = useState<{ countryCode?: string } & RegisteredDateRange>({});
   const search = useDebouncedValue(searchDraft.trim(), 400);
   const [page, setPage] = useState(1);
   const [confirmOpen, setConfirmOpen] = useState(false);
@@ -55,7 +60,7 @@ export function BulkCallPlanner() {
   const chosenVoice = activeVoices.find((voice) => voice.id === voiceId);
   const ready = stageCode !== '' && chosenVoice !== undefined;
   const query: BulkCallCandidatesQuery | undefined = ready
-    ? { voiceId, stageCode, called, search: search || undefined, page, pageSize: PAGE_SIZE }
+    ? { voiceId, stageCode, called, search: search || undefined, page, pageSize: PAGE_SIZE, ...batch }
     : undefined;
   const candidates = useBulkCallCandidates(query);
 
@@ -66,7 +71,7 @@ export function BulkCallPlanner() {
 
   const startBatch = () =>
     start.mutate(
-      { voiceId, stageCode, limit: nextCount, search: search || undefined },
+      { voiceId, stageCode, limit: nextCount, search: search || undefined, ...batch },
       {
         onSuccess: (batch) => {
           setConfirmOpen(false);
@@ -136,6 +141,22 @@ export function BulkCallPlanner() {
             placeholder={t('adminBulkCallSearchPlaceholder')}
             value={searchDraft}
             onChange={(event) => setSearchDraft(event.target.value)}
+          />
+          <CountryFilterSelect
+            value={batch.countryCode}
+            onChange={(countryCode) => {
+              setBatch((current) => ({ ...current, countryCode }));
+              setPage(1);
+            }}
+            t={t}
+          />
+          <RegisteredDateRangeInputs
+            value={batch}
+            onChange={(patch) => {
+              setBatch((current) => ({ ...current, ...patch }));
+              setPage(1);
+            }}
+            t={t}
           />
         </div>
         {voices.isSuccess && activeVoices.length === 0 ? <p className="mt-4 text-sm text-text-secondary">{t('adminBulkCallNoCallTypes')}</p> : null}

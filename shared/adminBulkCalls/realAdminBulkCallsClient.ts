@@ -174,6 +174,8 @@ function buildCandidatesQuery(query: BulkCallCandidatesQuery): string {
   if (query.countryCode) params.set('filter[country_code]', query.countryCode);
   if (query.projectCode) params.set('filter[project_code]', query.projectCode);
   if (query.craftCode) params.set('filter[craft_code]', query.craftCode);
+  if (query.registeredFrom) params.set('filter[registered_from]', query.registeredFrom);
+  if (query.registeredTo) params.set('filter[registered_to]', query.registeredTo);
   if (query.search) params.set('search', query.search);
   params.set('called', query.called);
   params.set('page[number]', String(query.page));
@@ -312,6 +314,8 @@ export function createAdminBulkCallsClient(options: RealAdminBulkCallsClientOpti
         if (input.countryCode) filter.country_code = input.countryCode;
         if (input.projectCode) filter.project_code = input.projectCode;
         if (input.craftCode) filter.craft_code = input.craftCode;
+        if (input.registeredFrom) filter.registered_from = input.registeredFrom;
+        if (input.registeredTo) filter.registered_to = input.registeredTo;
         const data = await staffAuthClient.authenticatedDataRequest((token) =>
           apiClient.post<BatchResponse>(
             '/admin/bulk_calls',

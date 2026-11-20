@@ -18,6 +18,7 @@ import {
   PanelLeftClose,
   PanelLeftOpen,
   PhoneCall,
+  PlaneTakeoff,
   ServerCog,
   SlidersHorizontal,
   Sun,
@@ -178,6 +179,13 @@ function StaffShellContent({ children }: { children: ReactNode }) {
       ],
     },
     { type: 'link', href: '/admin', labelKey: 'staffNavCandidates', visible: true, icon: Users },
+    {
+      type: 'link',
+      href: '/admin/mobilization',
+      labelKey: 'staffNavMobilization',
+      visible: hasPermission('view_candidates') || hasPermission('manage_candidates'),
+      icon: PlaneTakeoff,
+    },
     {
       type: 'link',
       href: '/admin/document-reviews',

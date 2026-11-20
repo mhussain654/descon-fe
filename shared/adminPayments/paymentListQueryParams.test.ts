@@ -1,6 +1,12 @@
 import { buildPaymentListQuery } from './paymentListQueryParams';
 
 describe('buildPaymentListQuery', () => {
+  it("serializes the candidate's country and registered date range alongside the payment dates", () => {
+    expect(buildPaymentListQuery({ createdFrom: '2026-12-01', countryCode: 'qatar', registeredFrom: '2026-11-28', registeredTo: '2026-11-28' }, undefined, {})).toBe(
+      '?filter%5Bcreated_from%5D=2026-12-01&filter%5Bcountry_code%5D=qatar&filter%5Bregistered_from%5D=2026-11-28&filter%5Bregistered_to%5D=2026-11-28'
+    );
+  });
+
   it('returns an empty string when nothing is set', () => {
     expect(buildPaymentListQuery({}, undefined, {})).toBe('');
   });

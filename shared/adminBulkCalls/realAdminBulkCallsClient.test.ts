@@ -163,7 +163,15 @@ describe('createAdminBulkCallsClient (real)', () => {
         );
       });
 
-      const result = await buildClient().listCandidates({ ...query, countryCode: 'qatar', projectCode: 'p1', craftCode: 'welder', search: 'khan' });
+      const result = await buildClient().listCandidates({
+        ...query,
+        countryCode: 'qatar',
+        projectCode: 'p1',
+        craftCode: 'welder',
+        registeredFrom: '2026-11-20',
+        registeredTo: '2026-11-21',
+        search: 'khan',
+      });
 
       const params = new URL(seenUrl).searchParams;
       expect(new URL(seenUrl).pathname).toBe('/api/v1/admin/bulk_calls/candidates');
@@ -173,6 +181,8 @@ describe('createAdminBulkCallsClient (real)', () => {
         'filter[country_code]': 'qatar',
         'filter[project_code]': 'p1',
         'filter[craft_code]': 'welder',
+        'filter[registered_from]': '2026-11-20',
+        'filter[registered_to]': '2026-11-21',
         search: 'khan',
         called: 'not_called',
         'page[number]': '2',
