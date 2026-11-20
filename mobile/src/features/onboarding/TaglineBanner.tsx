@@ -1,18 +1,57 @@
-import { View } from 'react-native';
+import { useState } from 'react';
+import { StyleSheet, View, type LayoutChangeEvent } from 'react-native';
+import Svg, { Path } from 'react-native-svg';
 import { Text } from '../../design-system/Text';
-import { getFontFamily } from '../../design-system';
+import { INTER_BOLD_ITALIC, getFontFamily } from '../../design-system';
 import { spacing } from '../../design-system/tokens';
-import { themedStyles } from '../../design-system/theme';
+import { isStartSide } from '../../lib/layoutDirection';
 
 // Descon brand red and navy. The banner sits on the hero artwork, which is the
 // same in both themes, so these stay fixed rather than following the theme.
 const DESCON_RED = '#E31E24';
 const BANNER_NAVY = '#0B2D6B';
+const SHADOW = 'rgba(0, 30, 90, 0.28)';
+// How far the card's ends slant from upright.
+const LEAN_DEGREES = 14;
+const CORNER_RADIUS = 12;
+// The red band is turned this much behind the card, so it peeks out above it
+// on the reading side and below it at the far end.
+const BAND_TURN = '4deg';
+
+type Point = [number, number];
+
+/**
+ * A parallelogram with straight top and bottom edges and ends that lean
+ * toward `side`, with rounded corners, as an SVG path. Drawn rather than made
+ * with a skew transform because Android ignores skew on views.
+ */
+export function slantedCardPath(width: number, height: number, side: 'left' | 'right'): string {
+  const lean = height * Math.tan((LEAN_DEGREES * Math.PI) / 180);
+  // Clockwise from the top-left corner.
+  const corners: Point[] =
+    side === 'left'
+      ? [[lean, 0], [width, 0], [width - lean, height], [0, height]]
+      : [[0, 0], [width - lean, 0], [width, height], [lean, height]];
+  const radius = Math.min(CORNER_RADIUS, height / 3);
+  const toward = ([x1, y1]: Point, [x2, y2]: Point): Point => {
+    const length = Math.hypot(x2 - x1, y2 - y1);
+    return [x1 + ((x2 - x1) / length) * radius, y1 + ((y2 - y1) / length) * radius];
+  };
+  const round = (value: number) => Math.round(value * 10) / 10;
+  const segments = corners.map((corner, index) => {
+    const previous = corners[(index + corners.length - 1) % corners.length];
+    const next = corners[(index + 1) % corners.length];
+    const [ax, ay] = toward(corner, previous);
+    const [bx, by] = toward(corner, next);
+    return `${index === 0 ? 'M' : 'L'}${round(ax)},${round(ay)} Q${round(corner[0])},${round(corner[1])} ${round(bx)},${round(by)}`;
+  });
+  return `${segments.join(' ')} Z`;
+}
 
 interface TaglineBannerProps {
-  /** Already-translated tagline. */
+  /** Already-translated tagline; a line break in it sets where the two lines split. */
   text: string;
-  /** 'ur' sets it in Nastaliq (no slant); anything else in Inter. */
+  /** 'ur' sets it upright in Nastaliq; anything else in Inter Bold Italic. */
   language: string;
   /** The physical side the banner hangs from: left for English, right for Urdu. */
   side: 'left' | 'right';
@@ -20,22 +59,53 @@ interface TaglineBannerProps {
 
 /**
  * The Welcome page tagline as a banner (client-approved "Option A", Nov 2026):
- * a white card tilted slightly upward, with a slanted Descon-red band behind
- * it that shows above and below its edges. Mirrors for Urdu.
+ * a white card with straight top and bottom edges and slanted ends, leaning
+ * toward the reading direction, with a Descon-red band of the same shape
+ * turned a few degrees behind it. Mirrors for Urdu.
  */
 export function TaglineBanner({ text, language, side }: TaglineBannerProps) {
   const isUrdu = language === 'ur';
   const fromLeft = side === 'left';
+  const [size, setSize] = useState<{ width: number; height: number } | null>(null);
+
+  const onLayout = (event: LayoutChangeEvent) => {
+    const { width, height } = event.nativeEvent.layout;
+    setSize((current) => (current?.width === width && current?.height === height ? current : { width, height }));
+  };
+  const path = size ? slantedCardPath(size.width, size.height, side) : null;
 
   return (
-    <View testID="tagline-banner" style={[styles.banner, fromLeft ? styles.fromLeft : styles.fromRight]}>
-      <View style={[styles.redBand, fromLeft ? styles.redBandLeft : styles.redBandRight]} />
-      <View style={styles.card}>
+    <View
+      testID="tagline-banner"
+      style={[styles.banner, fromLeft ? styles.fromLeft : styles.fromRight, isStartSide(side) ? styles.alignStart : styles.alignEnd]}
+    >
+      <View
+        testID="tagline-banner-band"
+        pointerEvents="none"
+        style={[StyleSheet.absoluteFill, { transform: [{ rotate: fromLeft ? BAND_TURN : `-${BAND_TURN}` }] }]}
+      >
+        {path && size ? (
+          <Svg width={size.width} height={size.height}>
+            <Path d={path} fill={DESCON_RED} />
+          </Svg>
+        ) : null}
+      </View>
+      {path && size ? (
+        <Svg pointerEvents="none" style={styles.shadow} width={size.width} height={size.height}>
+          <Path d={path} fill={SHADOW} />
+        </Svg>
+      ) : null}
+      {path && size ? (
+        <Svg pointerEvents="none" style={StyleSheet.absoluteFill} width={size.width} height={size.height}>
+          <Path d={path} fill="#FFFFFF" />
+        </Svg>
+      ) : null}
+      <View testID="tagline-banner-card" style={styles.card} onLayout={onLayout}>
         <Text
           style={[
             styles.text,
-            isUrdu ? styles.textUrdu : styles.textSlanted,
-            { fontFamily: getFontFamily(language, 'bold'), writingDirection: isUrdu ? 'rtl' : 'ltr' },
+            isUrdu ? styles.textUrdu : null,
+            { fontFamily: isUrdu ? getFontFamily(language, 'bold') : INTER_BOLD_ITALIC, writingDirection: isUrdu ? 'rtl' : 'ltr' },
           ]}
         >
           {text}
@@ -45,30 +115,19 @@ export function TaglineBanner({ text, language, side }: TaglineBannerProps) {
   );
 }
 
-const styles = themedStyles(() => ({
+const styles = StyleSheet.create({
   banner: { marginTop: spacing[4] },
-  // Starts a little past the heading's edge and tilts up toward the reading direction.
-  fromLeft: { alignSelf: 'flex-start', marginLeft: -10, transform: [{ rotate: '-3deg' }] },
-  fromRight: { alignSelf: 'flex-end', marginRight: -10, transform: [{ rotate: '3deg' }] },
-  redBand: { position: 'absolute', top: -5, bottom: -5, borderRadius: 12, backgroundColor: DESCON_RED },
-  redBandLeft: { left: 22, right: -4, transform: [{ rotate: '-1.5deg' }, { skewX: '-14deg' }] },
-  redBandRight: { right: 22, left: -4, transform: [{ rotate: '1.5deg' }, { skewX: '14deg' }] },
-  card: {
-    paddingVertical: 6,
-    paddingHorizontal: 16,
-    borderRadius: 14,
-    backgroundColor: '#FFFFFF',
-    shadowColor: '#001E5A',
-    shadowOpacity: 0.3,
-    shadowRadius: 9,
-    shadowOffset: { width: 0, height: 8 },
-    elevation: 6,
-  },
-  // The width cap breaks the English tagline into two even lines:
-  // "Your Gateway to" / "Overseas Employment".
-  text: { maxWidth: 210, textAlign: 'center', color: BANNER_NAVY, fontSize: 17, lineHeight: 21 },
-  // Inter has no italic face loaded, so a slight skew gives the banner's slant on every platform.
-  textSlanted: { transform: [{ skewX: '-10deg' }] },
-  // Nastaliq needs about twice the line height, and is never slanted.
-  textUrdu: { maxWidth: 240, fontSize: 16, lineHeight: 34 },
-}));
+  // Starts a little past the heading's edge. Flex alignment flips in an RTL
+  // layout (Urdu on Android and iOS), so it is picked from the physical side.
+  fromLeft: { marginLeft: -10 },
+  fromRight: { marginRight: -10 },
+  alignStart: { alignSelf: 'flex-start' },
+  alignEnd: { alignSelf: 'flex-end' },
+  // A soft drop shadow under the card (SVG shapes take no native shadow).
+  shadow: { position: 'absolute', left: 0, top: 5 },
+  // The side padding keeps the text clear of the slanted ends.
+  card: { paddingVertical: 7, paddingHorizontal: 20 },
+  text: { textAlign: 'center', color: BANNER_NAVY, fontSize: 15, lineHeight: 19 },
+  // Nastaliq needs about twice the line height.
+  textUrdu: { fontSize: 16, lineHeight: 34 },
+});

@@ -1,4 +1,5 @@
 import { QueryClientProvider } from '@tanstack/react-query';
+import { Linking } from 'react-native';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { candidateFlightDetailClient } from '../../../../lib/candidate-flight-detail-client';
@@ -23,7 +24,7 @@ jest.mock('../../../../contexts/AuthContext', () => ({
 }));
 
 jest.mock('../../../../lib/candidate-flight-detail-client', () => ({
-  candidateFlightDetailClient: { uploadBoardingPass: jest.fn() },
+  candidateFlightDetailClient: { uploadBoardingPass: jest.fn(), requestBoardingPassAccess: jest.fn() },
 }));
 
 const t = (key: TranslationKey) => translations.en[key];
@@ -68,16 +69,49 @@ describe('BoardingPassUpload', () => {
     renderUpload();
 
     expect(screen.getByText('Boarding pass')).toBeOnTheScreen();
-    expect(screen.getByText('Take a clear photo of your boarding pass and upload it here.')).toBeOnTheScreen();
+    expect(screen.getByText('Upload a clear photo of your boarding pass. Make sure your name, flight number and barcode are easy to read.')).toBeOnTheScreen();
     expect(screen.getByRole('button', { name: 'Take photo' })).toBeOnTheScreen();
-    expect(screen.getByRole('button', { name: 'Choose from gallery' })).toBeOnTheScreen();
+    expect(screen.getByRole('button', { name: 'Choose file' })).toBeOnTheScreen();
   });
 
-  it('shows when it was uploaded and how to replace it', () => {
+  it('once uploaded, offers to take another photo or view the one sent', () => {
     renderUpload(flight({ boardingPassUploadedAt: '2026-09-20T11:05:00Z' }));
 
     expect(screen.getByText('Uploaded on 20/09/2026')).toBeOnTheScreen();
-    expect(screen.getByText('Uploaded the wrong picture? Upload it again to replace it.')).toBeOnTheScreen();
+    expect(screen.getByText('Tap View to check your photo. If it is blurry or not your boarding pass, take a new photo to replace it.')).toBeOnTheScreen();
+    expect(screen.getByRole('button', { name: 'Take photo' })).toBeOnTheScreen();
+    expect(screen.getByRole('button', { name: 'View' })).toBeOnTheScreen();
+    expect(screen.queryByRole('button', { name: 'Choose file' })).toBeNull();
+  });
+
+  it('opens the uploaded photo through a short-lived link on our own API', async () => {
+    // The link is resolved against the configured API origin, and fails closed without one.
+    const originalApiBaseUrl = process.env.EXPO_PUBLIC_API_BASE_URL;
+    process.env.EXPO_PUBLIC_API_BASE_URL = 'http://localhost:3000/api/v1';
+    const openURL = jest.spyOn(Linking, 'openURL').mockResolvedValue(true);
+    jest.mocked(candidateFlightDetailClient.requestBoardingPassAccess).mockResolvedValue({
+      flightDetailId: '3fa1d41e-d4aa-4bf3-9838-c0af7080f363',
+      url: '/rails/active_storage/blobs/proxy/abc/boarding-pass.jpg?disposition=inline',
+      expiresAt: '2026-09-20T11:10:00Z',
+    });
+    renderUpload(flight({ boardingPassUploadedAt: '2026-09-20T11:05:00Z' }));
+
+    fireEvent.press(screen.getByRole('button', { name: 'View' }));
+
+    await waitFor(() => expect(openURL).toHaveBeenCalledTimes(1));
+    expect(candidateFlightDetailClient.requestBoardingPassAccess).toHaveBeenCalledWith('candidate-token');
+    expect(openURL.mock.calls[0][0]).toBe('http://localhost:3000/rails/active_storage/blobs/proxy/abc/boarding-pass.jpg?disposition=inline');
+    openURL.mockRestore();
+    process.env.EXPO_PUBLIC_API_BASE_URL = originalApiBaseUrl;
+  });
+
+  it('explains when the photo cannot be opened', async () => {
+    jest.mocked(candidateFlightDetailClient.requestBoardingPassAccess).mockRejectedValue({ code: 'NETWORK_ERROR' });
+    renderUpload(flight({ boardingPassUploadedAt: '2026-09-20T11:05:00Z' }));
+
+    fireEvent.press(screen.getByRole('button', { name: 'View' }));
+
+    expect(await screen.findByText('We couldn’t open your boarding pass. Please try again.')).toBeOnTheScreen();
   });
 
   it('uploads a camera photo of the boarding pass', async () => {
@@ -100,7 +134,7 @@ describe('BoardingPassUpload', () => {
     jest.mocked(ImagePicker.launchImageLibraryAsync).mockResolvedValue({ canceled: false, assets: [pickedAsset({ fileSize: 11 * 1024 * 1024 })] } as never);
     renderUpload();
 
-    fireEvent.press(screen.getByRole('button', { name: 'Choose from gallery' }));
+    fireEvent.press(screen.getByRole('button', { name: 'Choose file' }));
 
     expect(await screen.findByText('Choose a photo of 10 MB or less.')).toBeOnTheScreen();
     expect(candidateFlightDetailClient.uploadBoardingPass).not.toHaveBeenCalled();

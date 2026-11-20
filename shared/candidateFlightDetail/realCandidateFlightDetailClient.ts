@@ -118,6 +118,18 @@ export function createCandidateFlightDetailClient(options: RealCandidateFlightDe
       }
     },
 
+    async requestBoardingPassAccess(accessToken: string): Promise<FlightTicketAccess> {
+      try {
+        const data = await apiClient.post<FlightTicketAccessResponse>('/candidate/flight_detail/boarding_pass_access', undefined, {
+          headers: { Authorization: `Bearer ${accessToken}`, 'X-Locale': getLocale() },
+        });
+        if (!data) throw { code: 'UNKNOWN' } satisfies CandidateFlightDetailError;
+        return toAccess(data);
+      } catch (error) {
+        throw toFlightDetailError(error);
+      }
+    },
+
     async uploadBoardingPass({ accessToken, formData }): Promise<CandidateFlightDetail> {
       try {
         const data = await apiClient.put<FlightDetailResponse>('/candidate/flight_detail/boarding_pass', formData, {

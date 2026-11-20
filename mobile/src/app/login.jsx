@@ -1,17 +1,17 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Keyboard, Platform, Pressable, ScrollView, StyleSheet, View, useWindowDimensions } from "react-native";
+import { Keyboard, Platform, Pressable, ScrollView, View, useWindowDimensions } from "react-native";
 import { Text } from "../design-system/Text";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
 import { useRouter } from "expo-router";
-import { Image } from "expo-image";
 import { Clock, IdCard } from "lucide-react-native";
 import { useAuth } from "../contexts/AuthContext";
 import { useLanguage } from "../contexts/LanguageContext";
 import { RequireGuest } from "../features/auth/RequireGuest";
 import { RegistrationGuidance } from "../features/onboarding/RegistrationGuidance";
 import { BRAND_ROW_HEIGHT, BrandRow } from "../features/onboarding/BrandRow";
-import { HeroDarkFade } from "../features/onboarding/HeroDarkFade";
+import { HeroArtwork } from "../features/onboarding/HeroArtwork";
+import { heroArtLayout } from "../features/onboarding/heroArtLayout";
 import { TaglineBanner } from "../features/onboarding/TaglineBanner";
 import { SecureFooter } from "../features/onboarding/SecureFooter";
 import { BackArrow, forwardArrowSlots } from "../features/onboarding/directionalArrows";
@@ -38,15 +38,8 @@ import { themedStyles } from '../design-system/theme';
 
 // The same artwork as the language page (no person): the landmarks, globe and
 // Descon-branded helmet, with open sky on one side for the copy -- left in
-// English, and in the mirrored Urdu copy on the right. Only the white sheet
-// below differs between the two screens.
-const HERO_ART = {
-  en: require("../../assets/images/welcome-hero.webp"),
-  ur: require("../../assets/images/welcome-hero-rtl.webp"),
-};
-// The sheet's rounded top slides up over the plain ground at the art's base.
-const SHEET_OVERLAP = 28;
-const HERO_ASPECT_RATIO = 675 / 694;
+// English, and in the mirrored Urdu copy on the right. As there, the artwork
+// moves down as far as the copy needs, so the banner never covers the skyline.
 // A soft dark halo keeps the white copy readable where it crosses lighter sky and clouds.
 const HERO_TEXT_SHADOW = {
   textShadowColor: "rgba(0, 28, 84, 0.7)",
@@ -92,9 +85,8 @@ export default function LoginScreen() {
   }, []);
   const router = useRouter();
   const { width } = useWindowDimensions();
-  // Exactly the art's own height at full width (less a little plain sky), on
-  // both steps: a taller box would make "cover" scale it up and crop its sides.
-  const heroHeight = insets.top + (width / HERO_ASPECT_RATIO) * 0.9;
+  const [heroCopyBottom, setHeroCopyBottom] = useState(null);
+  const { artTop, artHeight, heroHeight, sheetOverlap } = heroArtLayout(width, heroCopyBottom);
   const { t, language, toggleLanguage } = useLanguage();
   const isUrdu = language === "ur";
   const copySide = isUrdu ? "right" : "left";
@@ -244,21 +236,16 @@ export default function LoginScreen() {
         {/* Pinned behind the scrolling sheet, so opening the keyboard never
             scrolls the art away. */}
         <View style={[styles.hero, { height: heroHeight, paddingTop: insets.top + spacing[3] + BRAND_ROW_HEIGHT + spacing[3] }]}>
-          <Image
-            source={HERO_ART[isUrdu ? "ur" : "en"]}
-            style={StyleSheet.absoluteFill}
-            contentFit="cover"
-            // Keep the landmarks and helmet in view; any crop comes off the plain sky.
-            contentPosition="bottom"
-            accessible={false}
-          />
-          <HeroDarkFade />
+          <HeroArtwork language={language} width={width} artTop={artTop} artHeight={artHeight} visible={heroCopyBottom != null} />
 
           <View style={[styles.brandSlot, { top: insets.top + spacing[3] }]}>
             <BrandRow language={language} primary={t("brandNamePrimary")} secondary={t("brandNameSecondary")} side={copySide} />
           </View>
 
-          <View style={[styles.heroCopy, anchorStyle, { maxWidth: width * (isUrdu ? 0.7 : 0.6) }]}>
+          <View
+            style={[styles.heroCopy, anchorStyle, { maxWidth: width * (isUrdu ? 0.7 : 0.6) }]}
+            onLayout={(event) => setHeroCopyBottom(event.nativeEvent.layout.y + event.nativeEvent.layout.height)}
+          >
             <Text
               accessibilityRole="header"
               style={[styles.heroTitle, isUrdu ? styles.heroTitleUrdu : null, copyTextStyle, font("bold")]}
@@ -276,7 +263,7 @@ export default function LoginScreen() {
         <ScrollView ref={scrollRef} contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled" bounces={false}>
           <View style={{ height: heroHeight }} />
 
-          <View style={[styles.sheet, { paddingBottom: insets.bottom + spacing[3] }]}>
+          <View style={[styles.sheet, { marginTop: -sheetOverlap, paddingBottom: insets.bottom + spacing[3] }]}>
             {step === "otp" ? (
               // On the white sheet, not over the art, so it stays easy to read.
               <Text style={[styles.sentFrom, isUrdu ? styles.sentFromUrdu : null, copyTextStyle, font("regular")]}>
@@ -534,7 +521,6 @@ const styles = themedStyles(() => ({
 
   sheet: {
     flex: 1,
-    marginTop: -SHEET_OVERLAP,
     backgroundColor: colors.surface.raised,
     borderTopLeftRadius: 28,
     borderTopRightRadius: 28,

@@ -122,6 +122,41 @@ describe('createCandidateFlightDetailClient (real) -- getFlightDetail', () => {
   });
 });
 
+describe('createCandidateFlightDetailClient (real) -- requestBoardingPassAccess', () => {
+  it('POSTs to the boarding pass access path with the bearer token and maps the response', async () => {
+    let seenUrl = '';
+    let seenInit: RequestInit | undefined;
+    stubFetch(async (url, init) => {
+      seenUrl = String(url);
+      seenInit = init as RequestInit;
+      return jsonResponse(
+        successEnvelope({
+          flight_detail_id: '3fa1d41e-d4aa-4bf3-9838-c0af7080f363',
+          url: '/rails/active_storage/blobs/proxy/abc/boarding-pass.jpg',
+          expires_at: '2026-09-20T11:10:00Z',
+        })
+      );
+    });
+
+    const access = await buildClient().requestBoardingPassAccess('candidate-access-token');
+
+    expect(seenUrl).toBe('http://example.test/api/v1/candidate/flight_detail/boarding_pass_access');
+    expect(seenInit?.method).toBe('POST');
+    expect((seenInit?.headers as Record<string, string>).Authorization).toBe('Bearer candidate-access-token');
+    expect(access).toEqual({
+      flightDetailId: '3fa1d41e-d4aa-4bf3-9838-c0af7080f363',
+      url: '/rails/active_storage/blobs/proxy/abc/boarding-pass.jpg',
+      expiresAt: '2026-09-20T11:10:00Z',
+    });
+  });
+
+  it('maps a 404 to NOT_FOUND', async () => {
+    stubFetch(async () => jsonResponse(errorEnvelope([{ code: 'not_found', message: 'Flight detail not found.' }]), { status: 404 }));
+
+    await expect(buildClient().requestBoardingPassAccess('token')).rejects.toEqual({ code: 'NOT_FOUND', message: 'Flight detail not found.' });
+  });
+});
+
 describe('createCandidateFlightDetailClient (real) -- requestTicketAccess', () => {
   it('POSTs with the bearer token and locale headers, and maps the response', async () => {
     let seenUrl = '';

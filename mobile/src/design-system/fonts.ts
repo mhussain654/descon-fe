@@ -4,6 +4,7 @@ import {
   Inter_500Medium,
   Inter_600SemiBold,
   Inter_700Bold,
+  Inter_700Bold_Italic,
 } from '@expo-google-fonts/inter';
 import {
   useFonts as useNastaliqFonts,
@@ -36,6 +37,9 @@ const FONT_FAMILIES: Record<'en' | 'ur', Record<FontWeightToken, string>> = {
   },
 };
 
+/** Inter Bold Italic, for the English tagline banner. Urdu has no italic. */
+export const INTER_BOLD_ITALIC = 'Inter_700Bold_Italic';
+
 /** The loaded font family for the active language and a semantic weight token. */
 export function getFontFamily(language: string, weight: FontWeightToken = 'regular'): string {
   return FONT_FAMILIES[language === 'ur' ? 'ur' : 'en'][weight];
@@ -54,6 +58,8 @@ export function useAppFonts(): boolean {
     Inter_500Medium,
     Inter_600SemiBold,
     Inter_700Bold,
+    // Only the tagline banner on the Welcome and sign-in screens uses it.
+    Inter_700Bold_Italic,
   });
   const [nastaliqLoaded] = useNastaliqFonts({
     NotoNastaliqUrdu_400Regular,

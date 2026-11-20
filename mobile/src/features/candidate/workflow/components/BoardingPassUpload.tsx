@@ -1,5 +1,5 @@
 import { View } from 'react-native';
-import { Camera, CheckCircle2, Image as ImageIcon } from 'lucide-react-native';
+import { Camera, CheckCircle2, Eye, Image as ImageIcon } from 'lucide-react-native';
 import { Button, ValidationMessage } from '../../../../design-system';
 import { Text } from '../../../../design-system/Text';
 import { spacing } from '../../../../design-system/tokens';
@@ -11,6 +11,7 @@ import { interpolate } from '../../../../../../shared/i18n/interpolate';
 import type { Language, TranslationKey } from '../../../../../../shared/i18n/translations';
 import { statusCopyStyle } from '../../progress/components/StatusPresentation';
 import { useBoardingPassUpload, type BoardingPassProblem } from '../hooks/useBoardingPassUpload';
+import { useBoardingPassView } from '../hooks/useFlightTicketAccess';
 
 interface BoardingPassUploadProps {
   flight: CandidateFlightDetail;
@@ -43,6 +44,7 @@ function uploadedOn(iso: string, language: Language): string {
  */
 export function BoardingPassUpload({ flight, language, t }: BoardingPassUploadProps) {
   const upload = useBoardingPassUpload(t);
+  const view = useBoardingPassView();
   const uploadedAt = flight.boardingPassUploadedAt;
   const rowDirection = rowDirectionTowards(language === 'ur' ? 'right' : 'left');
 
@@ -72,20 +74,41 @@ export function BoardingPassUpload({ flight, language, t }: BoardingPassUploadPr
         >
           {t('profilePhotoTake')}
         </Button>
-        <Button
-          variant="outline"
-          size="sm"
-          style={styles.flex}
-          language={language}
-          onPress={upload.chooseFromGallery}
-          disabled={upload.isUploading}
-          leadingIcon={<ImageIcon size={16} color={colors.text.primary} />}
-        >
-          {t('profilePhotoChoose')}
-        </Button>
+        {/* Once uploaded, the second action lets them check what they sent;
+            a wrong photo is replaced with a new camera photo. */}
+        {uploadedAt ? (
+          <Button
+            variant="outline"
+            size="sm"
+            style={styles.flex}
+            language={language}
+            onPress={view.viewBoardingPass}
+            disabled={upload.isUploading || view.isRequesting}
+            leadingIcon={<Eye size={16} color={colors.text.primary} />}
+          >
+            {t('boardingPassView')}
+          </Button>
+        ) : (
+          <Button
+            variant="outline"
+            size="sm"
+            style={styles.flex}
+            language={language}
+            onPress={upload.chooseFromGallery}
+            disabled={upload.isUploading}
+            leadingIcon={<ImageIcon size={16} color={colors.text.primary} />}
+          >
+            {t('boardingPassChooseFile')}
+          </Button>
+        )}
       </View>
       {upload.isUploading ? (
         <Text style={[styles.hint, statusCopyStyle(language, 13)]}>{t('boardingPassUploading')}</Text>
+      ) : null}
+      {view.error ? (
+        <ValidationMessage tone="error" language={language}>
+          {t('boardingPassViewFailed')}
+        </ValidationMessage>
       ) : null}
       {upload.problem ? (
         <ValidationMessage tone="error" language={language}>

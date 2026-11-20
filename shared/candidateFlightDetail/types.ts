@@ -3,6 +3,7 @@
 //   GET  /api/v1/candidate/flight_detail
 //   POST /api/v1/candidate/flight_detail/ticket_access
 //   PUT  /api/v1/candidate/flight_detail/boarding_pass
+//   POST /api/v1/candidate/flight_detail/boarding_pass_access
 //
 // The ticket-access endpoint is shared server-side between the admin and
 // candidate flows (CandidateWorkflows::FlightTicketAccessService) -- this
@@ -63,6 +64,8 @@ export interface CandidateFlightDetailClient {
   /** Resolves to `null` before a flight detail has been recorded -- not an error. */
   getFlightDetail(accessToken: string): Promise<CandidateFlightDetail | null>;
   requestTicketAccess(accessToken: string): Promise<FlightTicketAccess>;
+  /** A short-lived link to the boarding pass photo the candidate uploaded, so they can check it. */
+  requestBoardingPassAccess(accessToken: string): Promise<FlightTicketAccess>;
   /** Uploads (or replaces) the boarding pass photo; resolves to the updated flight detail. */
   uploadBoardingPass(input: { accessToken: string; formData: FormData }): Promise<CandidateFlightDetail>;
 }
