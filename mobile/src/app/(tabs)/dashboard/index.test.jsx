@@ -1,5 +1,5 @@
 import { QueryClientProvider } from "@tanstack/react-query";
-import { Linking, RefreshControl } from "react-native";
+import { Linking, RefreshControl, StyleSheet } from "react-native";
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react-native";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import * as SecureStore from "expo-secure-store";
@@ -266,6 +266,42 @@ describe("DashboardScreen", () => {
     // Enrolled is approved among the 10 Qatar steps.
     expect(screen.getByText("1 of 10 steps completed")).toBeOnTheScreen();
     expect(screen.getByText("10% complete")).toBeOnTheScreen();
+  });
+
+  it.each([
+    [8, "Good morning", "morning"],
+    [14, "Good afternoon", "afternoon"],
+    [20, "Good evening", "evening"],
+  ])("at %i:00 greets with %s and its matching icon", async (hour, greeting, timeOfDay) => {
+    const hours = jest.spyOn(Date.prototype, "getHours").mockReturnValue(hour);
+    candidateProfileClient.getProfile.mockResolvedValue(profilePayload());
+    candidateDocumentsClient.getChecklist.mockResolvedValue([checklistItem()]);
+    applicationProgressClient.getProgress.mockResolvedValue(progress());
+    renderDashboardScreen();
+
+    expect(await screen.findByText(greeting)).toBeOnTheScreen();
+    // Decorative, so hidden from screen readers -- the greeting text says it all.
+    expect(screen.getByTestId(`home-greeting-icon-${timeOfDay}`, { includeHiddenElements: true })).toBeOnTheScreen();
+    hours.mockRestore();
+  });
+
+  it("shows the candidate's craft below the file number, and leaves it out when none is known", async () => {
+    candidateProfileClient.getProfile.mockResolvedValue(profilePayload({ craft: { code: "welder", name: "Welder" } }));
+    candidateDocumentsClient.getChecklist.mockResolvedValue([checklistItem()]);
+    applicationProgressClient.getProgress.mockResolvedValue(progress());
+    const { unmount } = renderDashboardScreen();
+
+    expect(await screen.findByText("Craft: Welder")).toBeOnTheScreen();
+    // The values stand out from their labels: semibold, while the labels stay regular.
+    expect(StyleSheet.flatten(screen.getByText("Welder").props.style).fontFamily).toBe("Inter_600SemiBold");
+    expect(StyleSheet.flatten(screen.getByText("DES-001001").props.style).fontFamily).toBe("Inter_600SemiBold");
+    expect(StyleSheet.flatten(screen.getByText("Craft: Welder").props.style).fontFamily).toBe("Inter_400Regular");
+    unmount();
+
+    candidateProfileClient.getProfile.mockResolvedValue(profilePayload({ craft: null }));
+    renderDashboardScreen();
+    expect(await screen.findByText("File No. DES-001001")).toBeOnTheScreen();
+    expect(screen.queryByText(/^Craft:/)).toBeNull();
   });
 
   it("says which country the application is in process for, and falls back to initials when there is no photo", async () => {

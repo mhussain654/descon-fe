@@ -16,7 +16,7 @@ import { heroArtLayout } from "../features/onboarding/heroArtLayout";
 import { ThemeToggleButton } from "../features/onboarding/ThemeToggleButton";
 import { TaglineBanner } from "../features/onboarding/TaglineBanner";
 import { forwardArrowSlots } from "../features/onboarding/directionalArrows";
-import { isStartSide, physicalTextAlign, rowDirectionTowards } from "../lib/layoutDirection";
+import { isStartSide, physicalInset, physicalTextAlign, rowDirectionTowards } from "../lib/layoutDirection";
 import { themedStyles } from '../design-system/theme';
 
 // The client's design: the hero artwork (landmarks of the destination
@@ -69,7 +69,7 @@ function WelcomeHero({ width, topInset, language, layout, onCopyBottom, t }) {
     <View style={[styles.hero, { height: layout.heroHeight }]}>
       <HeroArtwork language={language} width={width} artTop={layout.artTop} artHeight={layout.artHeight} visible={layout.measured} />
       {/* Opposite the logo: top right in English, top left in Urdu. */}
-      <View style={[styles.themeToggle, { top: topInset + spacing[3] }, isUrdu ? { left: spacing[6] } : { right: spacing[6] }]}>
+      <View style={[styles.themeToggle, { top: topInset + spacing[3] }, physicalInset(isUrdu ? "left" : "right", spacing[6])]}>
         <ThemeToggleButton t={t} />
       </View>
       <View

@@ -2,9 +2,9 @@
 export const HERO_ASPECT_RATIO = 1350 / 1388;
 
 // Fractions of the artwork's height, measured on the image itself. On the
-// copy's side, the skyline and its haze start at about 57% of the way down;
-// everything above that is open sky.
-const SKYLINE_TOP = 0.56;
+// copy's side, the tallest landmark (the Burj Khalifa spire) starts at about
+// 47% of the way down; everything above that is open sky and thin cloud.
+const SKYLINE_TOP = 0.46;
 // Below about 89% is plain pale ground, so the sheet can cover a little of it
 // and leave the helmet and briefcase in full view.
 const PLAIN_GROUND = 0.09;

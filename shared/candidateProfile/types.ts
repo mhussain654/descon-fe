@@ -19,6 +19,12 @@ export interface CandidateCountry {
   name: string;
 }
 
+/** The current assignment's trade (Welder, Driver...). `name` is already localized server-side. */
+export interface CandidateCraft {
+  code: string;
+  name: string;
+}
+
 export interface CandidateProfile {
   /** The candidate's own public id, from the authenticated session -- never a value the UI can be made to substitute (AGENTS.md/ticket: "Candidate identity comes from authentication, not a frontend-provided ID"). */
   id: string;
@@ -34,6 +40,8 @@ export interface CandidateProfile {
   currentWorkflowStage: CandidateWorkflowStage | null;
   /** Null when the candidate has no assignment yet. */
   country: CandidateCountry | null;
+  /** Null when the candidate has no assignment yet. */
+  craft: CandidateCraft | null;
   /** Short-lived, signed *relative* path to the candidate's own photo (resolve against the API origin before use); null when none is set. Refetch the profile for a fresh one rather than caching it. */
   photoUrl: string | null;
   /** Staff's review of the photo: `pending` after an upload, `approved`, or `rejected` (the photo was removed because it did not clearly show the candidate's own face). Null when no photo was added. */

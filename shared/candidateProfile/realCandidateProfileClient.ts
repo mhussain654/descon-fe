@@ -26,6 +26,7 @@ interface CandidateProfileResponse {
   candidate_status: string;
   current_workflow_stage: { code: string; name: string } | null;
   country?: { code: string; name: string } | null;
+  craft?: { code: string; name: string } | null;
   photo_url?: string | null;
   photo_status?: string | null;
   photo_reviewed_at?: string | null;
@@ -62,6 +63,7 @@ function toProfile(data: CandidateProfileResponse): CandidateProfile {
     candidateStatus: data.candidate_status,
     currentWorkflowStage: data.current_workflow_stage,
     country: data.country ?? null,
+    craft: data.craft ?? null,
     photoUrl: data.photo_url ?? null,
     photoStatus: toPhotoStatus(data.photo_status),
     photoReviewedAt: data.photo_reviewed_at ?? null,

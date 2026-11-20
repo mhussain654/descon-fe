@@ -15,7 +15,7 @@ import { heroArtLayout } from "../features/onboarding/heroArtLayout";
 import { TaglineBanner } from "../features/onboarding/TaglineBanner";
 import { SecureFooter } from "../features/onboarding/SecureFooter";
 import { BackArrow, forwardArrowSlots } from "../features/onboarding/directionalArrows";
-import { isStartSide, physicalTextAlign } from "../lib/layoutDirection";
+import { isStartSide, physicalInset, physicalTextAlign } from "../lib/layoutDirection";
 import KeyboardAvoidingAnimatedView from "@/components/KeyboardAvoidingAnimatedView";
 import {
   Button,
@@ -224,7 +224,7 @@ export default function LoginScreen() {
           accessibilityRole="button"
           accessibilityLabel={t("back")}
           style={[styles.backPill, styles.fixedBack, rowTowards(copySide),
-            isUrdu ? { left: spacing[6] } : { right: spacing[6] },
+            physicalInset(isUrdu ? "left" : "right", spacing[6]),
             // Centred on the logo tile: half the difference between the tile and this pill (44).
             { top: insets.top + spacing[3] + (BRAND_ROW_HEIGHT - 44) / 2 }]}
           hitSlop={8}

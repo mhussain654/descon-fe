@@ -1,12 +1,13 @@
 import { View } from 'react-native';
 import { Text } from '../../../design-system/Text';
 import { Image } from 'expo-image';
+import { Moon, Sun, Sunrise } from 'lucide-react-native';
 import { Circle, Defs, LinearGradient, Rect, Stop } from 'react-native-svg';
 import { MeasuredSvg } from '../../../design-system/MeasuredSvg';
 import { getFontFamily } from '../../../design-system';
 import { colors, spacing } from '../../../design-system/tokens';
 import { physicalTextAlign, rowDirectionTowards } from '../../../lib/layoutDirection';
-import { interpolateSegments } from '../../../../../shared/i18n/interpolate';
+import { interpolateSegments, type InterpolatedSegment } from '../../../../../shared/i18n/interpolate';
 import { themedStyles } from '../../../design-system/theme';
 
 // Accent dot per Business Unit country (its flag's signature colour); any
@@ -18,13 +19,23 @@ const COUNTRY_DOT_COLORS: Record<string, string> = {
   oman: '#DB161B',
 };
 
+export type TimeOfDay = 'morning' | 'afternoon' | 'evening';
+
+// A drawn icon rather than an emoji, so it looks the same on every phone.
+const GREETING_ICONS = { morning: Sunrise, afternoon: Sun, evening: Moon } as const;
+const GREETING_ICON_COLOR = '#FFD166';
+
 interface HomeHeaderProps {
   language: string;
   topInset: number;
+  /** Picks the icon beside the greeting: sunrise, sun or moon. */
+  timeOfDay: TimeOfDay;
   greeting: string;
   fullName: string;
-  /** Already-formatted "Reference: DES-…" line, or the localized not-assigned text. */
-  referenceLine: string;
+  /** "File No. %{reference}" split into label and value (see interpolateSegments), or the not-assigned text as one plain segment. */
+  referenceLine: InterpolatedSegment[];
+  /** "Craft: %{craft}" split into label and value, or null when no craft is known yet. */
+  craftLine: InterpolatedSegment[] | null;
   /** Absolute, validated photo URL -- null shows initials. */
   photoUri: string | null;
   photoLabel: string;
@@ -39,19 +50,22 @@ function initialsOf(fullName: string): string {
   return letters.map((part) => part.charAt(0).toUpperCase()).join('');
 }
 
-/** Gradient welcome header: greeting (by time of day), name, file number, "Application in Process for <country>", and the candidate's photo (or initials). */
+/** Gradient welcome header: greeting with a sunrise/sun/moon icon (by time of day), name, file number, craft, "Application in Process for <country>", and the candidate's photo (or initials). */
 export function HomeHeader({
   language,
   topInset,
+  timeOfDay,
   greeting,
   fullName,
   referenceLine,
+  craftLine,
   photoUri,
   photoLabel,
   country,
   countryLineTemplate,
 }: HomeHeaderProps) {
   const isUrdu = language === 'ur';
+  const GreetingIcon = GREETING_ICONS[timeOfDay];
   // Explicit so a Latin-script name or reference still lines up with the
   // Urdu greeting on the right instead of following its own LTR default.
   const textAlignment = { textAlign: physicalTextAlign(isUrdu ? 'right' : 'left') };
@@ -72,9 +86,14 @@ export function HomeHeader({
 
       <View style={[styles.row, { flexDirection: rowDirectionTowards(isUrdu ? 'right' : 'left') }]}>
         <View style={styles.identity}>
-          <Text style={[styles.greeting, isUrdu && styles.greetingUrdu, textAlignment, { fontFamily: getFontFamily(language, 'medium') }]}>
-            {greeting}
-          </Text>
+          <View style={[styles.greetingRow, { flexDirection: rowDirectionTowards(isUrdu ? 'right' : 'left') }]}>
+            <View testID={`home-greeting-icon-${timeOfDay}`} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
+              <GreetingIcon size={16} color={GREETING_ICON_COLOR} strokeWidth={2.2} />
+            </View>
+            <Text style={[styles.greeting, isUrdu && styles.greetingUrdu, textAlignment, { fontFamily: getFontFamily(language, 'medium') }]}>
+              {greeting}
+            </Text>
+          </View>
           <Text
             accessibilityRole="header"
             numberOfLines={2}
@@ -82,9 +101,8 @@ export function HomeHeader({
           >
             {fullName}
           </Text>
-          <Text style={[styles.reference, isUrdu && styles.referenceUrdu, textAlignment, { fontFamily: getFontFamily(language, 'regular') }]}>
-            {referenceLine}
-          </Text>
+          <LabeledValueLine segments={referenceLine} language={language} isUrdu={isUrdu} alignment={textAlignment} />
+          {craftLine ? <LabeledValueLine segments={craftLine} language={language} isUrdu={isUrdu} alignment={textAlignment} /> : null}
         </View>
 
         <View style={styles.avatarColumn}>
@@ -122,6 +140,30 @@ export function HomeHeader({
   );
 }
 
+interface LabeledValueLineProps {
+  segments: InterpolatedSegment[];
+  language: string;
+  isUrdu: boolean;
+  alignment: { textAlign: 'left' | 'right' };
+}
+
+/** A label and its value on one line ("File No. DES-100005"): the label quiet and dimmed, the value semibold in full white, wherever the language places it. */
+function LabeledValueLine({ segments, language, isUrdu, alignment }: LabeledValueLineProps) {
+  return (
+    <Text style={[styles.reference, isUrdu && styles.referenceUrdu, alignment, { fontFamily: getFontFamily(language, 'regular') }]}>
+      {segments.map((segment, position) =>
+        segment.slot ? (
+          <Text key={position} style={[styles.referenceValue, { fontFamily: getFontFamily(language, 'semibold') }]}>
+            {segment.text}
+          </Text>
+        ) : (
+          segment.text
+        )
+      )}
+    </Text>
+  );
+}
+
 const AVATAR_SIZE = 58;
 
 const styles = themedStyles(() => ({
@@ -135,11 +177,14 @@ const styles = themedStyles(() => ({
   },
   row: { alignItems: 'center', justifyContent: 'space-between', gap: spacing[4] },
   identity: { flex: 1 },
+  greetingRow: { alignItems: 'center', gap: 6 },
   greeting: { fontSize: 13, color: colors.text.inverse, opacity: 0.9 },
   greetingUrdu: { fontSize: 14, lineHeight: 28 },
   name: { marginTop: 2, fontSize: 22, lineHeight: 27, color: colors.text.inverse },
   nameUrdu: { fontSize: 20, lineHeight: 38 },
-  reference: { marginTop: spacing[1], fontSize: 13, color: colors.text.inverse, opacity: 0.9 },
+  // Labels are dimmed and values full white, so the values read at a glance without competing with the name.
+  reference: { marginTop: spacing[1], fontSize: 13, color: 'rgba(255, 255, 255, 0.78)' },
+  referenceValue: { color: colors.text.inverse },
   referenceUrdu: { lineHeight: 26 },
   avatarColumn: { alignItems: 'center', gap: spacing[1] },
   avatarRing: {

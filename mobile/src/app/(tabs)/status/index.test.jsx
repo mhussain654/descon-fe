@@ -371,9 +371,22 @@ describe("StatusScreen", () => {
       expect(row.getByText("03/12/2026 • 08:30")).toBeOnTheScreen();
     });
 
-    it("hides it once the QVC result is recorded", async () => {
+    it("keeps showing it once the QVC result is recorded, like the medical appointment", async () => {
       applicationProgressClient.getProgress.mockResolvedValue(
-        progressPayload({ workflow: workflowPayload({ timeline: timelineThrough(10), qvcAppointment: { ...{ date: "2026-12-03", time: "08:30", centerName: "QVC Islamabad", centerAddress: "Blue Area", scheduled: true }, scheduled: false } }) })
+        progressPayload({ workflow: workflowPayload({ timeline: timelineThrough(12), qvcAppointment: { date: "2026-12-03", time: "08:30", centerName: "QVC Islamabad", centerAddress: "Blue Area", scheduled: false } }) })
+      );
+      renderStatusScreen();
+
+      await screen.findAllByText("QVC Appointment");
+      const row = within(stageRow("QVC Appointment"));
+      expect(await row.findByText("Your QVC appointment")).toBeOnTheScreen();
+      expect(row.getByText("QVC Islamabad")).toBeOnTheScreen();
+      expect(row.getByText("03/12/2026 • 08:30")).toBeOnTheScreen();
+    });
+
+    it("does not show it while the QVC appointment step is still ahead", async () => {
+      applicationProgressClient.getProgress.mockResolvedValue(
+        progressPayload({ workflow: workflowPayload({ timeline: timelineThrough(3), qvcAppointment: { date: "2026-12-03", time: "08:30", centerName: "QVC Islamabad", centerAddress: "Blue Area", scheduled: true } }) })
       );
       renderStatusScreen();
 

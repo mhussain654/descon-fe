@@ -1,6 +1,6 @@
 import { StyleSheet } from 'react-native';
 import { fireEvent, render, screen } from '@testing-library/react-native';
-import { TaglineBanner, slantedCardPath } from './TaglineBanner';
+import { TaglineBanner, slantedCardPath, taglineScale } from './TaglineBanner';
 
 function transformOf(testID: string) {
   return (StyleSheet.flatten(screen.getByTestId(testID).props.style)?.transform ?? []) as Array<Record<string, string>>;
@@ -27,9 +27,25 @@ describe('TaglineBanner', () => {
     layOut();
 
     const text = screen.getByText('بیرونِ ملک روزگار کے لیے\nآپ کا راستہ');
-    expect(StyleSheet.flatten(text.props.style)).toMatchObject({ writingDirection: 'rtl', lineHeight: 34, fontFamily: 'NotoNastaliqUrdu_700Bold' });
+    const style = StyleSheet.flatten(text.props.style);
+    expect(style).toMatchObject({ writingDirection: 'rtl', fontFamily: 'NotoNastaliqUrdu_700Bold' });
+    // Nastaliq gets about twice the line height, whatever the screen's scale.
+    expect(style.lineHeight / style.fontSize).toBeGreaterThan(2);
     expect(StyleSheet.flatten(text.props.style).transform).toBeUndefined();
     expect(transformOf('tagline-banner-band')).toEqual([{ rotate: '-4deg' }]);
+  });
+});
+
+describe('taglineScale', () => {
+  it('scales with the screen width from the 360-point design, so the gap to the globe stays the same', () => {
+    expect(taglineScale(360)).toBe(1);
+    expect(taglineScale(411)).toBeCloseTo(1.142, 3);
+    expect(taglineScale(320)).toBeCloseTo(0.889, 3);
+  });
+
+  it('never shrinks below 0.8 or grows past 1.5 (tablets)', () => {
+    expect(taglineScale(200)).toBe(0.8);
+    expect(taglineScale(1024)).toBe(1.5);
   });
 });
 

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { StyleSheet, View, type LayoutChangeEvent } from 'react-native';
+import { StyleSheet, View, useWindowDimensions, type LayoutChangeEvent } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
 import { Text } from '../../design-system/Text';
 import { INTER_BOLD_ITALIC, getFontFamily } from '../../design-system';
@@ -17,6 +17,19 @@ const CORNER_RADIUS = 12;
 // The red band is turned this much behind the card, so it peeks out above it
 // on the reading side and below it at the far end.
 const BAND_TURN = '4deg';
+// The banner was designed on a 360-point-wide phone. The hero artwork always
+// fills the screen width, so the banner scales with it too: that keeps the same
+// gap to the globe on every phone, instead of crowding it on a narrow screen
+// or floating far from it on a wide one. Capped so a tablet's banner does not
+// grow past half again its size.
+const DESIGN_WIDTH = 360;
+const MIN_SCALE = 0.8;
+const MAX_SCALE = 1.5;
+
+/** How much to scale the banner for a screen of the given width. */
+export function taglineScale(screenWidth: number): number {
+  return Math.min(MAX_SCALE, Math.max(MIN_SCALE, screenWidth / DESIGN_WIDTH));
+}
 
 type Point = [number, number];
 
@@ -67,6 +80,8 @@ export function TaglineBanner({ text, language, side }: TaglineBannerProps) {
   const isUrdu = language === 'ur';
   const fromLeft = side === 'left';
   const [size, setSize] = useState<{ width: number; height: number } | null>(null);
+  const scale = taglineScale(useWindowDimensions().width);
+  const scaled = (value: number) => Math.round(value * scale);
 
   const onLayout = (event: LayoutChangeEvent) => {
     const { width, height } = event.nativeEvent.layout;
@@ -77,7 +92,11 @@ export function TaglineBanner({ text, language, side }: TaglineBannerProps) {
   return (
     <View
       testID="tagline-banner"
-      style={[styles.banner, fromLeft ? styles.fromLeft : styles.fromRight, isStartSide(side) ? styles.alignStart : styles.alignEnd]}
+      style={[
+        { marginTop: scaled(spacing[4]) },
+        fromLeft ? { marginLeft: -scaled(10) } : { marginRight: -scaled(10) },
+        isStartSide(side) ? styles.alignStart : styles.alignEnd,
+      ]}
     >
       <View
         testID="tagline-banner-band"
@@ -91,7 +110,7 @@ export function TaglineBanner({ text, language, side }: TaglineBannerProps) {
         ) : null}
       </View>
       {path && size ? (
-        <Svg pointerEvents="none" style={styles.shadow} width={size.width} height={size.height}>
+        <Svg pointerEvents="none" style={[styles.shadow, { top: scaled(5) }]} width={size.width} height={size.height}>
           <Path d={path} fill={SHADOW} />
         </Svg>
       ) : null}
@@ -100,11 +119,15 @@ export function TaglineBanner({ text, language, side }: TaglineBannerProps) {
           <Path d={path} fill="#FFFFFF" />
         </Svg>
       ) : null}
-      <View testID="tagline-banner-card" style={styles.card} onLayout={onLayout}>
+      <View testID="tagline-banner-card" style={{ paddingVertical: scaled(7), paddingHorizontal: scaled(20) }} onLayout={onLayout}>
+        {/* The phone's font-size setting is not applied: the banner keeps its
+            proportion to the artwork, which is what keeps it off the globe. */}
         <Text
+          maxFontSizeMultiplier={1}
           style={[
             styles.text,
-            isUrdu ? styles.textUrdu : null,
+            // Nastaliq needs about twice the line height.
+            isUrdu ? { fontSize: scaled(16), lineHeight: scaled(34) } : { fontSize: scaled(15), lineHeight: scaled(19) },
             { fontFamily: isUrdu ? getFontFamily(language, 'bold') : INTER_BOLD_ITALIC, writingDirection: isUrdu ? 'rtl' : 'ltr' },
           ]}
         >
@@ -116,18 +139,11 @@ export function TaglineBanner({ text, language, side }: TaglineBannerProps) {
 }
 
 const styles = StyleSheet.create({
-  banner: { marginTop: spacing[4] },
-  // Starts a little past the heading's edge. Flex alignment flips in an RTL
-  // layout (Urdu on Android and iOS), so it is picked from the physical side.
-  fromLeft: { marginLeft: -10 },
-  fromRight: { marginRight: -10 },
+  // Flex alignment flips in an RTL layout (Urdu on Android and iOS), so it is
+  // picked from the physical side.
   alignStart: { alignSelf: 'flex-start' },
   alignEnd: { alignSelf: 'flex-end' },
   // A soft drop shadow under the card (SVG shapes take no native shadow).
-  shadow: { position: 'absolute', left: 0, top: 5 },
-  // The side padding keeps the text clear of the slanted ends.
-  card: { paddingVertical: 7, paddingHorizontal: 20 },
-  text: { textAlign: 'center', color: BANNER_NAVY, fontSize: 15, lineHeight: 19 },
-  // Nastaliq needs about twice the line height.
-  textUrdu: { fontSize: 16, lineHeight: 34 },
+  shadow: { position: 'absolute', left: 0 },
+  text: { textAlign: 'center', color: BANNER_NAVY },
 });

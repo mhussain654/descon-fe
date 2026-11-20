@@ -31,7 +31,7 @@ import { forwardArrowSlots } from "../../../features/onboarding/directionalArrow
 import { resolveDocumentAccessUrl } from "../../../lib/resolveDocumentAccessUrl";
 import { rowDirectionTowards } from "../../../lib/layoutDirection";
 import { latestActionableUpdate, STAGE_UPDATE_DESCRIPTION_KEYS, STAGE_UPDATE_FALLBACK_KEY } from "../../../../../shared/candidateWorkflow/latestUpdate";
-import { interpolate } from "../../../../../shared/i18n/interpolate";
+import { interpolate, interpolateSegments } from "../../../../../shared/i18n/interpolate";
 import { formatCurrency, formatDate } from "../../../../../shared/i18n/locale";
 import { resolveNextAction } from "../../../../../shared/applicationProgress/nextAction";
 import { mobilizationJourney } from "../../../../../shared/applicationProgress/mobilizationJourney";
@@ -73,12 +73,14 @@ function nextStepVariant(nextActionKind) {
   return null;
 }
 
-function greetingKey(date = new Date()) {
+function timeOfDay(date = new Date()) {
   const hour = date.getHours();
-  if (hour < 12) return "greetingMorning";
-  if (hour < 17) return "greetingAfternoon";
-  return "greetingEvening";
+  if (hour < 12) return "morning";
+  if (hour < 17) return "afternoon";
+  return "evening";
 }
+
+const GREETING_KEYS = { morning: "greetingMorning", afternoon: "greetingAfternoon", evening: "greetingEvening" };
 
 import { CANDIDATE_PROFILE_ERROR_KEYS } from "../../../../../shared/candidateProfile/errorMessages";
 import { CANDIDATE_DOCUMENTS_ERROR_KEYS } from "../../../../../shared/candidateDocuments/errorMessages";
@@ -237,6 +239,7 @@ export default function DashboardScreen() {
   }
 
   const profile = profileQuery.data;
+  const currentTimeOfDay = timeOfDay();
   const workflow = progressQuery.data?.workflow;
   const isUrdu = language === "ur";
   // The same mobilization process Status lists (client's steps per Business
@@ -322,13 +325,15 @@ export default function DashboardScreen() {
         <HomeHeader
           language={language}
           topInset={insets.top}
-          greeting={t(greetingKey())}
+          timeOfDay={currentTimeOfDay}
+          greeting={t(GREETING_KEYS[currentTimeOfDay])}
           fullName={profile.fullName}
           referenceLine={
             profile.referenceNumber
-              ? interpolate(t("homeReference"), { reference: profile.referenceNumber })
-              : t("candidateProfileNotAssignedYet")
+              ? interpolateSegments(t("homeReference"), { reference: profile.referenceNumber })
+              : [{ text: t("candidateProfileNotAssignedYet"), slot: null }]
           }
+          craftLine={profile.craft ? interpolateSegments(t("homeCraft"), { craft: profile.craft.name }) : null}
           photoUri={photoUri}
           photoLabel={t("homeProfilePhoto")}
           country={profile.country}

@@ -88,7 +88,8 @@ export default function StatusScreen() {
   const qvcOutcome = findLatestQvcOutcome(historyQuery.data?.items ?? []);
   // Where and when to go for the medical, as staff saved it with the move to that stage.
   const medicalAppointment = findLatestMedicalAppointment(historyQuery.data?.items ?? []);
-  // Where and when to go for QVC (Qatar), shown until its result is recorded.
+  // Where and when to go for QVC (Qatar). Like the medical appointment, it stays
+  // under its step after the result is recorded.
   const qvcAppointment = progressQuery.data?.workflow?.qvcAppointment ?? null;
   // The latest recorded visa decision (a candidate can be re-submitted, so this is
   // never assumed to be the only one) -- the backend returns the list in chronological order.
@@ -192,7 +193,7 @@ export default function StatusScreen() {
                     {step.code === MEDICAL_STEP && step.status !== "upcoming" && medicalAppointment ? (
                       <MedicalAppointmentDetails appointment={medicalAppointment} language={language} t={t} />
                     ) : null}
-                    {step.code === QVC_APPOINTMENT_STEP && qvcAppointment?.scheduled ? (
+                    {step.code === QVC_APPOINTMENT_STEP && step.status !== "upcoming" && qvcAppointment ? (
                       <MedicalAppointmentDetails appointment={qvcAppointment} language={language} t={t} titleKey="candidateQvcAppointmentTitle" />
                     ) : null}
                     {step.code === QVC_OUTCOME_STEP && qvcOutcome ? (

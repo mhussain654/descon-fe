@@ -32,3 +32,13 @@ export function physicalTextAlign(side: PhysicalSide): PhysicalSide {
 export function rowDirectionTowards(side: PhysicalSide): 'row' | 'row-reverse' {
   return isStartSide(side) ? 'row' : 'row-reverse';
 }
+
+/**
+ * An absolute-position offset that pins to a physical side. React Native
+ * swaps `left`/`right` under an RTL layout, so a plain `{ left: 24 }` lands on
+ * the right in Urdu; this picks whichever key ends up on `side`.
+ */
+export function physicalInset(side: PhysicalSide, value: number): { left: number } | { right: number } {
+  const key = isLayoutRtl() ? (side === 'left' ? 'right' : 'left') : side;
+  return key === 'left' ? { left: value } : { right: value };
+}

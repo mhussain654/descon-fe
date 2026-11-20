@@ -16,7 +16,7 @@ describe('heroArtLayout', () => {
     const copyBottom = 300;
     const { artTop, heroHeight } = heroArtLayout(width, copyBottom);
 
-    const skylineTop = artTop + artHeight * 0.56;
+    const skylineTop = artTop + artHeight * 0.46;
     expect(skylineTop).toBeGreaterThanOrEqual(copyBottom + 14);
     expect(heroHeight).toBe(artTop + artHeight);
   });

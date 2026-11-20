@@ -71,6 +71,7 @@ describe('createCandidateProfileClient (real)', () => {
       candidateStatus: 'registered',
       currentWorkflowStage: { code: 'registered', name: 'Registered' },
       country: null,
+      craft: null,
       photoUrl: null,
       photoStatus: null,
       photoReviewedAt: null,
@@ -233,6 +234,14 @@ describe('createCandidateProfileClient (real)', () => {
     });
 
     await expect(client.getProfile('token')).rejects.toEqual({ code: 'OFFLINE' });
+  });
+
+  it('maps the assignment craft', async () => {
+    stubFetch(async () => jsonResponse(successEnvelope(profilePayload({ craft: { code: 'welder', name: 'Welder' } }))));
+
+    const profile = await buildClient().getProfile('token');
+
+    expect(profile.craft).toEqual({ code: 'welder', name: 'Welder' });
   });
 
   it('maps the assignment country and the signed photo path', async () => {

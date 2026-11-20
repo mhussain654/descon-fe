@@ -2,7 +2,7 @@ import type { ComponentType } from 'react';
 import { Image } from 'expo-image';
 import { Pressable, Switch, View } from 'react-native';
 import { Text } from '../../../../design-system/Text';
-import { CheckCircle, ChevronLeft, ChevronRight, FileText, Globe, IdCard, LogOut, MapPin, Moon } from 'lucide-react-native';
+import { CheckCircle, ChevronLeft, ChevronRight, FileText, Globe, HardHat, IdCard, LogOut, MapPin, Moon } from 'lucide-react-native';
 import { Circle, Defs, LinearGradient, Rect, Stop } from 'react-native-svg';
 import { MeasuredSvg } from '../../../../design-system/MeasuredSvg';
 import type { CandidateProfile } from '../../../../../../shared/candidateProfile/types';
@@ -46,13 +46,23 @@ export function ProfileHeader({ language, t, topInset, profile }: LocaleProps & 
   );
 }
 
-function ProfileInfoRow({ icon, tone, label, value, language }: { icon: ComponentType<{ size?: number; color?: string; strokeWidth?: number }>; tone: IconTone; label: string; value: string; language: Language }) {
+// An identifier (CNIC, file number) always reads left to right, even in Urdu:
+// in a right-to-left line its "-" and "*" have no direction of their own, so
+// "99992-*******-7" would come out as "7-*******-99992". Android ignores
+// `writingDirection`, so the value is also wrapped in Unicode left-to-right
+// embedding marks (LRE ... PDF). Unlike isolate marks, Android counts LRE as a
+// left-to-right character when it picks the line's direction, so the whole
+// line, not just its inside, is laid out left to right.
+const IDENTIFIER_VALUE = { writingDirection: 'ltr' as const, fontFamily: getFontFamily('en', 'medium') };
+const embedLeftToRight = (value: string) => `\u202A${value}\u202C`;
+
+function ProfileInfoRow({ icon, tone, label, value, language, identifier = false }: { icon: ComponentType<{ size?: number; color?: string; strokeWidth?: number }>; tone: IconTone; label: string; value: string; language: Language; identifier?: boolean }) {
   return (
     <View style={[profileStyles.infoRow, { flexDirection: rowDirectionTowards(language === 'ur' ? 'right' : 'left') }]}>
       <GradientIconBox icon={icon} tone={tone} size={34} />
       <View style={profileStyles.flex}>
         <Text style={[profileStyles.label, copyStyle(language)]}>{label}</Text>
-        <Text style={[profileStyles.value, copyStyle(language), { fontFamily: getFontFamily(language, 'medium') }]}>{value}</Text>
+        <Text style={[profileStyles.value, copyStyle(language), { fontFamily: getFontFamily(language, 'medium') }, identifier && IDENTIFIER_VALUE]}>{identifier ? embedLeftToRight(value) : value}</Text>
       </View>
     </View>
   );
@@ -75,12 +85,13 @@ export function ProfileDetails({ profile, journey, language, t }: LocaleProps & 
       </View>
       <View style={profileStyles.card}>
         <Text accessibilityRole="header" style={[profileStyles.sectionTitle, copyStyle(language), { fontFamily: getFontFamily(language, 'bold') }]}>{t('personalInfo')}</Text>
-        <ProfileInfoRow icon={IdCard} tone="purple" label={t('candidateProfileMaskedCnicLabel')} value={profile.maskedCnic} language={language} />
-        <ProfileInfoRow icon={FileText} tone="blue" label={t('candidateProfileReferenceNumberLabel')} value={profile.referenceNumber ?? unassigned} language={language} />
+        <ProfileInfoRow icon={IdCard} tone="purple" label={t('candidateProfileMaskedCnicLabel')} value={profile.maskedCnic} language={language} identifier />
+        <ProfileInfoRow icon={FileText} tone="blue" label={t('candidateProfileReferenceNumberLabel')} value={profile.referenceNumber ?? unassigned} language={language} identifier={Boolean(profile.referenceNumber)} />
       </View>
       <View style={profileStyles.card}>
         <Text accessibilityRole="header" style={[profileStyles.sectionTitle, copyStyle(language), { fontFamily: getFontFamily(language, 'bold') }]}>{t('candidateProfileAssignmentTitle')}</Text>
         <ProfileInfoRow icon={MapPin} tone="orange" label={t('candidateProfileBusinessUnitLabel')} value={profile.country?.name ?? unassigned} language={language} />
+        <ProfileInfoRow icon={HardHat} tone="coral" label={t('candidateProfileCraftLabel')} value={profile.craft?.name ?? unassigned} language={language} />
         <ProfileInfoRow
           icon={CheckCircle}
           tone={current ? STATUS_TONES[current.status] : 'green'}

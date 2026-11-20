@@ -81,7 +81,7 @@ export interface WorkflowOutcomes {
 
 /**
  * The candidate's latest QVC booking (Qatar only): where and when to go, as
- * staff booked it (or a developer later corrected it). Shown while `scheduled`.
+ * staff booked it (or a developer later corrected it).
  */
 export interface CandidateQvcAppointment {
   /** YYYY-MM-DD */
@@ -90,7 +90,7 @@ export interface CandidateQvcAppointment {
   time?: string;
   centerName?: string;
   centerAddress?: string;
-  /** `scheduled` until the QVC result (or a no-show) is recorded. */
+  /** `scheduled` until the QVC result (or a no-show) is recorded. The dashboard shows only a scheduled one; the Status screen keeps it after the result. */
   scheduled: boolean;
 }
 

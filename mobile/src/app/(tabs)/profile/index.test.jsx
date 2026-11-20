@@ -1,7 +1,7 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react-native";
-import { Alert } from "react-native";
+import { Alert, StyleSheet } from "react-native";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { AuthProvider } from "../../../contexts/AuthContext";
 import { LanguageProvider } from "../../../contexts/LanguageContext";
@@ -65,6 +65,7 @@ function profilePayload(overrides = {}) {
     candidateStatus: "documents_pending",
     currentWorkflowStage: { code: "documents_pending", name: "Documents pending" },
     country: { code: "qatar", name: "Qatar" },
+    craft: { code: "welder", name: "Welder" },
     active: true,
     ...overrides,
   };
@@ -148,8 +149,9 @@ describe("ProfileScreen", () => {
     renderProfileScreen();
 
     expect(await screen.findByText("Ahmed Ali")).toBeOnTheScreen();
-    expect(screen.getByText("42101-*******-1")).toBeOnTheScreen();
-    expect(screen.getAllByText("DES-001001")).toHaveLength(1);
+    // Identifiers carry left-to-right embedding marks so they never reverse in Urdu.
+    expect(screen.getByText("\u202A42101-*******-1\u202C")).toBeOnTheScreen();
+    expect(screen.getAllByText("\u202ADES-001001\u202C")).toHaveLength(1);
     expect(screen.getByText("Assignment & progress")).toBeOnTheScreen();
     expect(screen.getByText("Preferences & account")).toBeOnTheScreen();
     expect(screen.getByText("File No.")).toBeOnTheScreen();
@@ -306,6 +308,22 @@ describe("ProfileScreen", () => {
     expect(screen.getByText("Qatar")).toBeOnTheScreen();
   });
 
+  it("shows the candidate's craft under the assignment", async () => {
+    candidateProfileClient.getProfile.mockResolvedValue(profilePayload());
+    renderProfileScreen();
+
+    expect(await screen.findByText("Craft")).toBeOnTheScreen();
+    expect(screen.getByText("Welder")).toBeOnTheScreen();
+  });
+
+  it("shows the empty-assignment label for the craft when none is known yet", async () => {
+    candidateProfileClient.getProfile.mockResolvedValue(profilePayload({ craft: null }));
+    renderProfileScreen();
+
+    expect(await screen.findByText("Craft")).toBeOnTheScreen();
+    expect(screen.getByText("Not assigned yet")).toBeOnTheScreen();
+  });
+
   it("shows the empty-assignment label for the destination when there is no assignment yet", async () => {
     candidateProfileClient.getProfile.mockResolvedValue(profilePayload({ country: null }));
     renderProfileScreen();
@@ -356,6 +374,23 @@ describe("ProfileScreen", () => {
     fireEvent.press(screen.getByRole("button", { name: "Language" }));
 
     expect(await screen.findByText("شناختی کارڈ")).toBeOnTheScreen();
+  });
+
+  it("keeps the CNIC and file number reading left to right in Urdu, aligned right like the rest", async () => {
+    candidateProfileClient.getProfile.mockResolvedValue(profilePayload());
+    renderProfileScreen();
+
+    await screen.findByText("Ahmed Ali");
+    fireEvent.press(screen.getByRole("button", { name: "Language" }));
+    await screen.findByText("شناختی کارڈ");
+
+    // Wrapped in left-to-right embedding marks, which Android honours (it ignores writingDirection).
+    for (const value of ["42101-*******-1", "DES-001001"]) {
+      const text = screen.getByText(`\u202A${value}\u202C`);
+      expect(StyleSheet.flatten(text.props.style)).toMatchObject({ writingDirection: "ltr", fontFamily: "Inter_500Medium" });
+    }
+    // The country is ordinary text and still follows Urdu's direction.
+    expect(StyleSheet.flatten(screen.getByText("Qatar").props.style).writingDirection).toBe("rtl");
   });
 
   it("ends the session and returns to sign-in when logout is pressed", async () => {

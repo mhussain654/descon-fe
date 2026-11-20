@@ -167,6 +167,7 @@ export const translations = {
     greetingAfternoon: 'Good afternoon',
     greetingEvening: 'Good evening',
     homeReference: 'File No. %{reference}',
+    homeCraft: 'Craft: %{craft}',
     buQatar: 'Qatar',
     buSaudiArabia: 'Saudi Arabia',
     buUae: 'United Arab Emirates',
@@ -1492,6 +1493,7 @@ export const translations = {
     // Candidate profile
     candidateProfileMaskedCnicLabel: 'CNIC',
     candidateProfileBusinessUnitLabel: 'In process for',
+    candidateProfileCraftLabel: 'Craft',
     candidateProfileReferenceNumberLabel: 'File No.',
     candidateProfilePreferredLocaleLabel: 'Preferred language',
     candidateProfileStatusLabel: 'Current status',
@@ -2369,6 +2371,7 @@ export const translations = {
     greetingAfternoon: 'سہ پہر بخیر',
     greetingEvening: 'شام بخیر',
     homeReference: 'فائل نمبر %{reference}',
+    homeCraft: 'کرافٹ: %{craft}',
     buQatar: 'قطر',
     buSaudiArabia: 'سعودی عرب',
     buUae: 'متحدہ عرب امارات',
@@ -3694,6 +3697,7 @@ export const translations = {
     // Candidate profile
     candidateProfileMaskedCnicLabel: 'شناختی کارڈ',
     candidateProfileBusinessUnitLabel: 'کس ملک کے لیے زیرِ عمل',
+    candidateProfileCraftLabel: 'کرافٹ',
     candidateProfileReferenceNumberLabel: 'فائل نمبر',
     candidateProfilePreferredLocaleLabel: 'ترجیحی زبان',
     candidateProfileStatusLabel: 'موجودہ اسٹیٹس',
