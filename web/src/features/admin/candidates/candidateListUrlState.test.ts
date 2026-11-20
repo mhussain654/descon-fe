@@ -30,6 +30,14 @@ describe('candidateListUrlState', () => {
     expect(writeCandidateListStateToSearchParams({ boardingPass: 'missing' }, undefined, {}).get('boarding_pass')).toBe('missing');
   });
 
+  it('keeps a valid flight date across reloads and drops a malformed one', () => {
+    expect(readCandidateListStateFromSearchParams(new URLSearchParams('flight_date=2026-11-20')).filters.flightDate).toBe('2026-11-20');
+    expect(readCandidateListStateFromSearchParams(new URLSearchParams('flight_date=20/11/2026')).filters.flightDate).toBeUndefined();
+    expect(writeCandidateListStateToSearchParams({ flightDate: '2026-11-20', boardingPass: 'missing' }, undefined, {}).toString()).toBe(
+      'boarding_pass=missing&flight_date=2026-11-20'
+    );
+  });
+
   it('preserves country-specific stages across reloads', () => {
     expect(readCandidateListStateFromSearchParams(new URLSearchParams('status=medical_pending')).filters.status).toBe('medical_pending');
     expect(readCandidateListStateFromSearchParams(new URLSearchParams('status=ticket_handover')).filters.status).toBe('ticket_handover');

@@ -40,6 +40,9 @@ export function buildCandidateListQuery(
   if (filters.boardingPass) {
     appendParam(params, 'filter[boarding_pass]', filters.boardingPass);
   }
+  if (filters.flightDate) {
+    appendParam(params, 'filter[flight_date]', filters.flightDate);
+  }
   if (sort) {
     appendParam(params, 'sort', sort);
   }

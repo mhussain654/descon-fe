@@ -20,6 +20,12 @@ describe('buildCandidateListQuery', () => {
     expect(query).toContain('filter%5Bcraft_code%5D=electrician');
   });
 
+  it('serializes filter[flight_date] alongside the boarding pass filter', () => {
+    expect(buildCandidateListQuery({ flightDate: '2026-11-20', boardingPass: 'missing' }, undefined, {})).toBe(
+      '?filter%5Bboarding_pass%5D=missing&filter%5Bflight_date%5D=2026-11-20'
+    );
+  });
+
   it('serializes filter[boarding_pass]', () => {
     expect(buildCandidateListQuery({ boardingPass: 'missing' }, undefined, {})).toBe('?filter%5Bboarding_pass%5D=missing');
   });

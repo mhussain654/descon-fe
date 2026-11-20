@@ -165,6 +165,8 @@ export interface AdminCandidateListFilters {
   craftCode?: string;
   /** Candidates with a recorded flight who have (`uploaded`) or have not (`missing`) uploaded their boarding pass. */
   boardingPass?: AdminCandidateBoardingPassFilter;
+  /** Candidates whose recorded flight departs on this day (YYYY-MM-DD, Pakistan time). */
+  flightDate?: string;
 }
 
 export type AdminCandidateBoardingPassFilter = 'uploaded' | 'missing';

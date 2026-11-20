@@ -28,6 +28,7 @@ import type {
 import type { TranslationKey } from '../../../../../../shared/i18n/translations';
 import type { AdminCandidateBoardingPassFilter } from '../../../../../../shared/adminCandidates/types';
 import { interpolate } from '../../../../../../shared/i18n/interpolate';
+import { flightDateToday } from '../../../../../../shared/adminCandidates/flightDate';
 import { CategoryBarChart } from '../../reports/components/ReportCharts';
 import { CANDIDATE_LIST_STAGE_LABEL_KEYS } from '../../../../../../shared/adminCandidates/workflowStageLabels';
 import { useDebouncedUrlFilter } from '../../documentReviews/hooks/useDebouncedUrlFilter';
@@ -112,7 +113,7 @@ export function CandidateListWorkspace() {
   };
 
   const hasActiveFilters = Boolean(
-    filters.search || filters.status || filters.countryCode || filters.projectCode || filters.craftCode || filters.boardingPass || sort
+    filters.search || filters.status || filters.countryCode || filters.projectCode || filters.craftCode || filters.boardingPass || filters.flightDate || sort
   );
   const boardingPassCounts = query.data?.boardingPassSummary;
 
@@ -212,6 +213,14 @@ export function CandidateListWorkspace() {
               ...Object.keys(CANDIDATE_LIST_STAGE_LABEL_KEYS).map((code) => ({ value: code, label: stageLabel(code, t) })),
             ]}
           />
+          {/* With the boarding pass filter and its counts, this answers "of today's
+              flights, who has and hasn't uploaded a boarding pass". */}
+          <Input
+            type="date"
+            label={t('adminCandidateListFilterFlightDateLabel')}
+            value={filters.flightDate ?? ''}
+            onChange={(event) => updateFilters({ flightDate: event.target.value || undefined })}
+          />
           <Select
             label={t('adminCandidateListFilterBoardingPassLabel')}
             value={filters.boardingPass ?? ''}
@@ -229,13 +238,16 @@ export function CandidateListWorkspace() {
             options={[{ value: '', label: t('adminCandidateListSortNewest') }, ...SORT_OPTIONS.map((option) => ({ value: option.value, label: t(option.labelKey) }))]}
           />
         </div>
-        {hasActiveFilters ? (
-          <div className="mt-4">
+        <div className="mt-4 flex flex-wrap items-center gap-x-5 gap-y-2">
+          <button type="button" onClick={() => updateFilters({ flightDate: flightDateToday() })} className="text-sm font-medium text-brand hover:underline">
+            {t('adminCandidateListFilterFlightToday')}
+          </button>
+          {hasActiveFilters ? (
             <button type="button" onClick={clearFilters} className="text-sm font-medium text-brand hover:underline">
               {t('adminCandidateListClearFilters')}
             </button>
-          </div>
-        ) : null}
+          ) : null}
+        </div>
       </Card>
 
       <div role="tablist" aria-label={t('adminCandidateListViewTabs')} className="mb-5 flex flex-wrap gap-2 rounded-xl border border-border bg-surface p-2">

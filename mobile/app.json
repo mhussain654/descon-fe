@@ -6,7 +6,8 @@
     "orientation": "portrait",
     "platforms": [
       "ios",
-      "android"
+      "android",
+      "web"
     ],
     "icon": "./assets/images/icon.png",
     "userInterfaceStyle": "automatic",
@@ -80,10 +81,10 @@
         "sitemap": false
       },
       "eas": {
-        "projectId": "61f97249-664d-4f33-947a-e333551205ea"
+        "projectId": "474d262d-6327-4b8d-9fae-1bef8423ba70"
       },
       "contactEmail": "info.mps@descon.com"
     },
-    "owner": "descon_mps"
+    "owner": "mhussain654"
   }
 }
