@@ -1,6 +1,6 @@
 import { QueryClientProvider } from "@tanstack/react-query";
 import { Linking, RefreshControl, StyleSheet } from "react-native";
-import { act, fireEvent, render, screen, waitFor } from "@testing-library/react-native";
+import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react-native";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import * as SecureStore from "expo-secure-store";
 import { AuthProvider } from "../../../contexts/AuthContext";
@@ -452,7 +452,7 @@ describe("DashboardScreen", () => {
     expect(mockPush).toHaveBeenCalledWith("/(tabs)/documents");
   });
 
-  it("navigates to Documents and Application Status from the quick-action tiles", async () => {
+  it("navigates to Documents and My Journey from the quick-action tiles", async () => {
     candidateProfileClient.getProfile.mockResolvedValue(profilePayload());
     candidateDocumentsClient.getChecklist.mockResolvedValue([]);
     applicationProgressClient.getProgress.mockResolvedValue(progress());
@@ -461,7 +461,7 @@ describe("DashboardScreen", () => {
     await screen.findByText("Ahmed Ali");
     fireEvent.press(screen.getByRole("button", { name: /^Documents,/ }));
     expect(mockPush).toHaveBeenCalledWith("/(tabs)/documents");
-    fireEvent.press(screen.getByRole("button", { name: /^Application Status,/ }));
+    fireEvent.press(screen.getByRole("button", { name: /^My Journey, Track your steps/ }));
     expect(mockPush).toHaveBeenCalledWith("/(tabs)/status");
   });
 
@@ -573,8 +573,32 @@ describe("DashboardScreen", () => {
       candidateFlightDetailClient.getFlightDetail.mockResolvedValue(flight({ mobilized: true, mobilizedOn: "2026-11-20" }));
       renderDashboardScreen();
 
-      await screen.findByText(/My Journey/);
+      // The journey card and its Quick Access tile share the name.
+      expect(await screen.findAllByText(/My Journey/)).not.toHaveLength(0);
       expect(screen.queryByText("Your flight")).toBeNull();
+    });
+  });
+
+  describe("the My Journey badge", () => {
+    it("shows the current step in the in-progress colour while steps remain", async () => {
+      candidateProfileClient.getProfile.mockResolvedValue(profilePayload());
+      candidateDocumentsClient.getChecklist.mockResolvedValue([]);
+      applicationProgressClient.getProgress.mockResolvedValue(progress());
+      renderDashboardScreen();
+
+      expect(await screen.findByText("Document Submission in process")).toBeOnTheScreen();
+      expect(screen.getByTestId("journey-badge")).toBeOnTheScreen();
+    });
+
+    it("turns into a short green Completed once every step is done", async () => {
+      candidateProfileClient.getProfile.mockResolvedValue(profilePayload());
+      candidateDocumentsClient.getChecklist.mockResolvedValue([]);
+      applicationProgressClient.getProgress.mockResolvedValue(progress({ workflow: workflowPayload({ timeline: timelineCompletedThrough(99) }) }));
+      renderDashboardScreen();
+
+      expect(await screen.findByText("10 of 10 steps completed")).toBeOnTheScreen();
+      expect(within(screen.getByTestId("journey-badge-complete")).getByText("Completed")).toBeOnTheScreen();
+      expect(screen.queryByText(/Mobilize Status completed/)).toBeNull();
     });
   });
 
@@ -595,6 +619,23 @@ describe("DashboardScreen", () => {
       expect(await screen.findByText("Your required documents have been approved.")).toBeOnTheScreen();
       fireEvent.press(screen.getByRole("link", { name: "See all" }));
       expect(mockPush).toHaveBeenCalledWith("/(tabs)/status");
+    });
+
+    it("names the update after its journey step, with the app's short date format", async () => {
+      candidateWorkflowClient.getWorkflowHistory.mockResolvedValue({
+        items: [{ fromStage: null, toStage: { code: "mobilized", name: "Mobilized", position: 30 }, occurredAt: "2026-11-14T10:00:00Z", reasonCode: null, details: null }],
+        updatedAt: "2026-11-14T10:00:00Z",
+      });
+      candidateProfileClient.getProfile.mockResolvedValue(profilePayload());
+      candidateDocumentsClient.getChecklist.mockResolvedValue([]);
+      applicationProgressClient.getProgress.mockResolvedValue(progress());
+      renderDashboardScreen();
+
+      expect(await screen.findByText("You have been mobilized. Best of luck!")).toBeOnTheScreen();
+      // "Mobilize Status", as on My Journey, not the stage's own name "Mobilized".
+      expect(screen.getAllByText("Mobilize Status").length).toBeGreaterThan(0);
+      expect(screen.queryByText("Mobilized")).toBeNull();
+      expect(screen.getByText("14/11/2026")).toBeOnTheScreen();
     });
 
     it("shows a friendly empty message before any step has completed", async () => {
@@ -714,6 +755,6 @@ describe("DashboardScreen", () => {
     await AsyncStorage.setItem("descon.language", "ur");
     renderDashboardScreen();
 
-    expect(await screen.findByText("میرا سفر")).toBeOnTheScreen();
+    expect(await screen.findAllByText("میرا سفر")).not.toHaveLength(0);
   });
 });

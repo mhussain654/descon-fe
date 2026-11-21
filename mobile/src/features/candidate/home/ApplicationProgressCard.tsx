@@ -13,6 +13,8 @@ interface ApplicationProgressCardProps {
   title: string;
   /** Localized current-stage name, shown as a highlighted status badge. */
   stageLabel: string | null;
+  /** Every step is done: the badge turns green, as completed steps are everywhere else. */
+  complete?: boolean;
   stepsLine: string;
   percentLine: string;
   percentage: number;
@@ -23,6 +25,7 @@ export function ApplicationProgressCard({
   language,
   title,
   stageLabel,
+  complete = false,
   stepsLine,
   percentLine,
   percentage,
@@ -42,8 +45,8 @@ export function ApplicationProgressCard({
           </Text>
         </View>
         {stageLabel ? (
-          <View style={styles.badge}>
-            <Text style={[styles.badgeText, isUrdu && styles.badgeTextUrdu, { fontFamily: getFontFamily(language, 'bold') }]}>
+          <View testID={complete ? 'journey-badge-complete' : 'journey-badge'} style={[styles.badge, complete && styles.badgeComplete]}>
+            <Text style={[styles.badgeText, complete && styles.badgeTextComplete, isUrdu && styles.badgeTextUrdu, { fontFamily: getFontFamily(language, 'bold') }]}>
               {stageLabel}
             </Text>
           </View>
@@ -93,6 +96,8 @@ const styles = themedStyles(() => ({
   badge: { flexShrink: 1, borderRadius: 14, paddingHorizontal: 10, paddingVertical: 4, backgroundColor: themed('#FFF1D8', '#342914') },
   badgeText: { fontSize: 11, color: themed('#C36A00', '#FFC27A'), textAlign: 'center' },
   badgeTextUrdu: { lineHeight: 24 },
+  badgeComplete: { backgroundColor: themed('#E3F8EC', '#13301F') },
+  badgeTextComplete: { color: themed('#15803D', '#6EE7A0') },
   metaRow: { marginTop: spacing[3] },
   meta: { flexShrink: 1, fontSize: 13, color: colors.text.primary },
   percent: { fontSize: 13, color: themed('#0871DA', '#7FBDFA') },

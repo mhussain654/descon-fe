@@ -4,7 +4,7 @@ import { Text } from "../../../design-system/Text";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
 import { useRouter } from "expo-router";
-import { BarChart3, FileText, GraduationCap, Headphones } from "lucide-react-native";
+import { ClipboardList, FileText, GraduationCap, Headphones } from "lucide-react-native";
 import { Defs, LinearGradient, Rect, Stop } from "react-native-svg";
 import { MeasuredSvg } from "../../../design-system/MeasuredSvg";
 import { useAuth } from "../../../contexts/AuthContext";
@@ -32,9 +32,9 @@ import { resolveDocumentAccessUrl } from "../../../lib/resolveDocumentAccessUrl"
 import { rowDirectionTowards } from "../../../lib/layoutDirection";
 import { latestActionableUpdate, STAGE_UPDATE_DESCRIPTION_KEYS, STAGE_UPDATE_FALLBACK_KEY } from "../../../../../shared/candidateWorkflow/latestUpdate";
 import { interpolate, interpolateSegments } from "../../../../../shared/i18n/interpolate";
-import { formatCurrency, formatDate } from "../../../../../shared/i18n/locale";
+import { formatCurrency, formatShortDate } from "../../../../../shared/i18n/locale";
 import { resolveNextAction } from "../../../../../shared/applicationProgress/nextAction";
-import { mobilizationJourney } from "../../../../../shared/applicationProgress/mobilizationJourney";
+import { JOURNEY_STEP_KEYS, journeyStepCodeForStage, mobilizationJourney } from "../../../../../shared/applicationProgress/mobilizationJourney";
 import { journeyStepLine } from "../../../features/candidate/progress/components/StatusPresentation";
 import { LoadingState, ErrorState, OfflineState, SessionExpiredState, ForbiddenState, getFontFamily, toast } from "../../../design-system";
 import { colors, spacing } from "../../../design-system/tokens";
@@ -275,6 +275,8 @@ export default function DashboardScreen() {
   const forwardArrow = forwardArrowSlots(language, colors.brand.on, 15);
 
   const currentStepCode = journey?.current?.code;
+  // All steps approved: a short green "Completed" instead of the last step's name in the pending colour.
+  const journeyComplete = Boolean(journey && journey.totalCount > 0 && journey.approvedCount === journey.totalCount);
   const medicalAppointment =
     currentStepCode === "medical" ? findLatestMedicalAppointment(historyQuery.data?.items ?? []) : null;
   // A QVC booking still to happen (Qatar): shown until its result is recorded.
@@ -285,11 +287,13 @@ export default function DashboardScreen() {
       : null;
 
   const latest = latestActionableUpdate(historyQuery.data?.items ?? []);
+  const latestStep = latest ? journeyStepCodeForStage(latest.toStage.code) : null;
   const latestUpdate = latest
     ? {
-        title: latest.toStage.name,
+        // Named like the journey step it belongs to, so Home and My Journey use one name per step.
+        title: latestStep ? t(JOURNEY_STEP_KEYS[latestStep]) : latest.toStage.name,
         description: t(STAGE_UPDATE_DESCRIPTION_KEYS[latest.toStage.code] ?? STAGE_UPDATE_FALLBACK_KEY),
-        dateLabel: formatDate(latest.occurredAt, language),
+        dateLabel: formatShortDate(latest.occurredAt, language),
       }
     : null;
 
@@ -344,7 +348,8 @@ export default function DashboardScreen() {
           <ApplicationProgressCard
             language={language}
             title={t("homeMyJourney")}
-            stageLabel={journey?.current ? journeyStepLine(journey.current, t) : null}
+            stageLabel={journeyComplete ? t("journeyStatusApproved") : journey?.current ? journeyStepLine(journey.current, t) : null}
+            complete={journeyComplete}
             stepsLine={interpolate(t("journeyStepsApproved"), {
               approved: journey?.approvedCount ?? 0,
               total: journey?.totalCount ?? 0,
@@ -401,7 +406,7 @@ export default function DashboardScreen() {
                 <QuickActionTile
                   language={language}
                   tone="green"
-                  icon={BarChart3}
+                  icon={ClipboardList}
                   title={t("homeQuickStatusTitle")}
                   subtitle={t("homeQuickStatusSubtitle")}
                   onPress={() => router.push("/(tabs)/status")}

@@ -83,10 +83,22 @@ describe("Admin Mobilization page", () => {
     expect(screen.getByText("Not uploaded")).toBeInTheDocument();
     expect(screen.getByText("Uploaded 19 Nov 2026")).toBeInTheDocument();
     expect(screen.getByText("Awaiting departure")).toBeInTheDocument();
-    expect(screen.getByText("Mobilized 20 Nov 2026")).toBeInTheDocument();
+    // Left on the flight's own day: just "Departed", the date is already in the Departure column.
+    // (The summary card shares the word, so the board reads as one.)
+    expect(screen.getAllByText("Departed").length).toBeGreaterThan(1);
+    expect(screen.queryByText(/^on \d/)).toBeNull();
     expect(screen.getByText("Not attached")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /180\s*Boarding pass uploaded/ })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /120\s*Boarding pass not uploaded/ })).toBeInTheDocument();
+  });
+
+  it("adds the day under Departed only when the candidate left on a different day from the booked flight", async () => {
+    vi.mocked(adminCandidateClient.listMobilizations).mockResolvedValue(
+      result([row({ mobilizedOn: "2026-11-21", status: "mobilized" })], { total: 1, boardingPass: { uploaded: 0, missing: 1 }, status: { awaitingDeparture: 0, mobilized: 1 } })
+    );
+    await renderAt("/admin/mobilization");
+
+    expect(await screen.findByText("on 21 Nov 2026")).toBeInTheDocument();
   });
 
   it("passes the date and boarding pass filters from the URL to the backend", async () => {

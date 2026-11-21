@@ -55,6 +55,9 @@ function statusPresentation(item) {
   return { color: STATUS_COLORS[group], labelKey: DOCUMENT_STATUS_GROUP_KEYS[group] };
 }
 
+// The open-card key for Bank Account Details (no document requirement uses it).
+const BANK_DETAILS_CARD = "__bank_details__";
+
 export default function DocumentsScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
@@ -71,7 +74,17 @@ export default function DocumentsScreen() {
   // the upload accordion's own single-active-row convention -- keeps the
   // screen uncluttered for candidates who may not be used to multiple
   // simultaneously expanded sections.
+  // Bank Account Details shares it, so opening the bank card closes a document's panel and vice versa.
   const [viewOpenRequirementCode, setViewOpenRequirementCode] = useState(null);
+  // Starting an upload on one row closes any other open card (but not the row's own panel, which holds the upload).
+  useEffect(() => {
+    const activeCode = upload.activeRequirementCode;
+    if (activeCode) setViewOpenRequirementCode((current) => (current === activeCode ? current : null));
+  }, [upload.activeRequirementCode]);
+  const openBankCard = (open) => {
+    if (open && upload.activeRequirementCode && !upload.mutation.isPending) upload.cancelUpload();
+    setViewOpenRequirementCode(open ? BANK_DETAILS_CARD : null);
+  };
   useRefetchOnFocus(checklistQuery.refetch, checklistQuery.isFetching);
   useRefetchOnFocus(progressQuery.refetch, progressQuery.isFetching);
   // The bank details are reviewed by staff like the documents, so they refresh with them --
@@ -167,7 +180,15 @@ export default function DocumentsScreen() {
     if (checklist.length === 0) {
       return (
         <>
-          <BankDetailsPanel isDark={isDark} t={t} language={language} submittedForReview={submittedForReview} onSessionEnd={returnToSignIn} />
+          <BankDetailsPanel
+          isDark={isDark}
+          t={t}
+          language={language}
+          submittedForReview={submittedForReview}
+          onSessionEnd={returnToSignIn}
+          isOpen={viewOpenRequirementCode === BANK_DETAILS_CARD}
+          onOpenChange={openBankCard}
+        />
           <EmptyState
             title={t("candidateDocumentsEmptyTitle")}
             description={t("candidateDocumentsEmptyDescription")}
@@ -202,7 +223,15 @@ export default function DocumentsScreen() {
           ))}
         </View>
 
-        <BankDetailsPanel isDark={isDark} t={t} language={language} submittedForReview={submittedForReview} onSessionEnd={returnToSignIn} />
+        <BankDetailsPanel
+          isDark={isDark}
+          t={t}
+          language={language}
+          submittedForReview={submittedForReview}
+          onSessionEnd={returnToSignIn}
+          isOpen={viewOpenRequirementCode === BANK_DETAILS_CARD}
+          onOpenChange={openBankCard}
+        />
       </>
     );
   };

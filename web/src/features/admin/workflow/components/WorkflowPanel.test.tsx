@@ -1,3 +1,4 @@
+import { flightDateToday } from "../../../../../../shared/adminCandidates/flightDate";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -1642,6 +1643,31 @@ describe("WorkflowPanel", () => {
           expect.objectContaining({ candidateId: "candidate-1", mobilizedOn: "2026-09-21", expectedCurrentStageCode: "flight_details_uploaded" })
         )
       );
+    });
+
+    it("refuses a mobilization date after today, since mobilization is recorded once the candidate has flown", async () => {
+      adminWorkflowClient.getWorkflowState.mockResolvedValue(
+        workflowState({ currentStage: timelineStage({ code: "flight_details_uploaded", position: 14 }) })
+      );
+      adminWorkflowClient.getAllowedTransitions.mockResolvedValue(allowedTransitions({ allowedNextTransitions: [mobilizeTransition()] }));
+      adminWorkflowClient.getWorkflowHistory.mockResolvedValue(workflowHistory());
+      adminWorkflowClient.getFlightDetail.mockResolvedValue(flightDetailShow({ flightDetail: flightDetailRecord() }));
+      const client = await signInAs(MPS);
+      renderPanel(client);
+      await screen.findByRole("button", { name: "Mobilize" });
+
+      fireEvent.click(screen.getByRole("button", { name: "Mobilize" }));
+      await screen.findByRole("heading", { name: "Confirm mobilization" });
+      const dateInput = screen.getByLabelText("Mobilization date");
+      // The picker itself stops at today (Pakistan)...
+      expect(dateInput).toHaveAttribute("max", flightDateToday());
+
+      // ...and a typed-in later date is refused before anything is sent.
+      fireEvent.change(dateInput, { target: { value: "2999-01-01" } });
+      fireEvent.click(screen.getByRole("button", { name: "Confirm" }));
+
+      expect(await screen.findByText("The mobilization date can't be in the future. Record it once the candidate has flown.")).toBeInTheDocument();
+      expect(adminWorkflowClient.mobilizeFlightDetail).not.toHaveBeenCalled();
     });
 
     it("surfaces the backend's invalid-date-sequencing validation message and does not close the dialog", async () => {

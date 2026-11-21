@@ -26,6 +26,15 @@ export function formatDate(
   }).format(value);
 }
 
+/**
+ * The app's one short date format -- 14/11/2026 (day/month/year) -- for the
+ * candidate screens, so Home, My Journey and Documents read the same.
+ */
+export function formatShortDate(date: Date | number | string, language: Language): string {
+  const value = date instanceof Date ? date : new Date(date);
+  return value.toLocaleDateString(language === 'ur' ? 'ur-PK' : 'en-GB');
+}
+
 export function formatNumber(value: number, language: Language, options?: Intl.NumberFormatOptions): string {
   return new Intl.NumberFormat(toIntlLocale(language), options).format(value);
 }

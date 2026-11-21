@@ -77,6 +77,12 @@ const FLOWS: Record<'saudi_arabia' | 'qatar' | 'uae' | 'oman', readonly JourneyS
   oman: STANDARD_FLOW,
 };
 
+/** The journey step a workflow stage belongs to (e.g. `mobilized` -> `ready_to_fly`), or null for a stage no step covers. */
+export function journeyStepCodeForStage(stageCode: string): JourneyStepCode | null {
+  const match = (Object.keys(STEPS) as JourneyStepCode[]).find((code) => STEPS[code].stages.includes(stageCode));
+  return match ?? null;
+}
+
 export const JOURNEY_STEP_KEYS = {
   enrolled: 'journeyStepEnrolled',
   document_submission: 'journeyStepDocumentSubmission',

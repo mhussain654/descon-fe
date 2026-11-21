@@ -85,6 +85,32 @@ describe('createCandidateFlightDetailClient (real) -- getFlightDetail', () => {
       mobilizedOn: null,
       mobilized: false,
       boardingPassUploadedAt: null,
+      boardingPassUpload: null,
+    });
+  });
+
+  it('maps the boarding pass upload window, and ignores an unknown state', async () => {
+    stubFetch(async () =>
+      jsonResponse(successEnvelope(flightDetailPayload({ boarding_pass_upload: { opens_on: '2026-09-18', closes_on: '2026-09-22', state: 'not_yet_open' } })))
+    );
+    expect((await buildClient().getFlightDetail('token'))?.boardingPassUpload).toEqual({ opensOn: '2026-09-18', closesOn: '2026-09-22', state: 'not_yet_open' });
+
+    stubFetch(async () =>
+      jsonResponse(successEnvelope(flightDetailPayload({ boarding_pass_upload: { opens_on: '2026-09-18', closes_on: '2026-09-22', state: 'paused' } })))
+    );
+    expect((await buildClient().getFlightDetail('token'))?.boardingPassUpload).toBeNull();
+  });
+
+  it('maps an upload outside the window to its own error, keeping the dated message', async () => {
+    stubFetch(async () =>
+      jsonResponse(
+        errorEnvelope([{ code: 'boarding_pass_upload_not_open', message: 'You can upload your boarding pass from 18/09/2026, 2 days before your flight.' }]),
+        { status: 422 }
+      )
+    );
+    await expect(buildClient().uploadBoardingPass({ accessToken: 'token', formData: new FormData() })).rejects.toEqual({
+      code: 'BOARDING_PASS_UPLOAD_NOT_OPEN',
+      message: 'You can upload your boarding pass from 18/09/2026, 2 days before your flight.',
     });
   });
 

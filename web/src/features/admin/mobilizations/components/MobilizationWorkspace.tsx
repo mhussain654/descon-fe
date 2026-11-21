@@ -55,6 +55,11 @@ function formatDeparture(iso: string, language: Language): string {
   }).format(new Date(iso));
 }
 
+/** The Pakistan calendar day (YYYY-MM-DD) of a moment in time. */
+function pakistanDay(isoDateTime: string): string {
+  return new Intl.DateTimeFormat('en-CA', { timeZone: PAKISTAN_TIME_ZONE, year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date(isoDateTime));
+}
+
 function formatDay(isoDateOrTime: string, language: Language): string {
   // A bare YYYY-MM-DD is a calendar day already; anything else is a moment in time.
   const isDay = /^\d{4}-\d{2}-\d{2}$/.test(isoDateOrTime);
@@ -196,9 +201,19 @@ export function MobilizationWorkspace() {
     {
       key: 'status',
       header: t('adminMobilizationColumnStatus'),
+      // Like an airport board: Awaiting departure or Departed. The Departure column
+      // already has the date, so it is only repeated when the candidate left on a
+      // different day (a delayed or rebooked flight).
       render: (row) =>
         row.status === 'mobilized' && row.mobilizedOn ? (
-          <Badge tone="success">{interpolate(t('adminMobilizationStatusMobilizedOn'), { date: formatDay(row.mobilizedOn, language) })}</Badge>
+          <div className="flex flex-col items-start gap-1">
+            <Badge tone="success">{t('adminMobilizationStatusDeparted')}</Badge>
+            {row.mobilizedOn !== pakistanDay(row.flightDepartureAt) ? (
+              <span className="text-xs text-text-tertiary">
+                {interpolate(t('adminMobilizationStatusDepartedOn'), { date: formatDay(row.mobilizedOn, language) })}
+              </span>
+            ) : null}
+          </div>
         ) : (
           <Badge tone="info">{t('adminMobilizationStatusAwaiting')}</Badge>
         ),

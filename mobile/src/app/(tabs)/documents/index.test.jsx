@@ -406,6 +406,28 @@ describe("DocumentsScreen", () => {
     await waitFor(() => expect(screen.queryByRole("button", { name: "View" })).toBeNull());
   });
 
+  it("keeps only one card open: opening Bank Account Details closes a document's panel, and back again", async () => {
+    candidateDocumentsClient.getChecklist.mockResolvedValue([
+      item({ status: "verified", document: uploadedDocument(), replacementAllowed: false }),
+    ]);
+    candidateBankDetailsClient.getBankDetail.mockResolvedValue(bankDetailSummary({ status: "verified", bankDetail: bankDetail({ status: "verified" }) }));
+    applicationProgressClient.getProgress.mockResolvedValue(progress());
+    renderDocumentsScreen();
+    const locked = "Your bank details are verified and can no longer be changed. Contact Descon MPS if they are wrong.";
+
+    await screen.findByText("Passport");
+    fireEvent.press(screen.getByRole("button", { name: "Passport" }));
+    expect(await screen.findByRole("button", { name: "View" })).toBeOnTheScreen();
+
+    fireEvent.press(await screen.findByRole("button", { name: "Update bank details" }));
+    expect(await screen.findByText(locked)).toBeOnTheScreen();
+    expect(screen.queryByRole("button", { name: "View" })).toBeNull();
+
+    fireEvent.press(screen.getByRole("button", { name: "Passport" }));
+    expect(await screen.findByRole("button", { name: "View" })).toBeOnTheScreen();
+    expect(screen.queryByText(locked)).toBeNull();
+  });
+
   it("requests a signed URL on View and hands it to the OS via Linking.openURL, for a document with no other action", async () => {
     const originalApiBaseUrl = process.env.EXPO_PUBLIC_API_BASE_URL;
     process.env.EXPO_PUBLIC_API_BASE_URL = "http://localhost:3000/api/v1";

@@ -12,6 +12,7 @@ import {
   ValidationMessage,
 } from '../../../../design-system';
 import { formatDate } from '../../../../../../shared/i18n/locale';
+import { flightDateToday } from '../../../../../../shared/adminCandidates/flightDate';
 import { interpolate } from '../../../../../../shared/i18n/interpolate';
 import { ADMIN_WORKFLOW_ERROR_KEYS } from '../../../../../../shared/adminWorkflow/errorMessages';
 import { toWorkflowBlockingReason, WORKFLOW_BLOCKING_REASON_KEYS } from '../../../../../../shared/adminWorkflow/blockingReasons';
@@ -440,9 +441,16 @@ function MobilizeDialog({
     setDateError(undefined);
   };
 
+  // Mobilization is recorded once the candidate has flown, so the date can't be after today (Pakistan).
+  const today = flightDateToday();
+
   const handleConfirm = () => {
     if (!actions.mobilizedOn) {
       setDateError(t('adminWorkflowMobilizedOnRequiredError'));
+      return;
+    }
+    if (actions.mobilizedOn > today) {
+      setDateError(t('adminWorkflowMobilizedOnFutureError'));
       return;
     }
     setDateError(undefined);
@@ -471,6 +479,7 @@ function MobilizeDialog({
           type="date"
           label={t('adminWorkflowMobilizedOnLabel')}
           value={actions.mobilizedOn}
+          max={today}
           onChange={(event) => actions.setMobilizedOn(event.target.value)}
           errorMessage={dateError}
         />

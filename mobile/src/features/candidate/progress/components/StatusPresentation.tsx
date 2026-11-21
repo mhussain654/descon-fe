@@ -42,7 +42,7 @@ export function StatusHeader({ language, t, topInset }: LocaleProps & { topInset
       </MeasuredSvg>
       <View style={[statusStyles.heroRow, { flexDirection: rowDirectionTowards(rtl ? 'right' : 'left') }]}>
         <View style={statusStyles.flex}>
-          <Text accessibilityRole="header" style={[statusStyles.title, statusCopyStyle(language, 25), { fontFamily: getFontFamily(language, 'bold') }]}>{t('status')}</Text>
+          <Text accessibilityRole="header" style={[statusStyles.title, statusCopyStyle(language, 25), { fontFamily: getFontFamily(language, 'bold') }]}>{t('homeMyJourney')}</Text>
           <Text style={[statusStyles.subtitle, statusCopyStyle(language)]}>{t('mobilizationProgress')}</Text>
         </View>
         <View style={statusStyles.heroIcon} accessible={false}><Plane size={29} color={themed("#0065B3", "#8FCEFF")} /></View>

@@ -8,6 +8,7 @@
 // matching every other candidate-facing real client's identical convention.
 import type { ApiClient, ApiError } from '../api-client';
 import type {
+  BoardingPassUploadWindow,
   CandidateFlightDetail,
   CandidateFlightDetailClient,
   CandidateFlightDetailError,
@@ -25,6 +26,7 @@ interface FlightDetailResponse {
   mobilized_on: string | null;
   mobilized: boolean;
   boarding_pass_uploaded_at?: string | null;
+  boarding_pass_upload?: { opens_on: string; closes_on: string; state: string } | null;
 }
 
 interface FlightTicketAccessResponse {
@@ -50,7 +52,16 @@ function toFlightDetail(data: FlightDetailResponse): CandidateFlightDetail {
     mobilizedOn: data.mobilized_on,
     mobilized: data.mobilized,
     boardingPassUploadedAt: data.boarding_pass_uploaded_at ?? null,
+    boardingPassUpload: toUploadWindow(data.boarding_pass_upload),
   };
+}
+
+const UPLOAD_WINDOW_STATES = ['not_yet_open', 'open', 'closed'] as const;
+
+function toUploadWindow(raw: FlightDetailResponse['boarding_pass_upload']): BoardingPassUploadWindow | null {
+  const state = UPLOAD_WINDOW_STATES.find((value) => value === raw?.state);
+  if (!raw || !state) return null;
+  return { opensOn: raw.opens_on, closesOn: raw.closes_on, state };
 }
 
 function toAccess(data: FlightTicketAccessResponse): FlightTicketAccess {
@@ -66,6 +77,8 @@ const SERVER_CODE_TO_ERROR: Record<string, CandidateFlightDetailErrorCode> = {
   empty_file: 'EMPTY_FILE',
   file_too_large: 'FILE_TOO_LARGE',
   unsupported_file_type: 'UNSUPPORTED_FILE_TYPE',
+  boarding_pass_upload_not_open: 'BOARDING_PASS_UPLOAD_NOT_OPEN',
+  boarding_pass_upload_closed: 'BOARDING_PASS_UPLOAD_CLOSED',
 };
 
 function toFlightDetailError(error: unknown): CandidateFlightDetailError {

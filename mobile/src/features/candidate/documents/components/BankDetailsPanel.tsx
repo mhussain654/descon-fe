@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { Image, Linking, Pressable, View } from "react-native";
 import { Text } from "../../../../design-system/Text";
-import { Landmark, ChevronRight, ChevronLeft } from "lucide-react-native";
+import { Landmark, ChevronRight, ChevronLeft, ChevronDown } from "lucide-react-native";
 import {
   Button,
   ErrorState,
@@ -71,6 +71,9 @@ interface BankDetailsPanelProps {
   /** Once the candidate has submitted their documents for review, an added bank account reads Under Approval instead of Uploaded. */
   submittedForReview: boolean;
   onSessionEnd: () => void;
+  /** When given, the Documents screen controls whether the card is open, so only one card is open at a time. */
+  isOpen?: boolean;
+  onOpenChange?: (open: boolean) => void;
 }
 
 type BankDetailUpload = ReturnType<typeof useBankDetailUpload>;
@@ -89,11 +92,13 @@ interface BankDetailsFormProps {
  * for the native document-picker/camera/gallery flow, same as
  * DocumentUploadPanel does for the regular checklist.
  */
-export function BankDetailsPanel({ isDark, t, language, submittedForReview, onSessionEnd }: BankDetailsPanelProps) {
+export function BankDetailsPanel({ isDark, t, language, submittedForReview, onSessionEnd, isOpen: controlledOpen, onOpenChange }: BankDetailsPanelProps) {
   const query = useBankDetail();
   const upload = useBankDetailUpload();
-  const [isOpen, setIsOpen] = useState(false);
-  const handleDone = useCallback(() => setIsOpen(false), []);
+  const [ownOpen, setOwnOpen] = useState(false);
+  const isOpen = controlledOpen ?? ownOpen;
+  const setIsOpen = useCallback((open: boolean) => (onOpenChange ? onOpenChange(open) : setOwnOpen(open)), [onOpenChange]);
+  const handleDone = useCallback(() => setIsOpen(false), [setIsOpen]);
 
   useEffect(() => {
     const code = query.error?.code ?? upload.mutation.error?.code;
@@ -149,13 +154,13 @@ export function BankDetailsPanel({ isDark, t, language, submittedForReview, onSe
 
   const handleToggle = () => {
     if (upload.mutation.isPending) return;
-    setIsOpen((open) => !open);
+    setIsOpen(!isOpen);
   };
 
   const Chevron = language === "ur" ? ChevronLeft : ChevronRight;
 
   return (
-    <View style={[styles.row, { backgroundColor: isDark ? "#1E293B" : "#FFFFFF", borderColor: isDark ? "#334155" : "#E0ECF9" }]}>
+    <View style={[styles.row, { backgroundColor: isDark ? "#1E293B" : "#FFFFFF", borderColor: isOpen ? "#78B8F6" : isDark ? "#334155" : "#E0ECF9" }]}>
       <Pressable
         onPress={handleToggle}
         disabled={upload.mutation.isPending}
@@ -174,7 +179,7 @@ export function BankDetailsPanel({ isDark, t, language, submittedForReview, onSe
               {statusLine}
             </Text>
           </View>
-          <Chevron size={20} color={isDark ? "#6B7280" : "#9CA3AF"} />
+          {isOpen ? <ChevronDown size={20} color={isDark ? "#94A3B8" : "#6B7280"} /> : <Chevron size={20} color={isDark ? "#6B7280" : "#9CA3AF"} />}
         </View>
       </Pressable>
 

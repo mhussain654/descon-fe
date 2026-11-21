@@ -6,8 +6,7 @@
     "orientation": "portrait",
     "platforms": [
       "ios",
-      "android",
-      "web"
+      "android"
     ],
     "icon": "./assets/images/icon.png",
     "userInterfaceStyle": "automatic",
@@ -70,7 +69,8 @@
       ],
       "expo-font",
       "expo-secure-store",
-      "expo-video"
+      "expo-video",
+      "./plugins/withOptionalHardwareFeatures"
     ],
     "experiments": {
       "typedRoutes": true
@@ -81,10 +81,10 @@
         "sitemap": false
       },
       "eas": {
-        "projectId": "474d262d-6327-4b8d-9fae-1bef8423ba70"
+        "projectId": "0fb00001-3a23-412d-9569-b98239fefb15"
       },
       "contactEmail": "info.mps@descon.com"
     },
-    "owner": "mhussain654"
+    "owner": "desconnn-mps"
   }
 }

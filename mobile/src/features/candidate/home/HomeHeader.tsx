@@ -1,7 +1,7 @@
 import { View } from 'react-native';
 import { Text } from '../../../design-system/Text';
 import { Image } from 'expo-image';
-import { Moon, Sun, Sunrise } from 'lucide-react-native';
+import { CloudSun, Moon, Sun } from 'lucide-react-native';
 import { Circle, Defs, LinearGradient, Rect, Stop } from 'react-native-svg';
 import { MeasuredSvg } from '../../../design-system/MeasuredSvg';
 import { getFontFamily } from '../../../design-system';
@@ -22,8 +22,11 @@ const COUNTRY_DOT_COLORS: Record<string, string> = {
 export type TimeOfDay = 'morning' | 'afternoon' | 'evening';
 
 // A drawn icon rather than an emoji, so it looks the same on every phone.
-const GREETING_ICONS = { morning: Sunrise, afternoon: Sun, evening: Moon } as const;
+// Simple shapes that stay readable at this size: the sun and moon are filled
+// for the solid look of an emoji; the cloud-and-sun stays an outline.
+const GREETING_ICONS = { morning: Sun, afternoon: CloudSun, evening: Moon } as const;
 const GREETING_ICON_COLOR = '#FFD166';
+const FILLED_GREETING_ICONS: ReadonlySet<TimeOfDay> = new Set(['morning', 'evening']);
 
 interface HomeHeaderProps {
   language: string;
@@ -50,7 +53,7 @@ function initialsOf(fullName: string): string {
   return letters.map((part) => part.charAt(0).toUpperCase()).join('');
 }
 
-/** Gradient welcome header: greeting with a sunrise/sun/moon icon (by time of day), name, file number, craft, "Application in Process for <country>", and the candidate's photo (or initials). */
+/** Gradient welcome header: greeting with a sun/cloud-and-sun/moon icon (by time of day), name, file number, craft, "Application in Process for <country>", and the candidate's photo (or initials). */
 export function HomeHeader({
   language,
   topInset,
@@ -88,7 +91,7 @@ export function HomeHeader({
         <View style={styles.identity}>
           <View style={[styles.greetingRow, { flexDirection: rowDirectionTowards(isUrdu ? 'right' : 'left') }]}>
             <View testID={`home-greeting-icon-${timeOfDay}`} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
-              <GreetingIcon size={16} color={GREETING_ICON_COLOR} strokeWidth={2.2} />
+              <GreetingIcon size={19} color={GREETING_ICON_COLOR} fill={FILLED_GREETING_ICONS.has(timeOfDay) ? GREETING_ICON_COLOR : 'none'} strokeWidth={2.4} />
             </View>
             <Text style={[styles.greeting, isUrdu && styles.greetingUrdu, textAlignment, { fontFamily: getFontFamily(language, 'medium') }]}>
               {greeting}

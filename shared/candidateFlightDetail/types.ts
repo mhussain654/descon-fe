@@ -26,6 +26,21 @@ export interface CandidateFlightDetail {
   mobilized: boolean;
   /** When the candidate uploaded their boarding pass photo (ISO 8601), or null before they do. */
   boardingPassUploadedAt: string | null;
+  /** When the boarding pass may be uploaded; null from a backend that doesn't send it yet (treated as open). */
+  boardingPassUpload: BoardingPassUploadWindow | null;
+}
+
+/**
+ * The boarding pass upload window: from 2 days before the flight's day to 2
+ * days after it, as Pakistan calendar days. `state` is decided by the server
+ * from Pakistan's date, so the app never relies on the phone's clock.
+ */
+export interface BoardingPassUploadWindow {
+  /** YYYY-MM-DD */
+  opensOn: string;
+  /** YYYY-MM-DD */
+  closesOn: string;
+  state: 'not_yet_open' | 'open' | 'closed';
 }
 
 export interface FlightTicketAccess {
@@ -45,6 +60,9 @@ export type CandidateFlightDetailErrorCode =
   | 'EMPTY_FILE'
   | 'FILE_TOO_LARGE'
   | 'UNSUPPORTED_FILE_TYPE'
+  /** 422 -- outside the upload window (2 days before to 2 days after the flight's day). */
+  | 'BOARDING_PASS_UPLOAD_NOT_OPEN'
+  | 'BOARDING_PASS_UPLOAD_CLOSED'
   | 'FORBIDDEN'
   | 'INACTIVE_ACCOUNT'
   | 'SESSION_EXPIRED'

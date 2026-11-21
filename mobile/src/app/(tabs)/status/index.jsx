@@ -26,6 +26,7 @@ import { APPLICATION_PROGRESS_ERROR_KEYS } from "../../../../../shared/applicati
 import { findLatestQvcOutcome, QVC_OUTCOME_KEYS, QVC_OUTCOME_TONES } from "../../../../../shared/candidateWorkflow/qvcOutcome";
 import { findLatestMedicalAppointment } from "../../../../../shared/candidateWorkflow/medicalAppointment";
 import { mobilizationJourney } from "../../../../../shared/applicationProgress/mobilizationJourney";
+import { formatShortDate } from "../../../../../shared/i18n/locale";
 import { interpolate } from "../../../../../shared/i18n/interpolate";
 import { VISA_OUTCOME_KEYS, VISA_OUTCOME_TONES } from "../../../../../shared/candidateVisaDecisions/outcomeLabels";
 import { CANDIDATE_VISA_DECISIONS_ERROR_KEYS } from "../../../../../shared/candidateVisaDecisions/errorMessages";
@@ -50,7 +51,7 @@ const QVC_TONE_COLORS = themedValues(() => ({
 
 function formatStageDate(iso, language) {
   if (!iso) return null;
-  return new Date(iso).toLocaleDateString(language === "ur" ? "ur-PK" : "en-GB");
+  return formatShortDate(iso, language);
 }
 
 export default function StatusScreen() {

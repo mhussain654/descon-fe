@@ -41,6 +41,7 @@ function flight(overrides: Partial<CandidateFlightDetail> = {}): CandidateFlight
     mobilizedOn: null,
     mobilized: false,
     boardingPassUploadedAt: null,
+    boardingPassUpload: { opensOn: '2026-09-18', closesOn: '2026-09-22', state: 'open' },
     ...overrides,
   };
 }
@@ -147,6 +148,39 @@ describe('BoardingPassUpload', () => {
     fireEvent.press(screen.getByRole('button', { name: 'Take photo' }));
 
     expect(await screen.findByText('Allow camera access to take a photo.')).toBeOnTheScreen();
+  });
+
+  describe('the upload window (2 days before to 2 days after the flight)', () => {
+    it('before it opens, says from which date and keeps the buttons off', () => {
+      renderUpload(flight({ boardingPassUpload: { opensOn: '2026-09-18', closesOn: '2026-09-22', state: 'not_yet_open' } }));
+
+      expect(screen.getByText('You can upload your boarding pass from 18/09/2026, 2 days before your flight.')).toBeOnTheScreen();
+      expect(screen.getByRole('button', { name: 'Take photo' })).toBeDisabled();
+      expect(screen.getByRole('button', { name: 'Choose file' })).toBeDisabled();
+    });
+
+    it('after it closes, still lets the candidate view a photo they sent but not replace it', () => {
+      renderUpload(flight({ boardingPassUploadedAt: '2026-09-20T11:05:00Z', boardingPassUpload: { opensOn: '2026-09-18', closesOn: '2026-09-22', state: 'closed' } }));
+
+      expect(screen.getByText('Uploaded on 20/09/2026')).toBeOnTheScreen();
+      expect(screen.getByText('The upload period has ended. Tap View to see the photo you sent.')).toBeOnTheScreen();
+      expect(screen.getByRole('button', { name: 'View' })).toBeOnTheScreen();
+      expect(screen.queryByRole('button', { name: 'Take photo' })).toBeNull();
+    });
+
+    it('after it closes without a photo, explains who to contact and offers no upload', () => {
+      renderUpload(flight({ boardingPassUpload: { opensOn: '2026-09-18', closesOn: '2026-09-22', state: 'closed' } }));
+
+      expect(screen.getByText('The upload period for your boarding pass has ended. Contact Descon MPS if you still need to send it.')).toBeOnTheScreen();
+      expect(screen.queryByRole('button', { name: 'Take photo' })).toBeNull();
+      expect(screen.queryByRole('button', { name: 'Choose file' })).toBeNull();
+    });
+
+    it("treats a flight without window details (an older server) as open", () => {
+      renderUpload(flight({ boardingPassUpload: null }));
+
+      expect(screen.getByRole('button', { name: 'Take photo' })).toBeEnabled();
+    });
   });
 
   it('shows the backend message when the upload is refused', async () => {
