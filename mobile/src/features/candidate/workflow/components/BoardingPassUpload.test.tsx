@@ -42,6 +42,7 @@ function flight(overrides: Partial<CandidateFlightDetail> = {}): CandidateFlight
     mobilized: false,
     boardingPassUploadedAt: null,
     boardingPassUpload: { opensOn: '2026-09-18', closesOn: '2026-09-22', state: 'open' },
+    boardingPassRejection: null,
     ...overrides,
   };
 }
@@ -174,6 +175,34 @@ describe('BoardingPassUpload', () => {
       expect(screen.getByText('The upload period for your boarding pass has ended. Contact Descon MPS if you still need to send it.')).toBeOnTheScreen();
       expect(screen.queryByRole('button', { name: 'Take photo' })).toBeNull();
       expect(screen.queryByRole('button', { name: 'Choose file' })).toBeNull();
+    });
+
+    it('after staff reject the photo, shows their reason and asks for a new one', () => {
+      renderUpload(flight({
+        boardingPassUploadedAt: '2026-09-20T11:05:00Z',
+        boardingPassUpload: { opensOn: '2026-09-18', closesOn: '2026-09-24', state: 'open' },
+        boardingPassRejection: { rejectedAt: '2026-09-22T05:00:00Z', reason: 'This is a ticket, not a boarding pass.' },
+      }));
+
+      expect(screen.getByText('Your boarding pass was not accepted')).toBeOnTheScreen();
+      expect(screen.getByText('Reason: This is a ticket, not a boarding pass.')).toBeOnTheScreen();
+      expect(screen.getByText('Please upload a clear photo of the boarding pass you got at check-in.')).toBeOnTheScreen();
+      expect(screen.queryByText('Uploaded on 20/09/2026')).toBeNull();
+      expect(screen.getByRole('button', { name: 'Take photo' })).toBeEnabled();
+      expect(screen.getByRole('button', { name: 'Choose file' })).toBeEnabled();
+    });
+
+    it('after a rejection and the extra days have passed, says who to contact', () => {
+      renderUpload(flight({
+        boardingPassUploadedAt: '2026-09-20T11:05:00Z',
+        boardingPassUpload: { opensOn: '2026-09-18', closesOn: '2026-09-24', state: 'closed' },
+        boardingPassRejection: { rejectedAt: '2026-09-22T05:00:00Z', reason: 'Blurry photo.' },
+      }));
+
+      expect(screen.getByText('Reason: Blurry photo.')).toBeOnTheScreen();
+      expect(screen.getByText('The time to upload a new one has ended. Please contact Descon MPS.')).toBeOnTheScreen();
+      expect(screen.queryByRole('button', { name: 'Take photo' })).toBeNull();
+      expect(screen.queryByRole('button', { name: 'View' })).toBeNull();
     });
 
     it("treats a flight without window details (an older server) as open", () => {

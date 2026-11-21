@@ -1,6 +1,6 @@
 import { useCallback, useEffect } from 'react';
 import { Link, useSearchParams } from 'react-router';
-import { CheckCircle2, Clock3, PlaneTakeoff, SlidersHorizontal, Users } from 'lucide-react';
+import { AlertTriangle, CheckCircle2, Clock3, PlaneTakeoff, SlidersHorizontal, Users } from 'lucide-react';
 import { useLanguage } from '../../../../contexts/LanguageContext';
 import { useStaffAuth } from '../../../../contexts/StaffAuthContext';
 import {
@@ -16,17 +16,19 @@ import {
   Pagination,
   RetryBanner,
   Select,
+  type BadgeTone,
   type DataTableColumn,
 } from '../../../../design-system';
 import { ADMIN_CANDIDATE_ERROR_KEYS } from '../../../../../../shared/adminCandidates/errorMessages';
 import { flightDateToday } from '../../../../../../shared/adminCandidates/flightDate';
-import type {
-  MobilizationBoardingPassFilter,
-  MobilizationFilters,
-  MobilizationRow,
-  MobilizationSort,
-  MobilizationStatus,
-  MobilizationSummary,
+import {
+  MOBILIZATION_STATUSES,
+  type MobilizationBoardingPassFilter,
+  type MobilizationFilters,
+  type MobilizationRow,
+  type MobilizationSort,
+  type MobilizationStatus,
+  type MobilizationSummary,
 } from '../../../../../../shared/adminCandidates/mobilizations';
 import { interpolate } from '../../../../../../shared/i18n/interpolate';
 import type { Language, TranslationKey } from '../../../../../../shared/i18n/translations';
@@ -191,9 +193,19 @@ export function MobilizationWorkspace() {
       header: t('adminMobilizationColumnBoardingPass'),
       render: (row) =>
         row.boardingPassUploadedAt ? (
-          <Badge tone="success">
-            {interpolate(t('adminMobilizationBoardingPassUploadedOn'), { date: formatDay(row.boardingPassUploadedAt, language) })}
-          </Badge>
+          <div className="flex flex-col items-start gap-1">
+            <Badge tone={row.boardingPassRejected ? 'danger' : 'success'}>
+              {row.boardingPassRejected
+                ? t('adminMobilizationBoardingPassRejected')
+                : interpolate(t('adminMobilizationBoardingPassUploadedOn'), { date: formatDay(row.boardingPassUploadedAt, language) })}
+            </Badge>
+            {!row.boardingPassRejected && row.boardingPassCheck?.result === 'needs_review' ? (
+              <span className="text-xs text-text-tertiary">{t('adminMobilizationBoardingPassNeedsReview')}</span>
+            ) : null}
+            {!row.boardingPassRejected && row.boardingPassCheck?.result === 'not_boarding_pass' ? (
+              <span className="text-xs text-text-tertiary">{t('adminMobilizationBoardingPassNotBoardingPass')}</span>
+            ) : null}
+          </div>
         ) : (
           <Badge tone="warning">{t('adminMobilizationBoardingPassMissing')}</Badge>
         ),
@@ -201,22 +213,11 @@ export function MobilizationWorkspace() {
     {
       key: 'status',
       header: t('adminMobilizationColumnStatus'),
-      // Like an airport board: Awaiting departure or Departed. The Departure column
-      // already has the date, so it is only repeated when the candidate left on a
-      // different day (a delayed or rebooked flight).
-      render: (row) =>
-        row.status === 'mobilized' && row.mobilizedOn ? (
-          <div className="flex flex-col items-start gap-1">
-            <Badge tone="success">{t('adminMobilizationStatusDeparted')}</Badge>
-            {row.mobilizedOn !== pakistanDay(row.flightDepartureAt) ? (
-              <span className="text-xs text-text-tertiary">
-                {interpolate(t('adminMobilizationStatusDepartedOn'), { date: formatDay(row.mobilizedOn, language) })}
-              </span>
-            ) : null}
-          </div>
-        ) : (
-          <Badge tone="info">{t('adminMobilizationStatusAwaiting')}</Badge>
-        ),
+      // Like an airport board, on today's Pakistan date. The Departure column already
+      // has the date, so a departed row only repeats it when the candidate left on a
+      // different day (a delayed or rebooked flight), and says when the boarding pass,
+      // not staff, is what confirmed the departure.
+      render: (row) => <DepartureStatus row={row} language={language} t={t} />,
     },
   ];
 
@@ -233,7 +234,7 @@ export function MobilizationWorkspace() {
 
       {summary ? (
         <SummaryCards summary={summary} boardingPass={filters.boardingPass} status={filters.status} onBoardingPass={toggleBoardingPass}
-          onMobilized={() => updateFilters({ status: filters.status === 'mobilized' ? undefined : 'mobilized' })} t={t} />
+          onStatus={(state) => updateFilters({ status: filters.status === state ? undefined : state })} t={t} />
       ) : null}
 
       <Card className="mb-5 p-5">
@@ -275,8 +276,10 @@ export function MobilizationWorkspace() {
             onChange={(event) => updateFilters({ status: (event.target.value || undefined) as MobilizationStatus | undefined })}
             options={[
               { value: '', label: t('adminMobilizationFilterStatusAll') },
-              { value: 'awaiting_departure', label: interpolate(t('adminMobilizationFilterStatusAwaiting'), { count: summary?.status.awaitingDeparture ?? 0 }) },
-              { value: 'mobilized', label: interpolate(t('adminMobilizationFilterStatusMobilized'), { count: summary?.status.mobilized ?? 0 }) },
+              ...MOBILIZATION_STATUSES.map((state) => ({
+                value: state,
+                label: interpolate(t(STATUS_PRESENTATION[state].filterKey), { count: summary?.status[state] ?? 0 }),
+              })),
             ]}
           />
           <Select
@@ -318,19 +321,42 @@ export function MobilizationWorkspace() {
   );
 }
 
+const STATUS_PRESENTATION: Record<MobilizationStatus, { tone: BadgeTone; labelKey: TranslationKey; filterKey: TranslationKey }> = {
+  scheduled: { tone: 'info', labelKey: 'adminMobilizationStatusScheduled', filterKey: 'adminMobilizationFilterStatusScheduled' },
+  departing_today: { tone: 'brand', labelKey: 'adminMobilizationStatusDepartingToday', filterKey: 'adminMobilizationFilterStatusDepartingToday' },
+  departed: { tone: 'success', labelKey: 'adminMobilizationStatusDeparted', filterKey: 'adminMobilizationFilterStatusMobilized' },
+  not_confirmed: { tone: 'warning', labelKey: 'adminMobilizationStatusNotConfirmed', filterKey: 'adminMobilizationFilterStatusNotConfirmed' },
+};
+
+function DepartureStatus({ row, language, t }: { row: MobilizationRow; language: Language; t: (key: TranslationKey) => string }) {
+  const presentation = STATUS_PRESENTATION[row.status];
+  let note: string | null = null;
+  if (row.status === 'departed' && !row.mobilizedOn) {
+    note = t('adminMobilizationStatusDepartedByBoardingPass');
+  } else if (row.status === 'departed' && row.mobilizedOn && row.mobilizedOn !== pakistanDay(row.flightDepartureAt)) {
+    note = interpolate(t('adminMobilizationStatusDepartedOn'), { date: formatDay(row.mobilizedOn, language) });
+  }
+  return (
+    <div className="flex flex-col items-start gap-1">
+      <Badge tone={presentation.tone}>{t(presentation.labelKey)}</Badge>
+      {note ? <span className="text-xs text-text-tertiary">{note}</span> : null}
+    </div>
+  );
+}
+
 interface SummaryCardsProps {
   summary: MobilizationSummary;
   boardingPass?: MobilizationBoardingPassFilter;
   status?: MobilizationStatus;
   onBoardingPass: (state: MobilizationBoardingPassFilter) => void;
-  onMobilized: () => void;
+  onStatus: (state: MobilizationStatus) => void;
   t: (key: TranslationKey) => string;
 }
 
-/** Totals for the current filters; the boarding pass and mobilized cards double as quick filters. */
-function SummaryCards({ summary, boardingPass, status, onBoardingPass, onMobilized, t }: SummaryCardsProps) {
+/** Totals for the current filters; the boarding pass and status cards double as quick filters. */
+function SummaryCards({ summary, boardingPass, status, onBoardingPass, onStatus, t }: SummaryCardsProps) {
   return (
-    <div className="mb-5 grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+    <div className="mb-5 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
       <SummaryCard label={t('adminMobilizationSummaryTotal')} value={summary.total} icon={<Users className="h-4 w-4" aria-hidden="true" />} />
       <SummaryCard
         label={t('adminMobilizationSummaryUploaded')}
@@ -348,10 +374,17 @@ function SummaryCards({ summary, boardingPass, status, onBoardingPass, onMobiliz
       />
       <SummaryCard
         label={t('adminMobilizationSummaryMobilized')}
-        value={summary.status.mobilized}
+        value={summary.status.departed}
         icon={<PlaneTakeoff className="h-4 w-4" aria-hidden="true" />}
-        pressed={status === 'mobilized'}
-        onPress={onMobilized}
+        pressed={status === 'departed'}
+        onPress={() => onStatus('departed')}
+      />
+      <SummaryCard
+        label={t('adminMobilizationSummaryNotConfirmed')}
+        value={summary.status.not_confirmed}
+        icon={<AlertTriangle className="h-4 w-4" aria-hidden="true" />}
+        pressed={status === 'not_confirmed'}
+        onPress={() => onStatus('not_confirmed')}
       />
     </div>
   );

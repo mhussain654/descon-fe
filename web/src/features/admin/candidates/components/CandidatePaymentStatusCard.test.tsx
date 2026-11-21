@@ -25,6 +25,7 @@ vi.mock("../../../../lib/admin-workflow-client", () => ({
     mobilizeFlightDetail: vi.fn(),
     getFlightTicketAccess: vi.fn(),
     getBoardingPassAccess: vi.fn(),
+    rejectBoardingPass: vi.fn(),
   },
 }));
 

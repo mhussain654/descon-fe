@@ -14,12 +14,12 @@ describe('buildMobilizationListQuery', () => {
   it('serializes search, every filter, sort and page', () => {
     expect(
       buildMobilizationListQuery(
-        { search: 'Ali', flightDate: '2026-11-20', boardingPass: 'missing', status: 'awaiting_departure' },
+        { search: 'Ali', flightDate: '2026-11-20', boardingPass: 'missing', status: 'not_confirmed' },
         'departure_at',
         { number: 2, size: 50 }
       )
     ).toBe(
-      '?search=Ali&filter%5Bflight_date%5D=2026-11-20&filter%5Bboarding_pass%5D=missing&filter%5Bstatus%5D=awaiting_departure&sort=departure_at&page%5Bnumber%5D=2&page%5Bsize%5D=50'
+      '?search=Ali&filter%5Bflight_date%5D=2026-11-20&filter%5Bboarding_pass%5D=missing&filter%5Bstatus%5D=not_confirmed&sort=departure_at&page%5Bnumber%5D=2&page%5Bsize%5D=50'
     );
   });
 });
@@ -37,7 +37,7 @@ describe('toMobilizationRow', () => {
         ticket_attached: true,
         boarding_pass_uploaded_at: null,
         mobilized_on: null,
-        status: 'awaiting_departure',
+        status: 'departing_today',
       })
     ).toEqual({
       id: 'flight-1',
@@ -48,19 +48,21 @@ describe('toMobilizationRow', () => {
       flightDepartureAt: '2026-11-19T21:00:00Z',
       ticketAttached: true,
       boardingPassUploadedAt: null,
+      boardingPassCheck: null,
+      boardingPassRejected: false,
       mobilizedOn: null,
-      status: 'awaiting_departure',
+      status: 'departing_today',
     });
   });
 });
 
 describe('toMobilizationSummary', () => {
   it('maps the counts and zero-fills anything missing or malformed', () => {
-    expect(toMobilizationSummary({ total: 300, boarding_pass: { uploaded: 180, missing: 120 }, status: { awaiting_departure: 300 } })).toEqual({
+    expect(toMobilizationSummary({ total: 300, boarding_pass: { uploaded: 180, missing: 120 }, status: { departing_today: 300 } })).toEqual({
       total: 300,
       boardingPass: { uploaded: 180, missing: 120 },
-      status: { awaitingDeparture: 300, mobilized: 0 },
+      status: { scheduled: 0, departing_today: 300, departed: 0, not_confirmed: 0 },
     });
-    expect(toMobilizationSummary(null)).toEqual({ total: 0, boardingPass: { uploaded: 0, missing: 0 }, status: { awaitingDeparture: 0, mobilized: 0 } });
+    expect(toMobilizationSummary(null)).toEqual({ total: 0, boardingPass: { uploaded: 0, missing: 0 }, status: { scheduled: 0, departing_today: 0, departed: 0, not_confirmed: 0 } });
   });
 });

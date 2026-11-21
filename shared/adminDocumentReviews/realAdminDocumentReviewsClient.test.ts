@@ -241,6 +241,7 @@ describe('createAdminDocumentReviewsClient (real)', () => {
       expect(detail.documents[0]).toMatchObject({ id: 'doc-1', status: 'pending_review', requirementCode: 'passport' });
       expect(detail.documents[0].verifiedAt).toBeUndefined();
       expect(detail.documents[0].rejectionReason).toBeUndefined();
+      expect(detail.documents[0].rejectedAutomatically).toBe(false);
       expect(detail.documents[0].reviewer).toBeUndefined();
       expect(detail.documents[1]).toMatchObject({
         id: 'doc-2',

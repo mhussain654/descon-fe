@@ -30,6 +30,7 @@ const SWITCH_FIELDS: Record<AppFeatureSwitch, string> = {
   automaticCalls: 'automatic_calls',
   bulkCalls: 'bulk_calls',
   documentOcr: 'document_ocr',
+  documentIdentityCheck: 'document_identity_check',
 };
 
 type AdminAppSettingsResponse = Record<string, unknown> & {

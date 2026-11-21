@@ -1,5 +1,5 @@
 import { flightDateToday } from "../../../../../../shared/adminCandidates/flightDate";
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createMockStaffAuthClient, MOCK_STAFF_ACCOUNTS, MOCK_STAFF_PASSWORD } from "../../../../../../shared/auth/staffAuthClient";
@@ -26,6 +26,7 @@ vi.mock("../../../../lib/admin-workflow-client", () => ({
     mobilizeFlightDetail: vi.fn(),
     getFlightTicketAccess: vi.fn(),
     getBoardingPassAccess: vi.fn(),
+    rejectBoardingPass: vi.fn(),
   },
 }));
 
@@ -135,6 +136,8 @@ function flightDetailRecord(overrides: Record<string, unknown> = {}) {
     mobilizedOn: null,
     mobilized: false,
     boardingPassUploadedAt: null,
+    boardingPassCheck: null,
+    boardingPassRejection: null,
     recordedBy: { id: "staff-1", role: "mps" },
     mobilizedRecordedBy: null,
     ...overrides,
@@ -333,6 +336,7 @@ describe("WorkflowPanel", () => {
     vi.mocked(adminWorkflowClient.mobilizeFlightDetail).mockReset();
     vi.mocked(adminWorkflowClient.getFlightTicketAccess).mockReset();
     vi.mocked(adminWorkflowClient.getBoardingPassAccess).mockReset();
+    vi.mocked(adminWorkflowClient.rejectBoardingPass).mockReset();
     localStorage.removeItem("descon.language");
   });
 
@@ -1583,6 +1587,61 @@ describe("WorkflowPanel", () => {
 
       await waitFor(() => expect(adminWorkflowClient.getBoardingPassAccess).toHaveBeenCalledWith("candidate-1"));
       expect(await screen.findByRole("link", { name: "Open boarding pass" })).toBeInTheDocument();
+    });
+
+    it("shows what the automatic check found, and lets staff reject the photo with a reason", async () => {
+      adminWorkflowClient.getWorkflowState.mockResolvedValue(workflowState());
+      adminWorkflowClient.getAllowedTransitions.mockResolvedValue(allowedTransitions({ allowedNextTransitions: [] }));
+      adminWorkflowClient.getWorkflowHistory.mockResolvedValue(workflowHistory());
+      const uploaded = flightDetailRecord({
+        boardingPassUploadedAt: "2026-09-20T11:05:00Z",
+        boardingPassCheck: { result: "needs_review", seat: "23A", signals: { flightNumber: true, date: true, name: false, seat: true } },
+      });
+      adminWorkflowClient.getFlightDetail.mockResolvedValue(flightDetailShow({ flightDetail: uploaded }));
+      adminWorkflowClient.rejectBoardingPass.mockResolvedValue({
+        ...uploaded,
+        boardingPassRejection: { rejectedAt: "2026-09-22T05:00:00Z", reason: "Blurry photo." },
+      });
+      const client = await signInAs(MPS);
+
+      renderPanel(client);
+
+      expect(await screen.findByText("Needs a look: only part of it matches the booked flight")).toBeInTheDocument();
+      expect(screen.getByText("✗ Name")).toBeInTheDocument();
+      expect(screen.getByText("Seat 23A")).toBeInTheDocument();
+
+      fireEvent.click(screen.getByRole("button", { name: "Reject boarding pass" }));
+      const dialog = await screen.findByRole("dialog");
+      fireEvent.click(within(dialog).getByRole("button", { name: "Reject" }));
+      expect(await within(dialog).findByText("Enter a reason.")).toBeInTheDocument();
+      expect(adminWorkflowClient.rejectBoardingPass).not.toHaveBeenCalled();
+
+      fireEvent.change(within(dialog).getByLabelText(/Reason \(shown to the candidate\)/), { target: { value: "  Blurry photo. " } });
+      fireEvent.click(within(dialog).getByRole("button", { name: "Reject" }));
+
+      await waitFor(() =>
+        expect(adminWorkflowClient.rejectBoardingPass).toHaveBeenCalledWith({ candidateId: "candidate-1", reason: "Blurry photo." })
+      );
+    });
+
+    it("shows a rejection and offers no second one", async () => {
+      adminWorkflowClient.getWorkflowState.mockResolvedValue(workflowState());
+      adminWorkflowClient.getAllowedTransitions.mockResolvedValue(allowedTransitions({ allowedNextTransitions: [] }));
+      adminWorkflowClient.getWorkflowHistory.mockResolvedValue(workflowHistory());
+      adminWorkflowClient.getFlightDetail.mockResolvedValue(
+        flightDetailShow({
+          flightDetail: flightDetailRecord({
+            boardingPassUploadedAt: "2026-09-20T11:05:00Z",
+            boardingPassRejection: { rejectedAt: "2026-09-22T05:00:00Z", reason: "Blurry photo." },
+          }),
+        })
+      );
+      const client = await signInAs(MPS);
+
+      renderPanel(client);
+
+      expect(await screen.findByText("Reason: Blurry photo.")).toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: "Reject boarding pass" })).toBeNull();
     });
 
     it("says when the candidate has not uploaded their boarding pass yet", async () => {

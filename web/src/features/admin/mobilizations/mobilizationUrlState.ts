@@ -2,7 +2,12 @@
 // refresh, back/forward or a shared link keeps the same view.
 import { isFlightDate } from '../../../../../shared/adminCandidates/flightDate';
 import { readRegisteredDateRange, writeRegisteredDateRange } from '../../../../../shared/adminCandidates/registeredDates';
-import type { MobilizationFilters, MobilizationPage, MobilizationSort } from '../../../../../shared/adminCandidates/mobilizations';
+import {
+  isMobilizationStatus,
+  type MobilizationFilters,
+  type MobilizationPage,
+  type MobilizationSort,
+} from '../../../../../shared/adminCandidates/mobilizations';
 
 export const DEFAULT_PAGE_SIZE = 20;
 
@@ -25,7 +30,7 @@ export function readMobilizationStateFromSearchParams(searchParams: URLSearchPar
       search: searchParams.get('search') || undefined,
       flightDate: isFlightDate(flightDate) ? flightDate : undefined,
       boardingPass: boardingPass === 'uploaded' || boardingPass === 'missing' ? boardingPass : undefined,
-      status: status === 'awaiting_departure' || status === 'mobilized' ? status : undefined,
+      status: isMobilizationStatus(status) ? status : undefined,
       countryCode: searchParams.get('country') || undefined,
       ...readRegisteredDateRange(searchParams),
     },

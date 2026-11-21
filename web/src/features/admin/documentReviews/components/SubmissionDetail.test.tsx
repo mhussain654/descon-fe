@@ -198,6 +198,43 @@ describe('SubmissionDetail', () => {
     );
   });
 
+  it('shows a document the system rejected as not an ID, and lets staff approve it anyway', async () => {
+    adminDocumentReviewsClient.getSubmission.mockResolvedValue(
+      submissionDetail([
+        submissionDocument({
+          id: 'doc-2', requirementCode: 'cv', name: 'CV', status: 'rejected', rejectedAutomatically: true,
+          rejectionReason: "This doesn't look like your CNIC. Please upload a clear photo of your CNIC.",
+        }),
+      ])
+    );
+    adminDocumentReviewsClient.verifyDocument.mockResolvedValue({
+      document: submissionDocument({ id: 'doc-2', requirementCode: 'cv', status: 'verified' }),
+      submission: { id: 'submission-1', review: { pendingReview: 0, verified: 1, rejected: 0, requiredTotal: 1, reviewState: 'verified' } },
+    });
+
+    await renderDetail();
+
+    expect(await screen.findByText(/^Rejected automatically:/)).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Reject' })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Approve anyway' }));
+    await screen.findByText('Verify this document?');
+    const verifyButtons = screen.getAllByRole('button', { name: 'Verify' });
+    fireEvent.click(verifyButtons[verifyButtons.length - 1]);
+
+    await waitFor(() => expect(adminDocumentReviewsClient.verifyDocument).toHaveBeenCalledWith('doc-2', expect.any(String), {}));
+  });
+
+  it('offers no approve-anyway for a document staff rejected themselves', async () => {
+    adminDocumentReviewsClient.getSubmission.mockResolvedValue(
+      submissionDetail([submissionDocument({ status: 'rejected', rejectedAutomatically: false, rejectionReason: 'Wrong file.' })])
+    );
+
+    await renderDetail();
+
+    expect(await screen.findByText('Wrong file.')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Approve anyway' })).not.toBeInTheDocument();
+  });
+
   it('does not show date inputs or fetch extraction data for a non-OCR document type', async () => {
     adminDocumentReviewsClient.getSubmission.mockResolvedValue(
       submissionDetail([submissionDocument({ id: 'doc-2', requirementCode: 'cv', name: 'CV' })])

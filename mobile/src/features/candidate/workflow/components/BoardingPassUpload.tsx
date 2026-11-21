@@ -1,5 +1,5 @@
 import { View } from 'react-native';
-import { CalendarClock, Camera, CheckCircle2, Eye, Image as ImageIcon } from 'lucide-react-native';
+import { AlertCircle, CalendarClock, Camera, CheckCircle2, Eye, Image as ImageIcon } from 'lucide-react-native';
 import { Button, ValidationMessage } from '../../../../design-system';
 import { Text } from '../../../../design-system/Text';
 import { spacing } from '../../../../design-system/tokens';
@@ -44,6 +44,22 @@ function calendarDay(day: string, language: Language): string {
   return formatShortDate(new Date(year, month - 1, date, 12), language);
 }
 
+/** Staff rejected the photo: says so, with their reason, before the upload actions. */
+function RejectionNotice({ reason, language, t }: { reason: string; language: Language; t: (key: TranslationKey) => string }) {
+  const rowDirection = rowDirectionTowards(language === 'ur' ? 'right' : 'left');
+  return (
+    <View style={styles.rejection} accessibilityRole="alert">
+      <View style={[styles.row, { flexDirection: rowDirection }]}>
+        <AlertCircle size={16} color={themed('#B42318', '#FDA29B')} />
+        <Text style={[styles.rejectedTitle, styles.flex, statusCopyStyle(language, 14)]}>{t('boardingPassRejectedTitle')}</Text>
+      </View>
+      <Text style={[styles.rejectedReason, statusCopyStyle(language, 13)]}>
+        {interpolate(t('boardingPassRejectedReason'), { reason })}
+      </Text>
+    </View>
+  );
+}
+
 /**
  * The Mobilize Status step's boarding pass upload (client request, Nov 2026):
  * the candidate takes or picks a photo of their boarding pass, and can upload
@@ -52,11 +68,17 @@ function calendarDay(day: string, language: Language): string {
  * Only open from 2 days before the flight's day to 2 days after (client
  * decision, Nov 2026). Before that the box says from when; after it, a sent
  * photo can still be viewed but no longer replaced.
+ *
+ * When staff reject the photo, the box shows their reason and asks for a new
+ * one, as if nothing had been sent; the server keeps the window open for 2
+ * days after a rejection.
  */
 export function BoardingPassUpload({ flight, language, t }: BoardingPassUploadProps) {
   const upload = useBoardingPassUpload(t);
   const view = useBoardingPassView();
-  const uploadedAt = flight.boardingPassUploadedAt;
+  const rejection = flight.boardingPassRejection;
+  // A rejected photo no longer counts as sent: the candidate is asked for a new one.
+  const uploadedAt = rejection ? null : flight.boardingPassUploadedAt;
   const rowDirection = rowDirectionTowards(language === 'ur' ? 'right' : 'left');
   const uploadWindow = flight.boardingPassUpload;
   const windowState = uploadWindow?.state ?? 'open';
@@ -89,6 +111,7 @@ export function BoardingPassUpload({ flight, language, t }: BoardingPassUploadPr
     return (
       <View style={styles.box} accessibilityLabel={t('boardingPassTitle')}>
         <Text style={[styles.title, statusCopyStyle(language, 13)]}>{t('boardingPassTitle')}</Text>
+        {rejection ? <RejectionNotice reason={rejection.reason} language={language} t={t} /> : null}
         {uploadedAt ? (
           <View style={[styles.row, { flexDirection: rowDirection }]}>
             <CheckCircle2 size={16} color={themed('#087443', '#83F6C2')} />
@@ -98,7 +121,7 @@ export function BoardingPassUpload({ flight, language, t }: BoardingPassUploadPr
           </View>
         ) : null}
         <Text style={[styles.hint, statusCopyStyle(language, 13)]}>
-          {t(uploadedAt ? 'boardingPassClosedUploaded' : 'boardingPassClosedMissing')}
+          {t(rejection ? 'boardingPassRejectedClosed' : uploadedAt ? 'boardingPassClosedUploaded' : 'boardingPassClosedMissing')}
         </Text>
         {uploadedAt ? (
           <View style={[styles.actions, { flexDirection: rowDirection }]}>
@@ -120,6 +143,7 @@ export function BoardingPassUpload({ flight, language, t }: BoardingPassUploadPr
   return (
     <View style={styles.box} accessibilityLabel={t('boardingPassTitle')}>
       <Text style={[styles.title, statusCopyStyle(language, 13)]}>{t('boardingPassTitle')}</Text>
+      {rejection ? <RejectionNotice reason={rejection.reason} language={language} t={t} /> : null}
       {uploadedAt ? (
         <View style={[styles.row, { flexDirection: rowDirection }]}>
           <CheckCircle2 size={16} color={themed('#087443', '#83F6C2')} />
@@ -129,7 +153,7 @@ export function BoardingPassUpload({ flight, language, t }: BoardingPassUploadPr
         </View>
       ) : null}
       <Text style={[styles.hint, statusCopyStyle(language, 13)]}>
-        {t(uploadedAt ? 'boardingPassReplaceHint' : 'boardingPassHint')}
+        {t(rejection ? 'boardingPassRejectedHint' : uploadedAt ? 'boardingPassReplaceHint' : 'boardingPassHint')}
       </Text>
       <View style={[styles.actions, { flexDirection: rowDirection }]}>
         <Button
@@ -205,4 +229,14 @@ const styles = themedStyles(() => ({
   hint: { fontSize: 13, color: themed('#526581', '#A9BFE5') },
   notice: { fontSize: 14, color: themed('#0065B3', '#93C5FD') },
   actions: { gap: spacing[2] },
+  rejection: {
+    borderRadius: 8,
+    padding: spacing[2],
+    gap: spacing[1],
+    backgroundColor: themed('#FEF3F2', '#3B1212'),
+    borderWidth: 1,
+    borderColor: themed('#FECDCA', '#7A271A'),
+  },
+  rejectedTitle: { fontSize: 14, color: themed('#B42318', '#FDA29B') },
+  rejectedReason: { fontSize: 13, color: themed('#7A271A', '#FECDCA') },
 }));

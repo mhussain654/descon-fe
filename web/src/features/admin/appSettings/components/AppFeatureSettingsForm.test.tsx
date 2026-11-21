@@ -34,7 +34,7 @@ async function renderForm() {
 }
 
 function settings(overrides: Record<string, unknown> = {}) {
-  const allOn = { cardPayment: true, voucherPayment: true, progressSms: true, automaticCalls: true, bulkCalls: true, documentOcr: true };
+  const allOn = { cardPayment: true, voucherPayment: true, progressSms: true, automaticCalls: true, bulkCalls: true, documentOcr: true, documentIdentityCheck: true };
   return {
     enabled: allOn,
     serverReady: { ...allOn, documentOcr: false },

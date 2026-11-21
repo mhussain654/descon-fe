@@ -358,8 +358,47 @@ export interface AdminFlightDetail {
   mobilized: boolean;
   /** When the candidate uploaded their boarding pass photo from the app; null until they do. */
   boardingPassUploadedAt: string | null;
+  /** What the automatic OCR check found on the uploaded boarding pass; null before any upload. */
+  boardingPassCheck: BoardingPassCheck | null;
+  /** Set when staff rejected the uploaded boarding pass; cleared by the candidate's next upload. */
+  boardingPassRejection: { rejectedAt: string; reason: string } | null;
   recordedBy: WorkflowActor | null;
   mobilizedRecordedBy: WorkflowActor | null;
+}
+
+/**
+ * The automatic OCR check of an uploaded boarding pass against the booked
+ * flight (BoardingPassCheck in openapi.yaml). `matched`: flight number, date
+ * and name found; `needs_review`: only some; `not_boarding_pass`: neither the
+ * flight number nor the date; `unavailable`: OCR off or unreadable.
+ */
+export type BoardingPassCheckResult = 'pending' | 'matched' | 'needs_review' | 'not_boarding_pass' | 'unavailable';
+
+export interface BoardingPassCheck {
+  result: BoardingPassCheckResult;
+  /** As printed, e.g. 23A, or GATE/SBY; null when not found. */
+  seat: string | null;
+  signals: { flightNumber: boolean; date: boolean; name: boolean; seat: boolean };
+}
+
+const BOARDING_PASS_CHECK_RESULTS: readonly BoardingPassCheckResult[] = ['pending', 'matched', 'needs_review', 'not_boarding_pass', 'unavailable'];
+
+/** Maps the API's `boarding_pass_check` (shared by the workflow and Mobilization endpoints). */
+export function toBoardingPassCheck(raw: unknown): BoardingPassCheck | null {
+  if (!raw || typeof raw !== 'object') return null;
+  const value = raw as { result?: unknown; seat?: unknown; signals?: Record<string, unknown> };
+  if (!BOARDING_PASS_CHECK_RESULTS.includes(value.result as BoardingPassCheckResult)) return null;
+  const signals = value.signals ?? {};
+  return {
+    result: value.result as BoardingPassCheckResult,
+    seat: typeof value.seat === 'string' ? value.seat : null,
+    signals: {
+      flightNumber: signals.flight_number === true,
+      date: signals.date === true,
+      name: signals.name === true,
+      seat: signals.seat === true,
+    },
+  };
 }
 
 export interface AdminFlightDetailShow {
@@ -412,4 +451,6 @@ export interface AdminWorkflowClient {
   getFlightTicketAccess(candidateId: string): Promise<FlightTicketAccessResult>;
   /** A short-lived, audited link to the boarding pass photo the candidate uploaded. */
   getBoardingPassAccess(candidateId: string): Promise<FlightTicketAccessResult>;
+  /** Rejects the candidate's boarding pass photo as not valid, with a reason they see in the app. */
+  rejectBoardingPass(input: { candidateId: string; reason: string }): Promise<AdminFlightDetail>;
 }

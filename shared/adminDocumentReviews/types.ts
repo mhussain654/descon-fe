@@ -78,6 +78,8 @@ export interface SubmissionDocument {
   status: DocumentDisplayStatus;
   verifiedAt?: string;
   rejectionReason?: string;
+  /** The system rejected it as not looking like a CNIC/passport (no reviewer); staff may still approve it. */
+  rejectedAutomatically: boolean;
   /** Present once the document has been reviewed (verified or rejected). */
   reviewer?: ReviewerInfo;
   /** Present for police_character (PCC) documents, and for an OCR-supported document type (MPS-404) once HR has confirmed a value through the verify action. */

@@ -3,9 +3,20 @@
 // Types, query-string builder and response mapping, kept pure so they are
 // unit-testable without fetch.
 import type { AdminCandidatePagination } from './types';
+import { toBoardingPassCheck, type BoardingPassCheck } from '../adminWorkflow/types';
 import { appendRegisteredDateParams, type RegisteredDateRange } from './registeredDates';
 
-export type MobilizationStatus = 'awaiting_departure' | 'mobilized';
+/**
+ * Departure status on today's Pakistan date (CandidateFlightDetail#departure_status):
+ * `departed` once staff record the mobilization or, after the flight's day, once the
+ * candidate has uploaded a boarding pass; `not_confirmed` when the day passed with neither.
+ */
+export const MOBILIZATION_STATUSES = ['scheduled', 'departing_today', 'departed', 'not_confirmed'] as const;
+export type MobilizationStatus = (typeof MOBILIZATION_STATUSES)[number];
+
+export function isMobilizationStatus(value: unknown): value is MobilizationStatus {
+  return typeof value === 'string' && (MOBILIZATION_STATUSES as readonly string[]).includes(value);
+}
 export type MobilizationBoardingPassFilter = 'uploaded' | 'missing';
 /** Matches Admin::Mobilizations::IndexQuery::ALLOWED_SORTS; the backend defaults to `-departure_at`. */
 export type MobilizationSort = 'departure_at' | '-departure_at';
@@ -42,6 +53,10 @@ export interface MobilizationRow {
   ticketAttached: boolean;
   /** ISO 8601, or null before the candidate uploads one. */
   boardingPassUploadedAt: string | null;
+  /** What the automatic OCR check found on the boarding pass; null before an upload. */
+  boardingPassCheck: BoardingPassCheck | null;
+  /** Whether staff rejected the uploaded boarding pass. */
+  boardingPassRejected: boolean;
   /** YYYY-MM-DD, or null before mobilization. */
   mobilizedOn: string | null;
   status: MobilizationStatus;
@@ -51,7 +66,7 @@ export interface MobilizationRow {
 export interface MobilizationSummary {
   total: number;
   boardingPass: { uploaded: number; missing: number };
-  status: { awaitingDeparture: number; mobilized: number };
+  status: Record<MobilizationStatus, number>;
 }
 
 export interface MobilizationListResult {
@@ -94,6 +109,8 @@ interface MobilizationRowResponse {
   flight_departure_at: string;
   ticket_attached: boolean;
   boarding_pass_uploaded_at: string | null;
+  boarding_pass_check?: unknown;
+  boarding_pass_rejected?: boolean;
   mobilized_on: string | null;
   status: MobilizationStatus;
 }
@@ -115,8 +132,11 @@ export function toMobilizationRow(raw: MobilizationRowResponse): MobilizationRow
     flightDepartureAt: raw.flight_departure_at,
     ticketAttached: raw.ticket_attached === true,
     boardingPassUploadedAt: raw.boarding_pass_uploaded_at,
+    boardingPassCheck: toBoardingPassCheck(raw.boarding_pass_check),
+    boardingPassRejected: raw.boarding_pass_rejected === true,
     mobilizedOn: raw.mobilized_on,
-    status: raw.status === 'mobilized' ? 'mobilized' : 'awaiting_departure',
+    // An unknown value is shown as needing a check rather than as a confident state.
+    status: isMobilizationStatus(raw.status) ? raw.status : 'not_confirmed',
   };
 }
 
@@ -126,12 +146,12 @@ export function toMobilizationSummary(raw: unknown): MobilizationSummary {
   const value = (raw && typeof raw === 'object' ? raw : {}) as {
     total?: unknown;
     boarding_pass?: { uploaded?: unknown; missing?: unknown };
-    status?: { awaiting_departure?: unknown; mobilized?: unknown };
+    status?: Partial<Record<MobilizationStatus, unknown>>;
   };
   return {
     total: count(value.total),
     boardingPass: { uploaded: count(value.boarding_pass?.uploaded), missing: count(value.boarding_pass?.missing) },
-    status: { awaitingDeparture: count(value.status?.awaiting_departure), mobilized: count(value.status?.mobilized) },
+    status: Object.fromEntries(MOBILIZATION_STATUSES.map((state) => [state, count(value.status?.[state])])) as Record<MobilizationStatus, number>,
   };
 }
 

@@ -32,12 +32,12 @@ function row(overrides = {}) {
     ticketAttached: true,
     boardingPassUploadedAt: null,
     mobilizedOn: null,
-    status: "awaiting_departure",
+    status: "scheduled",
     ...overrides,
   };
 }
 
-function result(items, summary = { total: items.length, boardingPass: { uploaded: 0, missing: items.length }, status: { awaitingDeparture: items.length, mobilized: 0 } }) {
+function result(items, summary = { total: items.length, boardingPass: { uploaded: 0, missing: items.length }, status: { scheduled: items.length, departing_today: 0, departed: 0, not_confirmed: 0 } }) {
   return { items, pagination: { page: 1, perPage: 20, totalCount: items.length, totalPages: 1 }, summary };
 }
 
@@ -70,8 +70,8 @@ describe("Admin Mobilization page", () => {
   it("lists each booked candidate with flight, departure in Pakistan time, ticket, boarding pass and status, and counts", async () => {
     vi.mocked(adminCandidateClient.listMobilizations).mockResolvedValue(
       result(
-        [row(), row({ id: "flight-2", candidate: { ...row().candidate, id: "candidate-2", fullName: "Bilal Khan" }, boardingPassUploadedAt: "2026-11-19T16:40:00Z", mobilizedOn: "2026-11-20", status: "mobilized", ticketAttached: false })],
-        { total: 300, boardingPass: { uploaded: 180, missing: 120 }, status: { awaitingDeparture: 290, mobilized: 10 } }
+        [row(), row({ id: "flight-2", candidate: { ...row().candidate, id: "candidate-2", fullName: "Bilal Khan" }, boardingPassUploadedAt: "2026-11-19T16:40:00Z", mobilizedOn: "2026-11-20", status: "departed", ticketAttached: false })],
+        { total: 300, boardingPass: { uploaded: 180, missing: 120 }, status: { scheduled: 250, departing_today: 30, departed: 10, not_confirmed: 10 } }
       )
     );
     await renderAt("/admin/mobilization");
@@ -82,7 +82,7 @@ describe("Admin Mobilization page", () => {
     expect(screen.getAllByText("20 Nov 2026, 02:00").length).toBe(2);
     expect(screen.getByText("Not uploaded")).toBeInTheDocument();
     expect(screen.getByText("Uploaded 19 Nov 2026")).toBeInTheDocument();
-    expect(screen.getByText("Awaiting departure")).toBeInTheDocument();
+    expect(screen.getByText("Scheduled")).toBeInTheDocument();
     // Left on the flight's own day: just "Departed", the date is already in the Departure column.
     // (The summary card shares the word, so the board reads as one.)
     expect(screen.getAllByText("Departed").length).toBeGreaterThan(1);
@@ -90,11 +90,43 @@ describe("Admin Mobilization page", () => {
     expect(screen.getByText("Not attached")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /180\s*Boarding pass uploaded/ })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /120\s*Boarding pass not uploaded/ })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /10\s*Departure not confirmed/ })).toBeInTheDocument();
+  });
+
+  it("shows departing today, not confirmed, and a departure confirmed by the boarding pass", async () => {
+    vi.mocked(adminCandidateClient.listMobilizations).mockResolvedValue(
+      result([
+        row({ status: "departing_today" }),
+        row({ id: "flight-2", candidate: { ...row().candidate, id: "candidate-2", fullName: "Bilal Khan" }, status: "not_confirmed" }),
+        row({ id: "flight-3", candidate: { ...row().candidate, id: "candidate-3", fullName: "Kamran Ali" }, boardingPassUploadedAt: "2026-11-19T16:40:00Z", status: "departed" }),
+      ])
+    );
+    await renderAt("/admin/mobilization");
+
+    expect(await screen.findByText("Departing today")).toBeInTheDocument();
+    expect(screen.getByText("Not confirmed")).toBeInTheDocument();
+    expect(screen.getByText("Confirmed by boarding pass")).toBeInTheDocument();
+  });
+
+  it("filters to departures that are not confirmed from its summary card", async () => {
+    vi.mocked(adminCandidateClient.listMobilizations).mockResolvedValue(result([row()]));
+    await renderAt("/admin/mobilization");
+    await screen.findByRole("link", { name: "Ali Raza" });
+
+    fireEvent.click(screen.getByRole("button", { name: /Departure not confirmed/ }));
+
+    await waitFor(() =>
+      expect(adminCandidateClient.listMobilizations).toHaveBeenLastCalledWith(
+        expect.objectContaining({ status: "not_confirmed" }),
+        undefined,
+        { number: 1, size: 20 }
+      )
+    );
   });
 
   it("adds the day under Departed only when the candidate left on a different day from the booked flight", async () => {
     vi.mocked(adminCandidateClient.listMobilizations).mockResolvedValue(
-      result([row({ mobilizedOn: "2026-11-21", status: "mobilized" })], { total: 1, boardingPass: { uploaded: 0, missing: 1 }, status: { awaitingDeparture: 0, mobilized: 1 } })
+      result([row({ mobilizedOn: "2026-11-21", status: "departed" })], { total: 1, boardingPass: { uploaded: 0, missing: 1 }, status: { scheduled: 0, departing_today: 0, departed: 1, not_confirmed: 0 } })
     );
     await renderAt("/admin/mobilization");
 

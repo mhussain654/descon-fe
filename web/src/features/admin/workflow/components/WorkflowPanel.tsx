@@ -82,6 +82,7 @@ export function WorkflowPanel({ candidateId, section = 'all' }: WorkflowPanelPro
   const { t, language } = useLanguage();
   const { hasPermission, signOut } = useStaffAuth();
   const canTransition = hasPermission('manage_workflow');
+  const canRejectBoardingPass = canTransition || hasPermission('manage_candidate_documents');
 
   const stateQuery = useWorkflowState(candidateId);
   const transitionsQuery = useAvailableTransitions(candidateId);
@@ -349,6 +350,7 @@ export function WorkflowPanel({ candidateId, section = 'all' }: WorkflowPanelPro
       {/* The flight, ticket, boarding pass and mobilization live on their own Mobilization tab. */}
       {section === 'all' || section === 'mobilization' || (section === 'overview' && (flightTransition || mobilizeTransition)) ? <RecordSection collapsed={false} label={t('adminWorkflowFlightPanelTitle')}><FlightDetailPanel
         canTransition={canTransition}
+        canRejectBoardingPass={canRejectBoardingPass}
         flightTransition={flightTransition}
         mobilizeTransition={mobilizeTransition}
         detailQuery={flightDetailQuery}

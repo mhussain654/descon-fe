@@ -16,7 +16,7 @@ import { flightDateToday } from '../../../../../../shared/adminCandidates/flight
 import { interpolate } from '../../../../../../shared/i18n/interpolate';
 import { ADMIN_WORKFLOW_ERROR_KEYS } from '../../../../../../shared/adminWorkflow/errorMessages';
 import { toWorkflowBlockingReason, WORKFLOW_BLOCKING_REASON_KEYS } from '../../../../../../shared/adminWorkflow/blockingReasons';
-import type { AllowedWorkflowTransition } from '../../../../../../shared/adminWorkflow/types';
+import type { AdminFlightDetail, AllowedWorkflowTransition, BoardingPassCheckResult } from '../../../../../../shared/adminWorkflow/types';
 import { ADMIN_REVIEWER_ROLE_KEYS } from '../../../../../../shared/adminDocumentReviews/statusLabels';
 import type { TranslationKey } from '../../../../../../shared/i18n/translations';
 import { resolveDocumentAccessUrl } from '../../../../lib/resolveDocumentAccessUrl';
@@ -50,6 +50,8 @@ const MOBILIZE_REQUIRED_EVIDENCE_FIELDS = ['mobilized_on'];
 
 export interface FlightDetailPanelProps {
   canTransition: boolean;
+  /** Document reviewers (HR) and workflow managers may reject a boarding pass photo. */
+  canRejectBoardingPass: boolean;
   flightTransition: AllowedWorkflowTransition | undefined;
   mobilizeTransition: AllowedWorkflowTransition | undefined;
   detailQuery: ReturnType<typeof useFlightDetail>;
@@ -70,6 +72,7 @@ export interface FlightDetailPanelProps {
  */
 export function FlightDetailPanel({
   canTransition,
+  canRejectBoardingPass,
   flightTransition,
   mobilizeTransition,
   detailQuery,
@@ -291,6 +294,14 @@ export function FlightDetailPanel({
                     </ValidationMessage>
                   ) : null}
                 </div>
+                <BoardingPassReview flightDetail={flightDetail} />
+                {canRejectBoardingPass && !isMobilized && !flightDetail.boardingPassRejection ? (
+                  <div className="mt-3">
+                    <Button type="button" size="sm" variant="destructive" onClick={actions.openRejectDialog}>
+                      {t('adminBoardingPassRejectAction')}
+                    </Button>
+                  </div>
+                ) : null}
               </>
             ) : (
               <p className="mt-1 text-sm text-text-tertiary">{t('adminBoardingPassNotUploaded')}</p>
@@ -307,6 +318,7 @@ export function FlightDetailPanel({
 
       <RecordFlightDetailDialog actions={actions} currentStageCode={currentStageCode} />
       <MobilizeDialog actions={actions} currentStageCode={currentStageCode} flightDepartureAt={flightDetail?.flightDepartureAt} />
+      <RejectBoardingPassDialog actions={actions} />
     </div>
   );
 }
@@ -401,6 +413,109 @@ function RecordFlightDetailDialog({
         <Textarea label={t('adminWorkflowQvcNoteLabel')} value={note} onChange={(event) => setNote(event.target.value)} rows={2} />
         {conflictMessage ? <ValidationMessage tone="error">{conflictMessage}</ValidationMessage> : null}
         {generalError ? <ValidationMessage tone="error">{generalError}</ValidationMessage> : null}
+      </div>
+    </ConfirmDialog>
+  );
+}
+
+const CHECK_PRESENTATION: Record<BoardingPassCheckResult, { tone: 'success' | 'warning' | 'danger' | 'neutral'; key: TranslationKey }> = {
+  matched: { tone: 'success', key: 'adminBoardingPassCheckMatched' },
+  needs_review: { tone: 'warning', key: 'adminBoardingPassCheckNeedsReview' },
+  not_boarding_pass: { tone: 'danger', key: 'adminBoardingPassCheckNotBoardingPass' },
+  pending: { tone: 'neutral', key: 'adminBoardingPassCheckPending' },
+  unavailable: { tone: 'neutral', key: 'adminBoardingPassCheckUnavailable' },
+};
+
+/** What the automatic check found, and a rejection if staff made one. */
+function BoardingPassReview({ flightDetail }: { flightDetail: AdminFlightDetail }) {
+  const { t, language } = useLanguage();
+  const check = flightDetail.boardingPassCheck;
+  const rejection = flightDetail.boardingPassRejection;
+  const signals = check
+    ? ([
+        ['adminBoardingPassSignalFlightNumber', check.signals.flightNumber],
+        ['adminBoardingPassSignalDate', check.signals.date],
+        ['adminBoardingPassSignalName', check.signals.name],
+      ] as const)
+    : [];
+
+  return (
+    <div className="mt-3 space-y-2">
+      {check ? (
+        <div className="space-y-1">
+          <Badge tone={CHECK_PRESENTATION[check.result].tone}>{t(CHECK_PRESENTATION[check.result].key)}</Badge>
+          {check.result !== 'pending' && check.result !== 'unavailable' ? (
+            <ul className="flex flex-wrap gap-x-3 gap-y-1 text-xs text-text-secondary">
+              {signals.map(([key, found]) => (
+                <li key={key}>
+                  {found ? '✓' : '✗'} {t(key)}
+                </li>
+              ))}
+              <li>{check.seat ? interpolate(t('adminBoardingPassSeatValue'), { seat: check.seat }) : `✗ ${t('adminBoardingPassSignalSeat')}`}</li>
+            </ul>
+          ) : null}
+        </div>
+      ) : null}
+      {rejection ? (
+        <div className="rounded-md border border-border bg-surface-sunken p-2 text-sm">
+          <Badge tone="danger">
+            {interpolate(t('adminBoardingPassRejectedOn'), { date: formatDate(rejection.rejectedAt, language, { dateStyle: 'medium' }) })}
+          </Badge>
+          <p className="mt-1 text-text-secondary">{interpolate(t('adminBoardingPassRejectedReason'), { reason: rejection.reason })}</p>
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+function RejectBoardingPassDialog({ actions }: { actions: ReturnType<typeof useFlightActions> }) {
+  const { t } = useLanguage();
+  const [reason, setReason] = useState('');
+  const [reasonError, setReasonError] = useState<string | undefined>(undefined);
+  const mutationError = actions.rejectMutation.error;
+
+  const handleOpenChange = (open: boolean) => {
+    if (open) return;
+    actions.closeRejectDialog();
+    setReason('');
+    setReasonError(undefined);
+  };
+
+  const handleConfirm = () => {
+    if (!reason.trim()) {
+      setReasonError(t('adminBoardingPassRejectReasonRequired'));
+      return;
+    }
+    setReasonError(undefined);
+    actions.submitReject(reason.trim());
+  };
+
+  return (
+    <ConfirmDialog
+      open={actions.rejectDialogOpen}
+      onOpenChange={handleOpenChange}
+      title={t('adminBoardingPassRejectDialogTitle')}
+      description={t('adminBoardingPassRejectDialogDescription')}
+      confirmLabel={t('adminBoardingPassRejectConfirm')}
+      cancelLabel={t('adminWorkflowCancelAction')}
+      closeLabel={t('dsClose')}
+      onConfirm={handleConfirm}
+      isConfirming={actions.rejectMutation.isPending}
+    >
+      <div className="space-y-4">
+        <Textarea
+          label={t('adminBoardingPassRejectReasonLabel')}
+          value={reason}
+          onChange={(event) => setReason(event.target.value)}
+          rows={3}
+          maxLength={500}
+          errorMessage={reasonError}
+        />
+        {mutationError ? (
+          <ValidationMessage tone="error">
+            {mutationError.message || t(ADMIN_WORKFLOW_ERROR_KEYS[mutationError.code] as TranslationKey)}
+          </ValidationMessage>
+        ) : null}
       </div>
     </ConfirmDialog>
   );

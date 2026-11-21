@@ -18,7 +18,8 @@ export type AppFeatureSwitch =
   | 'progressSms'
   | 'automaticCalls'
   | 'bulkCalls'
-  | 'documentOcr';
+  | 'documentOcr'
+  | 'documentIdentityCheck';
 
 export const APP_FEATURE_SWITCHES: readonly AppFeatureSwitch[] = [
   'cardPayment',
@@ -27,6 +28,7 @@ export const APP_FEATURE_SWITCHES: readonly AppFeatureSwitch[] = [
   'automaticCalls',
   'bulkCalls',
   'documentOcr',
+  'documentIdentityCheck',
 ];
 
 export interface AppSettingsActorRef {

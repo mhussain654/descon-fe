@@ -57,7 +57,7 @@ import type {
   WorkflowTransitionPrerequisiteDetails,
   WorkflowTransitionResult,
 } from './types';
-import { VISA_REJECTION_REASON_CODES } from './types';
+import { toBoardingPassCheck, VISA_REJECTION_REASON_CODES } from './types';
 
 interface TimelineStageResponse {
   code: string;
@@ -231,6 +231,8 @@ interface FlightDetailResponse {
   mobilized_on: string | null;
   mobilized: boolean;
   boarding_pass_uploaded_at?: string | null;
+  boarding_pass_check?: unknown;
+  boarding_pass_rejection?: { rejected_at?: unknown; reason?: unknown } | null;
   recorded_by: ActorResponse | null;
   mobilized_recorded_by: ActorResponse | null;
 }
@@ -623,9 +625,16 @@ function toFlightDetail(raw: unknown): AdminFlightDetail | null {
     mobilizedOn: typeof value.mobilized_on === 'string' ? value.mobilized_on : null,
     mobilized: value.mobilized === true,
     boardingPassUploadedAt: typeof value.boarding_pass_uploaded_at === 'string' ? value.boarding_pass_uploaded_at : null,
+    boardingPassCheck: toBoardingPassCheck(value.boarding_pass_check),
+    boardingPassRejection: toBoardingPassRejection(value.boarding_pass_rejection),
     recordedBy: toActor(value.recorded_by),
     mobilizedRecordedBy: toActor(value.mobilized_recorded_by),
   };
+}
+
+function toBoardingPassRejection(raw: FlightDetailResponse['boarding_pass_rejection']): AdminFlightDetail['boardingPassRejection'] {
+  if (!raw || typeof raw.rejected_at !== 'string' || typeof raw.reason !== 'string') return null;
+  return { rejectedAt: raw.rejected_at, reason: raw.reason };
 }
 
 function toFlightDetailShow(raw: unknown): AdminFlightDetailShow {
@@ -648,6 +657,8 @@ const EMPTY_FLIGHT_DETAIL: AdminFlightDetail = {
   mobilizedOn: null,
   mobilized: false,
   boardingPassUploadedAt: null,
+  boardingPassCheck: null,
+  boardingPassRejection: null,
   recordedBy: null,
   mobilizedRecordedBy: null,
 };
@@ -672,6 +683,9 @@ function toFlightTicketAccessResult(raw: unknown): FlightTicketAccessResult {
 /** Maps the backend's ErrorItem.code (see openapi.yaml's workflow_transitions POST 409/422 examples) to the shared error taxonomy. */
 const SERVER_CODE_TO_ERROR: Record<string, AdminWorkflowErrorCode> = {
   validation_failed: 'VALIDATION_ERROR',
+  // Shown with the server's localized message.
+  boarding_pass_not_uploaded: 'VALIDATION_ERROR',
+  boarding_pass_already_rejected: 'VALIDATION_ERROR',
   workflow_transition_stale: 'WORKFLOW_TRANSITION_STALE',
   workflow_transition_prerequisite_missing: 'WORKFLOW_TRANSITION_PREREQUISITE_MISSING',
   idempotency_conflict: 'IDEMPOTENCY_CONFLICT',
@@ -1023,6 +1037,21 @@ export function createAdminWorkflowClient(options: RealAdminWorkflowClientOption
           )
         );
         return toFlightTicketAccessResult(data);
+      } catch (error) {
+        throw toWorkflowError(error);
+      }
+    },
+
+    async rejectBoardingPass({ candidateId, reason }): Promise<AdminFlightDetail> {
+      try {
+        const data = await staffAuthClient.authenticatedDataRequest((token) =>
+          apiClient.post<FlightDetailResponse>(
+            `/admin/candidates/${encodeURIComponent(candidateId)}/flight_detail/boarding_pass_rejection`,
+            { boarding_pass_rejection: { reason } },
+            { headers: { Authorization: `Bearer ${token}`, 'X-Locale': getLocale() } }
+          )
+        );
+        return toFlightDetail(data) ?? EMPTY_FLIGHT_DETAIL;
       } catch (error) {
         throw toWorkflowError(error);
       }

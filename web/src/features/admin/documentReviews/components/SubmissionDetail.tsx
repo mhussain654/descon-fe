@@ -410,6 +410,8 @@ interface DocumentRowProps {
 function DocumentRow({ document, onPreview, onVerify, onReject }: DocumentRowProps) {
   const { t, language } = useLanguage();
   const canDecide = document.status === 'pending_review';
+  // The system rejected it as not an ID; staff who disagree may still approve it.
+  const canOverride = document.status === 'rejected' && document.rejectedAutomatically;
   // A multi-file document (e.g. CNIC front and back) is reviewed as one set:
   // each file is listed with its own preview, and the decision below applies
   // to the whole set.
@@ -479,6 +481,9 @@ function DocumentRow({ document, onPreview, onVerify, onReject }: DocumentRowPro
               ))}
             </ul>
           ) : null}
+          {canOverride ? (
+            <p className="mt-2 text-sm text-text-secondary">{t('adminDocumentReviewRejectedAutomatically')}</p>
+          ) : null}
           {document.rejectionReason ? (
             <p className="mt-2 text-sm text-danger">
               <span className="font-medium">{t('adminDocumentReviewRejectionReasonLabel')}: </span>
@@ -502,6 +507,11 @@ function DocumentRow({ document, onPreview, onVerify, onReject }: DocumentRowPro
                 {t('adminDocumentReviewRejectAction')}
               </Button>
             </>
+          ) : null}
+          {canOverride ? (
+            <Button variant="primary" size="sm" onClick={onVerify}>
+              {t('adminDocumentReviewApproveAnywayAction')}
+            </Button>
           ) : null}
         </div>
       </div>

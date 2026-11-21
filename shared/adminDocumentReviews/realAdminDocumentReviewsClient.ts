@@ -94,6 +94,7 @@ interface SubmissionDocumentResponse {
   status: string;
   verified_at?: string;
   rejection_reason?: string;
+  rejected_automatically?: boolean;
   reviewer?: ReviewerResponse | null;
   issued_on?: string;
   expires_on?: string;
@@ -263,6 +264,7 @@ function toSubmissionDocument(raw: unknown): SubmissionDocument | null {
     status: toDocumentStatus(value.status),
     verifiedAt: typeof value.verified_at === 'string' ? value.verified_at : undefined,
     rejectionReason: typeof value.rejection_reason === 'string' ? value.rejection_reason : undefined,
+    rejectedAutomatically: value.rejected_automatically === true,
     reviewer: toReviewerInfo(value.reviewer),
     issuedOn: typeof value.issued_on === 'string' ? value.issued_on : undefined,
     expiresOn: typeof value.expires_on === 'string' ? value.expires_on : undefined,
@@ -333,6 +335,7 @@ function toReviewDecisionResult(raw: unknown): ReviewDecisionResult {
       fileSize: 0,
       uploadedAt: '',
       status: 'unknown',
+      rejectedAutomatically: false,
     },
     submission: {
       id: typeof submission.id === 'string' ? submission.id : '',

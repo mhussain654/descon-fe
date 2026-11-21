@@ -861,6 +861,8 @@ describe('createAdminWorkflowClient (real)', () => {
         mobilizedOn: null,
         mobilized: false,
         boardingPassUploadedAt: null,
+        boardingPassCheck: null,
+        boardingPassRejection: null,
         recordedBy: { id: 'staff-1', role: 'mps' },
         mobilizedRecordedBy: null,
       });

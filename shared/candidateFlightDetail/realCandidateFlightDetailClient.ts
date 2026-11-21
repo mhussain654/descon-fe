@@ -27,6 +27,7 @@ interface FlightDetailResponse {
   mobilized: boolean;
   boarding_pass_uploaded_at?: string | null;
   boarding_pass_upload?: { opens_on: string; closes_on: string; state: string } | null;
+  boarding_pass_rejection?: { rejected_at: string; reason: string } | null;
 }
 
 interface FlightTicketAccessResponse {
@@ -53,6 +54,9 @@ function toFlightDetail(data: FlightDetailResponse): CandidateFlightDetail {
     mobilized: data.mobilized,
     boardingPassUploadedAt: data.boarding_pass_uploaded_at ?? null,
     boardingPassUpload: toUploadWindow(data.boarding_pass_upload),
+    boardingPassRejection: data.boarding_pass_rejection
+      ? { rejectedAt: data.boarding_pass_rejection.rejected_at, reason: data.boarding_pass_rejection.reason }
+      : null,
   };
 }
 

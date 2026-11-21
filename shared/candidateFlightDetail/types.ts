@@ -28,6 +28,16 @@ export interface CandidateFlightDetail {
   boardingPassUploadedAt: string | null;
   /** When the boarding pass may be uploaded; null from a backend that doesn't send it yet (treated as open). */
   boardingPassUpload: BoardingPassUploadWindow | null;
+  /** Set when staff rejected the uploaded boarding pass; the candidate should upload a valid one. */
+  boardingPassRejection: BoardingPassRejection | null;
+}
+
+/** Why staff rejected the candidate's boarding pass photo. The next upload clears it. */
+export interface BoardingPassRejection {
+  /** ISO 8601. */
+  rejectedAt: string;
+  /** Free text written by staff, shown as is. */
+  reason: string;
 }
 
 /**

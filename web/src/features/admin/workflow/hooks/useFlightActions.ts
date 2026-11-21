@@ -4,6 +4,7 @@ import { useLanguage } from '../../../../contexts/LanguageContext';
 import { toast } from '../../../../design-system';
 import { adminWorkflowClient } from '../../../../lib/admin-workflow-client';
 import type { AdminWorkflowError, FlightDetailResult, FlightTicketAccessResult } from '../../../../lib/admin-workflow-client';
+import type { AdminFlightDetail } from '../../../../../../shared/adminWorkflow/types';
 import { documentQueries } from '../../../../../../shared/queryKeys/documentQueries';
 import { workflowQueries } from '../../../../../../shared/queryKeys/workflowQueries';
 import { useShortLivedAccess } from './useShortLivedAccess';
@@ -117,6 +118,8 @@ export function useFlightActions(candidateId: string | undefined) {
 
   const [staleNotice, setStaleNotice] = useState(false);
 
+  const [rejectDialogOpen, setRejectDialogOpen] = useState(false);
+
   const ticketAccess = useShortLivedAccess<FlightTicketAccessResult>();
   const boardingPassAccess = useShortLivedAccess<FlightTicketAccessResult>();
 
@@ -190,6 +193,35 @@ export function useFlightActions(candidateId: string | undefined) {
       }
     },
   });
+
+  // Not idempotency-keyed: a repeat is refused by the server (already rejected), never applied twice.
+  const rejectMutation = useMutation<AdminFlightDetail, AdminWorkflowError, { reason: string }>({
+    mutationFn: ({ reason }) => adminWorkflowClient.rejectBoardingPass({ candidateId: candidateId as string, reason }),
+    onSuccess: () => {
+      invalidateWorkflowData();
+      toast.success(t('adminBoardingPassRejectSuccessToast'));
+      setRejectDialogOpen(false);
+    },
+  });
+
+  const openRejectDialog = useCallback(() => {
+    if (rejectMutation.isPending) return;
+    rejectMutation.reset();
+    setRejectDialogOpen(true);
+  }, [rejectMutation]);
+
+  const closeRejectDialog = useCallback(() => {
+    if (rejectMutation.isPending) return;
+    setRejectDialogOpen(false);
+  }, [rejectMutation]);
+
+  const submitReject = useCallback(
+    (reason: string) => {
+      if (!candidateId || rejectMutation.isPending) return;
+      rejectMutation.mutate({ reason });
+    },
+    [candidateId, rejectMutation]
+  );
 
   /** Opens the dialog filled with the admin's default flight details, if any; staff may change them, and the ticket is always chosen per candidate. */
   const openRecordDialog = useCallback((defaults: FlightDetailDefaults = {}) => {
@@ -314,5 +346,10 @@ export function useFlightActions(candidateId: string | undefined) {
     requestTicketAccess,
     boardingPassAccess,
     requestBoardingPassAccess,
+    rejectDialogOpen,
+    openRejectDialog,
+    closeRejectDialog,
+    submitReject,
+    rejectMutation,
   };
 }

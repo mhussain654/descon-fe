@@ -3,7 +3,7 @@ import { DEFAULT_PAGE_SIZE, readMobilizationStateFromSearchParams, writeMobiliza
 describe('mobilizationUrlState', () => {
   it('reads every filter, the sort and the page, and round-trips them', () => {
     const params = new URLSearchParams(
-      'search=Ali&flight_date=2026-11-20&boarding_pass=missing&status=mobilized&country=qatar&registered_from=2026-11-01&registered_to=2026-11-02&sort=departure_at&page=2&size=50'
+      'search=Ali&flight_date=2026-11-20&boarding_pass=missing&status=not_confirmed&country=qatar&registered_from=2026-11-01&registered_to=2026-11-02&sort=departure_at&page=2&size=50'
     );
     const state = readMobilizationStateFromSearchParams(params);
 
@@ -12,7 +12,7 @@ describe('mobilizationUrlState', () => {
         search: 'Ali',
         flightDate: '2026-11-20',
         boardingPass: 'missing',
-        status: 'mobilized',
+        status: 'not_confirmed',
         countryCode: 'qatar',
         registeredFrom: '2026-11-01',
         registeredTo: '2026-11-02',

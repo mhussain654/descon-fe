@@ -23,6 +23,7 @@ function settingPayload() {
     automatic_calls_enabled: true,
     bulk_calls_enabled: false,
     document_ocr_enabled: true,
+    document_identity_check_enabled: false,
     server_ready: {
       card_payment: true,
       voucher_payment: true,
@@ -81,6 +82,7 @@ describe('createAdminAppSettingsClient (real)', () => {
       automaticCalls: true,
       bulkCalls: false,
       documentOcr: true,
+      documentIdentityCheck: false,
     });
     expect(settings.serverReady.progressSms).toBe(false);
     expect(settings.updatedBy).toEqual({ id: 'admin-1', role: 'admin' });

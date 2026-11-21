@@ -18,7 +18,7 @@ const SECTIONS: { titleKey: TranslationKey; icon: LucideIcon; switches: AppFeatu
   { titleKey: 'adminAppSettingsPaymentsSection', icon: CreditCard, switches: ['cardPayment', 'voucherPayment'] },
   { titleKey: 'adminAppSettingsSmsSection', icon: MessageSquare, switches: ['progressSms'] },
   { titleKey: 'adminAppSettingsCallsSection', icon: PhoneCall, switches: ['automaticCalls', 'bulkCalls'] },
-  { titleKey: 'adminAppSettingsDocumentsSection', icon: FileSearch, switches: ['documentOcr'] },
+  { titleKey: 'adminAppSettingsDocumentsSection', icon: FileSearch, switches: ['documentOcr', 'documentIdentityCheck'] },
 ];
 
 function draftFrom(settings: AdminAppSettings): Draft {

@@ -86,7 +86,15 @@ describe('createCandidateFlightDetailClient (real) -- getFlightDetail', () => {
       mobilized: false,
       boardingPassUploadedAt: null,
       boardingPassUpload: null,
+      boardingPassRejection: null,
     });
+  });
+
+  it("maps staff's rejection of the boarding pass", async () => {
+    stubFetch(async () =>
+      jsonResponse(successEnvelope(flightDetailPayload({ boarding_pass_rejection: { rejected_at: '2026-09-22T05:00:00Z', reason: 'Blurry photo.' } })))
+    );
+    expect((await buildClient().getFlightDetail('token'))?.boardingPassRejection).toEqual({ rejectedAt: '2026-09-22T05:00:00Z', reason: 'Blurry photo.' });
   });
 
   it('maps the boarding pass upload window, and ignores an unknown state', async () => {
