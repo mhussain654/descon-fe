@@ -288,6 +288,9 @@ describe('createAdminPaymentsClient (real)', () => {
         manual_payment: { reference: '788895', paid_on: '2026-11-23', reason: 'Paid at KuickPay' },
       });
       expect(result).toMatchObject({ id: 'payment-1', status: 'paid', externalReference: '788895' });
+
+      await client.recordManualPayment('candidate-1', { reference: '788895', paidOn: '2026-11-23', reason: 'r', paymentId: 'payment-1' });
+      expect(JSON.parse(seenInit?.body as string).manual_payment.payment_id).toBe('payment-1');
     });
 
     it("passes on the backend's refusal for a candidate who cannot be marked paid", async () => {

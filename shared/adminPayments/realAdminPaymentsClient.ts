@@ -336,7 +336,14 @@ export function createAdminPaymentsClient(options: RealAdminPaymentsClientOption
         const data = await staffAuthClient.authenticatedDataRequest((token) =>
           apiClient.post<AdminPaymentSummaryResponse>(
             `/admin/candidates/${encodeURIComponent(candidateId)}/manual_payment`,
-            { manual_payment: { reference: payment.reference, paid_on: payment.paidOn, reason: payment.reason } },
+            {
+              manual_payment: {
+                reference: payment.reference,
+                paid_on: payment.paidOn,
+                reason: payment.reason,
+                ...(payment.paymentId ? { payment_id: payment.paymentId } : {}),
+              },
+            },
             { headers: { Authorization: `Bearer ${token}`, 'X-Locale': getLocale() } }
           )
         );

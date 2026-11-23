@@ -7,6 +7,7 @@ import {
   type ManualPaymentRequest,
   type PaymentSummary,
 } from '../../../../lib/admin-payments-client';
+import { adminPaymentQueries } from '../../../../../../shared/queryKeys/adminPaymentQueries';
 import { adminCandidateQueries } from '../../../../../../shared/queryKeys/adminCandidateQueries';
 import { adminFeeQueries } from '../../../../../../shared/queryKeys/adminFeeQueries';
 import { workflowQueries } from '../../../../../../shared/queryKeys/workflowQueries';
@@ -23,7 +24,8 @@ export function useRecordManualPayment(candidateId: string, onRecorded: () => vo
   const queryClient = useQueryClient();
   return useMutation<PaymentSummary, AdminPaymentError, ManualPaymentRequest>({
     mutationFn: (payment) => adminPaymentsClient.recordManualPayment(candidateId, payment),
-    onSuccess: () => {
+    onSuccess: (payment) => {
+      queryClient.invalidateQueries({ queryKey: adminPaymentQueries.detail(payment.id, language) });
       queryClient.invalidateQueries({ queryKey: adminCandidateQueries.detail(candidateId, language) });
       queryClient.invalidateQueries({ queryKey: workflowQueries.adminState(candidateId, language) });
       queryClient.invalidateQueries({ queryKey: workflowQueries.adminTransitions(candidateId, language) });

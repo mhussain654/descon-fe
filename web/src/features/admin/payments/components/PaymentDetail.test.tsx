@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MemoryRouter } from 'react-router';
 import { afterEach, describe, expect, it, vi } from 'vitest';
@@ -17,11 +17,13 @@ vi.mock('../../../../lib/admin-payments-client', () => ({
     listPayments: vi.fn(),
     getPayment: vi.fn(),
     correctPayment: vi.fn(),
+    recordManualPayment: vi.fn(),
   },
 }));
 
 const FINANCE = MOCK_STAFF_ACCOUNTS.find((account) => account.role === 'finance' && !account.locked && !account.suspended)!;
 const MANAGEMENT = MOCK_STAFF_ACCOUNTS.find((account) => account.role === 'management')!;
+const DEVELOPER = MOCK_STAFF_ACCOUNTS.find((account) => account.role === 'developer')!;
 
 async function signedInClient(account: typeof FINANCE) {
   const client = createMockStaffAuthClient({ delayMs: 0 });
@@ -70,6 +72,7 @@ describe('PaymentDetail', () => {
   afterEach(() => {
     vi.mocked(adminPaymentsClient.getPayment).mockReset();
     vi.mocked(adminPaymentsClient.correctPayment).mockReset();
+    vi.mocked(adminPaymentsClient.recordManualPayment).mockReset();
     sessionStorage.clear();
   });
 
@@ -443,6 +446,43 @@ describe('PaymentDetail', () => {
 
       expect(screen.getByText('Nothing to change -- just resolve this finding')).toBeInTheDocument();
       expect(screen.queryByLabelText('New value')).not.toBeInTheDocument();
+    });
+  });
+
+  describe('marking an open fee paid by hand (developers only)', () => {
+    const openVoucher = () => paymentDetail({ status: 'checkout_pending', provider: 'kuickpay_voucher', externalReference: null, paidAt: null });
+
+    it('lets a developer mark this open payment paid, naming it so no other open payment is touched', async () => {
+      adminPaymentsClient.getPayment.mockResolvedValue(openVoucher());
+      vi.mocked(adminPaymentsClient.recordManualPayment).mockResolvedValue({ id: 'payment-1' } as never);
+      await renderDetail(DEVELOPER);
+
+      fireEvent.click(await screen.findByRole('button', { name: 'Mark as paid' }));
+      const dialog = await screen.findByRole('dialog');
+      fireEvent.change(within(dialog).getByLabelText('KuickPay reference'), { target: { value: '788895' } });
+      fireEvent.change(within(dialog).getByLabelText('Reason'), { target: { value: 'Paid at KuickPay' } });
+      fireEvent.click(within(dialog).getByRole('button', { name: 'Mark as paid' }));
+
+      await waitFor(() =>
+        expect(adminPaymentsClient.recordManualPayment).toHaveBeenCalledWith(
+          'candidate-1',
+          expect.objectContaining({ reference: '788895', reason: 'Paid at KuickPay', paymentId: 'payment-1' })
+        )
+      );
+      await waitFor(() => expect(adminPaymentsClient.getPayment).toHaveBeenCalledTimes(2));
+    });
+
+    it('is not offered to finance staff, or for a payment that is already paid', async () => {
+      adminPaymentsClient.getPayment.mockResolvedValue(openVoucher());
+      const { unmount } = await renderDetail(FINANCE);
+      await screen.findByRole('button', { name: 'Correct this payment' });
+      expect(screen.queryByRole('button', { name: 'Mark as paid' })).not.toBeInTheDocument();
+      unmount();
+
+      adminPaymentsClient.getPayment.mockResolvedValue(paymentDetail());
+      await renderDetail(DEVELOPER);
+      await screen.findByText('Ahmed Ali');
+      expect(screen.queryByRole('button', { name: 'Mark as paid' })).not.toBeInTheDocument();
     });
   });
 

@@ -239,4 +239,6 @@ export interface ManualPaymentRequest {
   paidOn: string;
   /** At most 500 characters. */
   reason: string;
+  /** From a payment's own page: mark that open payment, not the candidate's latest one. */
+  paymentId?: string;
 }

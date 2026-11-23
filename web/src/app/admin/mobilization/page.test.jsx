@@ -76,7 +76,8 @@ describe("Admin Mobilization page", () => {
     );
     await renderAt("/admin/mobilization");
 
-    expect(await screen.findByRole("link", { name: "Ali Raza" })).toHaveAttribute("href", "/admin/candidates/candidate-1");
+    // The file's first render is the slowest under a full parallel run, so allow it longer than the 1s default.
+    expect(await screen.findByRole("link", { name: "Ali Raza" }, { timeout: 5000 })).toHaveAttribute("href", "/admin/candidates/candidate-1");
     expect(screen.getAllByText("QR-629 · LHE-DOH").length).toBeGreaterThan(0);
     // 21:00 UTC on 19 Nov is 02:00 on 20 Nov in Pakistan.
     expect(screen.getAllByText("20 Nov 2026, 02:00").length).toBe(2);

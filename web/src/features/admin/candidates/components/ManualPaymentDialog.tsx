@@ -8,6 +8,8 @@ import { useRecordManualPayment } from '../../payments/hooks/useRecordManualPaym
 
 interface ManualPaymentDialogProps {
   candidateId: string;
+  /** From a payment's own page: the open payment to mark. */
+  paymentId?: string;
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }
@@ -18,7 +20,7 @@ type FieldErrors = Partial<Record<'reference' | 'paidOn' | 'reason', string>>;
  * Developers only: records a fee the candidate paid at KuickPay that the
  * system never picked up, with the KuickPay reference, the paid day and why.
  */
-export function ManualPaymentDialog({ candidateId, open, onOpenChange }: ManualPaymentDialogProps) {
+export function ManualPaymentDialog({ candidateId, paymentId, open, onOpenChange }: ManualPaymentDialogProps) {
   const { t } = useLanguage();
   const today = pakistanToday();
   const [reference, setReference] = useState('');
@@ -51,7 +53,7 @@ export function ManualPaymentDialog({ candidateId, open, onOpenChange }: ManualP
     if (!reason.trim()) nextErrors.reason = t('adminManualPaymentReasonRequired');
     setErrors(nextErrors);
     if (Object.keys(nextErrors).length > 0 || mutation.isPending) return;
-    mutation.mutate({ reference: reference.trim(), paidOn, reason: reason.trim() });
+    mutation.mutate({ reference: reference.trim(), paidOn, reason: reason.trim(), ...(paymentId ? { paymentId } : {}) });
   };
 
   const serverError = mutation.error;

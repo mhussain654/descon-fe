@@ -15,6 +15,7 @@ import {
 import type { TranslationKey } from '../../../../../../shared/i18n/translations';
 import type { ReconciliationFinding, ReconciliationFindingCode } from '../../../../lib/admin-payments-client';
 import { usePaymentDetail } from '../hooks/usePaymentDetail';
+import { ManualPaymentDialog } from '../../candidates/components/ManualPaymentDialog';
 import { PaymentCorrectionForm } from './PaymentCorrectionForm';
 import { PaymentEventTimeline } from './PaymentEventTimeline';
 import { ReconciliationFindingsSection } from './ReconciliationFindingsSection';
@@ -41,6 +42,7 @@ export function PaymentDetail({ paymentId }: PaymentDetailProps) {
   const { hasPermission, signOut } = useStaffAuth();
   const query = usePaymentDetail(paymentId);
   const [activeCorrection, setActiveCorrection] = useState<ActiveCorrection | null>(null);
+  const [manualPaymentOpen, setManualPaymentOpen] = useState(false);
 
   useEffect(() => {
     if (query.error?.code === 'SESSION_EXPIRED') {
@@ -83,6 +85,9 @@ export function PaymentDetail({ paymentId }: PaymentDetailProps) {
 
   const payment = query.data;
   const canCorrect = hasPermission('manage_payments');
+  // Developers only: KuickPay took this fee but the system never recorded it.
+  const canMarkPaid =
+    hasPermission('record_manual_payment') && payment.status === 'checkout_pending' && payment.paymentTypeCode === 'onboarding_fee';
 
   return (
     <div className="mx-auto max-w-3xl space-y-5 px-4 py-6 sm:px-6">
@@ -167,10 +172,27 @@ export function PaymentDetail({ paymentId }: PaymentDetailProps) {
 
       <PaymentEventTimeline events={payment.paymentEvents} />
 
-      {canCorrect && !activeCorrection ? (
-        <Button type="button" variant="primary" onClick={() => setActiveCorrection({})}>
-          {t('adminFinancePaymentCorrectAction')}
-        </Button>
+      {(canCorrect || canMarkPaid) && !activeCorrection ? (
+        <div className="flex flex-wrap gap-3">
+          {canMarkPaid ? (
+            <Button type="button" variant="primary" onClick={() => setManualPaymentOpen(true)}>
+              {t('adminManualPaymentAction')}
+            </Button>
+          ) : null}
+          {canCorrect ? (
+            <Button type="button" variant={canMarkPaid ? 'outline' : 'primary'} onClick={() => setActiveCorrection({})}>
+              {t('adminFinancePaymentCorrectAction')}
+            </Button>
+          ) : null}
+        </div>
+      ) : null}
+      {canMarkPaid ? (
+        <ManualPaymentDialog
+          candidateId={payment.candidate.id}
+          paymentId={payment.id}
+          open={manualPaymentOpen}
+          onOpenChange={setManualPaymentOpen}
+        />
       ) : null}
 
       {activeCorrection ? (
