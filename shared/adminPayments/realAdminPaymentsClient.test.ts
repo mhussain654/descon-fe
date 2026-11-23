@@ -103,6 +103,7 @@ describe('createAdminPaymentsClient (real)', () => {
               { code: 'failed', count: 0 },
               { code: 'cancelled', count: 0 },
             ],
+            paid_total: { candidate_count: 1, payment_count: 1, amounts: [{ currency_code: 'PKR', amount: '1500.00' }] },
           })
         );
       });
@@ -141,6 +142,14 @@ describe('createAdminPaymentsClient (real)', () => {
         { code: 'failed', count: 0 },
         { code: 'cancelled', count: 0 },
       ]);
+      expect(result.paidTotal).toEqual({ candidateCount: 1, paymentCount: 1, amounts: [{ currencyCode: 'PKR', amount: '1500.00' }] });
+    });
+
+    it('returns no paid total when the server leaves it out or sends a malformed one', async () => {
+      stubFetch(async () => jsonResponse(successEnvelope([paymentPayload()], { paid_total: { candidate_count: '1' } })));
+      const { client } = buildClient();
+
+      expect((await client.listPayments({}, undefined, {})).paidTotal).toBeNull();
     });
 
     it('never exposes a raw CNIC, only the masked one', async () => {
@@ -257,6 +266,40 @@ describe('createAdminPaymentsClient (real)', () => {
       const client = createAdminPaymentsClient({ apiClient, staffAuthClient, getLocale: () => 'en' });
 
       await expect(client.getPayment('payment-1')).rejects.toMatchObject({ code: 'SESSION_EXPIRED' });
+    });
+  });
+
+  describe('recordManualPayment', () => {
+    it("posts the reference, paid day and reason for the candidate and returns the paid payment", async () => {
+      let seenUrl = '';
+      let seenInit: RequestInit | undefined;
+      stubFetch(async (url, init) => {
+        seenUrl = String(url);
+        seenInit = init as RequestInit;
+        return jsonResponse(successEnvelope(paymentPayload({ external_reference: '788895' })), { status: 201 });
+      });
+      const { client } = buildClient('ur');
+
+      const result = await client.recordManualPayment('candidate-1', { reference: '788895', paidOn: '2026-11-23', reason: 'Paid at KuickPay' });
+
+      expect(seenUrl).toBe('http://example.test/api/v1/admin/candidates/candidate-1/manual_payment');
+      expect((seenInit?.headers as Record<string, string>)['X-Locale']).toBe('ur');
+      expect(JSON.parse(seenInit?.body as string)).toEqual({
+        manual_payment: { reference: '788895', paid_on: '2026-11-23', reason: 'Paid at KuickPay' },
+      });
+      expect(result).toMatchObject({ id: 'payment-1', status: 'paid', externalReference: '788895' });
+    });
+
+    it("passes on the backend's refusal for a candidate who cannot be marked paid", async () => {
+      stubFetch(async () =>
+        jsonResponse(errorEnvelope([{ code: 'manual_payment_not_allowed', message: 'Only a candidate at Fee Pending can be marked as paid.' }]), { status: 422 })
+      );
+      const { client } = buildClient();
+
+      await expect(client.recordManualPayment('candidate-1', { reference: 'x', paidOn: '2026-11-23', reason: 'y' })).rejects.toMatchObject({
+        code: 'VALIDATION_FAILED',
+        message: 'Only a candidate at Fee Pending can be marked as paid.',
+      });
     });
   });
 

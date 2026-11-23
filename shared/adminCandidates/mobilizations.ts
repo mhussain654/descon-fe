@@ -26,6 +26,9 @@ export interface MobilizationFilters extends RegisteredDateRange {
   countryCode?: string;
   /** YYYY-MM-DD, a calendar day in Pakistan time. */
   flightDate?: string;
+  /** YYYY-MM-DD, Pakistan time: the day the candidate left (recorded mobilization date, or the flight day a boarding pass confirmed). */
+  mobilizedFrom?: string;
+  mobilizedTo?: string;
   boardingPass?: MobilizationBoardingPassFilter;
   status?: MobilizationStatus;
 }
@@ -83,6 +86,8 @@ export function buildMobilizationListQuery(filters: MobilizationFilters, sort: M
   const params: string[] = [];
   if (filters.search) appendParam(params, 'search', filters.search);
   if (filters.flightDate) appendParam(params, 'filter[flight_date]', filters.flightDate);
+  if (filters.mobilizedFrom) appendParam(params, 'filter[mobilized_from]', filters.mobilizedFrom);
+  if (filters.mobilizedTo) appendParam(params, 'filter[mobilized_to]', filters.mobilizedTo);
   if (filters.boardingPass) appendParam(params, 'filter[boarding_pass]', filters.boardingPass);
   if (filters.status) appendParam(params, 'filter[status]', filters.status);
   if (filters.countryCode) appendParam(params, 'filter[country_code]', filters.countryCode);

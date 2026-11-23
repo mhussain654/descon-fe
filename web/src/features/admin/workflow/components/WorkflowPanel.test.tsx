@@ -1187,10 +1187,10 @@ describe("WorkflowPanel", () => {
       renderPanel(client);
       await screen.findByText("Protected / Ready to Fly");
 
-      fireEvent.click(screen.getByRole("button", { name: "Confirm ready to fly" }));
-      await screen.findByText("Confirm protected / ready to fly");
+      fireEvent.click(screen.getByRole("button", { name: "Confirm Mobilize Status" }));
+      await screen.findByText("Confirm protected / Mobilize Status");
       fireEvent.change(screen.getByLabelText("Protected date"), { target: { value: "2026-09-12" } });
-      const dialogButtons = screen.getAllByRole("button", { name: "Confirm ready to fly" });
+      const dialogButtons = screen.getAllByRole("button", { name: "Confirm Mobilize Status" });
       fireEvent.click(dialogButtons[dialogButtons.length - 1]);
 
       await waitFor(() =>

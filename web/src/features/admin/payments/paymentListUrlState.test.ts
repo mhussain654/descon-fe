@@ -37,6 +37,13 @@ describe('paymentListUrlState', () => {
     expect(state.page).toEqual({ number: 3, size: 50 });
   });
 
+  it('round-trips the paid date range and drops a malformed paid day', () => {
+    const state = readPaymentListStateFromSearchParams(new URLSearchParams('paid_from=2026-11-23&paid_to=2026-11-23'));
+    expect(state.filters).toMatchObject({ paidFrom: '2026-11-23', paidTo: '2026-11-23' });
+    expect(writePaymentListStateToSearchParams(state.filters, state.sort, state.page).toString()).toBe('paid_from=2026-11-23&paid_to=2026-11-23');
+    expect(readPaymentListStateFromSearchParams(new URLSearchParams('paid_from=23/11/2026')).filters.paidFrom).toBeUndefined();
+  });
+
   it('drops an unrecognized status code rather than forwarding it to the backend', () => {
     expect(readPaymentListStateFromSearchParams(new URLSearchParams('status=not_a_real_status')).filters.status).toBeUndefined();
   });

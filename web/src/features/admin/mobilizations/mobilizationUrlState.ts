@@ -1,7 +1,7 @@
 // The Mobilization list's filters, sort and page live in the URL, so a
 // refresh, back/forward or a shared link keeps the same view.
 import { isFlightDate } from '../../../../../shared/adminCandidates/flightDate';
-import { readRegisteredDateRange, writeRegisteredDateRange } from '../../../../../shared/adminCandidates/registeredDates';
+import { isIsoDay, readRegisteredDateRange, writeRegisteredDateRange } from '../../../../../shared/adminCandidates/registeredDates';
 import {
   isMobilizationStatus,
   type MobilizationFilters,
@@ -19,6 +19,8 @@ export interface MobilizationUrlState {
 
 export function readMobilizationStateFromSearchParams(searchParams: URLSearchParams): MobilizationUrlState {
   const flightDate = searchParams.get('flight_date');
+  const mobilizedFrom = searchParams.get('mobilized_from');
+  const mobilizedTo = searchParams.get('mobilized_to');
   const boardingPass = searchParams.get('boarding_pass');
   const status = searchParams.get('status');
   const sort = searchParams.get('sort');
@@ -29,6 +31,8 @@ export function readMobilizationStateFromSearchParams(searchParams: URLSearchPar
     filters: {
       search: searchParams.get('search') || undefined,
       flightDate: isFlightDate(flightDate) ? flightDate : undefined,
+      mobilizedFrom: isIsoDay(mobilizedFrom) ? mobilizedFrom : undefined,
+      mobilizedTo: isIsoDay(mobilizedTo) ? mobilizedTo : undefined,
       boardingPass: boardingPass === 'uploaded' || boardingPass === 'missing' ? boardingPass : undefined,
       status: isMobilizationStatus(status) ? status : undefined,
       countryCode: searchParams.get('country') || undefined,
@@ -46,6 +50,8 @@ export function writeMobilizationStateToSearchParams(filters: MobilizationFilter
   const params = new URLSearchParams();
   if (filters.search) params.set('search', filters.search);
   if (filters.flightDate) params.set('flight_date', filters.flightDate);
+  if (filters.mobilizedFrom) params.set('mobilized_from', filters.mobilizedFrom);
+  if (filters.mobilizedTo) params.set('mobilized_to', filters.mobilizedTo);
   if (filters.boardingPass) params.set('boarding_pass', filters.boardingPass);
   if (filters.status) params.set('status', filters.status);
   if (filters.countryCode) params.set('country', filters.countryCode);

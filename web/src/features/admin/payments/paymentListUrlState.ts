@@ -52,6 +52,8 @@ export function readPaymentListStateFromSearchParams(searchParams: URLSearchPara
   const pageSize = Number(searchParams.get('size'));
   const createdFrom = searchParams.get('from');
   const createdTo = searchParams.get('to');
+  const paidFrom = searchParams.get('paid_from');
+  const paidTo = searchParams.get('paid_to');
 
   return {
     filters: {
@@ -62,6 +64,8 @@ export function readPaymentListStateFromSearchParams(searchParams: URLSearchPara
       currencyCode: searchParams.get('currency') || undefined,
       createdFrom: createdFrom && isIsoDate(createdFrom) ? createdFrom : undefined,
       createdTo: createdTo && isIsoDate(createdTo) ? createdTo : undefined,
+      paidFrom: paidFrom && isIsoDate(paidFrom) ? paidFrom : undefined,
+      paidTo: paidTo && isIsoDate(paidTo) ? paidTo : undefined,
       reconciliationState: reconciliationState && isReconciliationState(reconciliationState) ? reconciliationState : undefined,
       countryCode: searchParams.get('country') || undefined,
       ...readRegisteredDateRange(searchParams),
@@ -89,6 +93,8 @@ export function writePaymentListStateToSearchParams(
   if (filters.currencyCode) params.set('currency', filters.currencyCode);
   if (filters.createdFrom) params.set('from', filters.createdFrom);
   if (filters.createdTo) params.set('to', filters.createdTo);
+  if (filters.paidFrom) params.set('paid_from', filters.paidFrom);
+  if (filters.paidTo) params.set('paid_to', filters.paidTo);
   if (filters.reconciliationState) params.set('reconciliation', filters.reconciliationState);
   if (filters.countryCode) params.set('country', filters.countryCode);
   writeRegisteredDateRange(params, filters);

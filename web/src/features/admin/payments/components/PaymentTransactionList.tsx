@@ -1,7 +1,10 @@
 import { useCallback, useEffect, useState } from 'react';
 import { CountryFilterSelect } from '../../shared/CountryFilterSelect';
 import { RegisteredDateRangeInputs } from '../../shared/RegisteredDateRangeInputs';
-import { AlertTriangle, ChevronDown, CircleDollarSign, CreditCard, SlidersHorizontal, WalletCards } from 'lucide-react';
+import { DateRangeField } from '../../shared/DateRangeField';
+import { flightDateToday as pakistanToday } from '../../../../../../shared/adminCandidates/flightDate';
+import { interpolate } from '../../../../../../shared/i18n/interpolate';
+import { AlertTriangle, CalendarCheck, ChevronDown, CircleDollarSign, CreditCard, SlidersHorizontal, WalletCards } from 'lucide-react';
 import { Link, useSearchParams } from 'react-router';
 import { useLanguage } from '../../../../contexts/LanguageContext';
 import { useStaffAuth } from '../../../../contexts/StaffAuthContext';
@@ -32,6 +35,7 @@ import type {
   AdminPaymentStatus,
   PaymentListFilters,
   PaymentListSort,
+  PaymentPaidTotal,
   PaymentStatusSummaryRow,
   PaymentSummary,
 } from '../../../../lib/admin-payments-client';
@@ -104,6 +108,8 @@ export function PaymentTransactionList() {
       filters.currencyCode ||
       filters.createdFrom ||
       filters.createdTo ||
+      filters.paidFrom ||
+      filters.paidTo ||
       filters.reconciliationState ||
       filters.countryCode ||
       filters.registeredFrom ||
@@ -172,6 +178,7 @@ export function PaymentTransactionList() {
       </div>
 
 
+      <PaidTotalCard paidTotal={query.data?.paidTotal} t={t} language={language} />
       <PaymentStatusSummaryCard summary={query.data?.summary} t={t} />
 
       <Card className="mb-5 p-5">
@@ -190,6 +197,14 @@ export function PaymentTransactionList() {
             placeholder={t('adminFinancePaymentSearchPlaceholder')}
             value={searchDraft}
             onChange={(event) => setSearchDraft(event.target.value)}
+          />
+          {/* The day the fee was paid, in Pakistan time: "who paid today" is both dates set to today. */}
+          <DateRangeField
+            label={t('adminFinancePaymentFilterPaidDate')}
+            fromLabel={t('adminFinancePaymentFilterPaidFrom')}
+            toLabel={t('adminFinancePaymentFilterPaidTo')}
+            value={{ from: filters.paidFrom, to: filters.paidTo }}
+            onChange={(patch) => updateFilters('from' in patch ? { paidFrom: patch.from } : { paidTo: patch.to })}
           />
           {/* The candidate's country and registered dates: one import batch's payments. */}
           <CountryFilterSelect value={filters.countryCode} onChange={(countryCode) => updateFilters({ countryCode })} t={t} />
@@ -226,16 +241,29 @@ export function PaymentTransactionList() {
             ]}
           />
         </div>
-        <button
-          type="button"
-          onClick={() => setShowAdvancedFilters((value) => !value)}
-          className="mt-4 inline-flex items-center gap-2 text-sm font-medium text-brand hover:underline"
-          aria-expanded={showAdvancedFilters}
-        >
-          <SlidersHorizontal className="h-4 w-4" aria-hidden="true" />
-          {t('adminFinancePaymentAdvancedFilters')}
-          <ChevronDown className={`h-4 w-4 transition-transform ${showAdvancedFilters ? 'rotate-180' : ''}`} aria-hidden="true" />
-        </button>
+        <div className="mt-4 flex flex-wrap items-center gap-x-5 gap-y-2">
+          <button
+            type="button"
+            onClick={() => {
+              const today = pakistanToday();
+              updateFilters({ paidFrom: today, paidTo: today });
+            }}
+            className="inline-flex items-center gap-1.5 text-sm font-medium text-brand hover:underline"
+          >
+            <CalendarCheck className="h-4 w-4" aria-hidden="true" />
+            {t('adminFinancePaymentFilterPaidToday')}
+          </button>
+          <button
+            type="button"
+            onClick={() => setShowAdvancedFilters((value) => !value)}
+            className="inline-flex items-center gap-2 text-sm font-medium text-brand hover:underline"
+            aria-expanded={showAdvancedFilters}
+          >
+            <SlidersHorizontal className="h-4 w-4" aria-hidden="true" />
+            {t('adminFinancePaymentAdvancedFilters')}
+            <ChevronDown className={`h-4 w-4 transition-transform ${showAdvancedFilters ? 'rotate-180' : ''}`} aria-hidden="true" />
+          </button>
+        </div>
         {showAdvancedFilters ? <div className="mt-4 grid grid-cols-1 gap-4 border-t border-border pt-4 sm:grid-cols-2 lg:grid-cols-3">
           <Input
             label={t('adminFinancePaymentFilterProviderLabel')}
@@ -284,6 +312,30 @@ export function PaymentTransactionList() {
         language={language}
       />
     </div>
+  );
+}
+
+/** How many candidates paid and how much, under the list's filters. */
+function PaidTotalCard({ paidTotal, t, language }: { paidTotal?: PaymentPaidTotal | null; t: (key: TranslationKey) => string; language: Parameters<typeof formatCurrency>[1] }) {
+  if (!paidTotal) return null;
+  return (
+    <Card className="mb-5 flex flex-wrap items-center gap-4 p-5">
+      <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-success-subtle text-success-emphasis">
+        <WalletCards className="h-5 w-5" aria-hidden="true" />
+      </div>
+      <div className="min-w-0 flex-1">
+        <h2 className="text-sm font-semibold text-text-secondary">{t('adminFinancePaymentPaidTotalTitle')}</h2>
+        <p className="mt-0.5 text-2xl font-semibold tracking-tight text-text-primary">
+          {paidTotal.amounts.length > 0
+            ? paidTotal.amounts.map((row) => formatCurrency(Number(row.amount), language, row.currencyCode)).join(' · ')
+            : formatCurrency(0, language, 'PKR')}
+        </p>
+        <p className="mt-0.5 text-sm text-text-secondary">
+          {interpolate(t('adminFinancePaymentPaidTotalCandidates'), { count: paidTotal.candidateCount })}
+        </p>
+      </div>
+      <p className="w-full text-xs text-text-tertiary sm:w-auto sm:max-w-xs">{t('adminFinancePaymentPaidTotalScope')}</p>
+    </Card>
   );
 }
 

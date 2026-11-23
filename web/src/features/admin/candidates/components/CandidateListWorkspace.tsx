@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link, useSearchParams } from 'react-router';
-import { SlidersHorizontal, Users } from 'lucide-react';
+import { ChevronDown, SlidersHorizontal, Users } from 'lucide-react';
 import { useLanguage } from '../../../../contexts/LanguageContext';
 import { useStaffAuth } from '../../../../contexts/StaffAuthContext';
 import {
@@ -45,7 +45,7 @@ function CandidateStatusSummaryCard({ summary, selected, onSelect, graphical = f
   if (!summary?.some((row) => row.count > 0)) return null;
   const active = summary.filter((row) => row.count > 0 || row.code === selected)
     .sort((a, b) => Number(b.code === selected) - Number(a.code === selected) || b.count - a.count)
-    .slice(0, 6);
+    .slice(0, 4);
   const stageButton = (row: AdminCandidateStatusSummaryRow) => (
     <button key={row.code} type="button" aria-pressed={selected === row.code} onClick={() => onSelect(selected === row.code ? undefined : row.code)}
       className={`flex min-w-0 items-center justify-between gap-3 rounded-xl border px-4 py-3 text-start transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand ${selected === row.code ? 'border-brand bg-brand-subtle text-brand' : 'border-border bg-surface hover:bg-surface-sunken'}`}>
@@ -54,15 +54,17 @@ function CandidateStatusSummaryCard({ summary, selected, onSelect, graphical = f
     </button>
   );
   return (
-    <Card className="mb-5 p-5">
+    <Card className="mb-4 p-5">
       <h2 className="font-semibold text-text-primary">{t('adminCandidateListStatusSummaryTitle')}</h2>
-      <p className="mb-4 mt-1 text-xs text-text-secondary">{t(graphical ? 'adminCandidateListGraphScope' : 'adminCandidateListStatusSummarySubtitle')}</p>
+      <p className="mb-4 mt-1 text-xs text-text-secondary">{t(graphical ? 'adminCandidateListGraphScope' : 'adminCandidateListTopStages')}</p>
       {graphical ? <div className="mb-5 max-h-96 overflow-auto"><div className="min-w-[480px]"><CategoryBarChart data={summary.filter((row) => row.count > 0).map((row) => ({ key: row.code, label: stageLabel(row.code, t), value: row.count }))} /></div></div> : null}
-      <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-3">{active.map(stageButton)}</div>
-      <details className="mt-4">
-        <summary className="cursor-pointer text-sm font-semibold text-brand focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand">{t('adminCandidateListAllStages')}</summary>
-        <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-3">{summary.filter((row) => !active.includes(row)).map(stageButton)}</div>
-      </details>
+      <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-4">{active.map(stageButton)}</div>
+      {summary.length > active.length ? (
+        <details className="mt-3">
+          <summary className="cursor-pointer text-sm font-semibold text-brand focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand">{t('adminCandidateListAllStages')}</summary>
+          <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-4">{summary.filter((row) => !active.includes(row)).map(stageButton)}</div>
+        </details>
+      ) : null}
     </Card>
   );
 }
@@ -86,6 +88,8 @@ export function CandidateListWorkspace() {
   const { filters, sort, page } = readCandidateListStateFromSearchParams(searchParams);
 
   const query = useCandidateList(filters, sort, page);
+  // Opens by itself when the URL already carries an advanced filter, so a shared link never hides one.
+  const [advancedOpen, setAdvancedOpen] = useState(Boolean(filters.boardingPass || sort));
 
   // See DocumentReviewQueue.tsx's identical comment -- a confirmed-dead
   // session or a deactivated account must end the local session so
@@ -186,26 +190,21 @@ export function CandidateListWorkspace() {
         </div>
       </div>
 
-      <Card className="mb-5 p-5">
+      <Card className="mb-4 p-5">
         <div className="mb-4 flex items-center gap-3">
           <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-brand-subtle text-brand">
             <SlidersHorizontal className="h-4 w-4" aria-hidden="true" />
           </div>
-          <div>
-            <h2 className="font-semibold text-text-primary">{t('adminCandidateListFilterTitle')}</h2>
-            <p className="text-xs text-text-secondary">{t('adminCandidateListFilterSubtitle')}</p>
-          </div>
+          <h2 className="font-semibold text-text-primary">{t('adminCandidateListFilterTitle')}</h2>
         </div>
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          <div>
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
           <Input
             label={t('adminCandidateListSearchLabel')}
             placeholder={t('adminCandidateListSearchPlaceholder')}
             value={searchDraft}
             onChange={(event) => setSearchDraft(event.target.value)}
           />
-          </div>
-          {/* Country and registered dates together pick out one import batch. */}
+          {/* Country and registration date together pick out one import batch. */}
           <CountryFilterSelect value={filters.countryCode} onChange={(countryCode) => updateFilters({ countryCode })} t={t} />
           <RegisteredDateRangeInputs value={filters} onChange={updateFilters} t={t} />
           <Select
@@ -217,33 +216,59 @@ export function CandidateListWorkspace() {
               ...Object.keys(CANDIDATE_LIST_STAGE_LABEL_KEYS).map((code) => ({ value: code, label: stageLabel(code, t) })),
             ]}
           />
-          <Select
-            label={t('adminCandidateListFilterBoardingPassLabel')}
-            value={filters.boardingPass ?? ''}
-            onChange={(event) => updateFilters({ boardingPass: (event.target.value || undefined) as AdminCandidateBoardingPassFilter | undefined })}
-            options={[
-              { value: '', label: t('adminCandidateListFilterBoardingPassAll') },
-              { value: 'uploaded', label: interpolate(t('adminCandidateListFilterBoardingPassUploaded'), { count: boardingPassCounts?.uploaded ?? 0 }) },
-              { value: 'missing', label: interpolate(t('adminCandidateListFilterBoardingPassMissing'), { count: boardingPassCounts?.missing ?? 0 }) },
-            ]}
-          />
-          <Select
-            label={t('adminCandidateListSortLabel')}
-            value={sort ?? ''}
-            onChange={(event) => updateFilters({}, (event.target.value || undefined) as AdminCandidateListSort | undefined)}
-            options={[{ value: '', label: t('adminCandidateListSortNewest') }, ...SORT_OPTIONS.map((option) => ({ value: option.value, label: t(option.labelKey) }))]}
-          />
         </div>
-        {hasActiveFilters ? (
-          <div className="mt-4">
+        <div id="candidate-list-advanced-search" hidden={!advancedOpen} className="mt-4 border-t border-border pt-4">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+            <Select
+              label={t('adminCandidateListFilterBoardingPassLabel')}
+              value={filters.boardingPass ?? ''}
+              onChange={(event) => updateFilters({ boardingPass: (event.target.value || undefined) as AdminCandidateBoardingPassFilter | undefined })}
+              options={[
+                { value: '', label: t('adminCandidateListFilterBoardingPassAll') },
+                { value: 'uploaded', label: interpolate(t('adminCandidateListFilterBoardingPassUploaded'), { count: boardingPassCounts?.uploaded ?? 0 }) },
+                { value: 'missing', label: interpolate(t('adminCandidateListFilterBoardingPassMissing'), { count: boardingPassCounts?.missing ?? 0 }) },
+              ]}
+            />
+            <Select
+              label={t('adminCandidateListSortLabel')}
+              value={sort ?? ''}
+              onChange={(event) => updateFilters({}, (event.target.value || undefined) as AdminCandidateListSort | undefined)}
+              options={[{ value: '', label: t('adminCandidateListSortNewest') }, ...SORT_OPTIONS.map((option) => ({ value: option.value, label: t(option.labelKey) }))]}
+            />
+          </div>
+        </div>
+        <div className="mt-4 flex flex-wrap items-center gap-x-5 gap-y-2">
+          <button
+            type="button"
+            aria-expanded={advancedOpen}
+            aria-controls="candidate-list-advanced-search"
+            onClick={() => setAdvancedOpen((open) => !open)}
+            className="inline-flex items-center gap-1.5 text-sm font-medium text-brand hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand"
+          >
+            {t(advancedOpen ? 'adminCandidateListHideAdvancedSearch' : 'adminCandidateListAdvancedSearch')}
+            <ChevronDown className={`h-4 w-4 transition-transform ${advancedOpen ? 'rotate-180' : ''}`} aria-hidden="true" />
+          </button>
+          {hasActiveFilters ? (
             <button type="button" onClick={clearFilters} className="text-sm font-medium text-brand hover:underline">
               {t('adminCandidateListClearFilters')}
             </button>
-          </div>
-        ) : null}
+          ) : null}
+        </div>
       </Card>
 
-      <div role="tablist" aria-label={t('adminCandidateListViewTabs')} className="mb-5 flex flex-wrap gap-2 rounded-xl border border-border bg-surface p-2">
+      {view === 'list' ? <CandidateStatusSummaryCard summary={query.data?.summary} selected={filters.status} onSelect={(status) => updateFilters({ status })} t={t} /> : null}
+
+      <div className="mb-3 flex flex-wrap items-center justify-between gap-3 px-1">
+        {view === 'list' && query.data && query.data.items.length > 0 ? (
+          <div className="flex items-center gap-2 text-sm text-text-secondary">
+            <Users className="h-4 w-4 text-brand" aria-hidden="true" />
+            <span>
+              <strong className="font-semibold text-text-primary">{query.data.pagination?.totalCount ?? query.data.items.length}</strong>{' '}
+              {t('adminCandidateListResultsLabel')}
+            </span>
+          </div>
+        ) : <span />}
+      <div role="tablist" aria-label={t('adminCandidateListViewTabs')} className="inline-flex gap-1 rounded-xl border border-border bg-surface p-1">
         {(['list', 'graph'] as const).map((id, index) => (
           <button key={id} ref={(element) => { viewTabs.current[index] = element; }} type="button" role="tab"
             id={`candidate-list-tab-${id}`} aria-controls={`candidate-list-panel-${id}`} aria-selected={view === id} tabIndex={view === id ? 0 : -1}
@@ -253,14 +278,13 @@ export function CandidateListWorkspace() {
               if (event.key === 'End') target = 1;
               if (event.key === 'ArrowRight' || event.key === 'ArrowLeft') target = 1 - index;
               if (target !== undefined) { event.preventDefault(); setView(target === 0 ? 'list' : 'graph'); viewTabs.current[target]?.focus(); }
-            }} className={`rounded-lg px-4 py-2 text-sm font-semibold focus-visible:ring-2 focus-visible:ring-ring ${view === id ? 'bg-brand text-white shadow-sm' : 'text-text-secondary hover:bg-surface-sunken'}`}>
+            }} className={`rounded-lg px-3 py-1.5 text-sm font-semibold focus-visible:ring-2 focus-visible:ring-ring ${view === id ? 'bg-brand text-white shadow-sm' : 'text-text-secondary hover:bg-surface-sunken'}`}>
             {t(id === 'list' ? 'adminCandidateListViewList' : 'adminCandidateListViewGraph')}
           </button>
         ))}
       </div>
+      </div>
       <section role="tabpanel" id={`candidate-list-panel-${view}`} aria-labelledby={`candidate-list-tab-${view}`} tabIndex={0} dir={language === 'ur' ? 'rtl' : 'ltr'}>
-      {view === 'list' ? <CandidateStatusSummaryCard summary={query.data?.summary} selected={filters.status} onSelect={(status) => updateFilters({ status })} t={t} /> : null}
-
       <ListContent
         graphical={view === "graph"}
         selected={filters.status}
@@ -338,16 +362,6 @@ function ListContent({ graphical, selected, onStageSelect, query, columns, page,
           <RetryBanner message={t('adminCandidateListLoadError')} retryLabel={t('retry')} onRetry={() => query.refetch()} />
         </div>
       ) : null}
-      <div className="mb-3 flex flex-wrap items-center justify-between gap-3 px-1">
-        <div className="flex items-center gap-2 text-sm text-text-secondary">
-          <Users className="h-4 w-4 text-brand" aria-hidden="true" />
-          <span>
-            <strong className="font-semibold text-text-primary">{pagination?.totalCount ?? items.length}</strong>{' '}
-            {t('adminCandidateListResultsLabel')}
-          </span>
-        </div>
-        <span className="text-xs text-text-tertiary">{t('adminCandidateListResultsHint')}</span>
-      </div>
       <Card noPadding className="min-w-0 overflow-hidden [&_tbody_tr:nth-child(even)]:bg-surface-sunken/45 [&_tbody_tr]:transition-colors [&_tbody_tr:hover]:bg-brand-subtle/40">
         <DataTable columns={columns} rows={items} getRowId={(row) => row.id} />
       </Card>

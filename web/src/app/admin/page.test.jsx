@@ -233,6 +233,30 @@ describe("AdminCandidateListPage", () => {
       expect(screen.getByRole("table")).toBeInTheDocument();
     });
 
+    it("shows the four largest stages in one row and keeps the rest under All stages", async () => {
+      adminCandidateClient.listCandidates.mockResolvedValue(listResult([candidate()], undefined, {}, [
+        { code: "registered", count: 12 }, { code: "medical_pending", count: 3 }, { code: "fee_pending", count: 5 },
+        { code: "visa_pending", count: 4 }, { code: "verified", count: 1 },
+      ]));
+      renderAt("/admin", await signInAs(HR));
+      await screen.findByText("Ahmed Ali");
+
+      const allStages = screen.getByText("All stages").closest("details");
+      expect(allStages).not.toHaveAttribute("open");
+      expect(allStages).toContainElement(screen.getByRole("button", { name: /Verified.*1/, hidden: true }));
+      expect(allStages).not.toContainElement(screen.getByRole("button", { name: /Medical pending.*3/ }));
+    });
+
+    it("shows the view toggle with the result count above the table", async () => {
+      adminCandidateClient.listCandidates.mockResolvedValue(listResult([candidate()], { page: 1, perPage: 20, totalCount: 45, totalPages: 3 }));
+      renderAt("/admin", await signInAs(HR));
+      await screen.findByText("Ahmed Ali");
+
+      const toggle = screen.getByRole("tablist", { name: "Candidate views" });
+      expect(screen.getByText("45")).toBeInTheDocument();
+      expect(toggle.compareDocumentPosition(screen.getByRole("table")) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    });
+
     it("shows an empty graphical view when no stage counts are available", async () => {
       adminCandidateClient.listCandidates.mockResolvedValue(listResult([candidate()]));
       renderAt("/admin", await signInAs(HR));
@@ -389,6 +413,30 @@ describe("AdminCandidateListPage", () => {
 
       await waitFor(() => expect(screen.getByLabelText("Search")).toHaveValue(""));
       expect(screen.queryByText("Clear filters")).not.toBeInTheDocument();
+    });
+
+    it("keeps boarding pass and sort under Advanced search, opening it by itself when the URL uses one", async () => {
+      adminCandidateClient.listCandidates.mockResolvedValue(listResult([]));
+      renderAt("/admin", await signInAs(HR));
+
+      const toggle = await screen.findByRole("button", { name: "Advanced search" });
+      expect(toggle).toHaveAttribute("aria-expanded", "false");
+      expect(screen.queryByRole("combobox", { name: "Sort by" })).not.toBeInTheDocument();
+      expect(screen.getByRole("combobox", { name: "Status" })).toBeVisible();
+      expect(screen.getByRole("group", { name: "Registration date" })).toBeInTheDocument();
+      expect(screen.getByLabelText("Registered from")).toBeInTheDocument();
+
+      fireEvent.click(toggle);
+      expect(screen.getByRole("button", { name: "Hide advanced search" })).toHaveAttribute("aria-expanded", "true");
+      expect(screen.getByRole("combobox", { name: "Sort by" })).toBeInTheDocument();
+    });
+
+    it("opens Advanced search when the URL carries a sort", async () => {
+      adminCandidateClient.listCandidates.mockResolvedValue(listResult([]));
+      renderAt("/admin?sort=full_name", await signInAs(HR));
+
+      expect(await screen.findByRole("button", { name: "Hide advanced search" })).toHaveAttribute("aria-expanded", "true");
+      expect(screen.getByRole("combobox", { name: "Sort by" })).toHaveValue("full_name");
     });
 
     it("does not show Clear filters with no active search/filters/sort", async () => {

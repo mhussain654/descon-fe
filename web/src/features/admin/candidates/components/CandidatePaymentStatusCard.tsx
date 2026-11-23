@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useStaffAuth } from "../../../../contexts/StaffAuthContext";
 import { useAdminFee } from "../../payments/hooks/useAdminFee";
 import { useLanguage } from "../../../../contexts/LanguageContext";
@@ -7,6 +7,7 @@ import { paymentStatusFromTimeline } from "../../../../../../shared/adminWorkflo
 import type { CandidatePaymentStatus } from "../../../../../../shared/adminWorkflow/paymentStatusFromTimeline";
 import type { TranslationKey } from "../../../../../../shared/i18n/translations";
 import { useWorkflowState } from "../../workflow/hooks/useWorkflowState";
+import { ManualPaymentDialog } from "./ManualPaymentDialog";
 
 const STATUS_LABEL_KEYS: Record<CandidatePaymentStatus, TranslationKey> = {
   paid: "adminCandidatePaymentStatusPaid",
@@ -33,7 +34,8 @@ export function CandidatePaymentStatusCard({
   candidateId,
 }: CandidatePaymentStatusCardProps) {
   const { t, language } = useLanguage();
-  const { signOut } = useStaffAuth();
+  const { signOut, hasPermission } = useStaffAuth();
+  const [manualPaymentOpen, setManualPaymentOpen] = useState(false);
   const feeQuery = useAdminFee(candidateId);
   useEffect(() => {
     if (
@@ -72,6 +74,15 @@ export function CandidatePaymentStatusCard({
           <span>{t(STATUS_LABEL_KEYS[status])}</span>
         </Badge>
       </div>
+      {/* Developers only: KuickPay took the fee but the system never recorded it. */}
+      {status === "pending" && hasPermission("record_manual_payment") ? (
+        <div className="mt-3">
+          <Button variant="secondary" size="sm" onClick={() => setManualPaymentOpen(true)}>
+            {t("adminManualPaymentAction")}
+          </Button>
+          <ManualPaymentDialog candidateId={candidateId} open={manualPaymentOpen} onOpenChange={setManualPaymentOpen} />
+        </div>
+      ) : null}
       {feeQuery.error &&
       feeQuery.error.code !== "FORBIDDEN" &&
       !feeQuery.data ? (

@@ -177,6 +177,27 @@ describe("Admin Mobilization page", () => {
     );
   });
 
+  it("shows who mobilized today from the shortcut, and filters by a mobilization date range", async () => {
+    await renderAt("/admin/mobilization");
+    await screen.findByRole("link", { name: "Ali Raza" });
+
+    fireEvent.click(screen.getByRole("button", { name: "Mobilized today" }));
+    await waitFor(() => {
+      const [filters] = vi.mocked(adminCandidateClient.listMobilizations).mock.calls.at(-1);
+      expect(filters.mobilizedFrom).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+      expect(filters.mobilizedTo).toBe(filters.mobilizedFrom);
+    });
+
+    fireEvent.change(screen.getByLabelText("Mobilized to"), { target: { value: "2026-11-30" } });
+    await waitFor(() =>
+      expect(adminCandidateClient.listMobilizations).toHaveBeenLastCalledWith(
+        expect.objectContaining({ mobilizedTo: "2026-11-30" }),
+        undefined,
+        { number: 1, size: 20 }
+      )
+    );
+  });
+
   it("explains an empty list before any flight is booked", async () => {
     vi.mocked(adminCandidateClient.listMobilizations).mockResolvedValue(result([]));
     await renderAt("/admin/mobilization");

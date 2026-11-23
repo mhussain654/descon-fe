@@ -37,6 +37,12 @@ describe('buildPaymentListQuery', () => {
     expect(query).toContain('filter%5Bcreated_to%5D=2026-08-31');
   });
 
+  it('serializes filter[paid_from] and filter[paid_to]', () => {
+    expect(buildPaymentListQuery({ paidFrom: '2026-11-23', paidTo: '2026-11-23' }, undefined, {})).toBe(
+      '?filter%5Bpaid_from%5D=2026-11-23&filter%5Bpaid_to%5D=2026-11-23'
+    );
+  });
+
   it('serializes filter[reconciliation_state]', () => {
     expect(buildPaymentListQuery({ reconciliationState: 'open' }, undefined, {})).toBe('?filter%5Breconciliation_state%5D=open');
   });

@@ -1,6 +1,6 @@
 import { useCallback, useEffect } from 'react';
 import { Link, useSearchParams } from 'react-router';
-import { AlertTriangle, CheckCircle2, Clock3, PlaneTakeoff, SlidersHorizontal, Users } from 'lucide-react';
+import { AlertTriangle, CalendarCheck, CheckCircle2, Clock3, PlaneTakeoff, SlidersHorizontal, Users } from 'lucide-react';
 import { useLanguage } from '../../../../contexts/LanguageContext';
 import { useStaffAuth } from '../../../../contexts/StaffAuthContext';
 import {
@@ -36,6 +36,7 @@ import { useDebouncedUrlFilter } from '../../documentReviews/hooks/useDebouncedU
 import { useMobilizationList } from '../hooks/useMobilizationList';
 import { CountryFilterSelect } from '../../shared/CountryFilterSelect';
 import { RegisteredDateRangeInputs } from '../../shared/RegisteredDateRangeInputs';
+import { DateRangeField } from '../../shared/DateRangeField';
 import { readMobilizationStateFromSearchParams, writeMobilizationStateToSearchParams } from '../mobilizationUrlState';
 
 // Departures are shown, and filtered, in Pakistan time.
@@ -108,8 +109,8 @@ function SummaryCard({ label, value, icon, pressed, onPress }: SummaryCardProps)
 /**
  * The admin Mobilization page (client request, Nov 2026): every candidate
  * whose flight is booked, through to mobilization, with each one's flight,
- * ticket, boarding pass and status. Filters (flight date, boarding pass,
- * status, search), sort and page all live in the URL.
+ * ticket, boarding pass and status. Filters (flight date, mobilization date,
+ * boarding pass, status, search), sort and page all live in the URL.
  */
 export function MobilizationWorkspace() {
   const { t, language } = useLanguage();
@@ -136,7 +137,7 @@ export function MobilizationWorkspace() {
     setSearchParams(new URLSearchParams());
   };
   const hasActiveFilters = Boolean(
-    filters.search || filters.flightDate || filters.boardingPass || filters.status || filters.countryCode || filters.registeredFrom || filters.registeredTo || sort
+    filters.search || filters.flightDate || filters.mobilizedFrom || filters.mobilizedTo || filters.boardingPass || filters.status || filters.countryCode || filters.registeredFrom || filters.registeredTo || sort
   );
   const summary = query.data?.summary;
   const toggleBoardingPass = (state: MobilizationBoardingPassFilter) =>
@@ -257,6 +258,14 @@ export function MobilizationWorkspace() {
             value={filters.flightDate ?? ''}
             onChange={(event) => updateFilters({ flightDate: event.target.value || undefined })}
           />
+          {/* The day candidates actually left, so staff can see who mobilized today or on any day. */}
+          <DateRangeField
+            label={t('adminMobilizationFilterMobilizedDate')}
+            fromLabel={t('adminMobilizationFilterMobilizedFrom')}
+            toLabel={t('adminMobilizationFilterMobilizedTo')}
+            value={{ from: filters.mobilizedFrom, to: filters.mobilizedTo }}
+            onChange={(patch) => updateFilters('from' in patch ? { mobilizedFrom: patch.from } : { mobilizedTo: patch.to })}
+          />
           {/* Country and registered dates pick out one import batch. */}
           <CountryFilterSelect value={filters.countryCode} onChange={(countryCode) => updateFilters({ countryCode })} t={t} />
           <RegisteredDateRangeInputs value={filters} onChange={updateFilters} t={t} />
@@ -300,6 +309,17 @@ export function MobilizationWorkspace() {
           >
             <PlaneTakeoff className="h-4 w-4" aria-hidden="true" />
             {t('adminMobilizationFilterToday')}
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              const today = flightDateToday();
+              updateFilters({ mobilizedFrom: today, mobilizedTo: today });
+            }}
+            className="inline-flex items-center gap-1.5 text-sm font-medium text-brand hover:underline"
+          >
+            <CalendarCheck className="h-4 w-4" aria-hidden="true" />
+            {t('adminMobilizationFilterMobilizedToday')}
           </button>
           {hasActiveFilters ? (
             <button type="button" onClick={clearFilters} className="text-sm font-medium text-brand hover:underline">

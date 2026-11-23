@@ -1,12 +1,17 @@
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { LanguageProvider } from "../../../../contexts/LanguageContext";
 import { adminWorkflowClient } from "../../../../lib/admin-workflow-client";
 import { adminFeesClient } from "../../../../lib/admin-fees-client";
+import { adminPaymentsClient } from "../../../../lib/admin-payments-client";
 import { CandidatePaymentStatusCard } from "./CandidatePaymentStatusCard";
 
-vi.mock("../../../../contexts/StaffAuthContext", () => ({ useStaffAuth: () => ({ hasPermission: () => true, signOut: vi.fn() }) }));
+const auth = vi.hoisted(() => ({ denied: new Set<string>() }));
+vi.mock("../../../../contexts/StaffAuthContext", () => ({
+  useStaffAuth: () => ({ hasPermission: (code: string) => !auth.denied.has(code), signOut: vi.fn() }),
+}));
+vi.mock("../../../../lib/admin-payments-client", () => ({ adminPaymentsClient: { recordManualPayment: vi.fn() } }));
 vi.mock("../../../../lib/admin-fees-client", () => ({ adminFeesClient: { getFee: vi.fn() } }));
 vi.mock("../../../../lib/admin-workflow-client", () => ({
   adminWorkflowClient: {
@@ -64,6 +69,8 @@ describe("CandidatePaymentStatusCard", () => {
     adminFeesClient.getFee.mockResolvedValue({ defaultAmount: '1500.00', effectiveAmount: '1500.00', overrideAmount: null, currencyCode: 'PKR', version: 0, assignmentId: 'assignment-1', locked: false, updatedAt: '2026-10-04T09:00:00Z' });
   });
   afterEach(() => {
+    auth.denied.clear();
+    vi.mocked(adminPaymentsClient.recordManualPayment).mockReset();
     vi.mocked(adminFeesClient.getFee).mockReset();
     vi.mocked(adminWorkflowClient.getWorkflowState).mockReset();
   });
@@ -95,6 +102,71 @@ describe("CandidatePaymentStatusCard", () => {
     renderCard();
 
     expect(await screen.findByText("Pending")).toBeInTheDocument();
+  });
+
+  describe("marking the fee paid by hand (developers only)", () => {
+    const pending = () => workflowState([stage("verified", "completed"), stage("fee_pending", "current"), stage("fee_paid", "pending")]);
+
+    it("records the KuickPay reference, paid day and reason, and refreshes the candidate", async () => {
+      vi.mocked(adminWorkflowClient.getWorkflowState).mockResolvedValue(pending());
+      vi.mocked(adminPaymentsClient.recordManualPayment).mockResolvedValue({ id: "payment-1" } as never);
+      renderCard();
+
+      fireEvent.click(await screen.findByRole("button", { name: "Mark as paid" }));
+      const dialog = await screen.findByRole("dialog");
+      fireEvent.change(within(dialog).getByLabelText("KuickPay reference"), { target: { value: " 788895 " } });
+      fireEvent.change(within(dialog).getByLabelText("Paid on"), { target: { value: "2026-11-20" } });
+      fireEvent.change(within(dialog).getByLabelText("Reason"), { target: { value: "Paid at KuickPay" } });
+      fireEvent.click(within(dialog).getByRole("button", { name: "Mark as paid" }));
+
+      await waitFor(() =>
+        expect(adminPaymentsClient.recordManualPayment).toHaveBeenCalledWith("candidate-1", {
+          reference: "788895",
+          paidOn: "2026-11-20",
+          reason: "Paid at KuickPay",
+        })
+      );
+      await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+      await waitFor(() => expect(adminWorkflowClient.getWorkflowState).toHaveBeenCalledTimes(2));
+    });
+
+    it("asks for the reference and reason before sending, and shows the server's refusal", async () => {
+      vi.mocked(adminWorkflowClient.getWorkflowState).mockResolvedValue(pending());
+      vi.mocked(adminPaymentsClient.recordManualPayment).mockRejectedValue({
+        code: "VALIDATION_FAILED",
+        message: "This reference is already recorded on another payment.",
+      });
+      renderCard();
+
+      fireEvent.click(await screen.findByRole("button", { name: "Mark as paid" }));
+      const dialog = await screen.findByRole("dialog");
+      fireEvent.click(within(dialog).getByRole("button", { name: "Mark as paid" }));
+      expect(within(dialog).getByText("Enter the KuickPay reference.")).toBeInTheDocument();
+      expect(within(dialog).getByText("Explain why the payment is being marked as paid.")).toBeInTheDocument();
+      expect(adminPaymentsClient.recordManualPayment).not.toHaveBeenCalled();
+
+      fireEvent.change(within(dialog).getByLabelText("KuickPay reference"), { target: { value: "788895" } });
+      fireEvent.change(within(dialog).getByLabelText("Reason"), { target: { value: "Paid at KuickPay" } });
+      fireEvent.click(within(dialog).getByRole("button", { name: "Mark as paid" }));
+      expect(await within(dialog).findByText("This reference is already recorded on another payment.")).toBeInTheDocument();
+    });
+
+    it("is hidden from staff who are not developers, and once the fee is paid", async () => {
+      auth.denied.add("record_manual_payment");
+      vi.mocked(adminWorkflowClient.getWorkflowState).mockResolvedValue(pending());
+      const { unmount } = renderCard();
+      expect(await screen.findByText("Pending")).toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: "Mark as paid" })).not.toBeInTheDocument();
+      unmount();
+
+      auth.denied.clear();
+      vi.mocked(adminWorkflowClient.getWorkflowState).mockResolvedValue(
+        workflowState([stage("fee_pending", "completed"), stage("fee_paid", "current")])
+      );
+      renderCard();
+      expect(await screen.findByText("Paid")).toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: "Mark as paid" })).not.toBeInTheDocument();
+    });
   });
 
   it("shows Not yet due before the candidate has reached fee_pending", async () => {

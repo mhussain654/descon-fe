@@ -111,6 +111,9 @@ export interface PaymentListFilters {
   /** ISO 8601 date (not datetime). */
   createdFrom?: string;
   createdTo?: string;
+  /** YYYY-MM-DD: the day the fee was paid, a calendar day in Pakistan time. */
+  paidFrom?: string;
+  paidTo?: string;
   reconciliationState?: PaymentReconciliationState;
   /** The candidate's destination country, with `registeredFrom`/`registeredTo` picking out one import batch's payments. */
   countryCode?: string;
@@ -140,11 +143,21 @@ export interface PaymentStatusSummaryRow {
   count: number;
 }
 
+/** The paid fees under every active filter (`meta.paid_total`): with the paid dates set to today, who paid today and how much. */
+export interface PaymentPaidTotal {
+  candidateCount: number;
+  paymentCount: number;
+  /** One total per currency; `amount` is a decimal string such as "53600.00". */
+  amounts: { currencyCode: string; amount: string }[];
+}
+
 export interface PaymentListResult {
   items: PaymentSummary[];
   pagination: PaymentListPagination;
   appliedFilters: Record<string, string>;
   summary: PaymentStatusSummaryRow[];
+  /** Null only if the server left `meta.paid_total` out. */
+  paidTotal: PaymentPaidTotal | null;
 }
 
 /** Only one of these three fields is ever correctable in one request -- see Admin::Payments::CorrectionService for exactly why each is restricted this way. */
@@ -213,4 +226,17 @@ export interface AdminPaymentsClient {
    * Returns the updated payment detail.
    */
   correctPayment(paymentId: string, correction: PaymentCorrectionRequest, idempotencyKey?: string): Promise<PaymentDetail>;
+
+  /** Developers only: marks the candidate's fee paid when KuickPay took it but the system never recorded it. */
+  recordManualPayment(candidateId: string, payment: ManualPaymentRequest): Promise<PaymentSummary>;
+}
+
+/** POST /admin/candidates/:id/manual_payment (Admin::Payments::ManualPaymentService). */
+export interface ManualPaymentRequest {
+  /** KuickPay transaction or voucher reference, at most 100 characters. */
+  reference: string;
+  /** YYYY-MM-DD, Pakistan time, not in the future. */
+  paidOn: string;
+  /** At most 500 characters. */
+  reason: string;
 }

@@ -21,6 +21,8 @@ export function buildPaymentListQuery(filters: PaymentListFilters, sort: Payment
   if (filters.currencyCode) appendParam(params, 'filter[currency_code]', filters.currencyCode);
   if (filters.createdFrom) appendParam(params, 'filter[created_from]', filters.createdFrom);
   if (filters.createdTo) appendParam(params, 'filter[created_to]', filters.createdTo);
+  if (filters.paidFrom) appendParam(params, 'filter[paid_from]', filters.paidFrom);
+  if (filters.paidTo) appendParam(params, 'filter[paid_to]', filters.paidTo);
   if (filters.reconciliationState) appendParam(params, 'filter[reconciliation_state]', filters.reconciliationState);
   if (filters.countryCode) appendParam(params, 'filter[country_code]', filters.countryCode);
   appendRegisteredDateParams(params, filters);

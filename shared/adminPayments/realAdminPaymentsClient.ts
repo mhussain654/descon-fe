@@ -25,10 +25,12 @@ import type {
   PaymentCorrectionRequest,
   PaymentDetail,
   PaymentEvent,
+  ManualPaymentRequest,
   PaymentListFilters,
   PaymentListPage,
   PaymentListResult,
   PaymentListSort,
+  PaymentPaidTotal,
   PaymentSummary,
   ReconciliationFinding,
 } from './types';
@@ -194,6 +196,20 @@ function toStatusSummary(raw: unknown): PaymentListResult['summary'] {
     .map((row) => ({ code: row.code as AdminPaymentStatus, count: typeof row.count === 'number' ? row.count : 0 }));
 }
 
+function toPaidTotal(raw: unknown): PaymentPaidTotal | null {
+  if (!raw || typeof raw !== 'object') return null;
+  const total = raw as { candidate_count?: unknown; payment_count?: unknown; amounts?: unknown };
+  if (typeof total.candidate_count !== 'number' || typeof total.payment_count !== 'number' || !Array.isArray(total.amounts)) return null;
+  return {
+    candidateCount: total.candidate_count,
+    paymentCount: total.payment_count,
+    amounts: total.amounts
+      .filter((row): row is { currency_code: string; amount: string } =>
+        !!row && typeof row === 'object' && typeof row.currency_code === 'string' && typeof row.amount === 'string')
+      .map((row) => ({ currencyCode: row.currency_code, amount: row.amount })),
+  };
+}
+
 /** A StaffAuthError (from the 401 refresh-and-retry path) has no `status`; anything else here is the raw ApiError authenticatedDataRequest rethrew unchanged. */
 function isStaffAuthError(error: unknown): error is StaffAuthError {
   return !!error && typeof error === 'object' && 'code' in error && !('status' in error);
@@ -258,12 +274,13 @@ export function createAdminPaymentsClient(options: RealAdminPaymentsClientOption
         if (!result) throw { code: 'UNKNOWN' } satisfies AdminPaymentError;
 
         const items = Array.isArray(result.data) ? result.data.map(toSummary) : [];
-        const meta = result.meta as { pagination?: unknown; applied_filters?: unknown; summary?: unknown } | undefined;
+        const meta = result.meta as { pagination?: unknown; applied_filters?: unknown; summary?: unknown; paid_total?: unknown } | undefined;
         return {
           items,
           pagination: toPagination(meta?.pagination),
           appliedFilters: toAppliedFilters(meta?.applied_filters),
           summary: toStatusSummary(meta?.summary),
+          paidTotal: toPaidTotal(meta?.paid_total),
         };
       } catch (error) {
         throw toAdminPaymentError(error);
@@ -309,6 +326,22 @@ export function createAdminPaymentsClient(options: RealAdminPaymentsClientOption
         );
         if (!data) throw { code: 'UNKNOWN' } satisfies AdminPaymentError;
         return toDetail(data);
+      } catch (error) {
+        throw toAdminPaymentError(error);
+      }
+    },
+
+    async recordManualPayment(candidateId: string, payment: ManualPaymentRequest): Promise<PaymentSummary> {
+      try {
+        const data = await staffAuthClient.authenticatedDataRequest((token) =>
+          apiClient.post<AdminPaymentSummaryResponse>(
+            `/admin/candidates/${encodeURIComponent(candidateId)}/manual_payment`,
+            { manual_payment: { reference: payment.reference, paid_on: payment.paidOn, reason: payment.reason } },
+            { headers: { Authorization: `Bearer ${token}`, 'X-Locale': getLocale() } }
+          )
+        );
+        if (!data) throw { code: 'UNKNOWN' } satisfies AdminPaymentError;
+        return toSummary(data);
       } catch (error) {
         throw toAdminPaymentError(error);
       }

@@ -14,12 +14,12 @@ describe('buildMobilizationListQuery', () => {
   it('serializes search, every filter, sort and page', () => {
     expect(
       buildMobilizationListQuery(
-        { search: 'Ali', flightDate: '2026-11-20', boardingPass: 'missing', status: 'not_confirmed' },
+        { search: 'Ali', flightDate: '2026-11-20', mobilizedFrom: '2026-11-21', mobilizedTo: '2026-11-23', boardingPass: 'missing', status: 'not_confirmed' },
         'departure_at',
         { number: 2, size: 50 }
       )
     ).toBe(
-      '?search=Ali&filter%5Bflight_date%5D=2026-11-20&filter%5Bboarding_pass%5D=missing&filter%5Bstatus%5D=not_confirmed&sort=departure_at&page%5Bnumber%5D=2&page%5Bsize%5D=50'
+      '?search=Ali&filter%5Bflight_date%5D=2026-11-20&filter%5Bmobilized_from%5D=2026-11-21&filter%5Bmobilized_to%5D=2026-11-23&filter%5Bboarding_pass%5D=missing&filter%5Bstatus%5D=not_confirmed&sort=departure_at&page%5Bnumber%5D=2&page%5Bsize%5D=50'
     );
   });
 });

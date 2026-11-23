@@ -145,6 +145,37 @@ describe('PaymentTransactionList', () => {
       expect(screen.queryByText('Payment status summary')).not.toBeInTheDocument();
     });
 
+    it('shows how many candidates paid and how much under the filters', async () => {
+      adminPaymentsClient.listPayments.mockResolvedValue({
+        ...listResult([paymentSummary()]),
+        paidTotal: { candidateCount: 2, paymentCount: 2, amounts: [{ currencyCode: 'PKR', amount: '53600.00' }] },
+      });
+      await renderAt('/admin/finance/payments', FINANCE);
+
+      expect(await screen.findByText('Fees paid')).toBeInTheDocument();
+      expect(screen.getByText('2 candidates paid')).toBeInTheDocument();
+      expect(screen.getByText(/53,600/)).toBeInTheDocument();
+    });
+
+    it('filters to fees paid today from the shortcut, and by a paid date range', async () => {
+      adminPaymentsClient.listPayments.mockResolvedValue(listResult([]));
+      await renderAt('/admin/finance/payments', FINANCE);
+
+      fireEvent.click(await screen.findByRole('button', { name: 'Paid today' }));
+      await waitFor(() => {
+        const [filters] = adminPaymentsClient.listPayments.mock.calls.at(-1)!;
+        expect(filters.paidFrom).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+        expect(filters.paidTo).toBe(filters.paidFrom);
+      });
+
+      fireEvent.change(screen.getByLabelText('Paid from'), { target: { value: '2026-11-01' } });
+      await waitFor(() => {
+        const [filters] = adminPaymentsClient.listPayments.mock.calls.at(-1)!;
+        expect(filters.paidFrom).toBe('2026-11-01');
+      });
+      expect(screen.getByRole('group', { name: 'Paid date' })).toBeInTheDocument();
+    });
+
     it('links each row to its payment detail page', async () => {
       adminPaymentsClient.listPayments.mockResolvedValue(listResult([paymentSummary()]));
       await renderAt('/admin/finance/payments', FINANCE);
