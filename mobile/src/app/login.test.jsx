@@ -206,10 +206,10 @@ describe('LoginScreen', () => {
     await waitFor(() => expect(screen.getByLabelText('One-Time Password')).toBeOnTheScreen());
     expect(screen.getByText('Check your messages')).toBeOnTheScreen();
     expect(
-      screen.getByText('A six digit verification code has been sent from 8062050 to your registered mobile number.')
+      screen.getByText('A six digit verification code has been sent from DESCON MPS to your registered mobile number.')
     ).toBeOnTheScreen();
-    // The sender number is its own bold run, so it stands out in the sentence.
-    expect(screen.getByText('8062050')).toHaveStyle({ fontFamily: expect.stringMatching(/bold/i) });
+    // The sender name is its own bold run, so it stands out in the sentence.
+    expect(screen.getByText('DESCON MPS')).toHaveStyle({ fontFamily: expect.stringMatching(/bold/i) });
     expect(screen.queryByText('Enter the code to continue securely')).toBeNull();
     expect(screen.getByRole('button', { name: 'Continue' })).toBeOnTheScreen();
     expect(screen.queryByRole('button', { name: 'Verify and continue' })).toBeNull();

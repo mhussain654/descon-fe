@@ -47,8 +47,8 @@ const HERO_TEXT_SHADOW = {
   textShadowRadius: 8,
 };
 
-// The number every OTP SMS arrives from, shown so candidates know which message to open.
-const OTP_SENDER_NUMBER = "8062050";
+// The sender name every OTP SMS arrives from, shown so candidates know which message to open.
+const OTP_SENDER_NAME = "DESCON MPS";
 
 // A row whose first child sits on the given physical side in the live layout.
 function rowTowards(side) {
@@ -268,7 +268,7 @@ export default function LoginScreen() {
               // On the white sheet, not over the art, so it stays easy to read.
               <Text style={[styles.sentFrom, isUrdu ? styles.sentFromUrdu : null, copyTextStyle, font("regular")]}>
                 {sentFromBefore}
-                <Text style={styles.sentFromSender}>{OTP_SENDER_NUMBER}</Text>
+                <Text style={styles.sentFromSender}>{OTP_SENDER_NAME}</Text>
                 {sentFromAfter}
               </Text>
             ) : null}
