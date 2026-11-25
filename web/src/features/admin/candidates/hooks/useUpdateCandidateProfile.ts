@@ -10,6 +10,7 @@ import type { NextOfKinInput } from '../../../../../../shared/adminCandidates/ty
 export interface UpdateCandidateFormValues {
   fullName?: string;
   mobileNumber?: string;
+  email?: string;
   passportNumber?: string;
   /** Omit to leave next-of-kin completely untouched. Send all four fields as empty strings to intentionally clear it. */
   nextOfKin?: NextOfKinInput;

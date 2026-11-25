@@ -207,6 +207,7 @@ function toProfilePhoto(raw: unknown): AdminCandidateProfilePhoto {
 /** Maps the backend's ErrorItem.code (see openapi.yaml's admin/candidates 409/422 examples) to the shared error taxonomy. */
 const SERVER_CODE_TO_ERROR: Record<string, AdminCandidateErrorCode> = {
   validation_failed: 'VALIDATION_ERROR',
+  invalid_email: 'VALIDATION_ERROR',
   duplicate_cnic: 'DUPLICATE_CNIC',
   duplicate_passport_number: 'DUPLICATE_PASSPORT_NUMBER',
   duplicate_reference_number: 'DUPLICATE_REFERENCE_NUMBER',
@@ -400,6 +401,7 @@ export function createAdminCandidateClient(options: RealAdminCandidateClientOpti
               candidate: compactBody({
                 full_name: input.fullName,
                 mobile_number: input.mobileNumber,
+                email: input.email,
                 passport_number: input.passportNumber,
                 ...nextOfKinBody(input.nextOfKin),
                 preferred_locale: input.preferredLocale,

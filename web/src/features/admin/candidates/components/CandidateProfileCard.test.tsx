@@ -153,8 +153,70 @@ describe("CandidateProfileCard", () => {
     );
     const call = adminCandidateClient.updateCandidate.mock.calls[0][0];
     expect(call).not.toHaveProperty("mobileNumber");
+    expect(call).not.toHaveProperty("email");
     expect(call).not.toHaveProperty("passportNumber");
     await waitFor(() => expect(screen.getByRole("button", { name: "Edit" })).toBeInTheDocument());
+  });
+
+  it("lets staff correct the candidate's email, sending it trimmed and lowercased", async () => {
+    adminCandidateClient.getCandidate.mockResolvedValue(candidateDetail());
+    adminCandidateClient.updateCandidate.mockResolvedValue(candidateDetail({ email: "fixed@example.com" }));
+    const client = await signInAs(HR);
+    renderCard(client);
+    fireEvent.click(await screen.findByRole("button", { name: "Edit" }));
+
+    const emailInput = screen.getByLabelText(/Email address/);
+    expect(emailInput).toHaveValue("candidate@example.com");
+    fireEvent.change(emailInput, { target: { value: " Fixed@Example.com " } });
+    fireEvent.click(screen.getByRole("button", { name: "Save" }));
+
+    await waitFor(() =>
+      expect(adminCandidateClient.updateCandidate).toHaveBeenCalledWith(
+        expect.objectContaining({ candidateId: "candidate-1", email: "fixed@example.com" })
+      )
+    );
+    expect(adminCandidateClient.updateCandidate.mock.calls[0][0]).not.toHaveProperty("fullName");
+  });
+
+  it("lets staff add an email to a candidate without one, and clear it again", async () => {
+    adminCandidateClient.getCandidate.mockResolvedValue(candidateDetail({ email: "old@example.com" }));
+    adminCandidateClient.updateCandidate.mockResolvedValue(candidateDetail({ email: null }));
+    const client = await signInAs(HR);
+    renderCard(client);
+    fireEvent.click(await screen.findByRole("button", { name: "Edit" }));
+
+    fireEvent.change(screen.getByLabelText(/Email address/), { target: { value: "" } });
+    fireEvent.click(screen.getByRole("button", { name: "Save" }));
+
+    await waitFor(() =>
+      expect(adminCandidateClient.updateCandidate).toHaveBeenCalledWith(expect.objectContaining({ email: "" }))
+    );
+  });
+
+  it("refuses a malformed email before submitting", async () => {
+    adminCandidateClient.getCandidate.mockResolvedValue(candidateDetail({ email: null }));
+    const client = await signInAs(HR);
+    renderCard(client);
+    fireEvent.click(await screen.findByRole("button", { name: "Edit" }));
+
+    fireEvent.change(screen.getByLabelText(/Email address/), { target: { value: "name@example" } });
+    fireEvent.click(screen.getByRole("button", { name: "Save" }));
+
+    expect(await screen.findByText("Enter a valid email address, e.g. name@example.com.")).toBeInTheDocument();
+    expect(adminCandidateClient.updateCandidate).not.toHaveBeenCalled();
+  });
+
+  it("shows the server's email error on the email field", async () => {
+    adminCandidateClient.getCandidate.mockResolvedValue(candidateDetail({ email: null }));
+    adminCandidateClient.updateCandidate.mockRejectedValue({ code: "VALIDATION_ERROR", field: "email", message: "That email address can't be used." });
+    const client = await signInAs(HR);
+    renderCard(client);
+    fireEvent.click(await screen.findByRole("button", { name: "Edit" }));
+
+    fireEvent.change(screen.getByLabelText(/Email address/), { target: { value: "x@example.com" } });
+    fireEvent.click(screen.getByRole("button", { name: "Save" }));
+
+    expect(await screen.findByText("That email address can't be used.")).toBeInTheDocument();
   });
 
   it("requires confirmation before submitting a changed mobile number", async () => {

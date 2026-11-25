@@ -17,6 +17,7 @@ import {
 import { useLanguage } from '../../../../contexts/LanguageContext';
 import { useStaffAuth } from '../../../../contexts/StaffAuthContext';
 import { normalizeMobileNumber, isValidMobileNumber } from '../../../../../../shared/adminCandidates/mobileNumber';
+import { isAcceptableEmail, normalizeEmail } from '../../../../../../shared/candidateProfile/email';
 import { normalizePassportNumber, isValidPassportNumber } from '../../../../../../shared/adminCandidates/passportNumber';
 import { isNextOfKinStarted } from '../../../../../../shared/adminCandidates/nextOfKin';
 import { formatCnic, isValidCnic, toCnicDigits } from '../../../../../../shared/cnic';
@@ -42,6 +43,7 @@ const ASSIGNMENT_FIELDS_EDITABLE_STAGE_CODES = new Set(['registered', 'documents
 const FIELD_ERROR_MAP: Record<string, string> = {
   full_name: 'fullName',
   mobile_number: 'mobileNumber',
+  email: 'email',
   passport_number: 'passportNumber',
   next_of_kin_name: 'nextOfKinName',
   next_of_kin_relationship: 'nextOfKinRelationship',
@@ -245,6 +247,7 @@ function CandidateProfileEditForm({ candidate, canEditAssignmentFields, update, 
 
   const [fullName, setFullName] = useState(candidate.fullName);
   const [mobileNumber, setMobileNumber] = useState(candidate.mobileNumber);
+  const [email, setEmail] = useState(candidate.email ?? '');
   const [passportNumber, setPassportNumber] = useState(candidate.passportNumber ?? '');
   const [nextOfKinName, setNextOfKinName] = useState(candidate.nextOfKin.name ?? '');
   const [nextOfKinRelationship, setNextOfKinRelationship] = useState(candidate.nextOfKin.relationship ?? '');
@@ -272,6 +275,8 @@ function CandidateProfileEditForm({ candidate, canEditAssignmentFields, update, 
     if (fullName.trim() !== candidate.fullName) values.fullName = fullName.trim();
     const normalizedMobile = normalizeMobileNumber(mobileNumber);
     if (normalizedMobile !== candidate.mobileNumber) values.mobileNumber = normalizedMobile;
+    const normalizedEmail = normalizeEmail(email);
+    if (normalizedEmail !== (candidate.email ?? '')) values.email = normalizedEmail;
     const normalizedPassport = normalizePassportNumber(passportNumber);
     if (normalizedPassport !== (candidate.passportNumber ?? '')) values.passportNumber = normalizedPassport;
 
@@ -310,6 +315,7 @@ function CandidateProfileEditForm({ candidate, canEditAssignmentFields, update, 
     const errors: Record<string, string> = {};
     if (!fullName.trim()) errors.fullName = t('adminCandidateFullNameRequiredError');
     if (!isValidMobileNumber(normalizeMobileNumber(mobileNumber))) errors.mobileNumber = t('adminCandidateMobileNumberInvalidError');
+    if (!isAcceptableEmail(email)) errors.email = t('adminCandidateEmailInvalidError');
     if (!isValidPassportNumber(normalizePassportNumber(passportNumber))) errors.passportNumber = t('adminCandidatePassportNumberInvalidError');
     if (
       isNextOfKinStarted({
@@ -381,6 +387,16 @@ function CandidateProfileEditForm({ candidate, canEditAssignmentFields, update, 
           value={mobileNumber}
           onChange={(event) => setMobileNumber(event.target.value)}
           errorMessage={errorFor('mobileNumber')}
+        />
+        <Input
+          label={t('adminCandidateEmailLabel')}
+          requirementText={t('dsOptionalField')}
+          type="email"
+          dir="ltr"
+          autoComplete="off"
+          value={email}
+          onChange={(event) => setEmail(event.target.value)}
+          errorMessage={errorFor('email')}
         />
         <Input
           label={t('adminCandidatePassportNumberLabel')}

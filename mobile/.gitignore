@@ -48,3 +48,7 @@ google-service-account.json
 # Local EAS build outputs (eas build --local)
 *.aab
 *.apk
+
+# EAS credentials downloaded with `eas credentials` (keystore passwords): never commit
+credentials.json
+credentials/

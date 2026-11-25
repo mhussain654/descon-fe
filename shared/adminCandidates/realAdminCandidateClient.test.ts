@@ -450,6 +450,21 @@ describe('createAdminCandidateClient (real)', () => {
       expect(JSON.parse(capturedBody!).candidate.passport_number).toBe('');
     });
 
+    it('sends the email, and maps an invalid_email refusal to a field error', async () => {
+      let capturedBody: string | undefined;
+      stubFetch(async (_url, init) => {
+        capturedBody = init?.body as string;
+        return jsonResponse(errorEnvelope([{ code: 'invalid_email', message: 'Enter a valid email address.', field: 'email' }]), { status: 422 });
+      });
+      const client = buildClient();
+
+      await expect(client.updateCandidate({ candidateId: 'candidate-1', email: 'bad@' })).rejects.toMatchObject({
+        code: 'VALIDATION_ERROR',
+        field: 'email',
+      });
+      expect(JSON.parse(capturedBody!).candidate.email).toBe('bad@');
+    });
+
     it('sends all four next-of-kin fields together and expected_updated_at when editing an existing group', async () => {
       let capturedBody: string | undefined;
       stubFetch(async (_url, init) => {

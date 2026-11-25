@@ -106,6 +106,8 @@ export interface UpdateCandidateInput {
   candidateId: string;
   fullName?: string;
   mobileNumber?: string;
+  /** Send an empty string to clear the candidate's email. */
+  email?: string;
   /** Send an empty string to clear a previously recorded passport number. */
   passportNumber?: string;
   /** Omit to leave next-of-kin completely untouched (an existing group is preserved, never silently cleared). Send all four fields as empty strings to intentionally clear it. */
