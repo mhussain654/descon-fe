@@ -125,7 +125,7 @@ describe('SubmissionDetail', () => {
         submissionDetail([
           submissionDocument(),
           submissionDocument({ id: 'doc-2', requirementCode: 'cv', name: 'CV' }),
-          submissionDocument({ id: 'doc-3', requirementCode: 'cheque_copy', name: 'Cheque Copy', status: 'verified' }),
+          submissionDocument({ id: 'doc-3', requirementCode: 'photograph', name: 'Photograph', status: 'verified' }),
         ])
       );
       adminDocumentReviewsClient.getExtraction.mockResolvedValue({ status: 'succeeded', issuedOn: '2020-01-01', expiresOn: '2030-01-01' });

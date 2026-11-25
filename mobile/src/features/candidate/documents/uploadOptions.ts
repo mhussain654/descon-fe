@@ -2,18 +2,15 @@ import { acceptsImages, type FileSetLayout, type PairUploadMode } from '../../..
 import type { DocumentUploadRules } from '../../../../../shared/candidateDocuments/types';
 
 /**
- * Client decision: candidates upload every document as one scanned PDF, so
- * the documents screen offers only "Choose file" (PDF) -- and, for a
- * two-page/two-sided document, only the one "Scan PDF" option.
+ * Candidates may upload each document as a scanned PDF or as photos (taken
+ * with the camera, chosen from the gallery, or picked as a JPEG/PNG file), and
+ * a two-page/two-sided document as one PDF or a photo of each page/side.
+ * Photos must be at least 500 x 500 pixels (shared/candidateDocuments/imageResolution.ts).
  *
- * Photo uploads are hidden, not removed. Taking a photo, choosing from the
- * gallery, separate front/back photo parts and JPEG/PNG files are all still
- * implemented in useDocumentUpload/DocumentUploadPanel, and the backend still
- * accepts them wherever a requirement's upload rules allow them. To offer
- * them again (e.g. photo or selfie capture later), set this to `false`.
+ * Setting this to `true` hides the photo options again and offers PDF only.
  * See docs/mobile-documents-pdf-only.md.
  */
-export const PDF_ONLY_UPLOADS = true;
+export const PDF_ONLY_UPLOADS = false;
 
 const PDF = 'application/pdf';
 

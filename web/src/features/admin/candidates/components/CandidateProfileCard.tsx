@@ -176,6 +176,7 @@ function CandidateProfileCardBody({ candidate, canManage, update }: CandidatePro
           <Field label={t('adminCandidateFullNameLabel')} value={candidate.fullName} />
           <Field label={t('cnicShort')} value={candidate.cnic} dir="ltr" />
           <Field label={t('adminCandidateMobileNumberLabel')} value={candidate.mobileNumber} dir="ltr" />
+          <Field label={t('adminCandidateEmailLabel')} value={candidate.email ?? t('notAvailable')} dir="ltr" />
           <Field label={t('adminCandidatePassportNumberLabel')} value={candidate.passportNumber || t('notAvailable')} dir="ltr" />
           <Field
             label={t('adminCandidatePreferredLocaleLabel')}

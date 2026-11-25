@@ -2,6 +2,7 @@
 // and Candidate Profile Integration"), shared by web and mobile, wired to
 // the real backend documented in descon-be's openapi.yaml:
 //   GET /api/v1/candidate/profile
+//   PATCH /api/v1/candidate/profile (the candidate's own email address)
 //
 // Only the approved fields from that contract are represented here -- see
 // CandidateProfile's doc comments for why each is safe to render.
@@ -31,6 +32,8 @@ export interface CandidateProfile {
   fullName: string;
   /** Already masked server-side (e.g. "42101-*******-1") -- never the full CNIC. */
   maskedCnic: string;
+  /** The candidate's own email address, which staff use for mailing; null until they add one. */
+  email: string | null;
   /** Null when the candidate has no assignment yet (same condition as `currentWorkflowStage` being null -- both come from the same, not-yet-created CandidateAssignment). */
   referenceNumber: string | null;
   preferredLocale: 'en' | 'ur';
@@ -88,10 +91,22 @@ export interface ProfilePhotoError {
   retryAfterSeconds?: number;
 }
 
+/** `INVALID_EMAIL`: the backend refused the address (422 `invalid_email`). */
+export type ProfileEmailErrorCode = 'INVALID_EMAIL' | CandidateProfileErrorCode;
+
+export interface ProfileEmailError {
+  code: ProfileEmailErrorCode;
+  /** Backend-localized message, when one was returned. */
+  message?: string;
+  retryAfterSeconds?: number;
+}
+
 export interface CandidateProfileClient {
   /** The candidate's own session access token -- the only thing that determines whose profile comes back; there is no id parameter to tamper with. */
   getProfile(accessToken: string): Promise<CandidateProfile>;
   /** Sets/replaces the signed-in candidate's own photo. `formData` carries `profile_photo[photo]` -- built per platform, since browser `File` and React Native file parts differ (same convention as document uploads). */
   uploadPhoto(params: { accessToken: string; formData: FormData }): Promise<{ photoUrl: string | null }>;
   removePhoto(accessToken: string): Promise<{ photoUrl: string | null }>;
+  /** Adds, changes or (with an empty string) clears the signed-in candidate's own email address; returns the updated profile. */
+  updateEmail(params: { accessToken: string; email: string }): Promise<CandidateProfile>;
 }

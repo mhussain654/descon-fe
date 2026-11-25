@@ -234,6 +234,7 @@ const SERVER_CODE_TO_ERROR: Record<string, CandidateDocumentsErrorCode> = {
   invalid_requirement: 'INVALID_REQUIREMENT',
   unsupported_file_type: 'UNSUPPORTED_FILE_TYPE',
   file_too_large: 'FILE_TOO_LARGE',
+  image_too_small: 'IMAGE_TOO_SMALL',
   empty_file: 'EMPTY_FILE',
   replacement_not_allowed: 'REPLACEMENT_NOT_ALLOWED',
   invalid_document_files: 'INVALID_DOCUMENT_FILES',

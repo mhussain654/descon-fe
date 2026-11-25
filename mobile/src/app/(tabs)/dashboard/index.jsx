@@ -286,6 +286,11 @@ export default function DashboardScreen() {
       ? flightDetailQuery.data
       : null;
 
+  // Shown only when Home has nothing else to ask or show: no next step, and no
+  // appointment or flight card (for example, documents are under review).
+  const showEmailReminder =
+    !nextStep && !profile.email && !qvcAppointment && !medicalAppointment && !upcomingFlight;
+
   const latest = latestActionableUpdate(historyQuery.data?.items ?? []);
   const latestStep = latest ? journeyStepCodeForStage(latest.toStage.code) : null;
   const latestUpdate = latest
@@ -389,6 +394,28 @@ export default function DashboardScreen() {
             />
           ) : null}
 
+          {showEmailReminder ? (
+            <NextStepCard
+              language={language}
+              variant="email"
+              label={t("candidateHomeEmailReminderLabel")}
+              title={t("candidateHomeEmailReminderTitle")}
+              description={interpolateSegments(t("candidateHomeEmailReminderBody"), { profile: t("candidateHomeEmailReminderProfileLink") }).map((segment, index) =>
+                segment.slot === "profile" ? (
+                  <Text key={index} accessibilityRole="link" onPress={() => router.push("/(tabs)/profile")} style={styles.inlineLink}>
+                    {segment.text}
+                  </Text>
+                ) : (
+                  segment.text
+                )
+              )}
+              actionLabel={t("candidateHomeEmailReminderAction")}
+              onAction={() => router.push("/(tabs)/profile")}
+              leadingIcon={forwardArrow.leadingIcon}
+              trailingIcon={forwardArrow.trailingIcon}
+            />
+          ) : null}
+
           <View>
             <Text style={[styles.sectionTitle, isUrdu && styles.sectionTitleUrdu, { fontFamily: getFontFamily(language, "bold") }]}>
               {t("homeQuickActions")}
@@ -457,6 +484,7 @@ const styles = themedStyles(() => ({
   scrollContent: { flexGrow: 1 },
   content: { paddingHorizontal: 14, paddingTop: 14, gap: 12 },
   sectionTitle: { marginBottom: spacing[2], paddingHorizontal: 2, fontSize: 16, color: colors.text.primary },
+  inlineLink: { color: themed('#0065B3', '#7CB8F0'), textDecorationLine: 'underline', fontWeight: '600' },
   sectionTitleUrdu: { lineHeight: 34 },
   tileGrid: { gap: spacing[2] },
   tileRow: { gap: spacing[2] },

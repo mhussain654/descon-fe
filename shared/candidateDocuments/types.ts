@@ -111,6 +111,8 @@ export type CandidateDocumentsErrorCode =
   | 'INVALID_REQUIREMENT'
   | 'UNSUPPORTED_FILE_TYPE'
   | 'FILE_TOO_LARGE'
+  /** 422 `image_too_small` -- a photo under 500 x 500 pixels (imageResolution.ts). */
+  | 'IMAGE_TOO_SMALL'
   | 'EMPTY_FILE'
   /** 422 `replacement_not_allowed` -- the checklist must be refreshed, since the item's status (and therefore its replacement eligibility) may have changed since it was loaded. */
   | 'REPLACEMENT_NOT_ALLOWED'

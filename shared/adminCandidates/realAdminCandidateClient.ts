@@ -56,6 +56,7 @@ interface CandidateDetailResponse {
   full_name: string;
   cnic: string;
   mobile_number: string;
+  email?: string | null;
   passport_number: string | null;
   next_of_kin_name: string | null;
   next_of_kin_relationship: string | null;
@@ -178,6 +179,7 @@ function toCandidateDetail(raw: unknown): AdminCandidateDetail {
     fullName: typeof value.full_name === 'string' ? value.full_name : '',
     cnic: typeof value.cnic === 'string' ? value.cnic : '',
     mobileNumber: typeof value.mobile_number === 'string' ? value.mobile_number : '',
+    email: typeof value.email === 'string' ? value.email : null,
     passportNumber: typeof value.passport_number === 'string' ? value.passport_number : null,
     nextOfKin: toNextOfKin(value),
     preferredLocale: toLocale(value.preferred_locale),

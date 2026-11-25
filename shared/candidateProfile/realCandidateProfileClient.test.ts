@@ -66,6 +66,7 @@ describe('createCandidateProfileClient (real)', () => {
       id: 'candidate-public-id-1',
       fullName: 'Ahmed Ali',
       maskedCnic: '42101-*******-1',
+      email: null,
       referenceNumber: 'DES-001001',
       preferredLocale: 'en',
       candidateStatus: 'registered',
@@ -304,5 +305,44 @@ describe('createCandidateProfileClient (real)', () => {
 
     await expect(buildClient().removePhoto('token')).resolves.toEqual({ photoUrl: null });
     expect(method).toBe('DELETE');
+  });
+
+  it('updates the email with PATCH and returns the updated profile', async () => {
+    let seen: { url: string; method?: string; body?: string; locale?: string } | undefined;
+    stubFetch(async (url, init) => {
+      const request = init as RequestInit;
+      seen = { url: String(url), method: request.method, body: String(request.body), locale: (request.headers as Record<string, string>)['X-Locale'] };
+      return jsonResponse(successEnvelope(profilePayload({ email: 'candidate@example.com' })));
+    });
+
+    const profile = await buildClient('ur').updateEmail({ accessToken: 'token', email: 'candidate@example.com' });
+
+    expect(seen).toEqual({
+      url: 'http://example.test/api/v1/candidate/profile',
+      method: 'PATCH',
+      body: JSON.stringify({ candidate_profile: { email: 'candidate@example.com' } }),
+      locale: 'ur',
+    });
+    expect(profile.email).toBe('candidate@example.com');
+  });
+
+  it('maps an invalid email to INVALID_EMAIL, keeping the localized message', async () => {
+    stubFetch(async () =>
+      jsonResponse(
+        errorEnvelope([{ code: 'invalid_email', message: 'Enter a valid email address.', field: 'candidate_profile.email' }]),
+        { status: 422 }
+      )
+    );
+
+    await expect(buildClient().updateEmail({ accessToken: 'token', email: 'bad' })).rejects.toEqual({
+      code: 'INVALID_EMAIL',
+      message: 'Enter a valid email address.',
+    });
+  });
+
+  it('maps other email update failures like profile errors', async () => {
+    stubFetch(async () => jsonResponse(errorEnvelope([{ code: 'unauthorized', message: 'Sign in again.' }]), { status: 401 }));
+
+    await expect(buildClient().updateEmail({ accessToken: 'token', email: 'a@b.co' })).rejects.toEqual({ code: 'SESSION_EXPIRED' });
   });
 });

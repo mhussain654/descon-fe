@@ -49,7 +49,7 @@ jest.mock("@react-native-async-storage/async-storage", () =>
 jest.mock("@react-navigation/native", () => ({ useFocusEffect: () => {} }));
 
 jest.mock("../../../lib/candidate-profile-client", () => ({
-  candidateProfileClient: { getProfile: jest.fn() },
+  candidateProfileClient: { getProfile: jest.fn(), updateEmail: jest.fn() },
 }));
 jest.mock("../../../lib/application-progress-client", () => ({
   applicationProgressClient: { getProgress: jest.fn(), submitDocuments: jest.fn() },
@@ -97,6 +97,7 @@ const { createTestQueryClient, trackRender, cleanup } = createQueryClientTestLif
 afterEach(async () => {
   await cleanup();
   jest.mocked(candidateProfileClient.getProfile).mockReset();
+  jest.mocked(candidateProfileClient.updateEmail).mockReset();
   jest.mocked(applicationProgressClient.getProgress).mockReset();
   mockReplace.mockReset();
   // Otherwise a test that toggles to Urdu (AsyncStorage) leaks into
@@ -401,5 +402,84 @@ describe("ProfileScreen", () => {
     fireEvent.press(screen.getByRole("button", { name: "Logout" }));
 
     await waitFor(() => expect(mockReplace).toHaveBeenCalledWith("/login"));
+  });
+
+  describe("email address", () => {
+    it("shows Not added yet with an Add button when there is no email", async () => {
+      candidateProfileClient.getProfile.mockResolvedValue(profilePayload({ email: null }));
+      renderProfileScreen();
+
+      expect(await screen.findByText("Email address")).toBeOnTheScreen();
+      expect(screen.getByText("Not added yet")).toBeOnTheScreen();
+      expect(screen.getByRole("button", { name: "Add email address" })).toBeOnTheScreen();
+    });
+
+    it("saves a new email, lowercased, and shows it after the profile refreshes", async () => {
+      candidateProfileClient.getProfile.mockResolvedValueOnce(profilePayload({ email: null }));
+      candidateProfileClient.getProfile.mockResolvedValue(profilePayload({ email: "candidate@example.com" }));
+      candidateProfileClient.updateEmail.mockResolvedValue(profilePayload({ email: "candidate@example.com" }));
+      renderProfileScreen();
+
+      fireEvent.press(await screen.findByRole("button", { name: "Add email address" }));
+      expect(screen.getByText("Descon will send emails to this address.")).toBeOnTheScreen();
+      fireEvent.changeText(screen.getByPlaceholderText("name@example.com"), "  Candidate@Example.com ");
+      fireEvent.press(screen.getByRole("button", { name: "Save" }));
+
+      expect(await screen.findByText("candidate@example.com")).toBeOnTheScreen();
+      expect(candidateProfileClient.updateEmail).toHaveBeenCalledWith({ accessToken: "candidate-access-token", email: "candidate@example.com" });
+      expect(screen.queryByPlaceholderText("name@example.com")).toBeNull();
+      expect(screen.getByRole("button", { name: "Edit email address" })).toBeOnTheScreen();
+    });
+
+    it("refuses a malformed email without calling the server", async () => {
+      candidateProfileClient.getProfile.mockResolvedValue(profilePayload({ email: null }));
+      renderProfileScreen();
+
+      fireEvent.press(await screen.findByRole("button", { name: "Add email address" }));
+      fireEvent.changeText(screen.getByPlaceholderText("name@example.com"), "not-an-email");
+      fireEvent.press(screen.getByRole("button", { name: "Save" }));
+
+      expect(screen.getByText("Enter a valid email address, e.g. name@example.com.")).toBeOnTheScreen();
+      expect(candidateProfileClient.updateEmail).not.toHaveBeenCalled();
+    });
+
+    it("shows the server's message when it refuses the email, keeping the editor open", async () => {
+      candidateProfileClient.getProfile.mockResolvedValue(profilePayload({ email: "old@example.com" }));
+      candidateProfileClient.updateEmail.mockRejectedValue({ code: "INVALID_EMAIL", message: "That email address can't be used." });
+      renderProfileScreen();
+
+      fireEvent.press(await screen.findByRole("button", { name: "Edit email address" }));
+      expect(screen.getByPlaceholderText("name@example.com").props.value).toBe("old@example.com");
+      fireEvent.changeText(screen.getByPlaceholderText("name@example.com"), "new@example.com");
+      fireEvent.press(screen.getByRole("button", { name: "Save" }));
+
+      expect(await screen.findByText("That email address can't be used.")).toBeOnTheScreen();
+      expect(screen.getByPlaceholderText("name@example.com")).toBeOnTheScreen();
+    });
+
+    it("shows a network problem and lets the candidate cancel", async () => {
+      candidateProfileClient.getProfile.mockResolvedValue(profilePayload({ email: null }));
+      candidateProfileClient.updateEmail.mockRejectedValue({ code: "NETWORK_ERROR" });
+      renderProfileScreen();
+
+      fireEvent.press(await screen.findByRole("button", { name: "Add email address" }));
+      fireEvent.changeText(screen.getByPlaceholderText("name@example.com"), "a@b.co");
+      fireEvent.press(screen.getByRole("button", { name: "Save" }));
+      expect(await screen.findByText("Couldn't reach the server. Check your connection and try again.", {}, { timeout: 5000 })).toBeOnTheScreen();
+      fireEvent.press(screen.getByRole("button", { name: "Cancel" }));
+
+      expect(screen.queryByPlaceholderText("name@example.com")).toBeNull();
+      expect(screen.getByText("Not added yet")).toBeOnTheScreen();
+    });
+
+    it("shows the email row in Urdu, keeping the address left to right", async () => {
+      await AsyncStorage.setItem("descon.language", "ur");
+      candidateProfileClient.getProfile.mockResolvedValue(profilePayload({ email: "candidate@example.com" }));
+      renderProfileScreen();
+
+      expect(await screen.findByText("ای میل ایڈریس")).toBeOnTheScreen();
+      expect(StyleSheet.flatten(screen.getByText("candidate@example.com").props.style).writingDirection).toBe("ltr");
+      expect(screen.getByRole("button", { name: "ای میل ایڈریس تبدیل کریں" })).toBeOnTheScreen();
+    });
   });
 });

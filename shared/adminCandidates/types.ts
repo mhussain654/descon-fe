@@ -53,6 +53,8 @@ export interface AdminCandidateDetail {
   /** Unmasked -- staff with view_candidates/manage_candidates are trusted with the real value, unlike the candidate's own masked self-service profile. */
   cnic: string;
   mobileNumber: string;
+  /** Added by the candidate in the app's Profile tab; null until then. Staff use it for mailing. */
+  email: string | null;
   passportNumber: string | null;
   nextOfKin: NextOfKinDetail;
   preferredLocale: 'en' | 'ur';

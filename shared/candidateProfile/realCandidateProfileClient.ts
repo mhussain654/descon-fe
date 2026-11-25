@@ -1,6 +1,7 @@
 // Real CandidateProfileClient implementation, calling the backend documented
 // in descon-be's openapi.yaml:
 //   GET /api/v1/candidate/profile
+//   PATCH /api/v1/candidate/profile
 //
 // There is no candidate refresh/retry-on-401 mechanism yet (see
 // realCandidateAuthClient.ts's file header) -- a 401 here always means the
@@ -15,12 +16,14 @@ import type {
   CandidateProfileErrorCode,
   ProfilePhotoError,
   ProfilePhotoErrorCode,
+  ProfileEmailError,
 } from './types';
 
 interface CandidateProfileResponse {
   id: string;
   full_name: string;
   masked_cnic: string;
+  email?: string | null;
   reference_number: string | null;
   preferred_locale: 'en' | 'ur';
   candidate_status: string;
@@ -58,6 +61,7 @@ function toProfile(data: CandidateProfileResponse): CandidateProfile {
     id: data.id,
     fullName: data.full_name,
     maskedCnic: data.masked_cnic,
+    email: data.email ?? null,
     referenceNumber: data.reference_number,
     preferredLocale: data.preferred_locale,
     candidateStatus: data.candidate_status,
@@ -117,6 +121,14 @@ function toPhotoError(error: unknown): ProfilePhotoError {
   return toProfileError(error);
 }
 
+function toEmailError(error: unknown): ProfileEmailError {
+  const apiError = error as ApiError;
+  if (apiError && typeof apiError === 'object' && apiError.status === 422 && apiError.serverCode === 'invalid_email') {
+    return { code: 'INVALID_EMAIL', message: apiError.message };
+  }
+  return toProfileError(error);
+}
+
 export function createCandidateProfileClient(options: RealCandidateProfileClientOptions): CandidateProfileClient {
   const { apiClient, getLocale } = options;
 
@@ -152,6 +164,20 @@ export function createCandidateProfileClient(options: RealCandidateProfileClient
         return { photoUrl: data?.photo_url ?? null };
       } catch (error) {
         throw toPhotoError(error);
+      }
+    },
+
+    async updateEmail({ accessToken, email }) {
+      try {
+        const data = await apiClient.patch<CandidateProfileResponse>(
+          '/candidate/profile',
+          { candidate_profile: { email } },
+          { headers: { Authorization: `Bearer ${accessToken}`, 'X-Locale': getLocale() } }
+        );
+        if (!data) throw { code: 'UNKNOWN' } satisfies CandidateProfileError;
+        return toProfile(data);
+      } catch (error) {
+        throw toEmailError(error);
       }
     },
   };

@@ -30,6 +30,8 @@ import { PCC_REQUIREMENT_CODE, validatePccIssueDate, type PccIssueDateError } fr
 import { NEXT_OF_KIN_REQUIREMENT_CODE, type NextOfKinRelation } from '../../../../../../shared/candidateDocuments/nextOfKin';
 import type { DocumentSideCode, DocumentUploadRules } from '../../../../../../shared/candidateDocuments/types';
 import { documentQueries } from '../../../../../../shared/queryKeys/documentQueries';
+import { firstTooSmallImage, type ImageSize } from '../../../../../../shared/candidateDocuments/imageResolution';
+import { isImageFile, readImageSize } from '../imageSize';
 import { offeredContentTypes, offeredPairModes } from '../uploadOptions';
 
 /** iOS/Android both report `size`/`mimeType` on a picked asset, but neither is guaranteed on every device/provider -- validation and the idempotency signature both tolerate either being absent. */
@@ -160,6 +162,8 @@ export function useDocumentUpload() {
   const [nextOfKinRelationMissing, setNextOfKinRelationMissing] = useState(false);
   const [idempotencyState, setIdempotencyState] = useState<IdempotencyKeyState>(EMPTY_IDEMPOTENCY_KEY_STATE);
   const [permissionNotice, setPermissionNotice] = useState<CapturePermissionNotice | null>(null);
+  /** The size of a just-picked photo that was refused for being under the minimum, shown until the next pick. */
+  const [tooSmallImage, setTooSmallImage] = useState<ImageSize | null>(null);
 
   const activeRequirementCodeRef = useRef<string | null>(null);
   activeRequirementCodeRef.current = active?.requirementCode ?? null;
@@ -180,6 +184,7 @@ export function useDocumentUpload() {
     setNextOfKinRelationMissing(false);
     setIdempotencyState(EMPTY_IDEMPOTENCY_KEY_STATE);
     setPermissionNotice(null);
+    setTooSmallImage(null);
   }, []);
 
   const mutation = useMutation<CandidateDocumentChecklistItem, CandidateDocumentsError, UploadVariables>({
@@ -263,6 +268,7 @@ export function useDocumentUpload() {
       if (!layout || assets.length === 0) return;
       const files = assets.map(toPickedFile);
       setPermissionNotice(null);
+      setTooSmallImage(null);
       setEntries((current) =>
         layout.kind === 'multiple'
           ? appendEntries(current, layout.sideCode, files, layout.maximumFiles)
@@ -273,10 +279,18 @@ export function useDocumentUpload() {
     [layout, mutation]
   );
 
+  /** Refuses the pick when a photo is under the minimum size, saying which size it was. */
+  const refuseTooSmall = useCallback((sizes: (ImageSize | null)[]) => {
+    const tooSmall = firstTooSmallImage(sizes);
+    setTooSmallImage(tooSmall);
+    return tooSmall !== null;
+  }, []);
+
   /**
    * Opens a picker for one slot (or, for a repeatable document, to add files).
    * A cancelled pick is a silent no-op. The file picker needs no permission;
-   * a denied camera/gallery permission sets `permissionNotice` instead.
+   * a denied camera/gallery permission sets `permissionNotice` instead. A
+   * photo under the minimum size is refused (`tooSmallImage`) and not placed.
    */
   const pick = useCallback(
     async (source: PickSource, sideCode: DocumentSideCode | null) => {
@@ -289,7 +303,12 @@ export function useDocumentUpload() {
           copyToCacheDirectory: true,
           multiple: allowsMultiple,
         });
-        if (!result.canceled) placeAssets(result.assets, sideCode);
+        if (result.canceled) return;
+        const sizes = await Promise.all(
+          result.assets.map((asset) => (isImageFile(asset.name, asset.mimeType) ? readImageSize(asset.uri) : null))
+        );
+        if (refuseTooSmall(sizes)) return;
+        placeAssets(result.assets, sideCode);
         return;
       }
 
@@ -310,12 +329,13 @@ export function useDocumentUpload() {
               allowsMultipleSelection: allowsMultiple,
             });
       if (result.canceled) return;
+      if (refuseTooSmall(await Promise.all(result.assets.map((asset) => readImageSize(asset.uri, asset))))) return;
       placeAssets(
         result.assets.map((asset) => fromImageAsset(asset, source === 'camera' ? 'photo' : 'image')),
         sideCode
       );
     },
-    [active, layout, placeAssets]
+    [active, layout, placeAssets, refuseTooSmall]
   );
 
   /** Empties one slot. */
@@ -399,6 +419,7 @@ export function useDocumentUpload() {
     setNextOfKinRelation,
     nextOfKinRelationMissing,
     permissionNotice,
+    tooSmallImage,
     startUpload,
     cancelUpload,
     pick,

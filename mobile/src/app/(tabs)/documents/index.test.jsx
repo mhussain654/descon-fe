@@ -1,7 +1,7 @@
 import { QueryClientProvider } from "@tanstack/react-query";
 import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react-native";
 import { SafeAreaProvider } from "react-native-safe-area-context";
-import { Image, Keyboard, Linking, RefreshControl, Text } from "react-native";
+import { ActionSheetIOS, Image, Keyboard, Linking, Platform, RefreshControl, Text } from "react-native";
 import * as DocumentPicker from "expo-document-picker";
 import * as ImagePicker from "expo-image-picker";
 import { AuthProvider, useAuth } from "../../../contexts/AuthContext";
@@ -63,10 +63,8 @@ jest.mock("expo-image-picker", () => ({
   launchImageLibraryAsync: jest.fn(),
 }));
 
-// Candidates currently see PDF uploads only (uploadOptions.ts). The photo and
-// separate-sides options are hidden, not removed, so most of this file runs
-// with them switched back on to keep that code covered; the "PDF-only
-// uploads" block below runs with the production setting.
+// Candidates can upload PDFs or photos (uploadOptions.ts); the "PDF-only
+// uploads" block below checks the setting that hides the photo options.
 let mockPdfOnlyUploads = false;
 jest.mock("../../../features/candidate/documents/uploadOptions", () => {
   const actual = jest.requireActual("../../../features/candidate/documents/uploadOptions");
@@ -180,6 +178,8 @@ function imagePickerAsset(overrides = {}) {
     fileName: "photo.jpg",
     fileSize: 2048,
     mimeType: "image/jpeg",
+    width: 1200,
+    height: 1600,
     ...overrides,
   };
 }
@@ -216,8 +216,22 @@ const { createTestQueryClient, trackRender, cleanup } = createQueryClientTestLif
 // mounts -- default it to the "missing" state here so the pre-existing
 // tests below (none of which are about bank details) don't each need their
 // own mock, mirroring web's identical page.test.jsx convention.
+// The file picker reports no pixel size, so a picked JPEG/PNG is measured with
+// Image.getSize; photos are 1200 x 1600 unless a test says otherwise.
+let mockImageSize = { width: 1200, height: 1600 };
+// Tests run as iPhone, where "Choose file" first asks Photo library or Files
+// (fileSourceChooser.ts); the candidate picks Files unless a test says otherwise.
+const PHOTO_LIBRARY = 0;
+const FILES = 1;
+const CANCEL = 2;
+let mockSheetChoice = FILES;
+
 beforeEach(() => {
   candidateBankDetailsClient.getBankDetail.mockResolvedValue(bankDetailSummary());
+  mockImageSize = { width: 1200, height: 1600 };
+  jest.spyOn(Image, "getSize").mockImplementation((_uri, onSuccess) => onSuccess(mockImageSize.width, mockImageSize.height));
+  mockSheetChoice = FILES;
+  jest.spyOn(ActionSheetIOS, "showActionSheetWithOptions").mockClear().mockImplementation((_options, onChoice) => onChoice(mockSheetChoice));
 });
 
 afterEach(async () => {
@@ -331,7 +345,7 @@ describe("DocumentsScreen", () => {
       item({ requirementCode: "passport", status: "verified", document: uploadedDocument() }),
       item({ requirementCode: "cnic", name: "CNIC", status: "verified", document: uploadedDocument() }),
       item({ requirementCode: "photograph", name: "Photo", status: "pending_review", document: uploadedDocument() }),
-      item({ requirementCode: "cheque_copy", name: "Cheque", status: "rejected", document: uploadedDocument() }),
+      item({ requirementCode: "cv", name: "CV", status: "rejected", document: uploadedDocument() }),
     ]);
     applicationProgressClient.getProgress.mockResolvedValue(progress());
     candidateBankDetailsClient.getBankDetail.mockResolvedValue(bankDetailSummary({ status: "submitted", bankDetail: bankDetail() }));
@@ -834,10 +848,91 @@ describe("DocumentsScreen", () => {
 
     fireEvent.press(await screen.findByRole("button", { name: "Upload" }));
     await act(async () => {
-      fireEvent.press(screen.getByRole("button", { name: "Choose from gallery" }));
+      mockSheetChoice = PHOTO_LIBRARY;
+      fireEvent.press(screen.getByRole("button", { name: "Choose file" }));
     });
 
     expect(await screen.findByText(/Selected file: gallery\.png • PNG/)).toBeOnTheScreen();
+  });
+
+  it("refuses a camera photo under 500 x 500 pixels, saying how small it is", async () => {
+    candidateDocumentsClient.getChecklist.mockResolvedValue([item({ status: "missing" })]);
+    applicationProgressClient.getProgress.mockResolvedValue(progress());
+    ImagePicker.requestCameraPermissionsAsync.mockResolvedValue(grantedPermission());
+    ImagePicker.launchCameraAsync.mockResolvedValue({ canceled: false, assets: [imagePickerAsset({ width: 640, height: 480 })] });
+    renderDocumentsScreen();
+
+    fireEvent.press(await screen.findByRole("button", { name: "Upload" }));
+    await act(async () => {
+      fireEvent.press(screen.getByRole("button", { name: "Take photo" }));
+    });
+
+    expect(
+      await screen.findByText("This photo is too small (640 × 480 px). Use a clearer photo at least 500 × 500 px, or upload a PDF.")
+    ).toBeOnTheScreen();
+    expect(screen.queryByText(/Selected file: photo\.jpg/)).toBeNull();
+  });
+
+  it("refuses a chosen image file under 500 x 500 pixels, and accepts the next one that is large enough", async () => {
+    candidateDocumentsClient.getChecklist.mockResolvedValue([item({ status: "missing" })]);
+    applicationProgressClient.getProgress.mockResolvedValue(progress());
+    const image = { uri: "file:///tmp/scan.png", name: "scan.png", size: 2048, mimeType: "image/png", lastModified: 1_700_000_000_000 };
+    DocumentPicker.getDocumentAsync.mockResolvedValue({ canceled: false, assets: [image] });
+    mockImageSize = { width: 499, height: 900 };
+    renderDocumentsScreen();
+
+    fireEvent.press(await screen.findByRole("button", { name: "Upload" }));
+    await act(async () => {
+      fireEvent.press(screen.getByRole("button", { name: "Choose file" }));
+    });
+    expect(await screen.findByText(/This photo is too small \(499 × 900 px\)/)).toBeOnTheScreen();
+
+    mockImageSize = { width: 500, height: 500 };
+    await act(async () => {
+      fireEvent.press(screen.getByRole("button", { name: "Choose file" }));
+    });
+    expect(await screen.findByText(/Selected file: scan\.png • PNG/)).toBeOnTheScreen();
+    expect(screen.queryByText(/This photo is too small/)).toBeNull();
+  });
+
+  it("asks Photo library or Files on iPhone when Choose file is pressed, and does nothing on cancel", async () => {
+    candidateDocumentsClient.getChecklist.mockResolvedValue([item({ status: "missing" })]);
+    applicationProgressClient.getProgress.mockResolvedValue(progress());
+    mockSheetChoice = CANCEL;
+    renderDocumentsScreen();
+
+    fireEvent.press(await screen.findByRole("button", { name: "Upload" }));
+    await act(async () => {
+      fireEvent.press(screen.getByRole("button", { name: "Choose file" }));
+    });
+
+    expect(ActionSheetIOS.showActionSheetWithOptions).toHaveBeenCalledWith(
+      { options: ["Photo library", "Files", "Cancel"], cancelButtonIndex: 2 },
+      expect.any(Function)
+    );
+    expect(DocumentPicker.getDocumentAsync).not.toHaveBeenCalled();
+    expect(ImagePicker.launchImageLibraryAsync).not.toHaveBeenCalled();
+    expect(screen.getByText("No file chosen")).toBeOnTheScreen();
+  });
+
+  it("opens the file picker straight away on Android, which already includes the gallery", async () => {
+    candidateDocumentsClient.getChecklist.mockResolvedValue([item({ status: "missing" })]);
+    applicationProgressClient.getProgress.mockResolvedValue(progress());
+    DocumentPicker.getDocumentAsync.mockResolvedValue({ canceled: false, assets: [pdfAsset()] });
+    const originalOS = Platform.OS;
+    Platform.OS = "android";
+    try {
+      renderDocumentsScreen();
+      fireEvent.press(await screen.findByRole("button", { name: "Upload" }));
+      await act(async () => {
+        fireEvent.press(screen.getByRole("button", { name: "Choose file" }));
+      });
+
+      expect(await screen.findByText(/Selected file: passport\.pdf/)).toBeOnTheScreen();
+      expect(ActionSheetIOS.showActionSheetWithOptions).not.toHaveBeenCalled();
+    } finally {
+      Platform.OS = originalOS;
+    }
   });
 
   it("silently ignores a cancelled document/file pick, showing no error", async () => {
@@ -880,7 +975,8 @@ describe("DocumentsScreen", () => {
 
     fireEvent.press(await screen.findByRole("button", { name: "Upload" }));
     await act(async () => {
-      fireEvent.press(screen.getByRole("button", { name: "Choose from gallery" }));
+      mockSheetChoice = PHOTO_LIBRARY;
+      fireEvent.press(screen.getByRole("button", { name: "Choose file" }));
     });
 
     expect(screen.getByText("No file chosen")).toBeOnTheScreen();
@@ -929,7 +1025,8 @@ describe("DocumentsScreen", () => {
 
     fireEvent.press(await screen.findByRole("button", { name: "Upload" }));
     await act(async () => {
-      fireEvent.press(screen.getByRole("button", { name: "Choose from gallery" }));
+      mockSheetChoice = PHOTO_LIBRARY;
+      fireEvent.press(screen.getByRole("button", { name: "Choose file" }));
     });
 
     expect(
@@ -990,7 +1087,8 @@ describe("DocumentsScreen", () => {
     fireEvent.press(await screen.findByRole("button", { name: "Upload" }));
 
     expect(screen.getByRole("button", { name: "Take photo" })).toBeOnTheScreen();
-    expect(screen.getByRole("button", { name: "Choose from gallery" })).toBeOnTheScreen();
+    expect(screen.getByRole("button", { name: "Choose file" })).toBeOnTheScreen();
+    expect(screen.queryByRole("button", { name: "Choose from gallery" })).toBeNull();
   });
 
   it("does not show the PCC issue-date field for a non-PCC requirement", async () => {
@@ -1226,7 +1324,7 @@ describe("DocumentsScreen", () => {
 
     fireEvent.press(await screen.findByRole("button", { name: "اپ لوڈ کریں" }));
     expect(screen.getByRole("button", { name: "تصویر لیں" })).toBeOnTheScreen();
-    expect(screen.getByRole("button", { name: "گیلری سے منتخب کریں" })).toBeOnTheScreen();
+    expect(screen.getByRole("button", { name: "فائل منتخب کریں" })).toBeOnTheScreen();
     expect(screen.getByText("یقینی بنائیں کہ پوری دستاویز نظر آ رہی ہے، سیدھی ہے اور کٹی ہوئی نہیں۔")).toBeOnTheScreen();
 
     await act(async () => {
@@ -1332,6 +1430,23 @@ describe("DocumentsScreen", () => {
       expect(candidateBankDetailsClient.submitBankDetail).not.toHaveBeenCalled();
     });
 
+    it("refuses a proof photo under 500 x 500 pixels", async () => {
+      candidateDocumentsClient.getChecklist.mockResolvedValue([item({ status: "missing" })]);
+      applicationProgressClient.getProgress.mockResolvedValue(progress());
+      const photo = { uri: "file:///tmp/cheque.jpg", name: "cheque.jpg", size: 2048, mimeType: "image/jpeg", lastModified: 1_700_000_000_000 };
+      DocumentPicker.getDocumentAsync.mockResolvedValue({ canceled: false, assets: [photo] });
+      mockImageSize = { width: 320, height: 240 };
+      renderDocumentsScreen();
+
+      fireEvent.press(await screen.findByRole("button", { name: "Add bank details" }));
+      await act(async () => {
+        fireEvent.press(await screen.findByRole("button", { name: "Choose file" }));
+      });
+
+      expect(await screen.findByText(/This photo is too small \(320 × 240 px\)/)).toBeOnTheScreen();
+      expect(screen.queryByText(/Selected file: cheque\.jpg/)).toBeNull();
+    });
+
     it("picks a proof file, submits and shows Uploaded after success", async () => {
       candidateDocumentsClient.getChecklist.mockResolvedValue([item({ status: "missing" })]);
       applicationProgressClient.getProgress.mockResolvedValue(progress());
@@ -1407,15 +1522,15 @@ describe("DocumentsScreen", () => {
     });
   });
   it("shows every common requirement alongside country-specific documents, in backend order", async () => {
-    const names = ["Passport", "CNIC", "Photograph", "Next of kin CNIC", "CV", "Educational certificates", "Experience certificates", "Cheque copy", "Country medical report"];
-    const codes = ["passport", "cnic", "photograph", "next_of_kin_cnic", "cv", "educational_certificates", "experience_certificates", "cheque_copy", "gamca_medical_report"];
+    const names = ["Passport", "CNIC", "Photograph", "Next of kin CNIC", "CV", "Educational certificates", "Experience certificates", "Country medical report"];
+    const codes = ["passport", "cnic", "photograph", "next_of_kin_cnic", "cv", "educational_certificates", "experience_certificates", "gamca_medical_report"];
     candidateDocumentsClient.getChecklist.mockResolvedValue(names.map((name, index) => item({ name, requirementCode: codes[index], displayPosition: index + 1, required: index !== 5 })));
     applicationProgressClient.getProgress.mockResolvedValue(progress());
     renderDocumentsScreen();
 
     await screen.findByText("Country medical report");
     names.forEach(name => expect(screen.getByText(name === "Photograph" ? "Photo" : name)).toBeOnTheScreen());
-    expect(screen.getAllByRole("button", { name: "Upload" })).toHaveLength(9);
+    expect(screen.getAllByRole("button", { name: "Upload" })).toHaveLength(8);
     fireEvent.press(screen.getAllByRole("button", { name: "Upload" })[5]);
     expect(screen.getByRole("button", { name: "Choose file" })).toBeOnTheScreen();
   });
@@ -1628,7 +1743,7 @@ describe("DocumentsScreen", () => {
     });
   });
 
-  describe("PDF-only uploads (current client setting)", () => {
+  describe("PDF-only uploads (when the photo options are switched off)", () => {
     const PAIR_RULES = {
       minimumFiles: 1,
       maximumFiles: 2,

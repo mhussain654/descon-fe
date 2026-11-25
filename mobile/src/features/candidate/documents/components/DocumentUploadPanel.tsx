@@ -33,6 +33,8 @@ import type { Language, TranslationKey } from '../../../../../../shared/i18n/tra
 import type { DocumentUploadController, PickedFile } from '../hooks/useDocumentUpload';
 import { offeredContentTypes, offeredPairModes, offersPhotoCapture } from '../uploadOptions';
 import { themed, themedStyles } from '../../../../design-system/theme';
+import { MIN_IMAGE_SIDE } from '../../../../../../shared/candidateDocuments/imageResolution';
+import { chooseFileSource } from '../fileSourceChooser';
 
 const PERMISSION_NOTICE_KEYS: Record<string, TranslationKey> = {
   'camera:denied': 'candidateDocumentsCameraPermissionDeniedError',
@@ -69,11 +71,11 @@ export interface DocumentUploadPanelProps {
  * Inline upload/replace panel for one checklist requirement -- mirrors web's
  * DocumentUploadPanel.tsx, shaped entirely by the requirement's backend upload
  * rules: one file, a pair of parts (optionally one combined PDF instead), or
- * several files. Photo capture is offered only where the requirement accepts images,
- * and is currently hidden altogether (PDF only -- see uploadOptions.ts).
+ * several files. Photo capture is offered only where the requirement accepts images
+ * (see uploadOptions.ts); a photo under the minimum size is refused when picked.
  */
 export function DocumentUploadPanel({ labelText, instructions, upload, t, language }: DocumentUploadPanelProps) {
-  const { layout, rules, entries, validation, showSetError, mutation, permissionNotice } = upload;
+  const { layout, rules, entries, validation, showSetError, mutation, permissionNotice, tooSmallImage } = upload;
   if (!layout || !rules) return null;
 
   if (mutation.isPending) {
@@ -223,6 +225,12 @@ export function DocumentUploadPanel({ labelText, instructions, upload, t, langua
         </View>
       ) : null}
 
+      {tooSmallImage ? (
+        <ValidationMessage tone="error" language={language}>
+          {interpolate(t('candidateDocumentsImageTooSmallError'), { ...tooSmallImage, minimum: MIN_IMAGE_SIDE })}
+        </ValidationMessage>
+      ) : null}
+
       <HelperText language={language}>{interpolate(t('candidateDocumentsAcceptedFilesHint'), { types: typeNames, size: formatFileSize(rules.maximumFileSize, language) })}</HelperText>
       {showSetError && validation?.kind === 'set' ? (
         <ValidationMessage tone="error" language={language}>
@@ -257,6 +265,13 @@ interface PickButtonsProps {
   language: Language;
 }
 
+/** "Choose file": straight to the file picker, or on iPhone first Photo library or Files (fileSourceChooser.ts). */
+async function chooseExistingFile(acceptsPhotos: boolean, onPick: (source: 'file' | 'gallery') => void, t: Translate) {
+  const labels = { photoLibrary: t('candidateDocumentsPhotoLibrary'), files: t('candidateDocumentsFilesSource'), cancel: t('candidateDocumentsCancel') };
+  const source = await chooseFileSource(labels, acceptsPhotos);
+  if (source) onPick(source);
+}
+
 function PickButtons({ showCapture, onPick, t, language }: PickButtonsProps) {
   return (
     <View style={styles.row}>
@@ -265,12 +280,9 @@ function PickButtons({ showCapture, onPick, t, language }: PickButtonsProps) {
           <Button variant="outline" size="sm" onPress={() => onPick('camera')} language={language}>
             {t('candidateDocumentsTakePhoto')}
           </Button>
-          <Button variant="outline" size="sm" onPress={() => onPick('gallery')} language={language}>
-            {t('candidateDocumentsChooseFromGallery')}
-          </Button>
         </>
       ) : null}
-      <Button variant="outline" size="sm" onPress={() => onPick('file')} language={language}>
+      <Button variant="outline" size="sm" onPress={() => chooseExistingFile(showCapture, onPick, t)} language={language}>
         {t('candidateDocumentsChooseFile')}
       </Button>
     </View>

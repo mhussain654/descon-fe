@@ -129,6 +129,7 @@ function profilePayload(overrides = {}) {
     id: "candidate-public-id-1",
     fullName: "Ahmed Ali",
     maskedCnic: "42101-*******-1",
+    email: "candidate@example.com",
     referenceNumber: "DES-001001",
     preferredLocale: "en",
     candidateStatus: "documents_pending",
@@ -422,6 +423,64 @@ describe("DashboardScreen", () => {
 
     expect(await screen.findByText("Pay Mobilization Fee")).toBeOnTheScreen();
     expect(screen.queryByText("Verification complete")).toBeNull();
+  });
+
+  describe("the add-email reminder", () => {
+    const underReview = () =>
+      progress({
+        currentWorkflowStage: { code: "under_verification", name: "Under Verification" },
+        documents: documentsSummary({ submissionState: "submitted", missing: 0 }),
+        workflow: workflowPayload({ timeline: timelineThrough(4) }),
+      });
+
+    it("asks a candidate without an email to add one while there is no next step, and opens Profile", async () => {
+      candidateProfileClient.getProfile.mockResolvedValue(profilePayload({ email: null }));
+      candidateDocumentsClient.getChecklist.mockResolvedValue([checklistItem({ status: "pending_review" })]);
+      applicationProgressClient.getProgress.mockResolvedValue(underReview());
+      renderDashboardScreen();
+
+      expect(await screen.findByText("Add your email address")).toBeOnTheScreen();
+      expect(screen.getByText("INFO")).toBeOnTheScreen();
+      expect(screen.getByText("Add your email address in Profile so Descon can contact you by email.")).toBeOnTheScreen();
+      expect(screen.queryByText("Upload Documents")).toBeNull();
+      fireEvent.press(screen.getByRole("link", { name: "Profile" }));
+      expect(mockPush).toHaveBeenCalledWith("/(tabs)/profile");
+      fireEvent.press(screen.getByRole("button", { name: "Go to Profile" }));
+      expect(mockPush).toHaveBeenCalledTimes(2);
+    });
+
+    it("stays hidden once the candidate has an email", async () => {
+      candidateProfileClient.getProfile.mockResolvedValue(profilePayload());
+      candidateDocumentsClient.getChecklist.mockResolvedValue([checklistItem({ status: "pending_review" })]);
+      applicationProgressClient.getProgress.mockResolvedValue(underReview());
+      renderDashboardScreen();
+
+      expect(await screen.findByText("Quick Access")).toBeOnTheScreen();
+      expect(screen.queryByText("Add your email address")).toBeNull();
+    });
+
+    it("gives way to a real next step", async () => {
+      candidateProfileClient.getProfile.mockResolvedValue(profilePayload({ email: null }));
+      candidateDocumentsClient.getChecklist.mockResolvedValue([checklistItem({ status: "missing" })]);
+      applicationProgressClient.getProgress.mockResolvedValue(progress());
+      renderDashboardScreen();
+
+      expect(await screen.findByText("Upload Documents")).toBeOnTheScreen();
+      expect(screen.queryByText("Add your email address")).toBeNull();
+    });
+
+    it("is shown in Urdu", async () => {
+      const AsyncStorage = require("@react-native-async-storage/async-storage");
+      await AsyncStorage.setItem("descon.language", "ur");
+      candidateProfileClient.getProfile.mockResolvedValue(profilePayload({ email: null }));
+      candidateDocumentsClient.getChecklist.mockResolvedValue([checklistItem({ status: "pending_review" })]);
+      applicationProgressClient.getProgress.mockResolvedValue(underReview());
+      renderDashboardScreen();
+
+      expect(await screen.findByText("اپنا ای میل ایڈریس شامل کریں")).toBeOnTheScreen();
+      expect(screen.getByRole("button", { name: "پروفائل پر جائیں" })).toBeOnTheScreen();
+      await AsyncStorage.removeItem("descon.language");
+    });
   });
 
   it("shows the configured onboarding fee and goes to payment from Pay now", async () => {

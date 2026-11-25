@@ -18,6 +18,8 @@ import { validateBankDetailFields, hasBankDetailFormErrors, type BankDetailFormE
 import { validateSelectedFile, type FileValidationError } from '../../../../../../shared/candidateDocuments/fileValidation';
 import { documentQueries } from '../../../../../../shared/queryKeys/documentQueries';
 import type { CapturePermissionNotice } from './useDocumentUpload';
+import { isImageTooSmall, type ImageSize } from '../../../../../../shared/candidateDocuments/imageResolution';
+import { isImageFile, readImageSize } from '../imageSize';
 
 /** Same normalized shape useDocumentUpload.ts's PickedDocument uses -- one file representation across both upload flows regardless of which native picker produced it. */
 export type PickedProof = DocumentPicker.DocumentPickerAsset;
@@ -99,6 +101,7 @@ export function useBankDetailUpload() {
   const [proofError, setProofError] = useState<FileValidationError | null>(null);
   const [idempotencyState, setIdempotencyState] = useState<BankDetailIdempotencyKeyState>(EMPTY_BANK_DETAIL_IDEMPOTENCY_KEY_STATE);
   const [permissionNotice, setPermissionNotice] = useState<CapturePermissionNotice | null>(null);
+  const [tooSmallImage, setTooSmallImage] = useState<ImageSize | null>(null);
 
   const mutation = useMutation<CandidateBankDetailSummary, CandidateBankDetailsError, SubmitVariables>({
     mutationFn: async ({ accountTitle, accountNumber, bankName, proof, idempotencyKey }) => {
@@ -137,8 +140,12 @@ export function useBankDetailUpload() {
     },
   });
 
-  const applyPicked = useCallback((asset: PickedProof) => {
+  /** Places a picked proof, unless it's a photo under the minimum size (`tooSmallImage`, shown until the next pick). */
+  const applyPicked = useCallback((asset: PickedProof, size: ImageSize | null) => {
     setPermissionNotice(null);
+    const tooSmall = size && isImageTooSmall(size) ? size : null;
+    setTooSmallImage(tooSmall);
+    if (tooSmall) return;
     setProof(asset);
     setProofError(validateSelectedFile({ name: asset.name, size: asset.size, type: asset.mimeType }));
     mutation.reset();
@@ -148,7 +155,8 @@ export function useBankDetailUpload() {
   const pickDocument = useCallback(async () => {
     const result = await DocumentPicker.getDocumentAsync({ type: ALLOWED_MIME_TYPES, copyToCacheDirectory: true, multiple: false });
     if (result.canceled) return;
-    applyPicked(result.assets[0]);
+    const [asset] = result.assets;
+    applyPicked(asset, isImageFile(asset.name, asset.mimeType) ? await readImageSize(asset.uri) : null);
   }, [applyPicked]);
 
   /** Mirrors useDocumentUpload.ts's pickFromCamera exactly. */
@@ -160,7 +168,7 @@ export function useBankDetailUpload() {
     }
     const result = await ImagePicker.launchCameraAsync({ mediaTypes: ['images'], quality: 0.8 });
     if (result.canceled) return;
-    applyPicked(toPickedProof(result.assets[0], 'proof'));
+    applyPicked(toPickedProof(result.assets[0], 'proof'), await readImageSize(result.assets[0].uri, result.assets[0]));
   }, [applyPicked]);
 
   /** Mirrors useDocumentUpload.ts's pickFromGallery exactly. */
@@ -172,13 +180,14 @@ export function useBankDetailUpload() {
     }
     const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], quality: 0.8 });
     if (result.canceled) return;
-    applyPicked(toPickedProof(result.assets[0], 'proof'));
+    applyPicked(toPickedProof(result.assets[0], 'proof'), await readImageSize(result.assets[0].uri, result.assets[0]));
   }, [applyPicked]);
 
   const removeProof = useCallback(() => {
     setProof(null);
     setProofError(null);
     setPermissionNotice(null);
+    setTooSmallImage(null);
     mutation.reset();
   }, [mutation]);
 
@@ -218,6 +227,7 @@ export function useBankDetailUpload() {
     proof,
     proofError,
     permissionNotice,
+    tooSmallImage,
     fieldErrors,
     pickDocument,
     pickFromCamera,

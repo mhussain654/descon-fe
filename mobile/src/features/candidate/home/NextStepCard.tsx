@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react';
 import { View } from 'react-native';
 import { Text } from '../../../design-system/Text';
-import { CreditCard, FileText } from 'lucide-react-native';
+import { CreditCard, FileText, Mail } from 'lucide-react-native';
 import { Button, getFontFamily } from '../../../design-system';
 import { colors, spacing } from '../../../design-system/tokens';
 import { rowDirectionTowards } from '../../../lib/layoutDirection';
@@ -9,11 +9,12 @@ import { GradientIconBox, type IconTone } from './GradientIconBox';
 import { homeCardStyles } from './homeCardStyles';
 import { themed, themedStyles, themedValues } from '../../../design-system/theme';
 
-export type NextStepVariant = 'payment' | 'documents';
+export type NextStepVariant = 'payment' | 'documents' | 'email';
 
 const VARIANTS: Record<NextStepVariant, { tone: IconTone; icon: typeof CreditCard; background: string; border: string }> = themedValues(() => ({
   payment: { tone: 'orange', icon: CreditCard, background: themed('#FFF6E4', '#312712'), border: themed('#FFD77E', '#334155') },
   documents: { tone: 'blue', icon: FileText, background: themed('#EAF5FF', '#132433'), border: themed('#BFE2FF', '#334155') },
+  email: { tone: 'green', icon: Mail, background: themed('#EAF8F1', '#11281F'), border: themed('#B7E6CC', '#334155') },
 }));
 
 interface NextStepCardProps {
@@ -22,7 +23,8 @@ interface NextStepCardProps {
   /** The small "Next step" label stacked above the title. */
   label: string;
   title: string;
-  description?: string;
+  /** Text, or text with nested links (e.g. the email reminder's Profile link). */
+  description?: ReactNode;
   /** Payment only: the backend-configured fee, already formatted. */
   amountText?: string;
   actionLabel: string;
@@ -32,7 +34,7 @@ interface NextStepCardProps {
   trailingIcon?: ReactNode;
 }
 
-/** The candidate's one thing to do now -- paying the fee, or uploading documents. */
+/** The candidate's one thing to do now -- paying the fee or uploading documents -- or, when there is none, the reminder to add an email address. */
 export function NextStepCard({
   language,
   variant,

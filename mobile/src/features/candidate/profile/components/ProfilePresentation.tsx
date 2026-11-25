@@ -16,6 +16,7 @@ import { physicalTextAlign, rowDirectionTowards } from '../../../../lib/layoutDi
 import { resolveDocumentAccessUrl } from '../../../../lib/resolveDocumentAccessUrl';
 import { GradientIconBox, type IconTone } from '../../home/GradientIconBox';
 import { ProfilePhotoEditor } from './ProfilePhotoEditor';
+import { ProfileEmailRow } from './ProfileEmailRow';
 import { themed, themedStyles } from '../../../../design-system/theme';
 
 type LocaleProps = { language: Language; t: (key: TranslationKey) => string };
@@ -87,6 +88,7 @@ export function ProfileDetails({ profile, journey, language, t }: LocaleProps & 
         <Text accessibilityRole="header" style={[profileStyles.sectionTitle, copyStyle(language), { fontFamily: getFontFamily(language, 'bold') }]}>{t('personalInfo')}</Text>
         <ProfileInfoRow icon={IdCard} tone="purple" label={t('candidateProfileMaskedCnicLabel')} value={profile.maskedCnic} language={language} identifier />
         <ProfileInfoRow icon={FileText} tone="blue" label={t('candidateProfileReferenceNumberLabel')} value={profile.referenceNumber ?? unassigned} language={language} identifier={Boolean(profile.referenceNumber)} />
+        <ProfileEmailRow email={profile.email} language={language} t={t} />
       </View>
       <View style={profileStyles.card}>
         <Text accessibilityRole="header" style={[profileStyles.sectionTitle, copyStyle(language), { fontFamily: getFontFamily(language, 'bold') }]}>{t('candidateProfileAssignmentTitle')}</Text>

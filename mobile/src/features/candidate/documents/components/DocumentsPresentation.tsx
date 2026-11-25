@@ -1,6 +1,6 @@
 import { View } from 'react-native';
 import { Text } from '../../../../design-system/Text';
-import { BadgeCheck, BriefcaseBusiness, Camera, CheckCircle, Clock, FileCheck, FileText, IdCard, Landmark, Upload, XCircle } from 'lucide-react-native';
+import { BadgeCheck, BriefcaseBusiness, Camera, CheckCircle, Clock, FileCheck, FileText, IdCard, Upload, XCircle } from 'lucide-react-native';
 import { Circle, Defs, LinearGradient, Rect, Stop } from 'react-native-svg';
 import { MeasuredSvg } from '../../../../design-system/MeasuredSvg';
 import type { CandidateDocumentChecklistItem } from '../../../../../../shared/candidateDocuments/types';
@@ -69,7 +69,6 @@ const DOCUMENT_ICONS: Record<string, { icon: typeof FileText; tone: IconTone }> 
   cv: { icon: BriefcaseBusiness, tone: 'blue' },
   educational_certificates: { icon: BadgeCheck, tone: 'purple' },
   experience_certificates: { icon: BriefcaseBusiness, tone: 'green' },
-  cheque_copy: { icon: Landmark, tone: 'orange' },
 };
 
 export function DocumentCardHeading({ item, statusLine, statusColor, language, t }: { item: CandidateDocumentChecklistItem; statusLine: string; statusColor: string; language: Language; t: LocaleProps['t'] }) {

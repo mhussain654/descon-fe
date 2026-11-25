@@ -33,6 +33,7 @@ function candidateDetail(overrides: Record<string, unknown> = {}) {
     fullName: "Jane Applicant",
     cnic: "42101-1234567-1",
     mobileNumber: "+923001234567",
+    email: "candidate@example.com",
     passportNumber: "AB123456",
     nextOfKin: { name: null, relationship: null, mobileNumber: null, cnic: null },
     preferredLocale: "en" as const,
@@ -100,12 +101,23 @@ describe("CandidateProfileCard", () => {
     expect(await screen.findByText("Jane Applicant")).toBeInTheDocument();
     expect(screen.getByText("42101-1234567-1")).toBeInTheDocument();
     expect(screen.getByText("+923001234567")).toBeInTheDocument();
+    expect(screen.getByText("candidate@example.com")).toBeInTheDocument();
     expect(screen.getByText("AB123456")).toBeInTheDocument();
     expect(screen.getByText("DES-000123")).toBeInTheDocument();
     expect(screen.getByText("Qatar")).toBeInTheDocument();
     expect(screen.getByText("Qatar Infrastructure")).toBeInTheDocument();
     expect(screen.getByText("Electrician")).toBeInTheDocument();
     expect(screen.getByText("Documents Pending")).toBeInTheDocument();
+  });
+
+  it("shows Not available when the candidate has not added an email", async () => {
+    adminCandidateClient.getCandidate.mockResolvedValue(candidateDetail({ email: null }));
+    const client = await signInAs(HR);
+
+    renderCard(client);
+
+    expect(await screen.findByText("Email address")).toBeInTheDocument();
+    expect(screen.queryByText("candidate@example.com")).toBeNull();
   });
 
   it("shows the Edit action for a staff member with manage_candidates, and hides it for a view-only role", async () => {

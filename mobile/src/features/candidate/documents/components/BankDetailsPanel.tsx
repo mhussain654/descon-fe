@@ -29,6 +29,9 @@ import { useBankDetailUpload } from "../hooks/useBankDetailUpload";
 import { GradientIconBox } from "../../home/GradientIconBox";
 import { physicalTextAlign, rowDirectionTowards } from "../../../../lib/layoutDirection";
 import { themed, themedStyles, themedValues } from '../../../../design-system/theme';
+import { MIN_IMAGE_SIDE } from "../../../../../../shared/candidateDocuments/imageResolution";
+import { interpolate } from "../../../../../../shared/i18n/interpolate";
+import { chooseFileSource } from "../fileSourceChooser";
 
 // Same colours as the other rows on the documents list, so the row reads the same in dark mode.
 const STATUS_COLORS = themedValues(() => ({
@@ -213,6 +216,14 @@ function BankDetailsForm({ t, language, upload, onDone }: BankDetailsFormProps) 
     ? isPreviewableImageType({ name: upload.proof.name, size: upload.proof.size, type: upload.proof.mimeType })
     : false;
 
+  /** "Choose file": straight to the file picker, or on iPhone first Photo library or Files (fileSourceChooser.ts). */
+  const chooseProofFile = async () => {
+    const labels = { photoLibrary: t("candidateDocumentsPhotoLibrary"), files: t("candidateDocumentsFilesSource"), cancel: t("candidateDocumentsCancel") };
+    const source = await chooseFileSource(labels, true);
+    if (source === "gallery") await upload.pickFromGallery();
+    if (source === "file") await upload.pickDocument();
+  };
+
   return (
     <View style={styles.form}>
       <View style={styles.field}>
@@ -258,10 +269,7 @@ function BankDetailsForm({ t, language, upload, onDone }: BankDetailsFormProps) 
         <Button variant="outline" size="sm" onPress={upload.pickFromCamera} language={language}>
           {t("candidateDocumentsTakePhoto")}
         </Button>
-        <Button variant="outline" size="sm" onPress={upload.pickFromGallery} language={language}>
-          {t("candidateDocumentsChooseFromGallery")}
-        </Button>
-        <Button variant="outline" size="sm" onPress={upload.pickDocument} language={language}>
+        <Button variant="outline" size="sm" onPress={chooseProofFile} language={language}>
           {t("candidateDocumentsChooseFile")}
         </Button>
       </View>
@@ -296,6 +304,11 @@ function BankDetailsForm({ t, language, upload, onDone }: BankDetailsFormProps) 
       {upload.proofError ? (
         <ValidationMessage tone="error" language={language}>
           {t(FILE_VALIDATION_ERROR_KEYS[upload.proofError])}
+        </ValidationMessage>
+      ) : null}
+      {upload.tooSmallImage ? (
+        <ValidationMessage tone="error" language={language}>
+          {interpolate(t("candidateDocumentsImageTooSmallError"), { ...upload.tooSmallImage, minimum: MIN_IMAGE_SIDE })}
         </ValidationMessage>
       ) : null}
 
