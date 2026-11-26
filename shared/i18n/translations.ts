@@ -935,9 +935,11 @@ export const translations = {
       'The file must be a CSV (.csv) with a header row, UTF-8 encoded, up to 2 MB. Download the template below for the exact current format.',
     adminCandidateImportRequiredHeadersTitle: 'Required columns',
     adminCandidateImportRequiredHeadersDescription:
-      'full_name, cnic, mobile_number, reference_number, preferred_locale, candidate_status, workflow_stage_code, country_code, project_code, craft_code, active, template_version',
+      'full_name, cnic, mobile_number, reference_number, candidate_status, workflow_stage_code, country_code, project_code, craft_code, active, template_version',
     adminCandidateImportOptionalHeadersDescription:
-      'Optional: passport_number, next_of_kin_name, next_of_kin_relationship, next_of_kin_mobile_number, next_of_kin_cnic.',
+      'Optional: passport_number, next_of_kin_name, next_of_kin_relationship, next_of_kin_mobile_number, next_of_kin_cnic, email.',
+    adminCandidateImportNameOrCodeHint:
+      'Country, project and craft can be the code or the English name, for example Qatar, Qatar Infrastructure, Electrician.',
     adminCandidateImportDownloadTemplate: 'Download CSV template',
     adminCandidateImportDownloadingTemplate: 'Downloading template…',
     adminCandidateImportTemplateDownloadError: "Couldn't download the template. Try again.",
@@ -3338,9 +3340,11 @@ export const translations = {
       'فائل ہیڈر لائن کے ساتھ CSV (.csv) ہونی چاہیے، UTF-8 اینکوڈڈ، اور زیادہ سے زیادہ 2 MB۔ درست موجودہ فارمیٹ کے لیے نیچے دیا گیا نمونہ ڈاؤن لوڈ کریں۔',
     adminCandidateImportRequiredHeadersTitle: 'مطلوبہ کالمز',
     adminCandidateImportRequiredHeadersDescription:
-      'full_name, cnic, mobile_number, reference_number, preferred_locale, candidate_status, workflow_stage_code, country_code, project_code, craft_code, active, template_version',
+      'full_name, cnic, mobile_number, reference_number, candidate_status, workflow_stage_code, country_code, project_code, craft_code, active, template_version',
     adminCandidateImportOptionalHeadersDescription:
-      'اختیاری: passport_number, next_of_kin_name, next_of_kin_relationship, next_of_kin_mobile_number, next_of_kin_cnic۔',
+      'اختیاری: passport_number, next_of_kin_name, next_of_kin_relationship, next_of_kin_mobile_number, next_of_kin_cnic, email۔',
+    adminCandidateImportNameOrCodeHint:
+      'ملک، پروجیکٹ اور ہنر کوڈ یا انگریزی نام دونوں طرح لکھے جا سکتے ہیں، مثلاً Qatar، Qatar Infrastructure، Electrician۔',
     adminCandidateImportDownloadTemplate: 'CSV نمونہ ڈاؤن لوڈ کریں',
     adminCandidateImportDownloadingTemplate: 'نمونہ ڈاؤن لوڈ ہو رہا ہے…',
     adminCandidateImportTemplateDownloadError: 'نمونہ ڈاؤن لوڈ نہیں ہو سکا۔ دوبارہ کوشش کریں۔',

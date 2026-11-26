@@ -19,7 +19,6 @@ export const REQUIRED_HEADERS = [
   'cnic',
   'mobile_number',
   'reference_number',
-  'preferred_locale',
   'candidate_status',
   'workflow_stage_code',
   'country_code',

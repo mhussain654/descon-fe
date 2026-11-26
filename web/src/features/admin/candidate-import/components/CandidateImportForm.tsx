@@ -64,6 +64,7 @@ export function CandidateImportForm() {
         <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-xl bg-info-subtle text-info-emphasis"><FileSpreadsheet className="h-5 w-5" /></div>
         <h3 className="mb-1 text-sm font-semibold text-text-primary">{t('adminCandidateImportRequiredHeadersTitle')}</h3>
         <p className="mb-1 break-words font-mono text-xs text-text-secondary">{REQUIRED_HEADERS.join(', ')}</p>
+        <p className="mb-3 text-xs text-text-secondary">{t('adminCandidateImportNameOrCodeHint')}</p>
         <Button
           type="button"
           variant="outline"
