@@ -286,9 +286,10 @@ export function createCandidateImportClient(options: RealCandidateImportClientOp
       }
     },
 
-    async preflightImport(file: File): Promise<CandidateImportPreflightResult> {
+    async preflightImport(file: File, campaignId: string): Promise<CandidateImportPreflightResult> {
       const formData = new FormData();
       formData.append('candidate_import[file]', file);
+      formData.append('candidate_import[campaign_id]', campaignId);
 
       try {
         const data = await staffAuthClient.authenticatedDataRequest((token) =>

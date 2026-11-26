@@ -18,6 +18,7 @@ export interface UpdateCandidateFormValues {
   countryCode?: string;
   projectCode?: string;
   craftCode?: string;
+  campaignId?: string;
 }
 
 /**

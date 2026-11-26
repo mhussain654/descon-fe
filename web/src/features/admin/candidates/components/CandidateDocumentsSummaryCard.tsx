@@ -8,6 +8,8 @@ import { useCandidateDocumentSummary } from '../hooks/useCandidateDocumentSummar
 
 interface CandidateDocumentsSummaryCardProps {
   candidateId: string;
+  /** Opens the candidate's own Documents tab (where submissions are reviewed) instead of leaving the page. */
+  onOpenDocuments?: () => void;
 }
 
 /**
@@ -18,7 +20,7 @@ interface CandidateDocumentsSummaryCardProps {
  * (/admin/document-reviews); this card only summarizes and links into it,
  * never reimplements review actions here.
  */
-export function CandidateDocumentsSummaryCard({ candidateId }: CandidateDocumentsSummaryCardProps) {
+export function CandidateDocumentsSummaryCard({ candidateId, onOpenDocuments }: CandidateDocumentsSummaryCardProps) {
   const { t, language } = useLanguage();
   const query = useCandidateDocumentSummary(candidateId);
 
@@ -41,7 +43,12 @@ export function CandidateDocumentsSummaryCard({ candidateId }: CandidateDocument
     <Card>
       <div className="mb-3 flex items-center justify-between">
         <h2 className="text-sm font-semibold text-text-primary">{t('adminCandidateDocumentsSectionTitle')}</h2>
-        {!query.isError ? (
+        {!query.isError && onOpenDocuments ? (
+          <button type="button" onClick={onOpenDocuments} className="text-sm font-medium text-brand hover:underline">
+            {t('adminCandidateDocumentsViewAll')}
+          </button>
+        ) : null}
+        {!query.isError && !onOpenDocuments ? (
           <Link to={`/admin/document-reviews?candidateId=${encodeURIComponent(candidateId)}`} className="text-sm font-medium text-brand hover:underline">
             {t('adminCandidateDocumentsViewAll')}
           </Link>
@@ -62,9 +69,15 @@ export function CandidateDocumentsSummaryCard({ candidateId }: CandidateDocument
           <span className="text-xs text-text-tertiary">
             {t('adminCandidateDocumentsSubmittedOn')}: {formatDate(latest.submittedAt, language, { dateStyle: 'medium' })}
           </span>
-          <Link to={`/admin/document-reviews/${latest.id}`} className="text-sm font-medium text-brand hover:underline">
-            {t('adminCandidateDocumentsViewSubmission')}
-          </Link>
+          {onOpenDocuments ? (
+            <button type="button" onClick={onOpenDocuments} className="text-sm font-medium text-brand hover:underline">
+              {t('adminCandidateDocumentsViewSubmission')}
+            </button>
+          ) : (
+            <Link to={`/admin/document-reviews/${latest.id}`} className="text-sm font-medium text-brand hover:underline">
+              {t('adminCandidateDocumentsViewSubmission')}
+            </Link>
+          )}
         </div>
       ) : null}
     </Card>

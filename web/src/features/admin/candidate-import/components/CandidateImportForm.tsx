@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { Link } from 'react-router';
 import { useLanguage } from '../../../../contexts/LanguageContext';
 import { useStaffAuth } from '../../../../contexts/StaffAuthContext';
@@ -7,6 +7,8 @@ import { CANDIDATE_IMPORT_ERROR_KEYS } from '../../../../../../shared/adminCandi
 import type { TranslationKey } from '../../../../../../shared/i18n/translations';
 import type { CandidateImportError } from '../../../../lib/candidate-import-client';
 import { useCandidateImportWizard } from '../hooks/useCandidateImportWizard';
+import { CampaignSelectField } from '../../campaigns/components/CampaignSelectField';
+import { useDefaultCampaign } from '../../campaigns/hooks/useCampaigns';
 import { useCsvTemplateDownload } from '../hooks/useCsvTemplateDownload';
 import { REQUIRED_HEADERS } from '../schemas/csvFile';
 import { CsvFileField } from './CsvFileField';
@@ -26,6 +28,15 @@ export function CandidateImportForm() {
   const { signOut } = useStaffAuth();
   const wizard = useCandidateImportWizard();
   const templateDownload = useCsvTemplateDownload();
+  const defaultCampaign = useDefaultCampaign();
+  const prefilledCampaign = useRef(false);
+
+  // Start from the running campaign (else the latest one); staff can still pick another.
+  useEffect(() => {
+    if (prefilledCampaign.current || defaultCampaign === undefined) return;
+    prefilledCampaign.current = true;
+    if (defaultCampaign && !wizard.campaignId) wizard.setCampaignId(defaultCampaign.id);
+  }, [defaultCampaign, wizard]);
 
   // A session that authenticatedDataRequest has confirmed is truly dead
   // (refresh already failed) -- end it locally so RequireStaffAuth's
@@ -76,6 +87,15 @@ export function CandidateImportForm() {
       {wizard.step === 'select' ? (
         <>
           <Card className="mb-5">
+            <div className="mb-4">
+              <CampaignSelectField
+                value={wizard.campaignId}
+                onChange={(campaign) => wizard.setCampaignId(campaign?.id ?? '')}
+                errorMessage={wizard.campaignMissing ? t('adminCampaignRequiredError') : undefined}
+                helperText={t('adminCampaignImportHelper')}
+                disabled={wizard.preflightMutation.isPending}
+              />
+            </div>
             <CsvFileField
               file={wizard.file}
               error={wizard.validationError}

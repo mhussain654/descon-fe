@@ -37,6 +37,9 @@ export type CandidateImportWizardStep = 'select' | 'preview' | 'submitted';
 export function useCandidateImportWizard() {
   const [file, setFile] = useState<File | null>(null);
   const [validationError, setValidationError] = useState<CsvFileValidationError | null>(null);
+  // The campaign the imported candidates go into -- required before upload.
+  const [campaignId, setCampaignIdState] = useState('');
+  const [campaignMissing, setCampaignMissing] = useState(false);
   const [commitIdempotencyKey, setCommitIdempotencyKey] = useState<string | null>(null);
 
   // TanStack Query's own `isPending` only updates once its notifyManager has
@@ -52,8 +55,8 @@ export function useCandidateImportWizard() {
 
   const preflightMutation = useMutation<CandidateImportPreflightResult, CandidateImportError, void>({
     mutationFn: () => {
-      if (!file) return Promise.reject({ code: 'UNKNOWN' } satisfies CandidateImportError);
-      return candidateImportClient.preflightImport(file);
+      if (!file || !campaignId) return Promise.reject({ code: 'UNKNOWN' } satisfies CandidateImportError);
+      return candidateImportClient.preflightImport(file, campaignId);
     },
     onSuccess: () => setCommitIdempotencyKey(randomIdempotencyKey('candidate-import-commit')),
     onSettled: () => {
@@ -83,13 +86,25 @@ export function useCandidateImportWizard() {
     [preflightMutation, commitMutation]
   );
 
+  const setCampaignId = useCallback(
+    (nextCampaignId: string) => {
+      setCampaignIdState(nextCampaignId);
+      setCampaignMissing(false);
+      preflightMutation.reset();
+      commitMutation.reset();
+      setCommitIdempotencyKey(null);
+    },
+    [preflightMutation, commitMutation]
+  );
+
   const submitPreflight = useCallback(() => {
     const error = validateCsvFile(file);
     setValidationError(error);
-    if (error || isPreflightingRef.current) return;
+    setCampaignMissing(!campaignId);
+    if (error || !campaignId || isPreflightingRef.current) return;
     isPreflightingRef.current = true;
     preflightMutation.mutate();
-  }, [file, preflightMutation]);
+  }, [file, campaignId, preflightMutation]);
 
   const retryPreflight = useCallback(() => {
     if (isPreflightingRef.current) return;
@@ -139,6 +154,9 @@ export function useCandidateImportWizard() {
     file,
     validationError,
     selectFile,
+    campaignId,
+    campaignMissing,
+    setCampaignId,
     submitPreflight,
     retryPreflight,
     confirmCommit,

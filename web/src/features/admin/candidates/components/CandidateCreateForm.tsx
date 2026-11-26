@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from 'react';
+import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { useNavigate } from 'react-router';
 import {
   Button,
@@ -19,6 +19,9 @@ import type { ReferenceDataItem } from '../../../../lib/admin-candidates-client'
 import type { TranslationKey } from '../../../../../../shared/i18n/translations';
 import { useCreateCandidate, type CreateCandidateFormValues } from '../hooks/useCreateCandidate';
 import { useCountries, useCrafts, useProjects } from '../hooks/useReferenceData';
+import { CampaignSelectField } from '../../campaigns/components/CampaignSelectField';
+import { useDefaultCampaign } from '../../campaigns/hooks/useCampaigns';
+import type { Campaign } from '../../../../lib/admin-campaigns-client';
 
 type ReferenceDataQuery = ReturnType<typeof useCountries>;
 
@@ -37,6 +40,7 @@ const FIELD_ERROR_MAP: Record<string, keyof FormState> = {
   project_code: 'projectCode',
   craft_code: 'craftCode',
   reference_number: 'referenceNumber',
+  campaign_id: 'campaignId',
 };
 
 interface FormState {
@@ -53,6 +57,9 @@ interface FormState {
   projectCode: string;
   craftCode: string;
   referenceNumber: string;
+  campaignId: string;
+  /** The picked campaign's country: when set, the country field follows it. */
+  campaignCountryCode: string;
 }
 
 const INITIAL_STATE: FormState = {
@@ -69,6 +76,8 @@ const INITIAL_STATE: FormState = {
   projectCode: '',
   craftCode: '',
   referenceNumber: '',
+  campaignId: '',
+  campaignCountryCode: '',
 };
 
 type FieldErrors = Partial<Record<keyof FormState, string>>;
@@ -82,6 +91,26 @@ export function CandidateCreateForm() {
   const countriesQuery = useCountries();
   const projectsQuery = useProjects();
   const craftsQuery = useCrafts();
+  const defaultCampaign = useDefaultCampaign();
+  const prefilledCampaign = useRef(false);
+
+  // A picked campaign fixes the country (the Test campaign leaves it free).
+  const pickCampaign = (campaign: Campaign | null) => {
+    setForm((current) => ({
+      ...current,
+      campaignId: campaign?.id ?? '',
+      campaignCountryCode: campaign?.country?.code ?? '',
+      countryCode: campaign?.country?.code ?? current.countryCode,
+    }));
+    setFieldErrors((current) => ({ ...current, campaignId: undefined, countryCode: undefined }));
+  };
+
+  // Start from the running campaign (else the latest one); staff can still pick another.
+  useEffect(() => {
+    if (prefilledCampaign.current || defaultCampaign === undefined) return;
+    prefilledCampaign.current = true;
+    if (defaultCampaign) pickCampaign(defaultCampaign);
+  }, [defaultCampaign]);
 
   const { submit, mutation } = useCreateCandidate({
     onSuccess: (candidate) => navigate(`/admin/candidates/${candidate.id}`),
@@ -128,6 +157,7 @@ export function CandidateCreateForm() {
       if (!isValidCnic(form.nextOfKinCnicDigits)) errors.nextOfKinCnicDigits = t('adminCandidateNextOfKinCnicInvalidError');
     }
 
+    if (!form.campaignId) errors.campaignId = t('adminCampaignRequiredError');
     if (!form.countryCode) errors.countryCode = t('adminCandidateCountryRequiredError');
     if (!form.projectCode) errors.projectCode = t('adminCandidateProjectRequiredError');
     if (!form.craftCode) errors.craftCode = t('adminCandidateCraftRequiredError');
@@ -171,6 +201,7 @@ export function CandidateCreateForm() {
       projectCode: form.projectCode,
       craftCode: form.craftCode,
       referenceNumber: form.referenceNumber.trim(),
+      campaignId: form.campaignId,
     };
     submit(values);
   };
@@ -258,6 +289,7 @@ export function CandidateCreateForm() {
               { value: 'ur', label: t('urduLabel') },
             ]}
           />
+          <CampaignSelectField value={form.campaignId} onChange={pickCampaign} errorMessage={errorFor('campaignId')} />
           <ReferenceDataSelectField
             label={t('adminCandidateCountryLabel')}
             required
@@ -266,6 +298,8 @@ export function CandidateCreateForm() {
             onChange={(value) => setField('countryCode', value)}
             errorMessage={errorFor('countryCode')}
             emptyMessage={t('adminCandidateNoCountriesAvailable')}
+            disabled={!!form.campaignCountryCode}
+            helperText={form.campaignCountryCode ? t('adminCampaignCountryLocked') : undefined}
           />
           <ReferenceDataSelectField
             label={t('adminCandidateProjectLabel')}
@@ -315,6 +349,8 @@ interface ReferenceDataSelectFieldProps {
   errorMessage: string | undefined;
   emptyMessage: string;
   required?: boolean;
+  disabled?: boolean;
+  helperText?: string;
 }
 
 /**
@@ -323,7 +359,17 @@ interface ReferenceDataSelectFieldProps {
  * crafts must not block the country and project fields the staff member can
  * otherwise complete (ticket: "Partial reference-data failure").
  */
-function ReferenceDataSelectField({ label, query, value, onChange, errorMessage, emptyMessage, required = false }: ReferenceDataSelectFieldProps) {
+function ReferenceDataSelectField({
+  label,
+  query,
+  value,
+  onChange,
+  errorMessage,
+  emptyMessage,
+  required = false,
+  disabled = false,
+  helperText,
+}: ReferenceDataSelectFieldProps) {
   const { t } = useLanguage();
 
   if (query.isLoading) {
@@ -363,6 +409,8 @@ function ReferenceDataSelectField({ label, query, value, onChange, errorMessage,
       aria-label={required ? label : undefined}
       aria-required={required}
       value={value}
+      disabled={disabled}
+      helperText={errorMessage ? undefined : helperText}
       onChange={(event) => onChange(event.target.value)}
       errorMessage={errorMessage}
       options={[{ value: '', label: '' }, ...items.map((item) => ({ value: item.code, label: item.name }))]}

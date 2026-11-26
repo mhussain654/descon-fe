@@ -52,6 +52,7 @@ function candidate(overrides = {}) {
       craft: { code: "electrician", name: "Electrician" },
       currentWorkflowStage: { code: "documents_pending", name: "Documents Pending" },
       createdAt: "2026-08-20T10:00:00Z",
+      campaign: { id: "campaign-1", code: "2026-11-26-QATAR", name: "2026-11-26 Qatar", kind: "regular" },
     },
     ...overrides,
   };
@@ -172,6 +173,7 @@ describe("AdminCandidateListPage", () => {
       expect(screen.getByText("42101-1234567-1")).toBeInTheDocument();
       expect(screen.getByText("+923001234567")).toBeInTheDocument();
       expect(screen.getByText("DES-000123")).toBeInTheDocument();
+      expect(screen.getByText("2026-11-26-QATAR")).toBeInTheDocument();
       // Country and craft render together in one text node ("Qatar · Electrician"), not as separate nodes.
       expect(screen.getByText(/Qatar · Electrician/)).toBeInTheDocument();
       expect(screen.getByText("Qatar Infrastructure")).toBeInTheDocument();

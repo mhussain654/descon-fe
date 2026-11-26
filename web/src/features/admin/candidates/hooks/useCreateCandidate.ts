@@ -20,6 +20,8 @@ export interface CreateCandidateFormValues {
   projectCode: string;
   craftCode: string;
   referenceNumber: string;
+  /** The batch the candidate goes into (required). */
+  campaignId: string;
 }
 
 function randomIdempotencyKey(): string {
@@ -71,6 +73,7 @@ export function useCreateCandidate(options: UseCreateCandidateOptions = {}) {
         projectCode: variables.projectCode,
         craftCode: variables.craftCode,
         referenceNumber: variables.referenceNumber,
+        campaignId: variables.campaignId,
         idempotencyKey: variables.idempotencyKey,
       }),
     onSuccess: (candidate) => {

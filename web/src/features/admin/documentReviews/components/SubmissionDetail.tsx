@@ -37,10 +37,15 @@ import { interpolate } from '../../../../../../shared/i18n/interpolate';
 
 export interface SubmissionDetailProps {
   submissionId: string;
+  /**
+   * Shown inside the candidate's own Documents tab: no page frame, back link,
+   * heading or link to the candidate (staff are already there).
+   */
+  embedded?: boolean;
 }
 
 /** The full admin submission-detail screen: safe document metadata, secure preview, and verify/reject actions. */
-export function SubmissionDetail({ submissionId }: SubmissionDetailProps) {
+export function SubmissionDetail({ submissionId, embedded = false }: SubmissionDetailProps) {
   const { t, language } = useLanguage();
   const { signOut, hasPermission } = useStaffAuth();
   const query = useDocumentSubmission(submissionId);
@@ -159,54 +164,61 @@ export function SubmissionDetail({ submissionId }: SubmissionDetailProps) {
       : undefined;
 
   return (
-    <div className="mx-auto max-w-4xl px-4 py-6 sm:px-6">
-      <Link to="/admin/document-reviews" className="inline-flex items-center text-sm font-medium text-brand hover:underline">
-        <ArrowLeft className="me-2 h-4 w-4" aria-hidden="true" />
-        {t('adminDocumentReviewBackToQueue')}
-      </Link>
-
-      <div className="mb-6 mt-2">
-        <h1 className="text-2xl font-semibold text-text-primary">{t('adminDocumentReviewDetailTitle')}</h1>
-        {/* The candidate's own page, for the next action once the documents are reviewed. */}
-        <Link
-          to={`/admin/candidates/${encodeURIComponent(detail.candidate.id)}`}
-          className="mt-1 inline-flex items-center gap-1.5 text-sm font-semibold text-brand hover:underline"
-          aria-label={`${t('adminDocumentReviewOpenCandidateAction')}: ${detail.candidate.fullName}`}
-        >
-          <UserRound className="h-4 w-4" aria-hidden="true" />
-          {detail.candidate.fullName}
+    <div className={embedded ? undefined : 'mx-auto max-w-4xl px-4 py-6 sm:px-6'}>
+      {embedded ? null : (
+        <Link to="/admin/document-reviews" className="inline-flex items-center text-sm font-medium text-brand hover:underline">
+          <ArrowLeft className="me-2 h-4 w-4" aria-hidden="true" />
+          {t('adminDocumentReviewBackToQueue')}
         </Link>
-        <p className="text-xs text-text-tertiary">{detail.candidate.id}</p>
-      </div>
+      )}
 
-      {approveAllButton ? <div className="mb-4">{approveAllButton}</div> : null}
+      {embedded ? null : (
+        <div className="mb-6 mt-2">
+          <h1 className="text-2xl font-semibold text-text-primary">{t('adminDocumentReviewDetailTitle')}</h1>
+          {/* The candidate's own page, for the next action once the documents are reviewed. */}
+          <Link
+            to={`/admin/candidates/${encodeURIComponent(detail.candidate.id)}`}
+            className="mt-1 inline-flex items-center gap-1.5 text-sm font-semibold text-brand hover:underline"
+            aria-label={`${t('adminDocumentReviewOpenCandidateAction')}: ${detail.candidate.fullName}`}
+          >
+            <UserRound className="h-4 w-4" aria-hidden="true" />
+            {detail.candidate.fullName}
+          </Link>
+          <p className="text-xs text-text-tertiary">{detail.candidate.id}</p>
+        </div>
+      )}
 
-      <Card className="mb-4">
-        <dl className="grid grid-cols-2 gap-4 text-sm sm:grid-cols-3">
-          <div>
-            <dt className="text-text-tertiary">{t('adminDocumentReviewColumnAssignment')}</dt>
-            <dd className="font-medium text-text-primary">{detail.assignment.referenceNumber}</dd>
-          </div>
-          <div>
-            <dt className="text-text-tertiary">{t('adminDocumentReviewColumnProject')}</dt>
-            <dd className="font-medium text-text-primary">{referenceDisplayName(detail.assignment.project, t('adminDocumentReviewNameUnavailable'))}</dd>
-          </div>
-          <div>
-            <dt className="text-text-tertiary">{t('adminDocumentReviewColumnCountry')}</dt>
-            <dd className="font-medium text-text-primary">{referenceDisplayName(detail.assignment.country, t('adminDocumentReviewNameUnavailable'))}</dd>
-          </div>
-          <div>
-            <dt className="text-text-tertiary">{t('adminDocumentReviewColumnCraft')}</dt>
-            <dd className="font-medium text-text-primary">{referenceDisplayName(detail.assignment.craft, t('adminDocumentReviewNameUnavailable'))}</dd>
-          </div>
-          <div>
-            <dt className="text-text-tertiary">{t('adminDocumentReviewColumnSubmitted')}</dt>
-            <dd className="font-medium text-text-primary">
-              {formatDate(detail.submittedAt, language, { dateStyle: 'medium', timeStyle: 'short' })}
-            </dd>
-          </div>
-        </dl>
-      </Card>
+      {approveAllButton && !embedded ? <div className="mb-4">{approveAllButton}</div> : null}
+
+      {/* The candidate's page already shows the assignment above the tab. */}
+      {embedded ? null : (
+        <Card className="mb-4">
+          <dl className="grid grid-cols-2 gap-4 text-sm sm:grid-cols-3">
+            <div>
+              <dt className="text-text-tertiary">{t('adminDocumentReviewColumnAssignment')}</dt>
+              <dd className="font-medium text-text-primary">{detail.assignment.referenceNumber}</dd>
+            </div>
+            <div>
+              <dt className="text-text-tertiary">{t('adminDocumentReviewColumnProject')}</dt>
+              <dd className="font-medium text-text-primary">{referenceDisplayName(detail.assignment.project, t('adminDocumentReviewNameUnavailable'))}</dd>
+            </div>
+            <div>
+              <dt className="text-text-tertiary">{t('adminDocumentReviewColumnCountry')}</dt>
+              <dd className="font-medium text-text-primary">{referenceDisplayName(detail.assignment.country, t('adminDocumentReviewNameUnavailable'))}</dd>
+            </div>
+            <div>
+              <dt className="text-text-tertiary">{t('adminDocumentReviewColumnCraft')}</dt>
+              <dd className="font-medium text-text-primary">{referenceDisplayName(detail.assignment.craft, t('adminDocumentReviewNameUnavailable'))}</dd>
+            </div>
+            <div>
+              <dt className="text-text-tertiary">{t('adminDocumentReviewColumnSubmitted')}</dt>
+              <dd className="font-medium text-text-primary">
+                {formatDate(detail.submittedAt, language, { dateStyle: 'medium', timeStyle: 'short' })}
+              </dd>
+            </div>
+          </dl>
+        </Card>
+      )}
 
       {detail.documents.length === 0 ? (
         <EmptyState title={t('adminDocumentReviewNoDocumentsMessage')} />
@@ -231,15 +243,17 @@ export function SubmissionDetail({ submissionId }: SubmissionDetailProps) {
 
       {approveAllButton ? <div className="mt-4">{approveAllButton}</div> : null}
 
-      <div className="mt-6 border-t border-border-subtle pt-4">
-        <Link
-          to={`/admin/candidates/${encodeURIComponent(detail.candidate.id)}`}
-          className="inline-flex items-center gap-1.5 text-sm font-semibold text-brand hover:underline"
-        >
-          {t('adminDocumentReviewOpenCandidateAction')}
-          <ArrowRight className="h-4 w-4 rtl:rotate-180" aria-hidden="true" />
-        </Link>
-      </div>
+      {embedded ? null : (
+        <div className="mt-6 border-t border-border-subtle pt-4">
+          <Link
+            to={`/admin/candidates/${encodeURIComponent(detail.candidate.id)}`}
+            className="inline-flex items-center gap-1.5 text-sm font-semibold text-brand hover:underline"
+          >
+            {t('adminDocumentReviewOpenCandidateAction')}
+            <ArrowRight className="h-4 w-4 rtl:rotate-180" aria-hidden="true" />
+          </Link>
+        </div>
+      )}
 
       <ConfirmDialog
         open={approveAllOpen}
@@ -424,7 +438,7 @@ function DocumentRow({ document, onPreview, onVerify, onReject }: DocumentRowPro
           <div className="flex items-center gap-2">
             <h2 className="font-medium text-text-primary">{document.name}</h2>
             <Badge tone="neutral">{document.required ? t('dsRequiredField') : t('dsOptionalField')}</Badge>
-            <Badge tone={DOCUMENT_STATUS_TONES[document.status]}>{t(DOCUMENT_STATUS_KEYS[document.status])}</Badge>
+            <Badge tone={DOCUMENT_STATUS_TONES[document.status]}>{t(DOCUMENT_STATUS_KEYS[document.status] as TranslationKey)}</Badge>
           </div>
           <dl className="mt-2 grid grid-cols-2 gap-x-4 gap-y-1 text-sm sm:grid-cols-3">
             {isMultiFile ? null : (

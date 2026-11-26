@@ -7,6 +7,19 @@ import { StaffAuthProvider } from "../../../../contexts/StaffAuthContext";
 import { adminCandidateClient } from "../../../../lib/admin-candidates-client";
 import { CandidateProfileCard } from "./CandidateProfileCard";
 
+const campaignMocks = vi.hoisted(() => ({
+  OTHER_QATAR: {
+    id: "campaign-qatar-2", code: "2026-12-01-QATAR", name: "December Qatar", kind: "regular",
+    country: { code: "qatar", name: "Qatar" }, active: true, createdAt: "2026-12-01T00:00:00Z",
+  },
+}));
+
+vi.mock("../../campaigns/hooks/useCampaigns", () => ({
+  useRunningCampaign: () => ({ data: null, isPending: false }),
+  useCampaigns: () => ({ data: [campaignMocks.OTHER_QATAR], isPending: false, isError: false }),
+  useCreateCampaign: () => ({ mutate: vi.fn(), isPending: false, isError: false, error: null }),
+}));
+
 vi.mock("../../../../lib/admin-candidates-client", () => ({
   adminCandidateClient: {
     getCandidate: vi.fn(),
@@ -49,6 +62,7 @@ function candidateDetail(overrides: Record<string, unknown> = {}) {
       craft: { code: "electrician", name: "Electrician" },
       currentWorkflowStage: { code: "documents_pending", name: "Documents Pending" },
       createdAt: "2026-08-30T09:00:00Z",
+      campaign: { id: "campaign-qatar", code: "2026-11-26-QATAR", name: "2026-11-26 Qatar", kind: "regular" },
     },
     ...overrides,
   };
@@ -133,6 +147,28 @@ describe("CandidateProfileCard", () => {
     renderCard(mpsClient, "candidate-2");
     await screen.findByText("Jane Applicant");
     expect(screen.queryByRole("button", { name: "Edit" })).not.toBeInTheDocument();
+  });
+
+  it("shows the candidate's campaign", async () => {
+    adminCandidateClient.getCandidate.mockResolvedValue(candidateDetail());
+    renderCard(await signInAs(HR));
+
+    expect(await screen.findByText("2026-11-26 Qatar (2026-11-26-QATAR)")).toBeInTheDocument();
+  });
+
+  it("moves the candidate to another campaign while the assignment can still change", async () => {
+    adminCandidateClient.getCandidate.mockResolvedValue(candidateDetail());
+    adminCandidateClient.updateCandidate.mockResolvedValue(candidateDetail());
+    renderCard(await signInAs(HR));
+    fireEvent.click(await screen.findByRole("button", { name: "Edit" }));
+
+    fireEvent.change(screen.getByLabelText("Campaign"), { target: { value: "campaign-qatar-2" } });
+    fireEvent.click(screen.getByRole("button", { name: "Save" }));
+
+    await waitFor(() =>
+      expect(adminCandidateClient.updateCandidate).toHaveBeenCalledWith(expect.objectContaining({ campaignId: "campaign-qatar-2" }))
+    );
+    expect(adminCandidateClient.updateCandidate.mock.calls[0][0]).not.toHaveProperty("countryCode");
   });
 
   it("submits only the changed fields and exits edit mode on success", async () => {

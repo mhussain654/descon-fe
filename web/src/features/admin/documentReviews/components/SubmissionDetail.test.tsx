@@ -73,7 +73,7 @@ function withPermissions(client: ReturnType<typeof createMockStaffAuthClient>, e
   };
 }
 
-async function renderDetail(extraPermissions: string[] = []) {
+async function renderDetail(extraPermissions: string[] = [], { embedded = false }: { embedded?: boolean } = {}) {
   const client = withPermissions(createMockStaffAuthClient({ delayMs: 0 }), extraPermissions);
   await client.signIn({ email: ADMIN.email, password: MOCK_STAFF_PASSWORD });
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } });
@@ -82,7 +82,7 @@ async function renderDetail(extraPermissions: string[] = []) {
       <QueryClientProvider client={queryClient}>
         <LanguageProvider>
           <StaffAuthProvider client={client}>
-            <SubmissionDetail submissionId="submission-1" />
+            <SubmissionDetail submissionId="submission-1" embedded={embedded} />
           </StaffAuthProvider>
         </LanguageProvider>
       </QueryClientProvider>
@@ -104,6 +104,20 @@ describe('SubmissionDetail', () => {
     vi.mocked(adminDocumentReviewsClient.getExtraction).mockReset();
     vi.mocked(adminBankDetailsClient.get).mockReset();
     vi.mocked(adminBankDetailsClient.verify).mockReset();
+  });
+
+  it("drops the page frame when shown inside the candidate's Documents tab, keeping the review actions", async () => {
+    adminDocumentReviewsClient.getSubmission.mockResolvedValue(submissionDetail([submissionDocument()]));
+
+    await renderDetail([], { embedded: true });
+
+    expect(await screen.findByRole("button", { name: "Verify" })).toBeInTheDocument();
+    expect(screen.queryByText("Back to queue")).not.toBeInTheDocument();
+    expect(screen.queryByText("Submission details")).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: /Open candidate page/ })).not.toBeInTheDocument();
+    // The candidate page already shows the assignment; Approve all stays only below the documents.
+    expect(screen.queryByText("Craft")).not.toBeInTheDocument();
+    expect(screen.getAllByRole("button", { name: "Approve all" })).toHaveLength(1);
   });
 
   it("links the candidate's name, and the foot of the page, to the candidate page", async () => {

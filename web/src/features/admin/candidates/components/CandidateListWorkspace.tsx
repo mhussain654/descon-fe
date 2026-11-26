@@ -162,6 +162,18 @@ export function CandidateListWorkspace() {
         ),
     },
     {
+      key: 'campaign',
+      header: t('adminCampaignFieldLabel'),
+      render: (row) =>
+        row.assignment?.campaign ? (
+          <span className="whitespace-nowrap" title={row.assignment.campaign.name}>
+            {row.assignment.campaign.code}
+          </span>
+        ) : (
+          t('adminCampaignNone')
+        ),
+    },
+    {
       key: 'stage',
       header: t('adminCandidateListColumnStage'),
       render: (row) => (row.assignment ? <Badge tone="info">{row.assignment.currentWorkflowStage.name}</Badge> : t('notAvailable')),

@@ -15,6 +15,8 @@ import { useCandidateDetail } from "../hooks/useCandidateDetail";
 import { CandidateProfileCard } from "./CandidateProfileCard";
 import { ProfilePhotoReviewCard } from "./ProfilePhotoReviewCard";
 import { CandidateDocumentsSummaryCard } from "./CandidateDocumentsSummaryCard";
+import { CandidateDocumentsReview } from "./CandidateDocumentsReview";
+import { CandidateUploadedDocumentsCard } from "../../uploadedDocuments/CandidateUploadedDocumentsCard";
 import { CandidatePaymentStatusCard } from "./CandidatePaymentStatusCard";
 import { CandidateAiCallsCard } from "../../candidateAiCalls/components/CandidateAiCallsCard";
 import { CandidateSmsCard } from "../../candidateSms/components/CandidateSmsCard";
@@ -186,7 +188,7 @@ export function CandidateWorkspace({ candidateId }: { candidateId: string }) {
         {section === "overview" ? (
           <>
             <div className="grid gap-4 sm:grid-cols-2">
-              <CandidateDocumentsSummaryCard candidateId={candidateId} />
+              <CandidateDocumentsSummaryCard candidateId={candidateId} onOpenDocuments={() => setSection("documents")} />
               <CandidatePaymentStatusCard candidateId={candidateId} />
             </div>
             <WorkflowPanel candidateId={candidateId} section="overview" />
@@ -200,7 +202,11 @@ export function CandidateWorkspace({ candidateId }: { candidateId: string }) {
           </>
         ) : null}
         {section === "documents" ? (
-          <CandidateDocumentsSummaryCard candidateId={candidateId} />
+          <div className="space-y-6">
+            <CandidateDocumentsReview candidateId={candidateId} />
+            {/* Developer-only: what the candidate uploaded, submitted or not (view only). */}
+            {hasPermission("view_uploaded_documents") ? <CandidateUploadedDocumentsCard candidateId={candidateId} /> : null}
+          </div>
         ) : null}
         {section === "payments" ? (
           <>

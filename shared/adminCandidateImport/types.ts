@@ -203,7 +203,7 @@ export interface CandidateImportClient {
   downloadTemplate(): Promise<CandidateImportTemplate>;
 
   /** Validates `file` and persists a short-lived server-side preview -- never creates a candidate. Safe to call repeatedly (e.g. after fixing and re-selecting a file); each call produces an independent preflight with its own token. */
-  preflightImport(file: File): Promise<CandidateImportPreflightResult>;
+  preflightImport(file: File, campaignId: string): Promise<CandidateImportPreflightResult>;
 
   /**
    * Submits a preflight's accepted rows for asynchronous processing --

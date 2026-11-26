@@ -50,12 +50,16 @@ vi.mock("../../../../lib/admin-candidate-ai-calls-client", () => ({
   adminCandidateAiCallsClient: { listCandidateAiCalls: vi.fn(), triggerCandidateAiCall: vi.fn() },
 }));
 
+vi.mock("../../../../lib/admin-uploaded-documents-client", () => ({
+  adminUploadedDocumentsClient: { listUploadedDocuments: vi.fn(() => Promise.resolve([])), openFile: vi.fn() },
+}));
 vi.mock("../../../../lib/admin-bulk-calls-client", () => ({
   adminBulkCallsClient: { listVoices: vi.fn() },
 }));
 
 const HR = MOCK_STAFF_ACCOUNTS.find((account) => account.role === "hr");
 const FINANCE = MOCK_STAFF_ACCOUNTS.find((account) => account.role === "finance");
+const DEVELOPER = MOCK_STAFF_ACCOUNTS.find((account) => account.role === "developer");
 
 async function renderPage(account = HR) {
   const client = createMockStaffAuthClient({ delayMs: 0 });
@@ -174,5 +178,28 @@ describe("CandidateDetailsPage", () => {
     expect(await screen.findByText("Jane Applicant")).toBeInTheDocument();
     expect(screen.getByRole("tab", { name: "Records" })).toBeInTheDocument();
     expect(screen.queryByRole("tab", { name: "AI calls" })).not.toBeInTheDocument();
+  });
+
+  it("shows a developer what the candidate uploaded, submitted or not, on the Documents tab", async () => {
+    await renderPage(DEVELOPER);
+    fireEvent.click(await screen.findByRole("tab", { name: "Documents" }));
+
+    expect(await screen.findByText("Uploaded documents")).toBeInTheDocument();
+  });
+
+  it("keeps uploaded documents from staff who are not developers", async () => {
+    await renderPage(HR);
+    fireEvent.click(await screen.findByRole("tab", { name: "Documents" }));
+
+    expect(await screen.findByText("No document submissions yet.")).toBeInTheDocument();
+    expect(screen.queryByText("Uploaded documents")).not.toBeInTheDocument();
+  });
+
+  it("opens the Documents tab from the overview's documents card instead of leaving the page", async () => {
+    await renderPage();
+
+    fireEvent.click(await screen.findByRole("button", { name: "View all submissions" }));
+
+    expect(screen.getByRole("tab", { name: "Documents" })).toHaveAttribute("aria-selected", "true");
   });
 });

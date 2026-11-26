@@ -20,6 +20,15 @@ export interface AdminCandidateAssignmentSummary {
   craft: ReferenceDataItem;
   currentWorkflowStage: { code: string; name: string };
   createdAt: string;
+  /** The campaign; null for an assignment made before campaigns existed. */
+  campaign: AdminCampaignRef | null;
+}
+
+export interface AdminCampaignRef {
+  id: string;
+  code: string;
+  name: string;
+  kind: 'regular' | 'test';
 }
 
 /**
@@ -89,6 +98,8 @@ export interface CreateCandidateInput {
   projectCode: string;
   craftCode: string;
   referenceNumber: string;
+  /** Required: the campaign the candidate goes into (its country must match). */
+  campaignId: string;
   idempotencyKey: string;
 }
 
@@ -116,6 +127,8 @@ export interface UpdateCandidateInput {
   countryCode?: string;
   projectCode?: string;
   craftCode?: string;
+  /** Moves the candidate to another campaign (same lock as country/project/craft; countries must match). */
+  campaignId?: string;
   /** Echo the detail response's own `updatedAt` to guard against overwriting a concurrent change. */
   expectedUpdatedAt?: string;
 }

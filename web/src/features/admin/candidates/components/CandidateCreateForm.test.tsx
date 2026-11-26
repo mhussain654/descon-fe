@@ -6,6 +6,23 @@ import { LanguageProvider } from "../../../../contexts/LanguageContext";
 import { adminCandidateClient } from "../../../../lib/admin-candidates-client";
 import { CandidateCreateForm } from "./CandidateCreateForm";
 
+// Campaigns: the default campaign is the Test campaign (no country), so the form's own
+// country choice stays free; QATAR_CAMPAIGN is offered too.
+const campaignMocks = vi.hoisted(() => {
+  const TEST_CAMPAIGN = { id: 'campaign-test', code: 'TEST', name: 'Test campaign', kind: 'test', country: null, active: true, createdAt: '2026-11-26T00:00:00Z' };
+  const QATAR_CAMPAIGN = {
+    id: 'campaign-qatar', code: '2026-11-26-QATAR', name: '2026-11-26 Qatar', kind: 'regular',
+    country: { code: 'qatar', name: 'Qatar' }, active: true, createdAt: '2026-11-26T00:00:00Z',
+  };
+  return { TEST_CAMPAIGN, QATAR_CAMPAIGN, working: { current: TEST_CAMPAIGN as unknown } };
+});
+
+vi.mock('../../campaigns/hooks/useCampaigns', () => ({
+  useDefaultCampaign: () => campaignMocks.working.current,
+  useCampaigns: () => ({ data: [campaignMocks.TEST_CAMPAIGN, campaignMocks.QATAR_CAMPAIGN], isPending: false, isError: false }),
+  useCreateCampaign: () => ({ mutate: vi.fn(), isPending: false, isError: false, error: null }),
+}));
+
 vi.mock("../../../../lib/admin-candidates-client", () => ({
   adminCandidateClient: {
     getCandidate: vi.fn(),
@@ -283,5 +300,48 @@ describe("CandidateCreateForm", () => {
     renderForm();
 
     expect(await screen.findByText("امیدوار شامل کریں")).toBeInTheDocument();
+  });
+
+  describe("campaign", () => {
+    afterEach(() => {
+      campaignMocks.working.current = campaignMocks.TEST_CAMPAIGN;
+    });
+
+    it("starts from the default campaign and sends it with the candidate", async () => {
+      adminCandidateClient.createCandidate.mockResolvedValue({ id: "candidate-1", assignment: null });
+      renderForm();
+      await screen.findByRole("option", { name: "Qatar" });
+
+      expect(screen.getByLabelText("Campaign")).toHaveValue("campaign-test");
+      fillValidForm();
+      fireEvent.click(screen.getByRole("button", { name: "Create candidate" }));
+
+      await waitFor(() =>
+        expect(adminCandidateClient.createCandidate).toHaveBeenCalledWith(expect.objectContaining({ campaignId: "campaign-test" }))
+      );
+    });
+
+    it("locks the country to a picked campaign's country", async () => {
+      renderForm();
+      await screen.findByRole("option", { name: "Qatar" });
+
+      fireEvent.change(screen.getByLabelText("Campaign"), { target: { value: "campaign-qatar" } });
+
+      expect(screen.getByLabelText(/Country/)).toHaveValue("qatar");
+      expect(screen.getByLabelText(/Country/)).toBeDisabled();
+      expect(screen.getByText("The country follows the campaign.")).toBeInTheDocument();
+    });
+
+    it("requires a campaign when there is no default campaign", async () => {
+      campaignMocks.working.current = null;
+      renderForm();
+      await screen.findByRole("option", { name: "Qatar" });
+
+      fillValidForm();
+      fireEvent.click(screen.getByRole("button", { name: "Create candidate" }));
+
+      expect(await screen.findByText("Select a campaign.")).toBeInTheDocument();
+      expect(adminCandidateClient.createCandidate).not.toHaveBeenCalled();
+    });
   });
 });

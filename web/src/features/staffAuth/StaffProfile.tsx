@@ -3,17 +3,16 @@ import { useLanguage } from '../../contexts/LanguageContext';
 import { useStaffAuth } from '../../contexts/StaffAuthContext';
 import { Badge, Card } from '../../design-system';
 import { STAFF_ROLE_LABEL_KEYS } from '../../../../shared/auth/staffTypes';
+import { RunningCampaignPicker } from '../admin/campaigns/components/RunningCampaign';
 
 function avatarInitial(email: string): string {
   return email.trim().charAt(0).toUpperCase() || '?';
 }
 
 /**
- * Read-only summary of the signed-in staff member's own account -- the
- * "Profile" destination from StaffShell's account menu. There's no
- * self-service editing here (no display name field exists on StaffSession to
- * begin with -- see staffTypes.ts) -- this only surfaces what's already
- * known, matching the account menu's own identity block one level deeper.
+ * Summary of the signed-in staff member's own account -- the "Profile"
+ * destination from StaffShell's account menu -- plus the running campaign they
+ * can change (saved on their account). Email and role are read-only.
  */
 export function StaffProfile() {
   const { t } = useLanguage();
@@ -57,6 +56,10 @@ export function StaffProfile() {
           </div>
         </dl>
       </Card>
+
+      <div className="mt-6">
+        <RunningCampaignPicker />
+      </div>
     </div>
   );
 }

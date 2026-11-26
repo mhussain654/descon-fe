@@ -17,6 +17,8 @@ import {
 import { useLanguage } from '../../../../contexts/LanguageContext';
 import { useStaffAuth } from '../../../../contexts/StaffAuthContext';
 import { normalizeMobileNumber, isValidMobileNumber } from '../../../../../../shared/adminCandidates/mobileNumber';
+import { CampaignSelectField } from '../../campaigns/components/CampaignSelectField';
+import type { Campaign } from '../../../../lib/admin-campaigns-client';
 import { isAcceptableEmail, normalizeEmail } from '../../../../../../shared/candidateProfile/email';
 import { normalizePassportNumber, isValidPassportNumber } from '../../../../../../shared/adminCandidates/passportNumber';
 import { isNextOfKinStarted } from '../../../../../../shared/adminCandidates/nextOfKin';
@@ -53,6 +55,7 @@ const FIELD_ERROR_MAP: Record<string, string> = {
   country_code: 'countryCode',
   project_code: 'projectCode',
   craft_code: 'craftCode',
+  campaign_id: 'campaignId',
 };
 
 export interface CandidateProfileCardProps {
@@ -185,6 +188,10 @@ function CandidateProfileCardBody({ candidate, canManage, update }: CandidatePro
             value={candidate.preferredLocale === 'ur' ? t('urduLabel') : t('englishLabel')}
           />
           <Field label={t('adminCandidateReferenceNumberLabel')} value={candidate.assignment?.referenceNumber ?? t('notAvailable')} dir="ltr" />
+          <Field
+            label={t('adminCampaignFieldLabel')}
+            value={candidate.assignment?.campaign ? `${candidate.assignment.campaign.name} (${candidate.assignment.campaign.code})` : t('adminCampaignNone')}
+          />
           <Field label={t('adminCandidateCountryLabel')} value={candidate.assignment?.country.name ?? t('notAvailable')} />
           <Field label={t('adminCandidateProjectLabel')} value={candidate.assignment?.project.name ?? t('notAvailable')} />
           <Field label={t('adminCandidateCraftLabel')} value={candidate.assignment?.craft.name ?? t('notAvailable')} />
@@ -257,6 +264,13 @@ function CandidateProfileEditForm({ candidate, canEditAssignmentFields, update, 
   const [countryCode, setCountryCode] = useState(candidate.assignment?.country.code ?? '');
   const [projectCode, setProjectCode] = useState(candidate.assignment?.project.code ?? '');
   const [craftCode, setCraftCode] = useState(candidate.assignment?.craft.code ?? '');
+  const [campaignId, setCampaignId] = useState(candidate.assignment?.campaign?.id ?? '');
+
+  // Moving to another campaign takes that campaign's country (the Test campaign keeps it).
+  const pickCampaign = (campaign: Campaign | null) => {
+    setCampaignId(campaign?.id ?? '');
+    if (campaign?.country) setCountryCode(campaign.country.code);
+  };
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [confirmingMobileChange, setConfirmingMobileChange] = useState(false);
 
@@ -307,6 +321,7 @@ function CandidateProfileEditForm({ candidate, canEditAssignmentFields, update, 
       if (countryCode !== (candidate.assignment?.country.code ?? '')) values.countryCode = countryCode;
       if (projectCode !== (candidate.assignment?.project.code ?? '')) values.projectCode = projectCode;
       if (craftCode !== (candidate.assignment?.craft.code ?? '')) values.craftCode = craftCode;
+      if (campaignId && campaignId !== (candidate.assignment?.campaign?.id ?? '')) values.campaignId = campaignId;
     }
     return values;
   };
@@ -455,6 +470,7 @@ function CandidateProfileEditForm({ candidate, canEditAssignmentFields, update, 
 
         {canEditAssignmentFields ? (
           <>
+            <CampaignSelectField value={campaignId} onChange={pickCampaign} errorMessage={errorFor('campaignId')} />
             <ReferenceSelect
               label={t('adminCandidateCountryLabel')}
               query={countriesQuery}

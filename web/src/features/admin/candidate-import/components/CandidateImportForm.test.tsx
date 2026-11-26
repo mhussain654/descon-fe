@@ -13,6 +13,23 @@ import { candidateImportClient } from '../../../../lib/candidate-import-client';
 import { MAX_FILE_BYTES } from '../schemas/csvFile';
 import { CandidateImportForm } from './CandidateImportForm';
 
+// Campaigns: the default campaign is the Test campaign (no country), so the form's own
+// country choice stays free; QATAR_CAMPAIGN is offered too.
+const campaignMocks = vi.hoisted(() => {
+  const TEST_CAMPAIGN = { id: 'campaign-test', code: 'TEST', name: 'Test campaign', kind: 'test', country: null, active: true, createdAt: '2026-11-26T00:00:00Z' };
+  const QATAR_CAMPAIGN = {
+    id: 'campaign-qatar', code: '2026-11-26-QATAR', name: '2026-11-26 Qatar', kind: 'regular',
+    country: { code: 'qatar', name: 'Qatar' }, active: true, createdAt: '2026-11-26T00:00:00Z',
+  };
+  return { TEST_CAMPAIGN, QATAR_CAMPAIGN, working: { current: TEST_CAMPAIGN as unknown } };
+});
+
+vi.mock('../../campaigns/hooks/useCampaigns', () => ({
+  useDefaultCampaign: () => campaignMocks.working.current,
+  useCampaigns: () => ({ data: [campaignMocks.TEST_CAMPAIGN, campaignMocks.QATAR_CAMPAIGN], isPending: false, isError: false }),
+  useCreateCampaign: () => ({ mutate: vi.fn(), isPending: false, isError: false, error: null }),
+}));
+
 vi.mock('../../../../lib/candidate-import-client', () => ({
   candidateImportClient: {
     downloadTemplate: vi.fn(),
@@ -211,6 +228,33 @@ describe('CandidateImportForm', () => {
 
       expect(await screen.findByText("Couldn't download the template. Try again.")).toBeInTheDocument();
       expect(screen.getByRole('button', { name: 'Upload and preview' })).toBeInTheDocument();
+    });
+  });
+
+  describe('campaign', () => {
+    afterEach(() => {
+      campaignMocks.working.current = campaignMocks.TEST_CAMPAIGN;
+    });
+
+    it('sends the chosen campaign with the file', async () => {
+      candidateImportClient.preflightImport.mockResolvedValue(preflightPayload());
+      await renderForm();
+      fireEvent.change(await screen.findByLabelText('Campaign'), { target: { value: 'campaign-qatar' } });
+      const file = csvFile();
+      chooseFile(file);
+      fireEvent.click(screen.getByRole('button', { name: 'Upload and preview' }));
+
+      await waitFor(() => expect(candidateImportClient.preflightImport).toHaveBeenCalledWith(file, 'campaign-qatar'));
+    });
+
+    it('asks for a campaign before uploading when none is chosen', async () => {
+      campaignMocks.working.current = null;
+      await renderForm();
+      chooseFile(csvFile());
+      fireEvent.click(screen.getByRole('button', { name: 'Upload and preview' }));
+
+      expect(await screen.findByText('Select a campaign.')).toBeInTheDocument();
+      expect(candidateImportClient.preflightImport).not.toHaveBeenCalled();
     });
   });
 

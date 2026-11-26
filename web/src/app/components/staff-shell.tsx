@@ -1,10 +1,12 @@
 import { Link, useLocation, useNavigate } from 'react-router';
+import { RunningCampaignBadge } from '../../features/admin/campaigns/components/RunningCampaign';
 import { useEffect, useRef, useState, type FormEvent, type ReactNode, type RefObject } from 'react';
 import {
   Activity,
   BarChart3,
   ChevronsUpDown,
   CreditCard,
+  Database,
   DatabaseBackup,
   FileCheck2,
   FileUp,
@@ -248,6 +250,12 @@ function StaffShellContent({ children }: { children: ReactNode }) {
           icon: ServerCog,
         },
         {
+          href: '/admin/reference-data',
+          labelKey: 'staffNavReferenceData',
+          visible: hasPermission('manage_reference_data'),
+          icon: Database,
+        },
+        {
           href: '/admin/backups',
           labelKey: 'staffNavBackups',
           visible: hasPermission('manage_backups'),
@@ -478,6 +486,7 @@ function StaffHeader({
       </form>
 
       <div className="ms-auto flex items-center gap-2">
+        <RunningCampaignBadge />
         <button
           type="button"
           onClick={toggleTheme}

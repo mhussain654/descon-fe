@@ -62,6 +62,8 @@ export const MOCK_STAFF_ACCOUNTS: MockStaffAccount[] = [
       'manage_ai_call_scripts',
       'view_job_logs',
       'record_manual_payment',
+      'view_uploaded_documents',
+      'manage_reference_data',
     ],
   },
   {

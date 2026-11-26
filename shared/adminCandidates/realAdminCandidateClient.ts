@@ -49,6 +49,7 @@ interface AssignmentSummaryResponse {
   craft: ReferenceDataItemResponse;
   current_workflow_stage: { code: string; name: string };
   created_at: string;
+  campaign?: { id: string; code: string; name: string; kind: string } | null;
 }
 
 interface CandidateDetailResponse {
@@ -123,7 +124,13 @@ function toAssignmentSummary(raw: unknown): AdminCandidateAssignmentSummary | nu
       name: typeof stage.name === 'string' ? stage.name : '',
     },
     createdAt: typeof value.created_at === 'string' ? value.created_at : '',
+    campaign: toCampaignRef(value.campaign),
   };
+}
+
+function toCampaignRef(raw: AssignmentSummaryResponse['campaign']): AdminCandidateAssignmentSummary['campaign'] {
+  if (!raw || typeof raw.id !== 'string') return null;
+  return { id: raw.id, code: raw.code, name: raw.name, kind: raw.kind === 'test' ? 'test' : 'regular' };
 }
 
 function toNextOfKin(value: Partial<CandidateDetailResponse>): NextOfKinDetail {
@@ -375,6 +382,7 @@ export function createAdminCandidateClient(options: RealAdminCandidateClientOpti
                 project_code: input.projectCode,
                 craft_code: input.craftCode,
                 reference_number: input.referenceNumber,
+                campaign_id: input.campaignId,
               },
             },
             {
@@ -408,6 +416,7 @@ export function createAdminCandidateClient(options: RealAdminCandidateClientOpti
                 country_code: input.countryCode,
                 project_code: input.projectCode,
                 craft_code: input.craftCode,
+                campaign_id: input.campaignId,
                 expected_updated_at: input.expectedUpdatedAt,
               }),
             },

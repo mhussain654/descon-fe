@@ -76,6 +76,7 @@ function candidateDetailResponse(overrides: Record<string, unknown> = {}) {
       project: { code: 'qatar_infrastructure', name: 'Qatar Infrastructure' },
       craft: { code: 'electrician', name: 'Electrician' },
       current_workflow_stage: { code: 'documents_pending', name: 'Documents Pending' },
+      campaign: { id: 'campaign-1', code: '2026-11-26-QATAR', name: '2026-11-26 Qatar', kind: 'regular' },
       created_at: '2026-08-30T09:00:00Z',
     },
     ...overrides,
@@ -124,6 +125,7 @@ describe('createAdminCandidateClient (real)', () => {
           craft: { code: 'electrician', name: 'Electrician' },
           currentWorkflowStage: { code: 'documents_pending', name: 'Documents Pending' },
           createdAt: '2026-08-30T09:00:00Z',
+          campaign: { id: 'campaign-1', code: '2026-11-26-QATAR', name: '2026-11-26 Qatar', kind: 'regular' },
         },
         profilePhoto: { status: 'pending', url: '/rails/active_storage/blobs/proxy/abc/profile-photo.jpg', reviewedAt: null },
       });
