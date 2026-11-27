@@ -133,7 +133,7 @@ export function DocumentReviewQueue() {
             <Link to={`/admin/document-reviews/${row.id}`} className="block truncate font-semibold text-brand hover:underline">
               {row.candidate.fullName}
             </Link>
-            <div className="mt-0.5 text-xs text-text-tertiary">{row.assignment.referenceNumber}</div>
+            <div className="mt-0.5 text-xs text-text-tertiary">{row.assignment.registrationNumber}</div>
           </div>
         </div>
       ),

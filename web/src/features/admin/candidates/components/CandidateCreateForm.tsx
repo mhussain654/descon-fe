@@ -11,6 +11,7 @@ import {
 } from '../../../../design-system';
 import { useLanguage } from '../../../../contexts/LanguageContext';
 import { formatCnic, isValidCnic, toCnicDigits } from '../../../../../../shared/cnic';
+import { isValidRegistrationNumber } from '../../../../../../shared/adminCandidates/registrationNumber';
 import { normalizeMobileNumber, isValidMobileNumber } from '../../../../../../shared/adminCandidates/mobileNumber';
 import { normalizePassportNumber, isValidPassportNumber } from '../../../../../../shared/adminCandidates/passportNumber';
 import { isNextOfKinStarted } from '../../../../../../shared/adminCandidates/nextOfKin';
@@ -39,7 +40,7 @@ const FIELD_ERROR_MAP: Record<string, keyof FormState> = {
   country_code: 'countryCode',
   project_code: 'projectCode',
   craft_code: 'craftCode',
-  reference_number: 'referenceNumber',
+  registration_number: 'registrationNumber',
   campaign_id: 'campaignId',
 };
 
@@ -56,7 +57,7 @@ interface FormState {
   countryCode: string;
   projectCode: string;
   craftCode: string;
-  referenceNumber: string;
+  registrationNumber: string;
   campaignId: string;
   /** The picked campaign's country: when set, the country field follows it. */
   campaignCountryCode: string;
@@ -75,7 +76,7 @@ const INITIAL_STATE: FormState = {
   countryCode: '',
   projectCode: '',
   craftCode: '',
-  referenceNumber: '',
+  registrationNumber: '',
   campaignId: '',
   campaignCountryCode: '',
 };
@@ -161,7 +162,7 @@ export function CandidateCreateForm() {
     if (!form.countryCode) errors.countryCode = t('adminCandidateCountryRequiredError');
     if (!form.projectCode) errors.projectCode = t('adminCandidateProjectRequiredError');
     if (!form.craftCode) errors.craftCode = t('adminCandidateCraftRequiredError');
-    if (!form.referenceNumber.trim()) errors.referenceNumber = t('adminCandidateReferenceNumberRequiredError');
+    if (!isValidRegistrationNumber(form.registrationNumber)) errors.registrationNumber = t('adminCandidateRegistrationNumberInvalidError');
 
     return errors;
   };
@@ -200,7 +201,7 @@ export function CandidateCreateForm() {
       countryCode: form.countryCode,
       projectCode: form.projectCode,
       craftCode: form.craftCode,
-      referenceNumber: form.referenceNumber.trim(),
+      registrationNumber: form.registrationNumber.trim(),
       campaignId: form.campaignId,
     };
     submit(values);
@@ -318,11 +319,13 @@ export function CandidateCreateForm() {
             emptyMessage={t('adminCandidateNoCraftsAvailable')}
           />
           <Input
-            label={t('adminCandidateReferenceNumberLabel')}
+            label={t('adminCandidateRegistrationNumberLabel')}
             dir="ltr"
-            value={form.referenceNumber}
-            onChange={(event) => setField('referenceNumber', event.target.value)}
-            errorMessage={errorFor('referenceNumber')}
+            inputMode="numeric"
+            helperText={t('adminCandidateRegistrationNumberCreateHelp')}
+            value={form.registrationNumber}
+            onChange={(event) => setField('registrationNumber', event.target.value)}
+            errorMessage={errorFor('registrationNumber')}
           />
 
           {nonFieldError ? <ValidationMessage tone="error">{nonFieldError}</ValidationMessage> : null}

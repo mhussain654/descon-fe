@@ -130,7 +130,7 @@ function profilePayload(overrides = {}) {
     fullName: "Ahmed Ali",
     maskedCnic: "42101-*******-1",
     email: "candidate@example.com",
-    referenceNumber: "DES-001001",
+    registrationNumber: "DES-001001",
     preferredLocale: "en",
     candidateStatus: "documents_pending",
     currentWorkflowStage: { code: "documents_pending", name: "Documents pending" },
@@ -248,7 +248,7 @@ describe("DashboardScreen", () => {
     applicationProgressClient.getProgress.mockResolvedValue(progress());
     renderDashboardScreen({ requestOtp: jest.fn(), resendOtp: jest.fn(), verifyOtp: jest.fn(), refreshSession });
 
-    expect(await screen.findByText("File No. DES-001001")).toBeOnTheScreen();
+    expect(await screen.findByText("Registration / File No. DES-001001")).toBeOnTheScreen();
     expect(refreshSession).toHaveBeenCalledTimes(1);
     expect(candidateProfileClient.getProfile).toHaveBeenCalledWith("renewed-access-token");
     expect(candidateProfileClient.getProfile).not.toHaveBeenCalledWith("stale-access-token");
@@ -261,7 +261,7 @@ describe("DashboardScreen", () => {
     renderDashboardScreen();
 
     expect(await screen.findByText("Ahmed Ali")).toBeOnTheScreen();
-    expect(screen.getByText("File No. DES-001001")).toBeOnTheScreen();
+    expect(screen.getByText("Registration / File No. DES-001001")).toBeOnTheScreen();
     // The current step of the client's Qatar mobilization process, with its status, is the badge on "My Journey".
     expect(screen.getByText("Document Submission in process")).toBeOnTheScreen();
     // Enrolled is approved among the 10 Qatar steps.
@@ -301,7 +301,7 @@ describe("DashboardScreen", () => {
 
     candidateProfileClient.getProfile.mockResolvedValue(profilePayload({ craft: null }));
     renderDashboardScreen();
-    expect(await screen.findByText("File No. DES-001001")).toBeOnTheScreen();
+    expect(await screen.findByText("Registration / File No. DES-001001")).toBeOnTheScreen();
     expect(screen.queryByText(/^Craft:/)).toBeNull();
   });
 

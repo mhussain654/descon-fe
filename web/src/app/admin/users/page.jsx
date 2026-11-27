@@ -97,9 +97,9 @@ function StaffUsersContent() {
 
   const inviteMutation = useMutation({
     mutationFn: (input) => staffDirectoryClient.inviteStaff(input),
-    onSuccess: () => {
+    onSuccess: (member) => {
       invalidateStaffList();
-      toast.success(t("staffAdminInviteSuccessToast"));
+      toast.success(t(member.status === "active" ? "staffAdminCreatedSuccessToast" : "staffAdminInviteSuccessToast"));
       setInviteOpen(false);
     },
   });
@@ -235,6 +235,7 @@ function StaffUsersContent() {
               onInvite={(input) => inviteMutation.mutate(input)}
               isSubmitting={inviteMutation.isPending}
               error={inviteError}
+              canCreateDirectly={session?.role === "developer"}
               t={t}
             />
           </div>
@@ -352,36 +353,58 @@ function StaffUsersContent() {
   );
 }
 
-function InviteDialog({ open, onOpenChange, onInvite, isSubmitting, error, t }) {
+const MIN_PASSWORD_LENGTH = 6;
+
+/**
+ * Invite a staff member by email, or -- developers only -- create the account straight away with a
+ * password (no invitation email; the account is active and can sign in at once).
+ */
+function InviteDialog({ open, onOpenChange, onInvite, isSubmitting, error, canCreateDirectly, t }) {
   const [email, setEmail] = useState("");
   const [role, setRole] = useState("hr");
+  const [direct, setDirect] = useState(false);
+  const [password, setPassword] = useState("");
+  const [passwordConfirmation, setPasswordConfirmation] = useState("");
+  const [passwordError, setPasswordError] = useState(null);
+
+  const reset = () => {
+    setEmail("");
+    setRole("hr");
+    setDirect(false);
+    setPassword("");
+    setPasswordConfirmation("");
+    setPasswordError(null);
+  };
+
+  const submit = (event) => {
+    event.preventDefault();
+    if (!direct) {
+      onInvite({ email, role });
+      return;
+    }
+    if (password.length < MIN_PASSWORD_LENGTH) return setPasswordError(t("staffAdminPasswordTooShort"));
+    if (password !== passwordConfirmation) return setPasswordError(t("staffAdminPasswordMismatch"));
+    setPasswordError(null);
+    onInvite({ email, role, password, passwordConfirmation });
+  };
 
   return (
     <Dialog
       open={open}
       onOpenChange={(next) => {
         onOpenChange(next);
-        if (next) {
-          setEmail("");
-          setRole("hr");
-        }
+        if (next) reset();
       }}
     >
       <DialogTrigger asChild>
         <Button variant="primary">{t("staffAdminInviteStaff")}</Button>
       </DialogTrigger>
       <DialogContent
-        title={t("staffAdminInviteDialogTitle")}
-        description={t("staffAdminInviteDialogDescription")}
+        title={t(direct ? "staffAdminCreateDialogTitle" : "staffAdminInviteDialogTitle")}
+        description={t(direct ? "staffAdminCreateDialogDescription" : "staffAdminInviteDialogDescription")}
         closeLabel={t("dsClose")}
       >
-        <form
-          className="space-y-4"
-          onSubmit={(event) => {
-            event.preventDefault();
-            onInvite({ email, role });
-          }}
-        >
+        <form className="space-y-4" onSubmit={submit}>
           <Input
             type="email"
             label={t("email")}
@@ -399,13 +422,55 @@ function InviteDialog({ open, onOpenChange, onInvite, isSubmitting, error, t }) 
             options={ROLES.map((value) => ({ value, label: t(ROLE_LABEL_KEYS[value]) }))}
             disabled={isSubmitting}
           />
-          {error && error.field !== "email" ? <ValidationMessage tone="error">{error.message}</ValidationMessage> : null}
+          {canCreateDirectly ? (
+            <label className="flex items-start gap-2 text-sm text-text-secondary">
+              <input
+                type="checkbox"
+                className="mt-0.5 h-4 w-4 accent-brand"
+                checked={direct}
+                onChange={(event) => {
+                  setDirect(event.target.checked);
+                  setPasswordError(null);
+                }}
+                disabled={isSubmitting}
+              />
+              <span>{t("staffAdminCreateDirectlyLabel")}</span>
+            </label>
+          ) : null}
+          {direct ? (
+            <>
+              <Input
+                type="password"
+                autoComplete="new-password"
+                label={t("staffAdminPasswordLabel")}
+                value={password}
+                onChange={(event) => setPassword(event.target.value)}
+                helperText={t("staffAdminPasswordHelp")}
+                errorMessage={error?.field === "password" ? error.message : undefined}
+                disabled={isSubmitting}
+                required
+              />
+              <Input
+                type="password"
+                autoComplete="new-password"
+                label={t("staffAdminPasswordConfirmationLabel")}
+                value={passwordConfirmation}
+                onChange={(event) => setPasswordConfirmation(event.target.value)}
+                errorMessage={passwordError ?? (error?.field === "password_confirmation" ? error.message : undefined)}
+                disabled={isSubmitting}
+                required
+              />
+            </>
+          ) : null}
+          {error && !["email", "password", "password_confirmation"].includes(error.field) ? (
+            <ValidationMessage tone="error">{error.message}</ValidationMessage>
+          ) : null}
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={isSubmitting}>
               {t("dsDialogCancel")}
             </Button>
             <Button type="submit" variant="primary" loading={isSubmitting}>
-              {t("staffAdminSendInvite")}
+              {t(direct ? "staffAdminCreateAccount" : "staffAdminSendInvite")}
             </Button>
           </DialogFooter>
         </form>

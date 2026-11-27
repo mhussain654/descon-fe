@@ -60,7 +60,7 @@ function profilePayload(overrides = {}) {
     id: "candidate-public-id-1",
     fullName: "Ahmed Ali",
     maskedCnic: "42101-*******-1",
-    referenceNumber: "DES-001001",
+    registrationNumber: "DES-001001",
     preferredLocale: "en",
     candidateStatus: "documents_pending",
     currentWorkflowStage: { code: "documents_pending", name: "Documents pending" },
@@ -155,7 +155,7 @@ describe("ProfileScreen", () => {
     expect(screen.getAllByText("\u202ADES-001001\u202C")).toHaveLength(1);
     expect(screen.getByText("Assignment & progress")).toBeOnTheScreen();
     expect(screen.getByText("Preferences & account")).toBeOnTheScreen();
-    expect(screen.getByText("File No.")).toBeOnTheScreen();
+    expect(screen.getByText("Registration / File No.")).toBeOnTheScreen();
     // Only the current status: no separate current-stage or document-verification rows.
     expect(screen.queryByText("Current stage")).toBeNull();
     expect(screen.queryByText("Document verification")).toBeNull();

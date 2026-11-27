@@ -29,7 +29,7 @@ function errorEnvelope(errors: Array<{ code: string; message: string; field?: st
 function paymentPayload(overrides: Record<string, unknown> = {}) {
   return {
     id: 'payment-1',
-    candidate: { id: 'candidate-1', full_name: 'Ahmed Ali', masked_cnic: '42101-*******-1', reference_number: 'DES-001001' },
+    candidate: { id: 'candidate-1', full_name: 'Ahmed Ali', masked_cnic: '42101-*******-1', registration_number: 'DES-001001' },
     payment_type_code: 'onboarding_fee',
     status: 'paid',
     amount: '1500.00',
@@ -37,6 +37,8 @@ function paymentPayload(overrides: Record<string, unknown> = {}) {
     provider: 'kuickpay',
     external_reference: 'KP-77889900',
     voucher_number: '10420261000061939',
+    kuickpay_reference_number: '261000061939',
+    kuickpay_company_reference_number: '10420261000061939',
     reconciliation_state: 'clean',
     paid_at: '2026-09-01T10:05:00Z',
     created_at: '2026-09-01T10:00:00Z',
@@ -121,7 +123,7 @@ describe('createAdminPaymentsClient (real)', () => {
       expect(result.items).toHaveLength(1);
       expect(result.items[0]).toEqual({
         id: 'payment-1',
-        candidate: { id: 'candidate-1', fullName: 'Ahmed Ali', maskedCnic: '42101-*******-1', referenceNumber: 'DES-001001' },
+        candidate: { id: 'candidate-1', fullName: 'Ahmed Ali', maskedCnic: '42101-*******-1', registrationNumber: 'DES-001001' },
         paymentTypeCode: 'onboarding_fee',
         status: 'paid',
         amount: '1500.00',
@@ -129,6 +131,8 @@ describe('createAdminPaymentsClient (real)', () => {
         provider: 'kuickpay',
         externalReference: 'KP-77889900',
         voucherNumber: '10420261000061939',
+        kuickpayReferenceNumber: '261000061939',
+        kuickpayCompanyReferenceNumber: '10420261000061939',
         reconciliationState: 'clean',
         paidAt: '2026-09-01T10:05:00Z',
         createdAt: '2026-09-01T10:00:00Z',

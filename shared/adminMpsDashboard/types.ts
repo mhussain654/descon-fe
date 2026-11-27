@@ -26,7 +26,8 @@ export interface LatestMobilization {
   candidateFullName: string;
   candidatePublicId: string;
   candidateAssignmentPublicId: string;
-  referenceNumber: string;
+  /** The registration (file) number as text; empty until staff add it. */
+  registrationNumber: string;
   countryName: string;
   projectName: string;
   craftName: string;
@@ -36,7 +37,8 @@ export interface LatestMobilization {
 export interface AttentionCandidate {
   candidateFullName: string;
   candidatePublicId: string;
-  referenceNumber: string;
+  /** The registration (file) number as text; empty until staff add it. */
+  registrationNumber: string;
   workflowStageCode: string;
   daysWaiting: number;
   severity: 'critical' | 'delayed';

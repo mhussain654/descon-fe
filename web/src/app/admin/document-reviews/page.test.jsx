@@ -35,7 +35,7 @@ function queueItem(overrides = {}) {
     candidate: { id: "candidate-1", fullName: "Ahmed Ali" },
     assignment: {
       id: "assignment-1",
-      referenceNumber: "REF-100",
+      registrationNumber: "REF-100",
       country: { code: "SA", name: "Saudi Arabia" },
       project: { code: "PRJ-1", name: "Project One" },
       craft: { code: "welder", name: "Welder" },

@@ -305,7 +305,7 @@ describe('CandidateImportForm', () => {
           rejectedRows: 3,
           errors: [
             { row: 2, field: 'craft_code', code: 'unknown_craft_code', value: 'Crane Opereator', message: 'Select a valid craft.' },
-            { row: 3, field: 'reference_number', code: 'missing_value', value: null, message: 'This value is required.' },
+            { row: 3, field: 'registration_number', code: 'missing_value', value: null, message: 'This value is required.' },
             { row: 4, field: 'row', code: 'blank_row', value: null, message: 'This row is blank.' },
           ],
         })

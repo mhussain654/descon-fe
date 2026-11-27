@@ -34,12 +34,13 @@ import type {
   PaymentSummary,
   ReconciliationFinding,
 } from './types';
+import { displayRegistrationNumber } from '../registrationNumber';
 
 interface AdminPaymentCandidateResponse {
   id: string;
   full_name: string;
   masked_cnic: string;
-  reference_number: string;
+  registration_number: number | null;
 }
 
 interface AdminPaymentActorResponse {
@@ -76,6 +77,8 @@ interface AdminPaymentSummaryResponse {
   provider: string;
   external_reference?: string | null;
   voucher_number?: string | null;
+  kuickpay_reference_number?: string | null;
+  kuickpay_company_reference_number?: string | null;
   reconciliation_state: string;
   paid_at?: string | null;
   created_at: string;
@@ -114,7 +117,7 @@ function toCandidateRef(candidate: AdminPaymentCandidateResponse): PaymentCandid
     id: candidate.id,
     fullName: candidate.full_name,
     maskedCnic: candidate.masked_cnic,
-    referenceNumber: candidate.reference_number,
+    registrationNumber: displayRegistrationNumber(candidate.registration_number),
   };
 }
 
@@ -152,6 +155,8 @@ function toSummary(data: AdminPaymentSummaryResponse): PaymentSummary {
     provider: data.provider,
     externalReference: data.external_reference ?? undefined,
     voucherNumber: data.voucher_number ?? undefined,
+    kuickpayReferenceNumber: data.kuickpay_reference_number ?? undefined,
+    kuickpayCompanyReferenceNumber: data.kuickpay_company_reference_number ?? undefined,
     reconciliationState: data.reconciliation_state as PaymentSummary['reconciliationState'],
     paidAt: data.paid_at ?? undefined,
     createdAt: data.created_at,

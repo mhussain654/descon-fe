@@ -109,13 +109,13 @@ export default function ProfilePage() {
             {profile.fullName.charAt(0)}
           </div>
           <div className="text-xl font-semibold text-black">{profile.fullName}</div>
-          <div className="mt-1 text-sm text-gray-500">{profile.referenceNumber ?? notAssignedYet}</div>
+          <div className="mt-1 text-sm text-gray-500">{profile.registrationNumber ?? notAssignedYet}</div>
         </section>
 
         <section className="mb-5 rounded-2xl border border-gray-200 bg-white p-6">
           <h2 className="mb-4 text-lg font-semibold text-black">{t("personalInfo")}</h2>
           <InfoRow icon={User} label={t("candidateProfileMaskedCnicLabel")} value={profile.maskedCnic} />
-          <InfoRow icon={FileText} label={t("candidateProfileReferenceNumberLabel")} value={profile.referenceNumber ?? notAssignedYet} />
+          <InfoRow icon={FileText} label={t("candidateProfileRegistrationNumberLabel")} value={profile.registrationNumber ?? notAssignedYet} />
           <InfoRow icon={MapPin} label={t("candidateProfileBusinessUnitLabel")} value={profile.country?.name ?? notAssignedYet} />
           <InfoRow icon={CheckCircle} label={t("candidateProfileStatusLabel")} value={candidateStatusLabel(profile)} />
           <InfoRow

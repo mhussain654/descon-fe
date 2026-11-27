@@ -19,6 +19,8 @@ export interface UpdateCandidateFormValues {
   projectCode?: string;
   craftCode?: string;
   campaignId?: string;
+  /** Set or change at any stage; an empty string clears it. */
+  registrationNumber?: string;
 }
 
 /**

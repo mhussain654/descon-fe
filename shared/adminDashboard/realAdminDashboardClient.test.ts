@@ -52,14 +52,14 @@ const dashboardPayload = {
   average_stage_duration_days: 4.2,
   requires_attention: [{ code: 'rejected_documents', count: 3 }],
   upcoming_activities: [
-    { type: 'qvc_appointment', occurs_on: '2026-09-10', candidate_assignment_public_id: 'assignment-1', reference_number: 'REF-000123' },
+    { type: 'qvc_appointment', occurs_on: '2026-09-10', candidate_assignment_public_id: 'assignment-1', registration_number: 'REF-000123' },
   ],
   recently_updated_candidates: [
     {
       candidate_full_name: 'Ahmed Khan',
       candidate_public_id: 'candidate-1',
       candidate_assignment_public_id: 'assignment-1',
-      reference_number: 'REF-000123',
+      registration_number: 'REF-000123',
       workflow_stage_code: 'under_verification',
       last_updated_at: '2026-09-04T09:48:00Z',
     },
@@ -94,14 +94,14 @@ describe('createAdminDashboardClient (real)', () => {
         averageStageDurationDays: 4.2,
         requiresAttention: [{ code: 'rejected_documents', count: 3 }],
         upcomingActivities: [
-          { type: 'qvc_appointment', occursOn: '2026-09-10', candidateAssignmentPublicId: 'assignment-1', referenceNumber: 'REF-000123' },
+          { type: 'qvc_appointment', occursOn: '2026-09-10', candidateAssignmentPublicId: 'assignment-1', registrationNumber: 'REF-000123' },
         ],
         recentlyUpdatedCandidates: [
           {
             candidateFullName: 'Ahmed Khan',
             candidatePublicId: 'candidate-1',
             candidateAssignmentPublicId: 'assignment-1',
-            referenceNumber: 'REF-000123',
+            registrationNumber: 'REF-000123',
             workflowStageCode: 'under_verification',
             lastUpdatedAt: '2026-09-04T09:48:00Z',
           },

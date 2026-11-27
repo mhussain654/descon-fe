@@ -87,7 +87,7 @@ export function ProfileDetails({ profile, journey, language, t }: LocaleProps & 
       <View style={profileStyles.card}>
         <Text accessibilityRole="header" style={[profileStyles.sectionTitle, copyStyle(language), { fontFamily: getFontFamily(language, 'bold') }]}>{t('personalInfo')}</Text>
         <ProfileInfoRow icon={IdCard} tone="purple" label={t('candidateProfileMaskedCnicLabel')} value={profile.maskedCnic} language={language} identifier />
-        <ProfileInfoRow icon={FileText} tone="blue" label={t('candidateProfileReferenceNumberLabel')} value={profile.referenceNumber ?? unassigned} language={language} identifier={Boolean(profile.referenceNumber)} />
+        <ProfileInfoRow icon={FileText} tone="blue" label={t('candidateProfileRegistrationNumberLabel')} value={profile.registrationNumber ?? unassigned} language={language} identifier={Boolean(profile.registrationNumber)} />
         <ProfileEmailRow email={profile.email} language={language} t={t} />
       </View>
       <View style={profileStyles.card}>

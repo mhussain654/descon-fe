@@ -46,7 +46,7 @@ function candidate(overrides = {}) {
     updatedAt: "2026-08-20T10:00:00Z",
     assignment: {
       id: "assignment-1",
-      referenceNumber: "DES-000123",
+      registrationNumber: "DES-000123",
       country: { code: "qatar", name: "Qatar" },
       project: { code: "qatar_infrastructure", name: "Qatar Infrastructure" },
       craft: { code: "electrician", name: "Electrician" },
@@ -383,11 +383,11 @@ describe("AdminCandidateListPage", () => {
       renderAt("/admin", client);
 
       const sortSelect = await screen.findByLabelText("Sort by");
-      fireEvent.change(sortSelect, { target: { value: "-reference_number" } });
+      fireEvent.change(sortSelect, { target: { value: "-registration_number" } });
 
       await waitFor(() => {
         const [, sort] = adminCandidateClient.listCandidates.mock.calls.at(-1);
-        expect(sort).toBe("-reference_number");
+        expect(sort).toBe("-registration_number");
       });
     });
 

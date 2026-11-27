@@ -18,13 +18,14 @@ import type {
   ProfilePhotoErrorCode,
   ProfileEmailError,
 } from './types';
+import { displayRegistrationNumber } from '../registrationNumber';
 
 interface CandidateProfileResponse {
   id: string;
   full_name: string;
   masked_cnic: string;
   email?: string | null;
-  reference_number: string | null;
+  registration_number: number | null;
   preferred_locale: 'en' | 'ur';
   candidate_status: string;
   current_workflow_stage: { code: string; name: string } | null;
@@ -62,7 +63,7 @@ function toProfile(data: CandidateProfileResponse): CandidateProfile {
     fullName: data.full_name,
     maskedCnic: data.masked_cnic,
     email: data.email ?? null,
-    referenceNumber: data.reference_number,
+    registrationNumber: displayRegistrationNumber(data.registration_number) || null,
     preferredLocale: data.preferred_locale,
     candidateStatus: data.candidate_status,
     currentWorkflowStage: data.current_workflow_stage,

@@ -71,7 +71,7 @@ function profilePayload(overrides = {}) {
     id: "candidate-public-id-1",
     fullName: "Ahmed Ali",
     maskedCnic: "42101-*******-1",
-    referenceNumber: "DES-001001",
+    registrationNumber: "DES-001001",
     preferredLocale: "en",
     candidateStatus: "documents_pending",
     currentWorkflowStage: { code: "documents_pending", name: "Documents pending" },
@@ -200,7 +200,7 @@ describe("ProfilePage", () => {
 
   it("shows the empty-assignment label for both reference number and workflow stage when the candidate has no assignment yet", async () => {
     candidateProfileClient.getProfile.mockResolvedValue(
-      profilePayload({ referenceNumber: null, currentWorkflowStage: null })
+      profilePayload({ registrationNumber: null, currentWorkflowStage: null })
     );
     await signInAndNavigateToProfile();
 

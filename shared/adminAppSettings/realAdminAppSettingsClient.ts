@@ -56,6 +56,8 @@ export function toAdminAppSettings(data: AdminAppSettingsResponse): AdminAppSett
   return {
     enabled: switchMap((field) => data[`${field}_enabled`]),
     serverReady: switchMap((field) => data.server_ready?.[field]),
+    voucherDueDays: typeof data.voucher_due_days === 'number' ? data.voucher_due_days : 15,
+    voucherGraceDays: typeof data.voucher_grace_days === 'number' ? data.voucher_grace_days : 2,
     updatedBy: data.updated_by ? { id: data.updated_by.id, role: data.updated_by.role } : undefined,
     updatedAt: data.updated_at,
   };
@@ -67,6 +69,8 @@ function toRequestBody(input: AdminAppSettingsUpdateInput): Record<string, unkno
     const value = input.enabled[key];
     if (value !== undefined) body[`${SWITCH_FIELDS[key]}_enabled`] = value;
   }
+  if (input.voucherDueDays !== undefined) body.voucher_due_days = input.voucherDueDays;
+  if (input.voucherGraceDays !== undefined) body.voucher_grace_days = input.voucherGraceDays;
   return { app_feature_setting: body };
 }
 

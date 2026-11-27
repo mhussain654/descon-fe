@@ -18,7 +18,8 @@ export interface CommunicationActorRef {
 /** The candidate assignment a communication is about -- absent only for an inbound communication that never resolved to a known assignment (e.g. an unidentified inbound AI call). */
 export interface CommunicationAssignmentRef {
   id: string;
-  referenceNumber: string;
+  /** The registration (file) number as text; empty until staff add it. */
+  registrationNumber: string;
   candidateId: string;
 }
 

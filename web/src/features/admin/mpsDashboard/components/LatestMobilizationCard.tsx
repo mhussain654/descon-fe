@@ -36,7 +36,7 @@ export function LatestMobilizationCard({
               <Badge tone="success">{t('mpsDashboardLatestMobilizationCompleted')}</Badge>
             </div>
             <p className="text-xs text-text-secondary">
-              {latestMobilization.referenceNumber} · {latestMobilization.projectName} · {latestMobilization.countryName} ·{' '}
+              {latestMobilization.registrationNumber} · {latestMobilization.projectName} · {latestMobilization.countryName} ·{' '}
               {latestMobilization.craftName}
             </p>
             <p className="mt-1 text-xs text-text-secondary">{formatDate(latestMobilization.mobilizedAt, language)}</p>

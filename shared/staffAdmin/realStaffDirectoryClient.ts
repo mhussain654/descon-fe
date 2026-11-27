@@ -99,7 +99,13 @@ export function createStaffDirectoryClient(options: RealStaffDirectoryClientOpti
       const data = await authedRequest((token) =>
         apiClient.post<{ user: StaffMemberResponse; message: string }>(
           '/users',
-          { user: { email: input.email, role: input.role } },
+          {
+            user: {
+              email: input.email,
+              role: input.role,
+              ...(input.password ? { password: input.password, password_confirmation: input.passwordConfirmation ?? '' } : {}),
+            },
+          },
           { headers: { Authorization: `Bearer ${token}`, 'X-Locale': getLocale() } }
         )
       );

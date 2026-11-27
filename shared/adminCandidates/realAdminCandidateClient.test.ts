@@ -71,7 +71,7 @@ function candidateDetailResponse(overrides: Record<string, unknown> = {}) {
     updated_at: '2026-08-30T09:00:00Z',
     assignment: {
       id: 'assignment-1',
-      reference_number: 'DES-000123',
+      registration_number: 500123,
       country: { code: 'qatar', name: 'Qatar' },
       project: { code: 'qatar_infrastructure', name: 'Qatar Infrastructure' },
       craft: { code: 'electrician', name: 'Electrician' },
@@ -119,7 +119,7 @@ describe('createAdminCandidateClient (real)', () => {
         updatedAt: '2026-08-30T09:00:00Z',
         assignment: {
           id: 'assignment-1',
-          referenceNumber: 'DES-000123',
+          registrationNumber: 500123,
           country: { code: 'qatar', name: 'Qatar' },
           project: { code: 'qatar_infrastructure', name: 'Qatar Infrastructure' },
           craft: { code: 'electrician', name: 'Electrician' },
@@ -269,7 +269,7 @@ describe('createAdminCandidateClient (real)', () => {
         countryCode: 'qatar',
         projectCode: 'qatar_infrastructure',
         craftCode: 'electrician',
-        referenceNumber: 'DES-000123',
+        registrationNumber: '500123',
         idempotencyKey: 'idem-create-1',
       });
 
@@ -285,7 +285,7 @@ describe('createAdminCandidateClient (real)', () => {
           country_code: 'qatar',
           project_code: 'qatar_infrastructure',
           craft_code: 'electrician',
-          reference_number: 'DES-000123',
+          registration_number: '500123',
         },
       });
       expect(body.candidate).not.toHaveProperty('passport_number');
@@ -308,7 +308,7 @@ describe('createAdminCandidateClient (real)', () => {
         countryCode: 'qatar',
         projectCode: 'qatar_infrastructure',
         craftCode: 'electrician',
-        referenceNumber: 'DES-000123',
+        registrationNumber: '500123',
         idempotencyKey: 'idem-create-2',
       });
 
@@ -332,7 +332,7 @@ describe('createAdminCandidateClient (real)', () => {
         countryCode: 'qatar',
         projectCode: 'qatar_infrastructure',
         craftCode: 'electrician',
-        referenceNumber: 'DES-000123',
+        registrationNumber: '500123',
         idempotencyKey: 'idem-create-nok',
       });
 
@@ -360,7 +360,7 @@ describe('createAdminCandidateClient (real)', () => {
         countryCode: 'qatar',
         projectCode: 'qatar_infrastructure',
         craftCode: 'electrician',
-        referenceNumber: 'DES-000123',
+        registrationNumber: '500123',
         idempotencyKey: 'idem-create-no-nok',
       });
 
@@ -388,7 +388,7 @@ describe('createAdminCandidateClient (real)', () => {
           countryCode: 'qatar',
           projectCode: 'qatar_infrastructure',
           craftCode: 'electrician',
-          referenceNumber: 'DES-000123',
+          registrationNumber: '500123',
           idempotencyKey: 'idem-create-nok-error',
         })
       ).rejects.toEqual({
@@ -415,7 +415,7 @@ describe('createAdminCandidateClient (real)', () => {
           countryCode: 'qatar',
           projectCode: 'qatar_infrastructure',
           craftCode: 'electrician',
-          referenceNumber: 'DES-000123',
+          registrationNumber: '500123',
           idempotencyKey: 'idem-create-3',
         })
       ).rejects.toEqual({ code: 'DUPLICATE_CNIC', message: 'A candidate with this CNIC already exists.', field: 'cnic' });

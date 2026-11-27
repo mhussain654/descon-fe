@@ -36,7 +36,7 @@ function communicationPayload(overrides: Record<string, unknown> = {}) {
     locale: 'en',
     candidate_assignment: {
       id: 'd8805480-7d1b-4ef4-aee6-c76dd026e3e4',
-      reference_number: 'REF-1001',
+      registration_number: 'REF-1001',
       candidate_id: 'bbe3e0b4-9237-4e8d-9bd7-04fe0e9ce8dd',
     },
     initiated_by: { id: '7fbe6381-916c-4e6e-9d13-09b496d11ba5', role: 'admin' },
@@ -127,7 +127,7 @@ describe('createAdminCommunicationsClient (real)', () => {
           locale: 'en',
           candidateAssignment: {
             id: 'd8805480-7d1b-4ef4-aee6-c76dd026e3e4',
-            referenceNumber: 'REF-1001',
+            registrationNumber: 'REF-1001',
             candidateId: 'bbe3e0b4-9237-4e8d-9bd7-04fe0e9ce8dd',
           },
           initiatedBy: { id: '7fbe6381-916c-4e6e-9d13-09b496d11ba5', role: 'admin' },

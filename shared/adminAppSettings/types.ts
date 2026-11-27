@@ -36,15 +36,25 @@ export interface AppSettingsActorRef {
   role: string;
 }
 
+/** Allowed ranges for the KuickPay voucher dates (the backend enforces the same). */
+export const VOUCHER_DUE_DAYS_RANGE = { min: 1, max: 60 } as const;
+export const VOUCHER_GRACE_DAYS_RANGE = { min: 0, max: 15 } as const;
+
 export interface AdminAppSettings {
   enabled: Record<AppFeatureSwitch, boolean>;
   serverReady: Record<AppFeatureSwitch, boolean>;
+  /** KuickPay voucher due date = issue date + these days. */
+  voucherDueDays: number;
+  /** Expiry (last payable day) = due date + these days; no late fee. */
+  voucherGraceDays: number;
   updatedBy?: AppSettingsActorRef;
   updatedAt: string;
 }
 
 export interface AdminAppSettingsUpdateInput {
   enabled: Partial<Record<AppFeatureSwitch, boolean>>;
+  voucherDueDays?: number;
+  voucherGraceDays?: number;
 }
 
 export interface SmsTemplate {

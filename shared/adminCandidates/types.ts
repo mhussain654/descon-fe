@@ -14,7 +14,8 @@ export interface ReferenceDataItem {
 
 export interface AdminCandidateAssignmentSummary {
   id: string;
-  referenceNumber: string;
+  /** The client's registration (file) number, unique across the organisation; null until staff add it. */
+  registrationNumber: number | null;
   country: ReferenceDataItem;
   project: ReferenceDataItem;
   craft: ReferenceDataItem;
@@ -97,7 +98,8 @@ export interface CreateCandidateInput {
   countryCode: string;
   projectCode: string;
   craftCode: string;
-  referenceNumber: string;
+  /** Optional whole number, unique across the organisation; empty for none. */
+  registrationNumber: string;
   /** Required: the campaign the candidate goes into (its country must match). */
   campaignId: string;
   idempotencyKey: string;
@@ -107,8 +109,8 @@ export interface CreateCandidateInput {
  * Every field but `candidateId` is optional -- only fields actually being
  * changed should be set, since the real client only sends the keys present
  * on this object (never defaulting an omitted field to null/blank). `cnic`
- * and `referenceNumber` are never accepted here; both are immutable once the
- * candidate is created. `countryCode`/`projectCode`/`craftCode` are only
+ * is never accepted here; it is immutable once the candidate is created.
+ * `registrationNumber` can be changed at any stage. `countryCode`/`projectCode`/`craftCode` are only
  * accepted by the backend while the candidate's assignment has not moved
  * past `documents_pending` -- submitting them later surfaces
  * ASSIGNMENT_FIELD_LOCKED.
@@ -129,6 +131,8 @@ export interface UpdateCandidateInput {
   craftCode?: string;
   /** Moves the candidate to another campaign (same lock as country/project/craft; countries must match). */
   campaignId?: string;
+  /** Sets or changes the registration (file) number at any stage; an empty string clears it. */
+  registrationNumber?: string;
   /** Echo the detail response's own `updatedAt` to guard against overwriting a concurrent change. */
   expectedUpdatedAt?: string;
 }
@@ -141,7 +145,7 @@ export type AdminCandidateErrorCode =
   | 'VALIDATION_ERROR'
   | 'DUPLICATE_CNIC'
   | 'DUPLICATE_PASSPORT_NUMBER'
-  | 'DUPLICATE_REFERENCE_NUMBER'
+  | 'DUPLICATE_REGISTRATION_NUMBER'
   | 'ASSIGNMENT_FIELD_LOCKED'
   | 'STALE_CANDIDATE'
   | 'IDEMPOTENCY_CONFLICT'
@@ -162,7 +166,7 @@ export interface AdminCandidateError {
   code: AdminCandidateErrorCode;
   /** The backend's own already-localized message, when present -- prefer this over a hardcoded translation for VALIDATION_ERROR, DUPLICATE_* codes, and ASSIGNMENT_FIELD_LOCKED, which cover many distinct underlying reasons. */
   message?: string;
-  /** The field the first envelope error applies to, for form-level mapping (e.g. 'cnic', 'passport_number', 'reference_number', 'country_code'). */
+  /** The field the first envelope error applies to, for form-level mapping (e.g. 'cnic', 'passport_number', 'registration_number', 'country_code'). */
   field?: string;
   retryAfterSeconds?: number;
 }
@@ -191,7 +195,7 @@ export interface AdminCandidateListFilters extends RegisteredDateRange {
 export type AdminCandidateBoardingPassFilter = 'uploaded' | 'missing';
 
 /** Matches Admin::Candidates::IndexQuery::ALLOWED_SORTS exactly -- a leading `-` means descending, mirroring the backend's own convention. */
-export type AdminCandidateListSort = 'created_at' | '-created_at' | 'full_name' | '-full_name' | 'reference_number' | '-reference_number';
+export type AdminCandidateListSort = 'created_at' | '-created_at' | 'full_name' | '-full_name' | 'registration_number' | '-registration_number';
 
 export interface AdminCandidateListPage {
   number?: number;

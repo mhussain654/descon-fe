@@ -35,7 +35,8 @@ export interface CandidateProfile {
   /** The candidate's own email address, which staff use for mailing; null until they add one. */
   email: string | null;
   /** Null when the candidate has no assignment yet (same condition as `currentWorkflowStage` being null -- both come from the same, not-yet-created CandidateAssignment). */
-  referenceNumber: string | null;
+  /** The registration (file) number as text; empty until staff add it. */
+  registrationNumber: string | null;
   preferredLocale: 'en' | 'ur';
   /** A backend status code (e.g. "registered") -- map to a localized label at render time, never render the raw code (AGENTS.md: "Do not translate identifiers ... directly"). */
   candidateStatus: string;

@@ -54,7 +54,7 @@ function fillValidForm() {
   fireEvent.change(screen.getByLabelText("Country"), { target: { value: "qatar" } });
   fireEvent.change(screen.getByLabelText("Project"), { target: { value: "qatar_infrastructure" } });
   fireEvent.change(screen.getByLabelText("Craft"), { target: { value: "electrician" } });
-  fireEvent.change(screen.getByLabelText("Reference number"), { target: { value: "DES-000123" } });
+  fireEvent.change(screen.getByLabelText("Registration / File number"), { target: { value: "500123" } });
 }
 
 describe("CandidateCreateForm", () => {
@@ -113,7 +113,6 @@ describe("CandidateCreateForm", () => {
     expect(screen.getByText("Select a country.")).toBeInTheDocument();
     expect(screen.getByText("Select a project.")).toBeInTheDocument();
     expect(screen.getByText("Select a craft.")).toBeInTheDocument();
-    expect(screen.getByText("Enter the assignment reference number.")).toBeInTheDocument();
     expect(adminCandidateClient.createCandidate).not.toHaveBeenCalled();
   });
 
@@ -146,7 +145,7 @@ describe("CandidateCreateForm", () => {
           countryCode: "qatar",
           projectCode: "qatar_infrastructure",
           craftCode: "electrician",
-          referenceNumber: "DES-000123",
+          registrationNumber: "500123",
         })
       )
     );

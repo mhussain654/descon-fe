@@ -11,7 +11,7 @@ import { readRegisteredDateRange, writeRegisteredDateRange } from '../../../../.
 
 export const DEFAULT_PAGE_SIZE = 20;
 
-const SORTS = ['created_at', '-created_at', 'full_name', '-full_name', 'reference_number', '-reference_number'] as const;
+const SORTS = ['created_at', '-created_at', 'full_name', '-full_name', 'registration_number', '-registration_number'] as const;
 
 function isCandidateListSort(value: string): value is AdminCandidateListSort {
   return (SORTS as readonly string[]).includes(value);

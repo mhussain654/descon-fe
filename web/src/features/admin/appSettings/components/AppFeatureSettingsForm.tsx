@@ -1,17 +1,20 @@
 import { useEffect, useState } from 'react';
 import { useLanguage } from '../../../../contexts/LanguageContext';
 import { useStaffAuth } from '../../../../contexts/StaffAuthContext';
-import { Badge, Button, Card, ErrorState, ForbiddenState, HelperText, LoadingState, OfflineState, ValidationMessage } from '../../../../design-system';
+import { Badge, Button, Card, ErrorState, ForbiddenState, HelperText, Input, LoadingState, OfflineState, ValidationMessage } from '../../../../design-system';
 import { formatDate } from '../../../../../../shared/i18n/locale';
 import type { TranslationKey } from '../../../../../../shared/i18n/translations';
 import type { AdminAppSettings, AppFeatureSwitch } from '../../../../lib/admin-app-settings-client';
+import { VOUCHER_DUE_DAYS_RANGE, VOUCHER_GRACE_DAYS_RANGE } from '../../../../../../shared/adminAppSettings/types';
 import { useAppSettings } from '../hooks/useAppSettings';
 import { useUpdateAppSettings } from '../hooks/useUpdateAppSettings';
-import { CreditCard, FileSearch, MessageSquare, PhoneCall, Save } from 'lucide-react';
+import { CalendarClock, CreditCard, FileSearch, MessageSquare, PhoneCall, Save } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 
 interface Draft {
   enabled: Record<AppFeatureSwitch, boolean>;
+  voucherDueDays: string;
+  voucherGraceDays: string;
 }
 
 const SECTIONS: { titleKey: TranslationKey; icon: LucideIcon; switches: AppFeatureSwitch[] }[] = [
@@ -22,7 +25,19 @@ const SECTIONS: { titleKey: TranslationKey; icon: LucideIcon; switches: AppFeatu
 ];
 
 function draftFrom(settings: AdminAppSettings): Draft {
-  return { enabled: { ...settings.enabled } };
+  return {
+    enabled: { ...settings.enabled },
+    voucherDueDays: String(settings.voucherDueDays),
+    voucherGraceDays: String(settings.voucherGraceDays),
+  };
+}
+
+/** A whole number within the range, or null. */
+function dayCount(value: string, range: { min: number; max: number }): number | null {
+  const text = value.trim();
+  if (!/^\d+$/.test(text)) return null;
+  const number = Number(text);
+  return number >= range.min && number <= range.max ? number : null;
 }
 
 function switchKey(name: AppFeatureSwitch, part: 'Label' | 'Description'): TranslationKey {
@@ -104,6 +119,12 @@ export function AppFeatureSettingsForm() {
   const setSwitch = (name: AppFeatureSwitch, value: boolean) =>
     setDraft({ ...draft, enabled: { ...draft.enabled, [name]: value } });
   const errorMessage = mutation.isError ? mutation.error.message || t('somethingWentWrong') : undefined;
+  const dueDays = dayCount(draft.voucherDueDays, VOUCHER_DUE_DAYS_RANGE);
+  const graceDays = dayCount(draft.voucherGraceDays, VOUCHER_GRACE_DAYS_RANGE);
+  const save = () => {
+    if (dueDays === null || graceDays === null) return;
+    mutation.mutate({ enabled: draft.enabled, voucherDueDays: dueDays, voucherGraceDays: graceDays });
+  };
 
   return (
     <Card className="overflow-hidden p-0">
@@ -129,6 +150,37 @@ export function AppFeatureSettingsForm() {
             </div>
           </section>
         ))}
+        <section aria-labelledby="app-settings-voucher-dates" className="px-5 py-4">
+          <h2 id="app-settings-voucher-dates" className="flex items-center gap-2 font-semibold text-text-primary">
+            <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-brand-subtle text-brand"><CalendarClock className="h-4 w-4" aria-hidden="true" /></span>
+            {t('adminAppSettingsVoucherDatesSection')}
+          </h2>
+          <p className="mt-1 text-xs text-text-secondary">{t('adminAppSettingsVoucherDatesDescription')}</p>
+          <div className="mt-3 grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <Input
+              label={t('adminAppSettingsVoucherDueDaysLabel')}
+              type="number"
+              inputMode="numeric"
+              min={VOUCHER_DUE_DAYS_RANGE.min}
+              max={VOUCHER_DUE_DAYS_RANGE.max}
+              value={draft.voucherDueDays}
+              onChange={(event) => setDraft({ ...draft, voucherDueDays: event.target.value })}
+              helperText={t('adminAppSettingsVoucherDueDaysHelp')}
+              errorMessage={dueDays === null ? t('adminAppSettingsVoucherDueDaysError') : undefined}
+            />
+            <Input
+              label={t('adminAppSettingsVoucherGraceDaysLabel')}
+              type="number"
+              inputMode="numeric"
+              min={VOUCHER_GRACE_DAYS_RANGE.min}
+              max={VOUCHER_GRACE_DAYS_RANGE.max}
+              value={draft.voucherGraceDays}
+              onChange={(event) => setDraft({ ...draft, voucherGraceDays: event.target.value })}
+              helperText={t('adminAppSettingsVoucherGraceDaysHelp')}
+              errorMessage={graceDays === null ? t('adminAppSettingsVoucherGraceDaysError') : undefined}
+            />
+          </div>
+        </section>
       </div>
 
       <div className="space-y-3 border-t border-border-subtle px-5 py-4">
@@ -139,7 +191,7 @@ export function AppFeatureSettingsForm() {
             {settings.updatedBy ? `${settings.updatedBy.role} (${settings.updatedBy.id})` : t('adminCommunicationSystemActor')} ·{' '}
             {formatDate(settings.updatedAt, language, { dateStyle: 'medium', timeStyle: 'short' })}
           </HelperText>
-          <Button onClick={() => mutation.mutate(draft)} loading={mutation.isPending}>
+          <Button onClick={save} loading={mutation.isPending} disabled={dueDays === null || graceDays === null}>
             <Save className="me-1.5 h-4 w-4" />
             {t('adminAppSettingsSaveAction')}
           </Button>

@@ -44,14 +44,14 @@ function buildSummary(overrides: Partial<AdminDashboardSummary> = {}): AdminDash
       { code: 'callback_required', count: 1 },
     ],
     upcomingActivities: [
-      { type: 'qvc_appointment', occursOn: '2026-09-25', candidateAssignmentPublicId: 'assignment-1', referenceNumber: 'REF-000123' },
+      { type: 'qvc_appointment', occursOn: '2026-09-25', candidateAssignmentPublicId: 'assignment-1', registrationNumber: 'REF-000123' },
     ],
     recentlyUpdatedCandidates: [
       {
         candidateFullName: 'Ahmed Khan',
         candidatePublicId: 'candidate-1',
         candidateAssignmentPublicId: 'assignment-2',
-        referenceNumber: 'REF-000456',
+        registrationNumber: 'REF-000456',
         workflowStageCode: 'under_verification',
         lastUpdatedAt: '2026-09-18T09:48:00Z',
       },

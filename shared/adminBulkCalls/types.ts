@@ -41,7 +41,8 @@ export interface BulkCallLastCall {
 export interface BulkCallCandidateRow {
   id: string;
   fullName: string;
-  referenceNumber?: string;
+  /** The registration (file) number as text; empty until staff add it. */
+  registrationNumber?: string;
   mobileNumberMasked: string;
   callState: BulkCallState;
   lastCall?: BulkCallLastCall;

@@ -18,7 +18,6 @@ export const REQUIRED_HEADERS = [
   'full_name',
   'cnic',
   'mobile_number',
-  'reference_number',
   'candidate_status',
   'workflow_stage_code',
   'country_code',

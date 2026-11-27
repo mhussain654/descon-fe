@@ -31,7 +31,7 @@ function profilePayload(overrides: Record<string, unknown> = {}) {
     id: 'candidate-public-id-1',
     full_name: 'Ahmed Ali',
     masked_cnic: '42101-*******-1',
-    reference_number: 'DES-001001',
+    registration_number: 'DES-001001',
     preferred_locale: 'en',
     candidate_status: 'registered',
     current_workflow_stage: { code: 'registered', name: 'Registered' },
@@ -67,7 +67,7 @@ describe('createCandidateProfileClient (real)', () => {
       fullName: 'Ahmed Ali',
       maskedCnic: '42101-*******-1',
       email: null,
-      referenceNumber: 'DES-001001',
+      registrationNumber: 'DES-001001',
       preferredLocale: 'en',
       candidateStatus: 'registered',
       currentWorkflowStage: { code: 'registered', name: 'Registered' },
@@ -158,15 +158,15 @@ describe('createCandidateProfileClient (real)', () => {
     expect(profile.currentWorkflowStage).toBeNull();
   });
 
-  it('maps a null reference_number alongside a null current_workflow_stage through unchanged (candidate has no assignment yet)', async () => {
+  it('maps a null registration_number alongside a null current_workflow_stage through unchanged (candidate has no assignment yet)', async () => {
     stubFetch(async () =>
-      jsonResponse(successEnvelope(profilePayload({ reference_number: null, current_workflow_stage: null })))
+      jsonResponse(successEnvelope(profilePayload({ registration_number: null, current_workflow_stage: null })))
     );
 
     const client = buildClient();
     const profile = await client.getProfile('token');
 
-    expect(profile.referenceNumber).toBeNull();
+    expect(profile.registrationNumber).toBeNull();
     expect(profile.currentWorkflowStage).toBeNull();
   });
 

@@ -139,6 +139,11 @@ describe('createStaffDirectoryClient (real)', () => {
       const body = JSON.parse(seenInit?.body as string);
       expect(body).toEqual({ user: { email: 'new@descon.com', role: 'hr' } });
       expect(invited).toEqual({ id: 'staff-2', email: 'new@descon.com', role: 'hr', status: 'invited', createdAt: '2026-06-01T00:00:00Z' });
+
+      await client.inviteStaff({ email: 'new@descon.com', role: 'hr', password: 'Direct-Account-9', passwordConfirmation: 'Direct-Account-9' });
+      expect(JSON.parse(seenInit?.body as string)).toEqual({
+        user: { email: 'new@descon.com', role: 'hr', password: 'Direct-Account-9', password_confirmation: 'Direct-Account-9' },
+      });
     });
 
     it('rejects a duplicate email with the backend-localized field-addressable message', async () => {

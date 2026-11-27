@@ -19,6 +19,7 @@ import type {
   MpsDashboardSummary,
   TrendGranularity,
 } from './types';
+import { displayRegistrationNumber } from '../registrationNumber';
 
 export interface RealAdminMpsDashboardClientOptions {
   apiClient: ApiClient;
@@ -37,7 +38,7 @@ interface LatestMobilizationResponse {
   candidate_full_name: string;
   candidate_public_id: string;
   candidate_assignment_public_id: string;
-  reference_number: string;
+  registration_number: number | null;
   country_name: string;
   project_name: string;
   craft_name: string;
@@ -46,7 +47,7 @@ interface LatestMobilizationResponse {
 
 interface DashboardResponse {
   attention_candidates?: {
-    candidate_full_name: string; candidate_public_id: string; reference_number: string;
+    candidate_full_name: string; candidate_public_id: string; registration_number: number | null;
     workflow_stage_code: string; days_waiting: number; severity: 'critical' | 'delayed';
   }[];
   workflow_stage_queue: StatusSummaryRow[];
@@ -65,7 +66,7 @@ function toLatestMobilization(row: LatestMobilizationResponse | null): LatestMob
     candidateFullName: row.candidate_full_name,
     candidatePublicId: row.candidate_public_id,
     candidateAssignmentPublicId: row.candidate_assignment_public_id,
-    referenceNumber: row.reference_number,
+    registrationNumber: displayRegistrationNumber(row.registration_number),
     countryName: row.country_name,
     projectName: row.project_name,
     craftName: row.craft_name,
@@ -77,7 +78,7 @@ function toDashboard(data: DashboardResponse): MpsDashboardSummary {
   return {
     attentionCandidates: data.attention_candidates?.map((row) => ({
       candidateFullName: row.candidate_full_name, candidatePublicId: row.candidate_public_id,
-      referenceNumber: row.reference_number, workflowStageCode: row.workflow_stage_code,
+      registrationNumber: displayRegistrationNumber(row.registration_number), workflowStageCode: row.workflow_stage_code,
       daysWaiting: row.days_waiting, severity: row.severity,
     })),
     workflowStageQueue: data.workflow_stage_queue,

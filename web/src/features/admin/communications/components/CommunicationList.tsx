@@ -106,7 +106,7 @@ export function CommunicationList() {
       render: (row) =>
         row.candidateAssignment ? (
           <Link to={`/admin/candidates/${row.candidateAssignment.candidateId}`} className="font-medium text-brand hover:underline">
-            {row.candidateAssignment.referenceNumber}
+            {row.candidateAssignment.registrationNumber}
           </Link>
         ) : (
           <span className="text-text-tertiary">—</span>

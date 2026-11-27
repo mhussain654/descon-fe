@@ -38,6 +38,8 @@ function settings(overrides: Record<string, unknown> = {}) {
   return {
     enabled: allOn,
     serverReady: { ...allOn, documentOcr: false },
+    voucherDueDays: 15,
+    voucherGraceDays: 2,
     updatedBy: undefined,
     updatedAt: "2026-10-29T09:00:00Z",
     ...overrides,
@@ -73,7 +75,29 @@ describe("AppFeatureSettingsForm", () => {
     await waitFor(() =>
       expect(adminAppSettingsClient.updateAppSettings).toHaveBeenCalledWith({
         enabled: expect.objectContaining({ voucherPayment: false, cardPayment: true, progressSms: false }),
+        voucherDueDays: 15,
+        voucherGraceDays: 2,
       })
+    );
+  });
+
+  it("saves the voucher due and grace days, and will not save a value out of range", async () => {
+    vi.mocked(adminAppSettingsClient.getAppSettings).mockResolvedValue(settings());
+    vi.mocked(adminAppSettingsClient.updateAppSettings).mockResolvedValue(settings());
+
+    await renderForm();
+    fireEvent.change(await screen.findByLabelText("Grace days after due date"), { target: { value: "16" } });
+    expect(screen.getByText("Enter a whole number from 0 to 15.")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Save" })).toBeDisabled();
+
+    fireEvent.change(screen.getByLabelText("Grace days after due date"), { target: { value: "3" } });
+    fireEvent.change(screen.getByLabelText("Days until due date"), { target: { value: "10" } });
+    fireEvent.click(screen.getByRole("button", { name: "Save" }));
+
+    await waitFor(() =>
+      expect(adminAppSettingsClient.updateAppSettings).toHaveBeenCalledWith(
+        expect.objectContaining({ voucherDueDays: 10, voucherGraceDays: 3 })
+      )
     );
   });
 

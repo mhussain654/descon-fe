@@ -196,7 +196,7 @@ export function SubmissionDetail({ submissionId, embedded = false }: SubmissionD
           <dl className="grid grid-cols-2 gap-4 text-sm sm:grid-cols-3">
             <div>
               <dt className="text-text-tertiary">{t('adminDocumentReviewColumnAssignment')}</dt>
-              <dd className="font-medium text-text-primary">{detail.assignment.referenceNumber}</dd>
+              <dd className="font-medium text-text-primary">{detail.assignment.registrationNumber}</dd>
             </div>
             <div>
               <dt className="text-text-tertiary">{t('adminDocumentReviewColumnProject')}</dt>

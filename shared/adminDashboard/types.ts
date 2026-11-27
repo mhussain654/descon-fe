@@ -37,14 +37,16 @@ export interface UpcomingActivityRow {
   type: UpcomingActivityType;
   occursOn: string;
   candidateAssignmentPublicId: string;
-  referenceNumber: string;
+  /** The registration (file) number as text; empty until staff add it. */
+  registrationNumber: string;
 }
 
 export interface RecentlyUpdatedCandidateRow {
   candidateFullName: string;
   candidatePublicId: string;
   candidateAssignmentPublicId: string;
-  referenceNumber: string;
+  /** The registration (file) number as text; empty until staff add it. */
+  registrationNumber: string;
   workflowStageCode: string;
   lastUpdatedAt: string;
 }

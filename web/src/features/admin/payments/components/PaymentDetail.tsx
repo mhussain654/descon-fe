@@ -116,8 +116,8 @@ export function PaymentDetail({ paymentId }: PaymentDetailProps) {
             </dd>
           </div>
           <div>
-            <dt className="text-xs text-text-tertiary">{t('adminFinancePaymentReferenceLabel')}</dt>
-            <dd className="text-sm text-text-primary">{payment.candidate.referenceNumber}</dd>
+            <dt className="text-xs text-text-tertiary">{t('adminFinancePaymentRegistrationNumberLabel')}</dt>
+            <dd className="text-sm text-text-primary">{payment.candidate.registrationNumber}</dd>
           </div>
           <div>
             <dt className="text-xs text-text-tertiary">{t('adminFinancePaymentAmountLabel')}</dt>
@@ -142,6 +142,22 @@ export function PaymentDetail({ paymentId }: PaymentDetailProps) {
               <dt className="text-xs text-text-tertiary">{t('adminFinancePaymentVoucherNumberLabel')}</dt>
               <dd className="text-sm text-text-primary" dir="ltr">
                 {payment.voucherNumber}
+              </dd>
+            </div>
+          ) : null}
+          {payment.kuickpayReferenceNumber ? (
+            <div>
+              <dt className="text-xs text-text-tertiary">{t('adminFinancePaymentKuickpayReferenceLabel')}</dt>
+              <dd className="text-sm text-text-primary" dir="ltr">
+                {payment.kuickpayReferenceNumber}
+              </dd>
+            </div>
+          ) : null}
+          {payment.kuickpayCompanyReferenceNumber ? (
+            <div>
+              <dt className="text-xs text-text-tertiary">{t('adminFinancePaymentKuickpayCompanyReferenceLabel')}</dt>
+              <dd className="text-sm text-text-primary" dir="ltr">
+                {payment.kuickpayCompanyReferenceNumber}
               </dd>
             </div>
           ) : null}

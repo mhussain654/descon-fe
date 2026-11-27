@@ -24,6 +24,9 @@ export interface StaffDirectoryListParams {
 export interface StaffInviteInput {
   email: string;
   role: StaffRole;
+  /** Developers only: create the account active with this password instead of emailing an invitation. */
+  password?: string;
+  passwordConfirmation?: string;
 }
 
 export interface StaffDirectoryClient {

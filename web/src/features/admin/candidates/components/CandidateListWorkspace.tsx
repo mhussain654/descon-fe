@@ -19,6 +19,7 @@ import {
   type DataTableColumn,
 } from '../../../../design-system';
 import { ADMIN_CANDIDATE_ERROR_KEYS } from '../../../../../../shared/adminCandidates/errorMessages';
+import { displayRegistrationNumber } from '../../../../../../shared/registrationNumber';
 import type {
   AdminCandidateDetail,
   AdminCandidateListFilters,
@@ -74,8 +75,8 @@ const SORT_OPTIONS: { value: AdminCandidateListSort; labelKey: TranslationKey }[
   { value: 'created_at', labelKey: 'adminCandidateListSortOldest' },
   { value: 'full_name', labelKey: 'adminCandidateListSortNameAsc' },
   { value: '-full_name', labelKey: 'adminCandidateListSortNameDesc' },
-  { value: 'reference_number', labelKey: 'adminCandidateListSortReferenceAsc' },
-  { value: '-reference_number', labelKey: 'adminCandidateListSortReferenceDesc' },
+  { value: 'registration_number', labelKey: 'adminCandidateListSortRegistrationNumberAsc' },
+  { value: '-registration_number', labelKey: 'adminCandidateListSortRegistrationNumberDesc' },
 ];
 
 /** The full admin candidate list workspace: search, filters, sort and pagination, all backed by the URL -- mirrors DocumentReviewQueue.tsx's identical structure. */
@@ -143,8 +144,11 @@ export function CandidateListWorkspace() {
     { key: 'mobile', header: t('adminCandidateListColumnMobile'), render: (row) => row.mobileNumber },
     {
       key: 'reference',
-      header: t('adminCandidateListColumnReference'),
-      render: (row) => row.assignment?.referenceNumber ?? t('notAvailable'),
+      header: t('adminCandidateListColumnRegistrationNumber'),
+      render: (row) =>
+        row.assignment
+          ? displayRegistrationNumber(row.assignment.registrationNumber) || t('adminCandidateRegistrationNumberNotSet')
+          : t('notAvailable'),
     },
     {
       key: 'assignment',

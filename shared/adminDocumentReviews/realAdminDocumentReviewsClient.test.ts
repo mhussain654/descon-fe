@@ -63,7 +63,7 @@ function queueItemResponse(overrides: Record<string, unknown> = {}) {
     candidate: { id: 'candidate-1', full_name: 'Ahmed Ali' },
     assignment: {
       id: 'assignment-1',
-      reference_number: 'REF-100',
+      registration_number: 'REF-100',
       country: referenceCode({ code: 'SA', name: 'Saudi Arabia' }),
       project: referenceCode({ code: 'PRJ-1', name: 'Project One' }),
       craft: referenceCode({ code: 'welder', name: 'Welder' }),
@@ -112,7 +112,7 @@ describe('createAdminDocumentReviewsClient (real)', () => {
         candidate: { id: 'candidate-1', fullName: 'Ahmed Ali' },
         assignment: {
           id: 'assignment-1',
-          referenceNumber: 'REF-100',
+          registrationNumber: 'REF-100',
           country: { code: 'SA', name: 'Saudi Arabia' },
           project: { code: 'PRJ-1', name: 'Project One' },
           craft: { code: 'welder', name: 'Welder' },

@@ -33,7 +33,7 @@ async function signedInClient(account: typeof FINANCE) {
 function paymentSummary(overrides: Record<string, unknown> = {}) {
   return {
     id: 'payment-1',
-    candidate: { id: 'candidate-1', fullName: 'Ahmed Ali', maskedCnic: '42101-*******-1', referenceNumber: 'DES-001001' },
+    candidate: { id: 'candidate-1', fullName: 'Ahmed Ali', maskedCnic: '42101-*******-1', registrationNumber: 'DES-001001' },
     paymentTypeCode: 'onboarding_fee',
     status: 'paid' as const,
     amount: '1500.00',

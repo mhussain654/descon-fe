@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, cleanup } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { MemoryRouter } from "react-router";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -170,6 +170,31 @@ describe("CandidateDetailsPage", () => {
       { candidatePublicId: "candidate-1", status: ["pending_review", "partially_reviewed", "changes_required", "verified"] },
       { number: 1, size: 5 }
     );
+  });
+
+  it("warns staff when the candidate has no registration / file number, and not once they have one", async () => {
+    const base = await adminCandidateClient.getCandidate();
+    const assignment = {
+      id: "assignment-1",
+      registrationNumber: null,
+      country: { code: "qatar", name: "Qatar" },
+      project: { code: "qatar_infrastructure", name: "Qatar Infrastructure" },
+      craft: { code: "electrician", name: "Electrician" },
+      currentWorkflowStage: { code: "fee_pending", name: "Fee Pending" },
+      createdAt: "2026-08-30T09:00:00Z",
+      campaign: null,
+      fieldsEditable: false,
+    };
+    adminCandidateClient.getCandidate.mockResolvedValue({ ...base, assignment });
+    await renderPage();
+
+    expect(await screen.findByText("Registration / file number missing")).toBeInTheDocument();
+    cleanup();
+
+    adminCandidateClient.getCandidate.mockResolvedValue({ ...base, assignment: { ...assignment, registrationNumber: 500002 } });
+    await renderPage();
+    expect(await screen.findByText(/500002/)).toBeInTheDocument();
+    expect(screen.queryByText("Registration / file number missing")).not.toBeInTheDocument();
   });
 
   it("does not show the AI calls tab to staff who cannot place calls", async () => {

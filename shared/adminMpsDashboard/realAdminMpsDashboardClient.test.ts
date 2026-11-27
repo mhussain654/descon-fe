@@ -57,7 +57,7 @@ const dashboardPayload = {
     candidate_full_name: 'Ahmed Khan',
     candidate_public_id: 'candidate-1',
     candidate_assignment_public_id: 'assignment-1',
-    reference_number: 'REF-000123',
+    registration_number: 'REF-000123',
     country_name: 'Qatar',
     project_name: 'Project One',
     craft_name: 'Electrician',
@@ -68,12 +68,12 @@ const dashboardPayload = {
 describe('createAdminMpsDashboardClient (real)', () => {
   it('maps backend attention candidates and retains their backend age/severity', async () => {
     stubFetch(async () => jsonResponse(successEnvelope({ ...dashboardPayload, attention_candidates: [{
-      candidate_full_name: 'Sample Candidate', candidate_public_id: 'candidate-2', reference_number: 'REF-2',
+      candidate_full_name: 'Sample Candidate', candidate_public_id: 'candidate-2', registration_number: 'REF-2',
       workflow_stage_code: 'medical_pending', days_waiting: 18, severity: 'critical',
     }] })));
     const { client } = buildClient();
     expect((await client.getDashboard()).attentionCandidates).toEqual([{
-      candidateFullName: 'Sample Candidate', candidatePublicId: 'candidate-2', referenceNumber: 'REF-2',
+      candidateFullName: 'Sample Candidate', candidatePublicId: 'candidate-2', registrationNumber: 'REF-2',
       workflowStageCode: 'medical_pending', daysWaiting: 18, severity: 'critical',
     }]);
   });
@@ -102,7 +102,7 @@ describe('createAdminMpsDashboardClient (real)', () => {
         candidateFullName: 'Ahmed Khan',
         candidatePublicId: 'candidate-1',
         candidateAssignmentPublicId: 'assignment-1',
-        referenceNumber: 'REF-000123',
+        registrationNumber: 'REF-000123',
         countryName: 'Qatar',
         projectName: 'Project One',
         craftName: 'Electrician',

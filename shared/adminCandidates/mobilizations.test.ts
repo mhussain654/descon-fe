@@ -29,7 +29,7 @@ describe('toMobilizationRow', () => {
     expect(
       toMobilizationRow({
         id: 'flight-1',
-        candidate: { id: 'c-1', full_name: 'Ali Raza', reference_number: 'DES-1', country_name: 'Qatar', project_name: 'Qatar Infra', craft_name: 'Electrician' },
+        candidate: { id: 'c-1', full_name: 'Ali Raza', registration_number: 'DES-1', country_name: 'Qatar', project_name: 'Qatar Infra', craft_name: 'Electrician' },
         airline: 'Qatar Airways',
         flight_number: 'QR-629',
         sector: 'LHE-DOH',
@@ -41,7 +41,7 @@ describe('toMobilizationRow', () => {
       })
     ).toEqual({
       id: 'flight-1',
-      candidate: { id: 'c-1', fullName: 'Ali Raza', referenceNumber: 'DES-1', countryName: 'Qatar', projectName: 'Qatar Infra', craftName: 'Electrician' },
+      candidate: { id: 'c-1', fullName: 'Ali Raza', registrationNumber: 'DES-1', countryName: 'Qatar', projectName: 'Qatar Infra', craftName: 'Electrician' },
       airline: 'Qatar Airways',
       flightNumber: 'QR-629',
       sector: 'LHE-DOH',

@@ -21,6 +21,7 @@ import type {
   CommunicationListResult,
   CommunicationListSort,
 } from './types';
+import { displayRegistrationNumber } from '../registrationNumber';
 
 interface CommunicationActorResponse {
   id: string;
@@ -29,7 +30,7 @@ interface CommunicationActorResponse {
 
 interface CommunicationAssignmentResponse {
   id: string;
-  reference_number: string;
+  registration_number: number | null;
   candidate_id: string;
 }
 
@@ -64,7 +65,7 @@ function toActorRef(actor: CommunicationActorResponse | null): CommunicationActo
 
 function toAssignmentRef(assignment: CommunicationAssignmentResponse | null): CommunicationAssignmentRef | undefined {
   return assignment
-    ? { id: assignment.id, referenceNumber: assignment.reference_number, candidateId: assignment.candidate_id }
+    ? { id: assignment.id, registrationNumber: displayRegistrationNumber(assignment.registration_number), candidateId: assignment.candidate_id }
     : undefined;
 }
 

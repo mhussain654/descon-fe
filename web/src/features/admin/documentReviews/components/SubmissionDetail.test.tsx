@@ -51,7 +51,7 @@ function submissionDetail(documents: ReturnType<typeof submissionDocument>[]) {
     candidate: { id: 'candidate-1', fullName: 'Ahmed Ali' },
     assignment: {
       id: 'assignment-1',
-      referenceNumber: 'DES-001001',
+      registrationNumber: 'DES-001001',
       country: { code: 'pk', name: 'Pakistan' },
       project: { code: 'p1', name: 'Project One' },
       craft: { code: 'electrician', name: 'Electrician' },

@@ -24,7 +24,7 @@ async function signedInClient() {
 function row(overrides = {}) {
   return {
     id: "flight-1",
-    candidate: { id: "candidate-1", fullName: "Ali Raza", referenceNumber: "DES-000123", countryName: "Qatar", projectName: "Qatar Infrastructure", craftName: "Electrician" },
+    candidate: { id: "candidate-1", fullName: "Ali Raza", registrationNumber: "DES-000123", countryName: "Qatar", projectName: "Qatar Infrastructure", craftName: "Electrician" },
     airline: "Qatar Airways",
     flightNumber: "QR-629",
     sector: "LHE-DOH",

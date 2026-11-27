@@ -18,6 +18,7 @@ import type {
   RequiresAttentionRow,
   UpcomingActivityRow,
 } from './types';
+import { displayRegistrationNumber } from '../registrationNumber';
 
 export interface RealAdminDashboardClientOptions {
   apiClient: ApiClient;
@@ -44,13 +45,13 @@ interface DashboardResponse {
     type: string;
     occurs_on: string;
     candidate_assignment_public_id: string;
-    reference_number: string;
+    registration_number: number | null;
   }[];
   recently_updated_candidates: {
     candidate_full_name: string;
     candidate_public_id: string;
     candidate_assignment_public_id: string;
-    reference_number: string;
+    registration_number: number | null;
     workflow_stage_code: string;
     last_updated_at: string;
   }[];
@@ -80,13 +81,13 @@ function toDashboard(data: DashboardResponse): AdminDashboardSummary {
       type: row.type,
       occursOn: row.occurs_on,
       candidateAssignmentPublicId: row.candidate_assignment_public_id,
-      referenceNumber: row.reference_number,
+      registrationNumber: displayRegistrationNumber(row.registration_number),
     })) as UpcomingActivityRow[],
     recentlyUpdatedCandidates: data.recently_updated_candidates.map((row) => ({
       candidateFullName: row.candidate_full_name,
       candidatePublicId: row.candidate_public_id,
       candidateAssignmentPublicId: row.candidate_assignment_public_id,
-      referenceNumber: row.reference_number,
+      registrationNumber: displayRegistrationNumber(row.registration_number),
       workflowStageCode: row.workflow_stage_code,
       lastUpdatedAt: row.last_updated_at,
     })),

@@ -25,6 +25,7 @@ import type {
   RobocallVoiceInput,
   StartBulkCallInput,
 } from './types';
+import { displayRegistrationNumber } from '../registrationNumber';
 
 interface VoiceResponse {
   id: string;
@@ -38,7 +39,7 @@ interface VoiceResponse {
 interface CandidateRowResponse {
   id: string;
   full_name: string;
-  reference_number: string | null;
+  registration_number: number | null;
   mobile_number_masked: string;
   call_state: BulkCallState;
   last_call: { status: string; outcome: string | null; outcome_reason: string | null; called_at: string } | null;
@@ -95,7 +96,7 @@ function toCandidateRow(data: CandidateRowResponse): BulkCallCandidateRow {
   return {
     id: data.id,
     fullName: data.full_name,
-    referenceNumber: data.reference_number ?? undefined,
+    registrationNumber: displayRegistrationNumber(data.registration_number) || undefined,
     mobileNumberMasked: data.mobile_number_masked,
     callState: data.call_state,
     lastCall: data.last_call

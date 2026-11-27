@@ -144,11 +144,11 @@ describe('createAdminBulkCallsClient (real)', () => {
         return jsonResponse(
           successEnvelope(
             [
-              { id: 'c1', full_name: 'Ahmed Khan', reference_number: 'DES-1', mobile_number_masked: '+92300*****12', call_state: 'not_called', last_call: null },
+              { id: 'c1', full_name: 'Ahmed Khan', registration_number: 'DES-1', mobile_number_masked: '+92300*****12', call_state: 'not_called', last_call: null },
               {
                 id: 'c2',
                 full_name: 'Bilal',
-                reference_number: null,
+                registration_number: null,
                 mobile_number_masked: '+92301*****34',
                 call_state: 'called',
                 last_call: { status: 'completed', outcome: 'answered', outcome_reason: 'resolved', called_at: '2026-10-18T08:00:00Z' },
@@ -194,13 +194,13 @@ describe('createAdminBulkCallsClient (real)', () => {
       expect(result.candidates[0]).toEqual({
         id: 'c1',
         fullName: 'Ahmed Khan',
-        referenceNumber: 'DES-1',
+        registrationNumber: 'DES-1',
         mobileNumberMasked: '+92300*****12',
         callState: 'not_called',
         lastCall: undefined,
       });
       expect(result.candidates[1].lastCall).toEqual({ status: 'completed', outcome: 'answered', outcomeReason: 'resolved', calledAt: '2026-10-18T08:00:00Z' });
-      expect(result.candidates[1].referenceNumber).toBeUndefined();
+      expect(result.candidates[1].registrationNumber).toBeUndefined();
     });
 
     it('omits the optional filters and falls back to zeros when the meta is missing', async () => {

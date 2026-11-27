@@ -193,7 +193,7 @@ describe('createCandidateImportClient (real)', () => {
               rejected_rows: 2,
               errors: [
                 { row: 2, field: 'cnic', code: 'invalid_cnic', value: '42**********-1', message: 'Enter a valid CNIC.' },
-                { row: 3, field: 'reference_number', code: 'duplicate_reference_number', message: 'Already exists.' },
+                { row: 3, field: 'registration_number', code: 'duplicate_registration_number', message: 'Already exists.' },
               ],
             })
           )
@@ -206,7 +206,7 @@ describe('createCandidateImportClient (real)', () => {
       expect(result.acceptedRows).toBe(0);
       expect(result.errors).toEqual([
         { row: 2, field: 'cnic', code: 'invalid_cnic', value: '42**********-1', message: 'Enter a valid CNIC.' },
-        { row: 3, field: 'reference_number', code: 'duplicate_reference_number', value: null, message: 'Already exists.' },
+        { row: 3, field: 'registration_number', code: 'duplicate_registration_number', value: null, message: 'Already exists.' },
       ]);
     });
 

@@ -18,6 +18,7 @@ vi.mock("../../../lib/staff-directory-client", () => ({
 }));
 
 const ADMIN = MOCK_STAFF_ACCOUNTS.find((account) => account.role === "admin");
+const DEVELOPER = MOCK_STAFF_ACCOUNTS.find((account) => account.role === "developer");
 const HR = MOCK_STAFF_ACCOUNTS.find((account) => account.role === "hr" && !account.locked && !account.suspended);
 
 /** Real-backend-shaped fixtures (Users::SummarySerializer): id/email/role/staff_state/active/created_at, no name -- matches shared/staffAdmin/types.ts exactly. */
@@ -180,6 +181,43 @@ describe("StaffUsersPage", () => {
     await waitFor(() => expect(screen.getByText("new.person@descon.com")).toBeInTheDocument());
     // The invite dialog itself closed on success.
     expect(screen.queryByText("Invite staff member")).not.toBeInTheDocument();
+  });
+
+  it("lets a developer create an account directly with a password, and never offers it to an admin", async () => {
+    const created = { id: "staff_new_2", email: "direct@descon.com", role: "hr", status: "active", createdAt: new Date().toISOString() };
+    staffDirectoryClient.listStaff.mockResolvedValue(seedStaff());
+    staffDirectoryClient.inviteStaff.mockResolvedValue(created);
+
+    const adminClient = await signInAs(ADMIN);
+    const { unmount } = await renderUsersPage(adminClient);
+    fireEvent.click(screen.getByRole("button", { name: "+ Invite staff" }));
+    expect(screen.queryByLabelText(/Create the account now with a password/)).not.toBeInTheDocument();
+    unmount();
+    sessionStorage.clear();
+
+    const developerClient = await signInAs(DEVELOPER);
+    await renderUsersPage(developerClient);
+    fireEvent.click(screen.getByRole("button", { name: "+ Invite staff" }));
+    fireEvent.change(screen.getByLabelText("Email"), { target: { value: "direct@descon.com" } });
+    fireEvent.click(screen.getByLabelText(/Create the account now with a password/));
+    fireEvent.change(screen.getByLabelText("Password"), { target: { value: "short" } });
+    fireEvent.change(screen.getByLabelText("Confirm password"), { target: { value: "short" } });
+    fireEvent.click(screen.getByRole("button", { name: "Create account" }));
+    expect(await screen.findByText("The password must be at least 6 characters.")).toBeInTheDocument();
+    expect(staffDirectoryClient.inviteStaff).not.toHaveBeenCalled();
+
+    fireEvent.change(screen.getByLabelText("Password"), { target: { value: "Direct-Account-9" } });
+    fireEvent.change(screen.getByLabelText("Confirm password"), { target: { value: "Direct-Account-9" } });
+    fireEvent.click(screen.getByRole("button", { name: "Create account" }));
+
+    await waitFor(() =>
+      expect(staffDirectoryClient.inviteStaff).toHaveBeenCalledWith({
+        email: "direct@descon.com",
+        role: "hr",
+        password: "Direct-Account-9",
+        passwordConfirmation: "Direct-Account-9",
+      })
+    );
   });
 
   it("shows a field-addressable error for a duplicate email invite, without closing the dialog", async () => {

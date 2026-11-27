@@ -41,6 +41,7 @@ import type {
   SubmissionDocument,
   VerifyDocumentDates,
 } from './types';
+import { displayRegistrationNumber } from '../registrationNumber';
 
 interface ReferenceCodeResponse {
   code: string;
@@ -54,7 +55,7 @@ interface QueueCandidateResponse {
 
 interface QueueAssignmentResponse {
   id: string;
-  reference_number: string;
+  registration_number: number | null;
   country: ReferenceCodeResponse;
   project: ReferenceCodeResponse;
   craft: ReferenceCodeResponse;
@@ -217,7 +218,7 @@ function toQueueAssignment(raw: unknown): QueueAssignment {
   const value = (raw && typeof raw === 'object' ? raw : {}) as Partial<QueueAssignmentResponse>;
   return {
     id: typeof value.id === 'string' ? value.id : '',
-    referenceNumber: typeof value.reference_number === 'string' ? value.reference_number : '',
+    registrationNumber: displayRegistrationNumber(value.registration_number),
     country: toReferenceCode(value.country),
     project: toReferenceCode(value.project),
     craft: toReferenceCode(value.craft),

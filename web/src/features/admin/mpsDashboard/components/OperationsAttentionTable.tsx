@@ -10,7 +10,7 @@ import type { DelayedCases } from '../../../../lib/admin-mps-dashboard-client';
 export function OperationsAttentionTable({ rows, delayedCases, t }: { rows?: AttentionCandidate[]; delayedCases: DelayedCases; t: TFn }) {
   const { language } = useLanguage();
   const columns: DataTableColumn<AttentionCandidate>[] = [
-    { key: 'candidate', header: t('adminCandidateListColumnCandidate'), render: (row) => <div><Link to={`/admin/candidates/${row.candidatePublicId}`} className="font-semibold text-brand hover:underline">{row.candidateFullName}</Link><p className="text-xs text-text-secondary" dir="ltr">{row.referenceNumber}</p></div> },
+    { key: 'candidate', header: t('adminCandidateListColumnCandidate'), render: (row) => <div><Link to={`/admin/candidates/${row.candidatePublicId}`} className="font-semibold text-brand hover:underline">{row.candidateFullName}</Link><p className="text-xs text-text-secondary" dir="ltr">{row.registrationNumber}</p></div> },
     { key: 'stage', header: t('adminCandidateListColumnStage'), render: (row) => stageLabel(row.workflowStageCode, t) },
     { key: 'waiting', header: t('operationsDaysWaiting'), render: (row) => formatNumber(row.daysWaiting, language) },
     { key: 'priority', header: t('operationsPriority'), render: (row) => <Badge tone={row.severity === 'critical' ? 'danger' : 'warning'}>{t(row.severity === 'critical' ? 'mpsDashboardCritical' : 'mpsDashboardDelayed')}</Badge> },

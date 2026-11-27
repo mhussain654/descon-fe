@@ -189,7 +189,7 @@ export default function DashboardPage() {
         <div className="mx-auto max-w-5xl px-6 py-8">
           <p className="mb-1 text-sm text-gray-500">{t("welcome")}</p>
           <h1 className="text-3xl font-semibold text-black">{profileQuery.data.fullName}</h1>
-          <p className="mt-1 text-sm text-gray-500">{profileQuery.data.referenceNumber ?? t("candidateProfileNotAssignedYet")}</p>
+          <p className="mt-1 text-sm text-gray-500">{profileQuery.data.registrationNumber ?? t("candidateProfileNotAssignedYet")}</p>
         </div>
       </div>
 

@@ -153,7 +153,7 @@ export function MobilizationWorkspace() {
             {row.candidate.fullName}
           </Link>
           <div className="mt-0.5 text-xs text-text-tertiary" dir="ltr">
-            {row.candidate.referenceNumber}
+            {row.candidate.registrationNumber}
           </div>
           {row.candidate.countryName ? (
             <div className="mt-0.5 text-xs text-text-tertiary">

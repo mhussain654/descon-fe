@@ -34,7 +34,7 @@ async function signedInClient(account: typeof FINANCE) {
 function paymentDetail(overrides: Record<string, unknown> = {}) {
   return {
     id: 'payment-1',
-    candidate: { id: 'candidate-1', fullName: 'Ahmed Ali', maskedCnic: '42101-*******-1', referenceNumber: 'DES-001001' },
+    candidate: { id: 'candidate-1', fullName: 'Ahmed Ali', maskedCnic: '42101-*******-1', registrationNumber: 'DES-001001' },
     paymentTypeCode: 'onboarding_fee',
     status: 'paid' as const,
     amount: '1500.00',
@@ -89,16 +89,27 @@ describe('PaymentDetail', () => {
       expect(screen.getByText('onboarding_fee')).toBeInTheDocument();
       expect(screen.getByText('kuickpay')).toBeInTheDocument();
       expect(screen.getByText('KP-1')).toBeInTheDocument();
-      expect(screen.queryByText('Voucher number')).not.toBeInTheDocument();
+      expect(screen.queryByText('Kuickpay ID')).not.toBeInTheDocument();
+      expect(screen.queryByText('KuickPay reference number')).not.toBeInTheDocument();
       expect(adminPaymentsClient.getPayment).toHaveBeenCalledWith('payment-1');
     });
 
-    it('shows the voucher number of a voucher payment', async () => {
-      adminPaymentsClient.getPayment.mockResolvedValue(paymentDetail({ provider: 'kuickpay_voucher', voucherNumber: '10420261000061939' }));
+    it("shows a voucher payment's Kuickpay ID and KuickPay's reference numbers", async () => {
+      adminPaymentsClient.getPayment.mockResolvedValue(
+        paymentDetail({
+          provider: 'kuickpay_voucher',
+          voucherNumber: '1042000000042',
+          kuickpayReferenceNumber: '261105039065',
+          kuickpayCompanyReferenceNumber: '10420261105039065',
+        })
+      );
       await renderDetail();
 
-      expect(await screen.findByText('Voucher number')).toBeInTheDocument();
-      expect(screen.getByText('10420261000061939')).toBeInTheDocument();
+      expect(await screen.findByText('Kuickpay ID')).toBeInTheDocument();
+      expect(screen.getByText('1042000000042')).toBeInTheDocument();
+      expect(screen.getByText('KuickPay reference number')).toBeInTheDocument();
+      expect(screen.getByText('261105039065')).toBeInTheDocument();
+      expect(screen.getByText('10420261105039065')).toBeInTheDocument();
     });
 
     it('shows "Not set" when there is no external reference yet', async () => {

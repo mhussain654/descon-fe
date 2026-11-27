@@ -338,8 +338,8 @@ export default function DashboardScreen() {
           greeting={t(GREETING_KEYS[currentTimeOfDay])}
           fullName={profile.fullName}
           referenceLine={
-            profile.referenceNumber
-              ? interpolateSegments(t("homeReference"), { reference: profile.referenceNumber })
+            profile.registrationNumber
+              ? interpolateSegments(t("homeRegistrationNumber"), { registrationNumber: profile.registrationNumber })
               : [{ text: t("candidateProfileNotAssignedYet"), slot: null }]
           }
           craftLine={profile.craft ? interpolateSegments(t("homeCraft"), { craft: profile.craft.name }) : null}

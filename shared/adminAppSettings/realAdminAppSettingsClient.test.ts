@@ -24,6 +24,8 @@ function settingPayload() {
     bulk_calls_enabled: false,
     document_ocr_enabled: true,
     document_identity_check_enabled: false,
+    voucher_due_days: 15,
+    voucher_grace_days: 2,
     server_ready: {
       card_payment: true,
       voucher_payment: true,
@@ -85,6 +87,7 @@ describe('createAdminAppSettingsClient (real)', () => {
       documentIdentityCheck: false,
     });
     expect(settings.serverReady.progressSms).toBe(false);
+    expect([settings.voucherDueDays, settings.voucherGraceDays]).toEqual([15, 2]);
     expect(settings.updatedBy).toEqual({ id: 'admin-1', role: 'admin' });
   });
 
@@ -96,8 +99,10 @@ describe('createAdminAppSettingsClient (real)', () => {
     }) as typeof fetch;
 
     await buildClient().updateAppSettings({ enabled: { voucherPayment: false } });
-
     expect(sentBody).toEqual({ app_feature_setting: { voucher_payment_enabled: false } });
+
+    await buildClient().updateAppSettings({ enabled: {}, voucherDueDays: 10, voucherGraceDays: 3 });
+    expect(sentBody).toEqual({ app_feature_setting: { voucher_due_days: 10, voucher_grace_days: 3 } });
   });
 
   it('turns a 403 into FORBIDDEN and a 422 into VALIDATION_FAILED', async () => {

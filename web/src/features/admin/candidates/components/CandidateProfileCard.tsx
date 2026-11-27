@@ -20,6 +20,8 @@ import { normalizeMobileNumber, isValidMobileNumber } from '../../../../../../sh
 import { CampaignSelectField } from '../../campaigns/components/CampaignSelectField';
 import type { Campaign } from '../../../../lib/admin-campaigns-client';
 import { isAcceptableEmail, normalizeEmail } from '../../../../../../shared/candidateProfile/email';
+import { displayRegistrationNumber } from '../../../../../../shared/registrationNumber';
+import { isValidRegistrationNumber } from '../../../../../../shared/adminCandidates/registrationNumber';
 import { normalizePassportNumber, isValidPassportNumber } from '../../../../../../shared/adminCandidates/passportNumber';
 import { isNextOfKinStarted } from '../../../../../../shared/adminCandidates/nextOfKin';
 import { formatCnic, isValidCnic, toCnicDigits } from '../../../../../../shared/cnic';
@@ -56,6 +58,7 @@ const FIELD_ERROR_MAP: Record<string, string> = {
   project_code: 'projectCode',
   craft_code: 'craftCode',
   campaign_id: 'campaignId',
+  registration_number: 'registrationNumber',
 };
 
 export interface CandidateProfileCardProps {
@@ -187,7 +190,15 @@ function CandidateProfileCardBody({ candidate, canManage, update }: CandidatePro
             label={t('adminCandidatePreferredLocaleLabel')}
             value={candidate.preferredLocale === 'ur' ? t('urduLabel') : t('englishLabel')}
           />
-          <Field label={t('adminCandidateReferenceNumberLabel')} value={candidate.assignment?.referenceNumber ?? t('notAvailable')} dir="ltr" />
+          <Field
+            label={t('adminCandidateRegistrationNumberShortLabel')}
+            value={
+              candidate.assignment
+                ? displayRegistrationNumber(candidate.assignment.registrationNumber) || t('adminCandidateRegistrationNumberNotSet')
+                : t('notAvailable')
+            }
+            dir="ltr"
+          />
           <Field
             label={t('adminCampaignFieldLabel')}
             value={candidate.assignment?.campaign ? `${candidate.assignment.campaign.name} (${candidate.assignment.campaign.code})` : t('adminCampaignNone')}
@@ -265,6 +276,8 @@ function CandidateProfileEditForm({ candidate, canEditAssignmentFields, update, 
   const [projectCode, setProjectCode] = useState(candidate.assignment?.project.code ?? '');
   const [craftCode, setCraftCode] = useState(candidate.assignment?.craft.code ?? '');
   const [campaignId, setCampaignId] = useState(candidate.assignment?.campaign?.id ?? '');
+  const savedRegistrationNumber = candidate.assignment?.registrationNumber?.toString() ?? '';
+  const [registrationNumber, setRegistrationNumber] = useState(savedRegistrationNumber);
 
   // Moving to another campaign takes that campaign's country (the Test campaign keeps it).
   const pickCampaign = (campaign: Campaign | null) => {
@@ -317,6 +330,7 @@ function CandidateProfileEditForm({ candidate, canEditAssignmentFields, update, 
     if (nextOfKinChanged) values.nextOfKin = normalizedNextOfKin;
 
     if (preferredLocale !== candidate.preferredLocale) values.preferredLocale = preferredLocale;
+    if (candidate.assignment && registrationNumber.trim() !== savedRegistrationNumber) values.registrationNumber = registrationNumber.trim();
     if (canEditAssignmentFields) {
       if (countryCode !== (candidate.assignment?.country.code ?? '')) values.countryCode = countryCode;
       if (projectCode !== (candidate.assignment?.project.code ?? '')) values.projectCode = projectCode;
@@ -332,6 +346,7 @@ function CandidateProfileEditForm({ candidate, canEditAssignmentFields, update, 
     if (!isValidMobileNumber(normalizeMobileNumber(mobileNumber))) errors.mobileNumber = t('adminCandidateMobileNumberInvalidError');
     if (!isAcceptableEmail(email)) errors.email = t('adminCandidateEmailInvalidError');
     if (!isValidPassportNumber(normalizePassportNumber(passportNumber))) errors.passportNumber = t('adminCandidatePassportNumberInvalidError');
+    if (!isValidRegistrationNumber(registrationNumber)) errors.registrationNumber = t('adminCandidateRegistrationNumberInvalidError');
     if (
       isNextOfKinStarted({
         name: nextOfKinName,
@@ -467,6 +482,18 @@ function CandidateProfileEditForm({ candidate, canEditAssignmentFields, update, 
             { value: 'ur', label: t('urduLabel') },
           ]}
         />
+
+        {candidate.assignment ? (
+          <Input
+            label={t('adminCandidateRegistrationNumberLabel')}
+            inputMode="numeric"
+            dir="ltr"
+            value={registrationNumber}
+            onChange={(event) => setRegistrationNumber(event.target.value)}
+            helperText={t('adminCandidateRegistrationNumberHelp')}
+            errorMessage={errorFor('registrationNumber')}
+          />
+        ) : null}
 
         {canEditAssignmentFields ? (
           <>

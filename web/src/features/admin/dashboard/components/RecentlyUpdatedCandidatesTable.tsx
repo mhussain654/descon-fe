@@ -39,7 +39,7 @@ export function RecentlyUpdatedCandidatesTable({
         </Link>
       ),
     },
-    { key: 'reference', header: t('adminDashboardColumnReference'), render: (row) => row.referenceNumber },
+    { key: 'reference', header: t('adminDashboardColumnRegistrationNumber'), render: (row) => row.registrationNumber },
     {
       key: 'stage',
       header: t('adminDashboardColumnStage'),

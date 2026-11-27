@@ -56,7 +56,7 @@ function candidateDetail(overrides: Record<string, unknown> = {}) {
     updatedAt: "2026-08-30T09:00:00Z",
     assignment: {
       id: "assignment-1",
-      referenceNumber: "DES-000123",
+      registrationNumber: 500123,
       country: { code: "qatar", name: "Qatar" },
       project: { code: "qatar_infrastructure", name: "Qatar Infrastructure" },
       craft: { code: "electrician", name: "Electrician" },
@@ -117,7 +117,7 @@ describe("CandidateProfileCard", () => {
     expect(screen.getByText("+923001234567")).toBeInTheDocument();
     expect(screen.getByText("candidate@example.com")).toBeInTheDocument();
     expect(screen.getByText("AB123456")).toBeInTheDocument();
-    expect(screen.getByText("DES-000123")).toBeInTheDocument();
+    expect(screen.getByText("500123")).toBeInTheDocument();
     expect(screen.getByText("Qatar")).toBeInTheDocument();
     expect(screen.getByText("Qatar Infrastructure")).toBeInTheDocument();
     expect(screen.getByText("Electrician")).toBeInTheDocument();
@@ -290,6 +290,35 @@ describe("CandidateProfileCard", () => {
 
     await waitFor(() =>
       expect(adminCandidateClient.updateCandidate).toHaveBeenCalledWith(expect.objectContaining({ passportNumber: "" }))
+    );
+  });
+
+  it("shows Not set when there is no registration number", async () => {
+    adminCandidateClient.getCandidate.mockResolvedValue(
+      candidateDetail({ assignment: { ...candidateDetail().assignment!, registrationNumber: null } })
+    );
+    const client = await signInAs(HR);
+    renderCard(client);
+
+    expect(await screen.findByText("Not set")).toBeInTheDocument();
+  });
+
+  it("changes the registration number, and refuses text that is not a whole number", async () => {
+    adminCandidateClient.getCandidate.mockResolvedValue(candidateDetail());
+    adminCandidateClient.updateCandidate.mockResolvedValue(candidateDetail());
+    const client = await signInAs(HR);
+    renderCard(client);
+    fireEvent.click(await screen.findByRole("button", { name: "Edit" }));
+
+    fireEvent.change(screen.getByLabelText(/Registration \/ File number/), { target: { value: "DES-1" } });
+    fireEvent.click(screen.getByRole("button", { name: "Save" }));
+    expect(await screen.findByText(/Enter the registration \/ file number as a whole number/)).toBeInTheDocument();
+    expect(adminCandidateClient.updateCandidate).not.toHaveBeenCalled();
+
+    fireEvent.change(screen.getByLabelText(/Registration \/ File number/), { target: { value: " 700001 " } });
+    fireEvent.click(screen.getByRole("button", { name: "Save" }));
+    await waitFor(() =>
+      expect(adminCandidateClient.updateCandidate).toHaveBeenCalledWith(expect.objectContaining({ registrationNumber: "700001" }))
     );
   });
 

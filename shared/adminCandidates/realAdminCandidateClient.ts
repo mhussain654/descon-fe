@@ -43,7 +43,7 @@ interface ReferenceDataItemResponse {
 
 interface AssignmentSummaryResponse {
   id: string;
-  reference_number: string;
+  registration_number: number | null;
   country: ReferenceDataItemResponse;
   project: ReferenceDataItemResponse;
   craft: ReferenceDataItemResponse;
@@ -115,7 +115,7 @@ function toAssignmentSummary(raw: unknown): AdminCandidateAssignmentSummary | nu
 
   return {
     id: value.id,
-    referenceNumber: typeof value.reference_number === 'string' ? value.reference_number : '',
+    registrationNumber: typeof value.registration_number === 'number' ? value.registration_number : null,
     country: toReferenceDataItem(value.country),
     project: toReferenceDataItem(value.project),
     craft: toReferenceDataItem(value.craft),
@@ -217,7 +217,7 @@ const SERVER_CODE_TO_ERROR: Record<string, AdminCandidateErrorCode> = {
   invalid_email: 'VALIDATION_ERROR',
   duplicate_cnic: 'DUPLICATE_CNIC',
   duplicate_passport_number: 'DUPLICATE_PASSPORT_NUMBER',
-  duplicate_reference_number: 'DUPLICATE_REFERENCE_NUMBER',
+  duplicate_registration_number: 'DUPLICATE_REGISTRATION_NUMBER',
   candidate_assignment_field_locked: 'ASSIGNMENT_FIELD_LOCKED',
   stale_candidate: 'STALE_CANDIDATE',
   idempotency_conflict: 'IDEMPOTENCY_CONFLICT',
@@ -381,7 +381,7 @@ export function createAdminCandidateClient(options: RealAdminCandidateClientOpti
                 country_code: input.countryCode,
                 project_code: input.projectCode,
                 craft_code: input.craftCode,
-                reference_number: input.referenceNumber,
+                registration_number: input.registrationNumber.trim(),
                 campaign_id: input.campaignId,
               },
             },
@@ -417,6 +417,7 @@ export function createAdminCandidateClient(options: RealAdminCandidateClientOpti
                 project_code: input.projectCode,
                 craft_code: input.craftCode,
                 campaign_id: input.campaignId,
+                registration_number: input.registrationNumber === undefined ? undefined : input.registrationNumber.trim(),
                 expected_updated_at: input.expectedUpdatedAt,
               }),
             },

@@ -23,7 +23,7 @@ const HR = MOCK_STAFF_ACCOUNTS.find((account) => account.role === 'hr')!;
 
 function summary(overrides: Partial<MpsDashboardSummary> = {}): MpsDashboardSummary {
   return {
-    attentionCandidates: [{ candidateFullName: 'Test Candidate', candidatePublicId: 'attention-1', referenceNumber: 'REF-001', workflowStageCode: 'medical_pending', daysWaiting: 18, severity: 'critical' }],
+    attentionCandidates: [{ candidateFullName: 'Test Candidate', candidatePublicId: 'attention-1', registrationNumber: 'REF-001', workflowStageCode: 'medical_pending', daysWaiting: 18, severity: 'critical' }],
     workflowStageQueue: [
       { code: 'registered', position: 1, count: 12 },
       { code: 'documents_shared_with_qatar_bu', position: 8, count: 5 },
@@ -45,7 +45,7 @@ function summary(overrides: Partial<MpsDashboardSummary> = {}): MpsDashboardSumm
       candidateFullName: 'Ahmed Khan',
       candidatePublicId: 'candidate-1',
       candidateAssignmentPublicId: 'assignment-1',
-      referenceNumber: 'REF-000123',
+      registrationNumber: 'REF-000123',
       countryName: 'Qatar',
       projectName: 'Project One',
       craftName: 'Electrician',

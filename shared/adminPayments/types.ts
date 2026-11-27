@@ -41,7 +41,8 @@ export interface PaymentCandidateRef {
   fullName: string;
   /** Already masked server-side (Candidates::CnicMasker) -- never a full CNIC. */
   maskedCnic: string;
-  referenceNumber: string;
+  /** The registration (file) number as text; empty until staff add it. */
+  registrationNumber: string;
 }
 
 /**
@@ -81,6 +82,10 @@ export interface PaymentSummary {
   externalReference?: string;
   /** KuickPay voucher (consumer) number the candidate paid against; voucher payments only. */
   voucherNumber?: string;
+  /** KuickPay's reference number, as its portal's ReferenceNumber column shows it. Voucher payments only. */
+  kuickpayReferenceNumber?: string;
+  /** The same reference exactly as KuickPay returned it, with the company code in front. */
+  kuickpayCompanyReferenceNumber?: string;
   reconciliationState: PaymentReconciliationState;
   paidAt?: string;
   createdAt: string;

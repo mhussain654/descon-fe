@@ -16,7 +16,7 @@ function queueItem(overrides: Record<string, unknown> = {}) {
     candidate: { id: "candidate-1", fullName: "Ahmed Ali" },
     assignment: {
       id: "assignment-1",
-      referenceNumber: "REF-100",
+      registrationNumber: "REF-100",
       country: { code: "qatar", name: "Qatar" },
       project: { code: "qatar_infrastructure", name: "Qatar Infrastructure" },
       craft: { code: "electrician", name: "Electrician" },

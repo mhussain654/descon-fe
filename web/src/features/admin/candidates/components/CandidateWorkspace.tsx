@@ -10,6 +10,7 @@ import {
   ForbiddenState,
 } from "../../../../design-system";
 import { ADMIN_CANDIDATE_ERROR_KEYS } from "../../../../../../shared/adminCandidates/errorMessages";
+import { displayRegistrationNumber } from "../../../../../../shared/registrationNumber";
 import type { TranslationKey } from "../../../../../../shared/i18n/translations";
 import { useCandidateDetail } from "../hooks/useCandidateDetail";
 import { CandidateProfileCard } from "./CandidateProfileCard";
@@ -121,7 +122,10 @@ export function CandidateWorkspace({ candidateId }: { candidateId: string }) {
             </h1>
             {assignment ? (
               <p className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-sm text-white/90">
-                <span dir="ltr">{assignment.referenceNumber}</span>
+                <span dir="ltr">
+                  {t("adminCandidateRegistrationNumberShortLabel")}:{" "}
+                  {displayRegistrationNumber(assignment.registrationNumber) || t("adminCandidateRegistrationNumberNotSet")}
+                </span>
                 <span>{assignment.country.name}</span>
                 <span>{assignment.project.name}</span>
                 <span>{assignment.craft.name}</span>
@@ -136,6 +140,12 @@ export function CandidateWorkspace({ candidateId }: { candidateId: string }) {
           ) : null}
         </div>
       </header>
+      {assignment && assignment.registrationNumber === null ? (
+        <div role="alert" className="mt-5 rounded-xl border border-warning bg-warning-subtle p-4 text-warning-emphasis">
+          <p className="font-semibold">{t("adminCandidateRegistrationNumberMissingTitle")}</p>
+          <p className="mt-1 text-sm">{t("adminCandidateRegistrationNumberMissingBody")}</p>
+        </div>
+      ) : null}
       <div
         role="tablist"
         aria-label={t("adminCandidateTabsLabel")}
@@ -215,7 +225,7 @@ export function CandidateWorkspace({ candidateId }: { candidateId: string }) {
             {canReadFees && assignment ? (
               <a
                 className="inline-flex text-sm font-semibold text-brand hover:underline"
-                href={`/admin/finance/payments?search=${encodeURIComponent(assignment.referenceNumber)}`}
+                href={`/admin/finance/payments?search=${encodeURIComponent(displayRegistrationNumber(assignment.registrationNumber) || candidate.fullName)}`}
               >
                 {t("adminFeeTransactionsLink")}
               </a>

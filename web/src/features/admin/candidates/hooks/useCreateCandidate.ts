@@ -19,7 +19,8 @@ export interface CreateCandidateFormValues {
   countryCode: string;
   projectCode: string;
   craftCode: string;
-  referenceNumber: string;
+  /** Optional; empty for none. */
+  registrationNumber: string;
   /** The batch the candidate goes into (required). */
   campaignId: string;
 }
@@ -72,7 +73,7 @@ export function useCreateCandidate(options: UseCreateCandidateOptions = {}) {
         countryCode: variables.countryCode,
         projectCode: variables.projectCode,
         craftCode: variables.craftCode,
-        referenceNumber: variables.referenceNumber,
+        registrationNumber: variables.registrationNumber,
         campaignId: variables.campaignId,
         idempotencyKey: variables.idempotencyKey,
       }),

@@ -5,6 +5,7 @@
 import type { AdminCandidatePagination } from './types';
 import { toBoardingPassCheck, type BoardingPassCheck } from '../adminWorkflow/types';
 import { appendRegisteredDateParams, type RegisteredDateRange } from './registeredDates';
+import { displayRegistrationNumber } from '../registrationNumber';
 
 /**
  * Departure status on today's Pakistan date (CandidateFlightDetail#departure_status):
@@ -43,7 +44,8 @@ export interface MobilizationRow {
   candidate: {
     id: string;
     fullName: string;
-    referenceNumber: string;
+    /** The registration (file) number as text; empty until staff add it. */
+    registrationNumber: string;
     countryName: string | null;
     projectName: string | null;
     craftName: string | null;
@@ -103,7 +105,7 @@ interface MobilizationRowResponse {
   candidate: {
     id: string;
     full_name: string;
-    reference_number: string;
+    registration_number: number | null;
     country_name: string | null;
     project_name: string | null;
     craft_name: string | null;
@@ -126,7 +128,7 @@ export function toMobilizationRow(raw: MobilizationRowResponse): MobilizationRow
     candidate: {
       id: raw.candidate.id,
       fullName: raw.candidate.full_name,
-      referenceNumber: raw.candidate.reference_number,
+      registrationNumber: displayRegistrationNumber(raw.candidate.registration_number),
       countryName: raw.candidate.country_name,
       projectName: raw.candidate.project_name,
       craftName: raw.candidate.craft_name,

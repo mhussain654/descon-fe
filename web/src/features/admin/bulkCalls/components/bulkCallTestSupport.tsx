@@ -43,11 +43,11 @@ export function voice(overrides: Partial<RobocallVoice> = {}): RobocallVoice {
 export function candidatesResult(overrides: Partial<BulkCallCandidatesResult> = {}): BulkCallCandidatesResult {
   return {
     candidates: [
-      { id: "c1", fullName: "Ahmed Khan", referenceNumber: "DES-1", mobileNumberMasked: "+92300*****12", callState: "not_called" },
+      { id: "c1", fullName: "Ahmed Khan", registrationNumber: "500001", mobileNumberMasked: "+92300*****12", callState: "not_called" },
       {
         id: "c2",
         fullName: "Bilal Raza",
-        referenceNumber: undefined,
+        registrationNumber: undefined,
         mobileNumberMasked: "+92301*****34",
         callState: "called",
         lastCall: { status: "completed", outcome: "answered", outcomeReason: "resolved", calledAt: "2026-10-18T08:00:00Z" },

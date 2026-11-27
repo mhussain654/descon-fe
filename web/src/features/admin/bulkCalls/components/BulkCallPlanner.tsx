@@ -82,7 +82,7 @@ export function BulkCallPlanner() {
 
   const columns: DataTableColumn<BulkCallCandidateRow>[] = [
     { key: 'name', header: t('adminBulkCallColumnName'), render: (row) => <span className="font-medium text-text-primary">{row.fullName}</span> },
-    { key: 'reference', header: t('adminBulkCallColumnReference'), render: (row) => row.referenceNumber ?? t('notAvailable') },
+    { key: 'reference', header: t('adminBulkCallColumnRegistrationNumber'), render: (row) => row.registrationNumber ?? t('notAvailable') },
     { key: 'phone', header: t('adminBulkCallColumnPhone'), render: (row) => <span dir="ltr">{row.mobileNumberMasked}</span> },
     {
       key: 'call',

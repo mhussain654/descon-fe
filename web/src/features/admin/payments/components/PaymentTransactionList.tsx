@@ -130,7 +130,7 @@ export function PaymentTransactionList() {
             <Link to={`/admin/finance/payments/${row.id}`} className="block truncate font-semibold text-brand hover:underline">
               {row.candidate.fullName}
             </Link>
-            <div className="mt-0.5 text-xs text-text-tertiary">{row.candidate.referenceNumber}</div>
+            <div className="mt-0.5 text-xs text-text-tertiary">{row.candidate.registrationNumber}</div>
           </div>
         </div>
       ),

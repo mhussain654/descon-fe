@@ -10,7 +10,7 @@ export const ADMIN_CANDIDATE_ERROR_KEYS: Record<AdminCandidateErrorCode, string>
   VALIDATION_ERROR: 'somethingWentWrong',
   DUPLICATE_CNIC: 'adminCandidateDuplicateCnicError',
   DUPLICATE_PASSPORT_NUMBER: 'adminCandidateDuplicatePassportNumberError',
-  DUPLICATE_REFERENCE_NUMBER: 'adminCandidateDuplicateReferenceNumberError',
+  DUPLICATE_REGISTRATION_NUMBER: 'adminCandidateDuplicateRegistrationNumberError',
   ASSIGNMENT_FIELD_LOCKED: 'adminCandidateAssignmentFieldLockedError',
   STALE_CANDIDATE: 'adminCandidateStaleError',
   IDEMPOTENCY_CONFLICT: 'adminCandidateIdempotencyConflictError',

@@ -39,7 +39,8 @@ export interface QueueCandidate {
 
 export interface QueueAssignment {
   id: string;
-  referenceNumber: string;
+  /** The registration (file) number as text; empty until staff add it. */
+  registrationNumber: string;
   country: ReferenceCode;
   project: ReferenceCode;
   craft: ReferenceCode;
