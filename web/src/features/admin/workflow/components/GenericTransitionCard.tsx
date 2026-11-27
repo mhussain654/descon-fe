@@ -4,6 +4,7 @@ import type { TranslationKey } from '../../../../../../shared/i18n/translations'
 import { useLanguage } from '../../../../contexts/LanguageContext';
 import { Button, ConfirmDialog, Input, ValidationMessage } from '../../../../design-system';
 import { toWorkflowBlockingReason, WORKFLOW_BLOCKING_REASON_KEYS } from '../../../../../../shared/adminWorkflow/blockingReasons';
+import { transitionGuidanceKey } from '../../../../../../shared/adminWorkflow/staffGuidance';
 
 const FIELD_LABEL_KEYS: Record<string, TranslationKey> = {
   medical_center_name: 'adminWorkflowMedicalCenterNameLabel',
@@ -121,7 +122,7 @@ export function GenericTransitionCard({
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <div className="font-medium text-text-primary">{transition.name}</div>
-          <p className="mt-1 text-sm text-text-secondary">{t('adminWorkflowGenericTransitionDescription')}</p>
+          <p className="mt-1 text-sm text-text-secondary">{t(transitionGuidanceKey(transition.code))}</p>
         </div>
         {canAttempt && canTransition ? (
           <Button type="button" onClick={() => onOpenChange(true)}>

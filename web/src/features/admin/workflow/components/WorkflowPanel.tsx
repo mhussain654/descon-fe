@@ -33,6 +33,7 @@ import { useWorkflowHistory } from '../hooks/useWorkflowHistory';
 import { useWorkflowState } from '../hooks/useWorkflowState';
 import { FlightDetailPanel } from './FlightDetailPanel';
 import { GenericTransitionCard } from './GenericTransitionCard';
+import { currentStageGuidanceKey } from '../../../../../../shared/adminWorkflow/staffGuidance';
 import { qvcSchedulingAvailable } from '../qvcSchedulingAvailable';
 import { QvcPanel } from './QvcPanel';
 import { VisaDecisionPanel } from './VisaDecisionPanel';
@@ -217,6 +218,7 @@ export function WorkflowPanel({ candidateId, section = 'all' }: WorkflowPanelPro
     null
   );
 
+  const currentGuidanceKey = currentStageGuidanceKey(state.currentStage?.code);
   const mutationError = submit.mutation.error;
   const conflictMessage =
     mutationError?.code === 'IDEMPOTENCY_CONFLICT'
@@ -250,6 +252,11 @@ export function WorkflowPanel({ candidateId, section = 'all' }: WorkflowPanelPro
               <Badge tone={stageStatusTone(state.currentStage.status)}>{t(STAGE_STATUS_KEYS[state.currentStage.status]!)}</Badge>
             ) : null}
           </div>
+          {currentGuidanceKey ? (
+            <p className="mt-2 max-w-prose text-sm text-text-primary">
+              <span className="font-medium">{t('adminWorkflowGuidanceNowLabel')}:</span> {t(currentGuidanceKey)}
+            </p>
+          ) : null}
           {latestTransition ? (
             <div className="mt-2 text-xs text-text-tertiary">
               {t('adminWorkflowLastTransitionPrefix')}{' '}

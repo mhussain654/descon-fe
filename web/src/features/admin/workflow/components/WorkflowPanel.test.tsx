@@ -409,6 +409,30 @@ describe("WorkflowPanel", () => {
     expect(screen.queryByText("In Progress")).not.toBeInTheDocument();
   });
 
+  it("tells staff what to do now and what completing the next stage means", async () => {
+    adminWorkflowClient.getWorkflowState.mockResolvedValue(
+      workflowState({
+        currentStage: timelineStage({ code: "e_number_requested", name: "E-Number Requested (waiting for agent)", status: "current" }),
+      })
+    );
+    adminWorkflowClient.getAllowedTransitions.mockResolvedValue(
+      allowedTransitions({
+        allowedNextTransitions: [
+          { ...qatarBuTransition(), code: "e_number_received", name: "E-Number Received", actionType: "e_number_received", fields: [] },
+        ],
+      })
+    );
+    adminWorkflowClient.getWorkflowHistory.mockResolvedValue(workflowHistory());
+    const client = await signInAs(MPS);
+
+    renderPanel(client);
+
+    expect(await screen.findByText(/Waiting for the agent to send the E-Number/)).toBeInTheDocument();
+    expect(screen.getByText("What to do now:")).toBeInTheDocument();
+    expect(screen.getByText(/Complete this when the agent sends the E-Number/)).toBeInTheDocument();
+    expect(screen.queryByText("Record the information required to complete this stage.")).not.toBeInTheDocument();
+  });
+
   it("shows a Completed badge on the current-stage row once the workflow reaches its terminal stage", async () => {
     adminWorkflowClient.getWorkflowState.mockResolvedValue(workflowState({ currentStage: timelineStage({ status: "completed" }) }));
     adminWorkflowClient.getAllowedTransitions.mockResolvedValue(allowedTransitions());
