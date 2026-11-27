@@ -238,6 +238,15 @@ export function CandidateCreateForm() {
             errorMessage={errorFor('mobileNumber')}
           />
           <Input
+            label={t('adminCandidateRegistrationNumberLabel')}
+            dir="ltr"
+            inputMode="numeric"
+            helperText={t('adminCandidateRegistrationNumberCreateHelp')}
+            value={form.registrationNumber}
+            onChange={(event) => setField('registrationNumber', event.target.value)}
+            errorMessage={errorFor('registrationNumber')}
+          />
+          <Input
             label={t('adminCandidatePassportNumberLabel')}
             requirementText={t('dsOptionalField')}
             dir="ltr"
@@ -317,15 +326,6 @@ export function CandidateCreateForm() {
             onChange={(value) => setField('craftCode', value)}
             errorMessage={errorFor('craftCode')}
             emptyMessage={t('adminCandidateNoCraftsAvailable')}
-          />
-          <Input
-            label={t('adminCandidateRegistrationNumberLabel')}
-            dir="ltr"
-            inputMode="numeric"
-            helperText={t('adminCandidateRegistrationNumberCreateHelp')}
-            value={form.registrationNumber}
-            onChange={(event) => setField('registrationNumber', event.target.value)}
-            errorMessage={errorFor('registrationNumber')}
           />
 
           {nonFieldError ? <ValidationMessage tone="error">{nonFieldError}</ValidationMessage> : null}

@@ -184,12 +184,6 @@ function CandidateProfileCardBody({ candidate, canManage, update }: CandidatePro
           <Field label={t('adminCandidateFullNameLabel')} value={candidate.fullName} />
           <Field label={t('cnicShort')} value={candidate.cnic} dir="ltr" />
           <Field label={t('adminCandidateMobileNumberLabel')} value={candidate.mobileNumber} dir="ltr" />
-          <Field label={t('adminCandidateEmailLabel')} value={candidate.email ?? t('notAvailable')} dir="ltr" />
-          <Field label={t('adminCandidatePassportNumberLabel')} value={candidate.passportNumber || t('notAvailable')} dir="ltr" />
-          <Field
-            label={t('adminCandidatePreferredLocaleLabel')}
-            value={candidate.preferredLocale === 'ur' ? t('urduLabel') : t('englishLabel')}
-          />
           <Field
             label={t('adminCandidateRegistrationNumberShortLabel')}
             value={
@@ -198,6 +192,12 @@ function CandidateProfileCardBody({ candidate, canManage, update }: CandidatePro
                 : t('notAvailable')
             }
             dir="ltr"
+          />
+          <Field label={t('adminCandidateEmailLabel')} value={candidate.email ?? t('notAvailable')} dir="ltr" />
+          <Field label={t('adminCandidatePassportNumberLabel')} value={candidate.passportNumber || t('notAvailable')} dir="ltr" />
+          <Field
+            label={t('adminCandidatePreferredLocaleLabel')}
+            value={candidate.preferredLocale === 'ur' ? t('urduLabel') : t('englishLabel')}
           />
           <Field
             label={t('adminCampaignFieldLabel')}
@@ -418,6 +418,17 @@ function CandidateProfileEditForm({ candidate, canEditAssignmentFields, update, 
           onChange={(event) => setMobileNumber(event.target.value)}
           errorMessage={errorFor('mobileNumber')}
         />
+        {candidate.assignment ? (
+          <Input
+            label={t('adminCandidateRegistrationNumberLabel')}
+            inputMode="numeric"
+            dir="ltr"
+            value={registrationNumber}
+            onChange={(event) => setRegistrationNumber(event.target.value)}
+            helperText={t('adminCandidateRegistrationNumberHelp')}
+            errorMessage={errorFor('registrationNumber')}
+          />
+        ) : null}
         <Input
           label={t('adminCandidateEmailLabel')}
           requirementText={t('dsOptionalField')}
@@ -482,18 +493,6 @@ function CandidateProfileEditForm({ candidate, canEditAssignmentFields, update, 
             { value: 'ur', label: t('urduLabel') },
           ]}
         />
-
-        {candidate.assignment ? (
-          <Input
-            label={t('adminCandidateRegistrationNumberLabel')}
-            inputMode="numeric"
-            dir="ltr"
-            value={registrationNumber}
-            onChange={(event) => setRegistrationNumber(event.target.value)}
-            helperText={t('adminCandidateRegistrationNumberHelp')}
-            errorMessage={errorFor('registrationNumber')}
-          />
-        ) : null}
 
         {canEditAssignmentFields ? (
           <>
