@@ -108,20 +108,22 @@ export function CandidateWorkspace({ candidateId }: { candidateId: string }) {
         <ArrowLeft aria-hidden="true" className="h-4 w-4" />
         {t("adminBackToDashboard")}
       </a>
-      <header className="rounded-2xl bg-brand p-5 text-white shadow-md sm:p-6">
-        <div className="flex flex-wrap items-start gap-4">
-          <span className="rounded-xl bg-white/15 p-3">
+      {/* On phones the header keeps only what staff need -- name, numbers and
+          stage -- so the candidate's actual details start near the top. */}
+      <header className="rounded-2xl bg-brand p-4 text-white shadow-md sm:p-6">
+        <div className="flex flex-wrap items-start gap-x-4 gap-y-2">
+          <span className="hidden rounded-xl bg-white/15 p-3 sm:block">
             <UserRound aria-hidden="true" className="h-6 w-6" />
           </span>
-          <div className="min-w-0 flex-1">
-            <p className="text-xs font-semibold uppercase tracking-wider text-white/80">
+          <div className="min-w-0 flex-1 basis-56">
+            <p className="hidden text-xs font-semibold uppercase tracking-wider text-white/80 sm:block">
               {t("adminCandidateDetailEyebrow")}
             </p>
-            <h1 className="mt-1 break-words text-2xl font-semibold sm:text-3xl">
+            <h1 className="break-words text-xl font-semibold sm:mt-1 sm:text-3xl">
               {candidate.fullName}
             </h1>
             {assignment ? (
-              <p className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-sm text-white/90">
+              <p className="mt-1 flex flex-wrap gap-x-3 gap-y-0.5 text-sm text-white/90 sm:mt-2 sm:gap-x-4 sm:gap-y-1">
                 <span dir="ltr">
                   {t("adminCandidateRegistrationNumberShortLabel")}:{" "}
                   {displayRegistrationNumber(assignment.registrationNumber) || t("adminCandidateRegistrationNumberNotSet")}
@@ -131,7 +133,7 @@ export function CandidateWorkspace({ candidateId }: { candidateId: string }) {
                 <span>{assignment.craft.name}</span>
               </p>
             ) : null}
-            <p className="mt-3 text-sm text-white/80">
+            <p className="mt-3 hidden text-sm text-white/80 sm:block">
               {t("adminCandidateWorkspaceHelp")}
             </p>
           </div>
@@ -149,7 +151,7 @@ export function CandidateWorkspace({ candidateId }: { candidateId: string }) {
       <div
         role="tablist"
         aria-label={t("adminCandidateTabsLabel")}
-        className="my-5 flex flex-wrap gap-2 rounded-xl border border-border bg-surface p-2"
+        className="my-4 flex gap-2 overflow-x-auto rounded-xl border border-border bg-surface p-2 sm:my-5 sm:flex-wrap"
       >
         {sections.map(([id, label], index) => (
           <button
@@ -182,7 +184,7 @@ export function CandidateWorkspace({ candidateId }: { candidateId: string }) {
                 tabs.current[target]?.focus();
               }
             }}
-            className={`rounded-lg px-4 py-2 text-sm font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${section === id ? "bg-brand text-white shadow-sm" : "text-text-secondary hover:bg-surface-sunken"}`}
+            className={`shrink-0 whitespace-nowrap rounded-lg px-4 py-2 text-sm font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${section === id ? "bg-brand text-white shadow-sm" : "text-text-secondary hover:bg-surface-sunken"}`}
           >
             {t(label)}
           </button>

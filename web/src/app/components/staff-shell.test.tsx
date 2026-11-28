@@ -6,6 +6,7 @@ import { createMockStaffAuthClient, MOCK_STAFF_ACCOUNTS, MOCK_STAFF_PASSWORD } f
 import { LanguageProvider } from '../../contexts/LanguageContext';
 import { StaffAuthProvider } from '../../contexts/StaffAuthContext';
 import { StaffShell } from './staff-shell';
+import tailwindConfig from '../../../tailwind.config.js';
 
 const FINANCE = MOCK_STAFF_ACCOUNTS.find((account) => account.role === 'finance' && !account.locked && !account.suspended)!;
 const MANAGEMENT = MOCK_STAFF_ACCOUNTS.find((account) => account.role === 'management')!;
@@ -375,6 +376,55 @@ describe('StaffShell mobile navigation drawer', () => {
     expect(await screen.findAllByRole('link', { name: 'Finance payments' })).toHaveLength(1);
   });
 
+  // jsdom does not apply CSS, so a backdrop stacked over the drawer (which
+  // swallowed every tap on phones) is only catchable through the classes.
+  it('stacks the mobile drawer above its backdrop so taps reach the nav links', async () => {
+    await renderShellAs(ADMIN);
+    await screen.findByText('page content');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Menu' }));
+
+    const zIndex = tailwindConfig.theme.extend.zIndex as Record<string, string>;
+    const layer = (element: Element) => {
+      const token = [...element.classList].find((name) => name.startsWith('z-'))!.slice(2);
+      return Number(zIndex[token]);
+    };
+    const drawer = document.getElementById('staff-mobile-nav')!;
+    const backdrop = drawer.previousElementSibling!;
+    expect(layer(drawer)).toBeGreaterThan(layer(backdrop));
+  });
+
+  it('opens Profile from the account menu inside the mobile drawer', async () => {
+    await renderShellWithLocationProbe(ADMIN);
+    await screen.findByText('page content');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Menu' }));
+    const drawer = document.getElementById('staff-mobile-nav')!;
+    fireEvent.click(within(drawer).getByRole('button', { name: new RegExp(ADMIN.email) }));
+    const profile = within(drawer).getByRole('link', { name: 'Profile' });
+    // A real tap sends mousedown before click; the menu must not treat it as an outside tap.
+    fireEvent.mouseDown(profile);
+    fireEvent.click(within(drawer).getByRole('link', { name: 'Profile' }));
+
+    expect(await screen.findByTestId('location-probe')).toHaveTextContent('/admin/profile');
+  });
+
+  it('shows the signed-in account in the mobile top bar, with a working Profile link', async () => {
+    await renderShellWithLocationProbe(ADMIN);
+    await screen.findByText('page content');
+
+    // The phone top bar comes before the desktop header, which is mounted but hidden on phones.
+    const [topBarAccount] = screen.getAllByRole('button', { name: 'Account menu' });
+    fireEvent.click(topBarAccount);
+    const menu = topBarAccount.parentElement!;
+    expect(within(menu).getByText(ADMIN.email)).toBeInTheDocument();
+    const profile = within(menu).getByRole('link', { name: 'Profile' });
+    fireEvent.mouseDown(profile);
+    fireEvent.click(within(menu).getByRole('link', { name: 'Profile' }));
+
+    expect(await screen.findByTestId('location-probe')).toHaveTextContent('/admin/profile');
+  });
+
   it('renders a grouped section inside the mobile drawer without needing a toggle', async () => {
     await renderShellAs(MANAGEMENT);
     await screen.findByText('page content');
@@ -421,14 +471,14 @@ describe('StaffShell top header', () => {
     await screen.findByText('page content');
 
     expect(screen.getByRole('button', { name: ADMIN.email })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Account menu' })).toBeInTheDocument();
+    expect(within(screen.getByRole('banner')).getByRole('button', { name: 'Account menu' })).toBeInTheDocument();
   });
 
   it('opens the header account menu independently of the sidebar one, showing Profile/Sign out', async () => {
     await renderShellAs(ADMIN);
     await screen.findByText('page content');
 
-    fireEvent.click(screen.getByRole('button', { name: 'Account menu' }));
+    fireEvent.click(within(screen.getByRole('banner')).getByRole('button', { name: 'Account menu' }));
 
     expect(await screen.findAllByRole('link', { name: 'Profile' })).toHaveLength(1);
     expect(screen.getAllByRole('button', { name: 'Sign out' })).toHaveLength(1);
@@ -438,7 +488,7 @@ describe('StaffShell top header', () => {
     await renderShellAs(ADMIN);
     await screen.findByText('page content');
 
-    fireEvent.click(screen.getByRole('button', { name: 'Account menu' }));
+    fireEvent.click(within(screen.getByRole('banner')).getByRole('button', { name: 'Account menu' }));
     expect(await screen.findByRole('link', { name: 'Profile' })).toBeInTheDocument();
 
     fireEvent.mouseDown(document.body);

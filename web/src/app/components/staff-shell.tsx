@@ -119,8 +119,16 @@ function StaffShellContent({ children }: { children: ReactNode }) {
   });
   const [isAccountMenuOpen, setIsAccountMenuOpen] = useState(false);
   const [isHeaderAccountMenuOpen, setIsHeaderAccountMenuOpen] = useState(false);
+  // The desktop sidebar and header stay mounted (only hidden by CSS) on small
+  // screens, so the phone drawer and phone top bar each need their own account
+  // menu state and element: sharing one would treat a tap inside the visible
+  // menu as a tap outside the hidden one and close it before the link fires.
+  const [isDrawerAccountMenuOpen, setIsDrawerAccountMenuOpen] = useState(false);
+  const [isTopBarAccountMenuOpen, setIsTopBarAccountMenuOpen] = useState(false);
   const accountMenuRef = useRef<HTMLDivElement | null>(null);
   const headerAccountMenuRef = useRef<HTMLDivElement | null>(null);
+  const drawerAccountMenuRef = useRef<HTMLDivElement | null>(null);
+  const topBarAccountMenuRef = useRef<HTMLDivElement | null>(null);
 
   // Route changes (a nav click, browser back/forward, a redirect elsewhere in
   // the app) should always close a still-open mobile drawer or account menu --
@@ -129,6 +137,8 @@ function StaffShellContent({ children }: { children: ReactNode }) {
     setIsMobileNavOpen(false);
     setIsAccountMenuOpen(false);
     setIsHeaderAccountMenuOpen(false);
+    setIsDrawerAccountMenuOpen(false);
+    setIsTopBarAccountMenuOpen(false);
   }, [location.pathname]);
 
   // Each account menu (sidebar footer, header) closes on an outside click or
@@ -136,6 +146,8 @@ function StaffShellContent({ children }: { children: ReactNode }) {
   // useDismissableMenu.
   useDismissableMenu(accountMenuRef, isAccountMenuOpen, () => setIsAccountMenuOpen(false));
   useDismissableMenu(headerAccountMenuRef, isHeaderAccountMenuOpen, () => setIsHeaderAccountMenuOpen(false));
+  useDismissableMenu(drawerAccountMenuRef, isDrawerAccountMenuOpen, () => setIsDrawerAccountMenuOpen(false));
+  useDismissableMenu(topBarAccountMenuRef, isTopBarAccountMenuOpen, () => setIsTopBarAccountMenuOpen(false));
 
   useEffect(() => {
     window.localStorage.setItem(SIDEBAR_STATE_STORAGE_KEY, String(isSidebarCollapsed));
@@ -342,6 +354,35 @@ function StaffShellContent({ children }: { children: ReactNode }) {
           {isMobileNavOpen ? <X className="h-5 w-5" aria-hidden="true" /> : <Menu className="h-5 w-5" aria-hidden="true" />}
         </button>
         <BrandMark navLabel={navLabel} />
+        <div className="relative ms-auto" ref={topBarAccountMenuRef}>
+          <button
+            type="button"
+            aria-haspopup="true"
+            aria-expanded={isTopBarAccountMenuOpen}
+            aria-label={t('staffHeaderAccountMenuLabel')}
+            onClick={() => setIsTopBarAccountMenuOpen((open) => !open)}
+            className="flex h-9 w-9 items-center justify-center rounded-full bg-brand text-sm font-semibold text-brand-on transition-opacity hover:opacity-90"
+          >
+            {avatarInitial(session.email)}
+          </button>
+
+          {isTopBarAccountMenuOpen && (
+            <div className="absolute top-full end-0 z-fixed mt-1.5 w-56 overflow-hidden rounded-xl border border-border bg-surface-raised py-1 shadow-lg">
+              <div className="border-b border-border px-3 py-2.5">
+                <div className="truncate text-sm font-medium text-text-primary">{session.email}</div>
+                <Badge tone="neutral">{roleLabel}</Badge>
+              </div>
+              <Link to="/admin/profile" className={ACCOUNT_MENU_LINK_CLASSNAME}>
+                <User className="h-4 w-4" aria-hidden="true" />
+                {t('staffUserMenuProfile')}
+              </Link>
+              <button type="button" onClick={() => signOut()} className={`w-full text-start ${ACCOUNT_MENU_LINK_CLASSNAME}`}>
+                <LogOut className="h-4 w-4" aria-hidden="true" />
+                {t('staffAuthSignOut')}
+              </button>
+            </div>
+          )}
+        </div>
       </div>
 
       {isMobileNavOpen && (
@@ -353,7 +394,7 @@ function StaffShellContent({ children }: { children: ReactNode }) {
           />
           <div
             id="staff-mobile-nav"
-            className={`fixed inset-y-0 start-0 z-fixed flex w-72 max-w-[85vw] flex-col border-e shadow-lg lg:hidden ${SIDEBAR_SURFACE_CLASSNAME}`}
+            className={`fixed inset-y-0 start-0 z-modal flex w-72 max-w-[85vw] flex-col border-e shadow-lg lg:hidden ${SIDEBAR_SURFACE_CLASSNAME}`}
           >
             <SidebarContent
               navLabel={navLabel}
@@ -362,9 +403,9 @@ function StaffShellContent({ children }: { children: ReactNode }) {
               resolvedEntries={resolvedEntries}
               isActive={isActive}
               signOut={signOut}
-              isAccountMenuOpen={isAccountMenuOpen}
-              setIsAccountMenuOpen={setIsAccountMenuOpen}
-              accountMenuRef={null}
+              isAccountMenuOpen={isDrawerAccountMenuOpen}
+              setIsAccountMenuOpen={setIsDrawerAccountMenuOpen}
+              accountMenuRef={drawerAccountMenuRef}
               onNavigate={() => setIsMobileNavOpen(false)}
               isCollapsed={false}
               t={t}
